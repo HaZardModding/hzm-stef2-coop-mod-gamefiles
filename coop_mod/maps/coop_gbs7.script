@@ -1,0 +1,672 @@
+// EF2 Level Script File
+// Level			map6.bsp
+// Script by:			ltiefland, Chrissstrahl
+// Geometry by:			TRon, Argyle, TickNSwisted,Chrissstrahl
+// Created on:			10.12.2004
+// Last Updated on: 		03.03.2007
+// Last Updated by: 		Chrissstrahl
+
+void door_k_open();
+float number_weapons_taken;
+void obstacle();
+void intro_cin();
+void skip_intro_cin();
+void setup_world();
+void final_cin();
+void skip_final_cin();
+void levelchange();
+void doorLocked0();
+void doorLocked1();
+void doorLocked2();
+void doorLocked3();
+void main(); // needed by ALL scripts
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_batlethPickedUp();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+{
+	//hzm coop mod chrissstrahl - rotate batleth
+	$batleth.rotateX(33);
+
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	coop_string_objectiveItem4 = "Find an entrance to the remains of the outpost.";
+	coop_string_objectiveItem5 = "Go to the bridge of the warbird";
+	//Reroute power to the transporter and beam off the ship.
+	//Find Alexander Stammheim. He will be in a holding cell.
+	//Get to Stammheim's shuttle and escape with Stammheim.
+	//
+	//Time until Collision
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	coop_string_objectiveItem4_deu = "Finde einen Eingang zu den Überresten des Außenposten.";
+	coop_string_objectiveItem5_deu = "Gehe auf die Brücke des Warbirds";
+	//Leite Energie zum Transporter um und beame Dich vom Schiff.
+	//Finde Alexander Stammheim. Er wird in einer Zelle sein.
+	//Gehe zu Stammheims shuttle und fliehe mit Stammheim.
+	//
+	//Zeit bis zur Kollision
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	thread globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	
+	cam_fadeOut( .1, 0, 0, 0, 1, 0 );
+	setup_world();
+
+
+	playerDeathThread("playergotKilled");
+	thread intro_cin();
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed" , 1 , 0 );
+	globalCoop_objectives_update("complete" , 2 , 0 );
+	globalCoop_objectives_update("complete" , 3 , 0 );
+	globalCoop_objectives_update("incomplete" , 4 , 1 );
+}
+
+void setup_world()
+{
+	$mistvieh.ai_off();
+	$mistvieh.model( "char/alien-type1a-lurker-autopsy.tik" );	
+	$illia_prisoner.ai_off();
+	$illia_prisoner.anim( "cin-m8_situp" );
+	$illia_prisoner.killattach();//hzm coop mod chrissstrahl - remove anyweapon
+	$illia_transporter.ai_off();
+	$illia_transporter.hide();
+	$illia_bridge.ai_off();
+	$illia_bridge.hide();
+	$illia_bridge2.ai_off();
+	$illia_bridge2.hide();
+	$illia_shuttle.ai_off();
+	$illia_shuttle.hide();
+	$warbird.forcealpha( 1 );
+	$warbird.alpha( 0 );
+	$warbird.hide();
+	$scan_beam1.hide();
+	$scan_beam2.hide();
+//	$scan_beam3.hide(); #Does not exist Chrissstrahl@27.12.2006
+	$scan_beam4.hide();
+	$scan2_beam1.hide();
+	$scan2_beam2.hide();
+	$scan2_beam3.hide();
+	$scan2_beam4.hide();
+	$screen_on.hide();
+	$screen_off.show();
+	number_weapons_taken = 0;
+	$weapon1_steam.hide();
+	$weapon2_steam.hide();
+	$weapon3_steam.hide();
+	wait(0.2);
+	
+	//hzm coop mod chrissstrahl - make sure the guards at the batleth shrine do not get stuck
+	$holyProtector1.allowFall(1);
+	$holyProtector2.allowFall(1);
+	
+	//hzm coop mod chrissstrahl - look towards where the player comes from
+	$holyProtector1.angle(180);
+	
+	//hzm coop mod chrissstrahl - make em patrol
+	$patrol1.setTendency("patrol",1);
+	$patrol2.setTendency("patrol",1);
+	$patrol3.setTendency("patrol",1);
+	$patrol4.setTendency("patrol",1);
+	$patrol5.setTendency("patrol",1);
+}
+
+void warbird_cin()
+{
+	//hzm coop mod chrissstrahl - adjusted to make it work with the altred/added cinematic
+	cam_fadeOut( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	$cam2.follow( $map6_warbird );
+	$cam2.cut();
+	cuecamera($cam2);
+	wait( .1);
+	cam_fadein( 1 , 0, 0, 0, 1, 0 );
+	wait( 1 );
+	$warbird.playsound( "sound/cloak.wav", 0, 4, 20000 );
+	$warbird.fadein( 2, 1 );
+	$warbird.show();
+	wait(5);
+	cam_fadeOut( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+}
+
+void intro_cin()
+{
+	waitforPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	freezeplayer();
+	spawn ( "Camera" , "targetname" , "cam1" );
+	wait(.1);
+	$illia_shuttle.show();
+	$illia_shuttle.anim("cin-m7-end-sydney");
+	$illia_prisoner.renderEffects("minlight");
+	cinematic();
+	letterbox ( .1 );
+	$cam1.follow( $map6_planet );
+	$cam1.cut();
+	cuecamera($cam1);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	skipthread("skip_intro_cin");
+	$shuttle.bind( $shuttle_origin );
+	$shuttle_door.bind( $shuttle_origin );
+	$shuttle.playsound( "sound/vehicles/shuttlecraft/shuttle_decelerate.wav", 0, 4, 256 );
+	$shuttle_origin.time(10);
+	wait(.1);
+	$shuttle_origin.followpath( $shuttle_path, "normalangles" );
+
+	wait(3);
+	//hzm coop mod chrissstrahl - handle for multiplayer
+	globalCoop_player_transmittToAll( "showmenu antioch_System\n" );
+	wait(3);
+	
+	//hzm coop mod chrissstrahl - handle for multiplayer
+	globalCoop_player_transmittToAll( "popmenu 0\n" );
+	
+	wait(2);
+	$cam1.follow($map6_prisoner);
+	$cam1.cut();
+	wait(.5);
+	cuecamera($cam1);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/uneventful.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/surprise.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/notrace.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/ruins.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/begin.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	$cam1.follow($antioch_cam3);
+	$cam1.cut();
+	wait(.15);
+	cuecamera($cam1);
+	$illia_shuttle.DisplayEffect( "TransportOut", "Federation" );
+	wait(3.2);
+	thread skip_intro_cin();
+}
+
+void skip_intro_cin()
+{
+	//hzm coop mod chrissstrahl - fix sound and dialog on skip
+	$shuttle.stopsound(0);
+	$illia_prisoner.stopDialog();
+	
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	killthread ( "intro_cin" );
+	wait ( .5 );
+	noncinematic();
+	cueplayer ();
+	clearletterbox(.1);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+//	$player.playerViewangles('0 345 0');
+	
+	
+	//hzm coop mod chrissstrahl - move command here, this will make sure the player
+	//view gets not turned during cinematic ending, ensuring the player faces the correct angle
+	wait(0.1);
+	releaseplayer();
+	
+	
+	globalCommon_Autosave();
+	
+	//hzm coop mod chrissstrahl - make sure the menu does not stay on
+	globalCoop_player_transmittToAll( "popmenu 0\n" );
+	
+	//hzm coop mod chrissstrahl - show marker on radar
+	$tunnelMarker1.missionobjective(1);
+}
+
+void final_cin()
+{
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	freezeplayer();
+	wait( .5 );
+	
+	//hzm coop mod chrissstrahl - do not do this in coop
+	if(getcvarInt("g_gametype") != 1 ){
+		$player.hide();
+	}
+	
+	$illia_transporter.renderEffects("fullbright");
+	$illia_bridge2.renderEffects("fullbright");
+	$illia_bridge.renderEffects("fullbright");
+	spawn ( "Camera" , "targetname" , "cam3" );
+	spawn ( "Camera" , "targetname" , "cam4" );
+	spawn ( "Camera" , "targetname" , "cam5" );
+	wait( .1 );
+	cinematic();
+	letterbox ( .1 );
+	$illia_transporter.show();
+	wait( .1);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	skipthread("skip_final_cin");
+	$cam3.follow( $map6_transporter );
+	$cam3.cut();
+	$cam4.follow( $map6_bridge );
+	$cam4.cut();
+	wait( .5);
+	cuecamera($cam3);
+
+	wait(1);
+	$illia_transporter.DisplayEffect( "TransportOut", "Federation" );
+	wait(2);
+
+	cuecamera($cam4);
+
+	$illia_bridge.DisplayEffect( "TransportIn", "Federation" );
+	wait(2);
+	$illia_bridge.show();
+
+	$illia_bridge.headWatchTarget( "illia_look_first", 7 );
+	wait( 1 );
+	$illia_bridge.headWatchTarget( "illia_look_second", 7 );
+	wait( 2 );
+
+	$cam5.follow( $map6_prisoner );
+	$illia_bridge.hide();
+	$illia_bridge.notsolid();
+	$cam5.cut();
+	cuecamera($cam5);
+	$illia_prisoner.playdialog("localization/sound/dialog/map07/illia/ihadmydoubts.mp3",1,10000,0);
+	waitfordialog($illia_prisoner);
+	wait(.5);
+
+	$cam4.follow($map7_illia_cam1);
+	$cam4.cut();
+	wait(.5);
+	cuecamera($cam4);
+	//wait(5);
+	$illia_bridge2.show();
+	$illia_bridge2.anim( "cin-m7-end-sydney" );
+	$illia_bridge2.playdialog("localization/sound/dialog/map07/illia/proof.mp3",1,10000,0);
+	waitfordialog($illia_bridge2);
+	wait(3);
+
+	
+	thread skip_final_cin();
+}
+
+void skip_final_cin()
+{
+	killthread("final_cin");
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+	
+	noncinematic();
+	releaseplayer();
+	cueplayer ();
+	clearletterbox(.1);
+	levelchange();
+}
+
+void tunnelMarker1Reached()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$tunnelMarker1.missionobjective(0);
+	$tunnelMarker2.missionobjective(1);
+}
+void tunnelMarker2Reached()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$tunnelMarker2.missionobjective(0);
+	$tunnelMarker3.missionobjective(1);
+}
+void tunnelMarker3Reached()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$tunnelMarker3.missionobjective(0);
+	$door_k_top.missionobjective(1);
+}
+
+void transporter_platform()
+{
+	globalCoop_objectives_update("complete" , 5 , 1 );
+	thread final_cin();
+}
+
+void levelchange()
+{
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+}
+
+
+void door_k_open()
+{
+	//hzm coop mod Chrissstrahl - update objective to complete
+	globalCoop_objectives_update("complete" , 4 , 1 );
+	
+	$scan_beam2.playsound( "sound/weapons/romtricorder/tricord_scan.wav", 1 ,3 ,100 );
+	$scan_beam1.show();
+	$scan2_beam1.show();
+	wait(.3);
+	$scan_beam1.hide();
+	$scan2_beam1.hide();
+	$scan_beam2.show();
+	$scan2_beam2.show();
+	wait(.3);
+	$scan_beam2.hide();
+	$scan2_beam2.hide();
+	//$scan_beam3.show();#Does not exist Chrissstrahl@27.12.2006
+	$scan2_beam3.show();
+	wait(.3);
+	//$scan_beam3.hide();#Does not exist Chrissstrahl@27.12.2006
+	$scan2_beam3.hide();
+	$scan_beam4.show();
+	$scan2_beam4.show();
+	wait(.3);
+	$scan_beam4.hide();
+	$scan2_beam4.hide();
+	wait(.3);
+	$scan_beam2.remove();
+	
+//$player.setobjectiveComplete( "findEntrance", 1 );
+
+	wait(1.5);
+	
+	//hzm coop mod chrissstrahl - show marker on radar
+	$door_k_top.missionobjective(0);	
+	
+	//hzm coop mod chrissstrahl - stop sound
+	$scan_beam2.stopsound( 1 );
+
+	$door_k_top.time(1.5);
+	$door_k_left.time(1.5);
+	$door_k_right.time(1.5);
+	$door_k_lower.time(1.5);
+
+	$door_k_top.moveUp( 72 );
+	$door_k_left.moveWest( 50 );
+	$door_k_right.moveEast( 50 );
+	$door_k_lower.moveDown( 50 );
+	$door_k_top.playsound( "sound/doors/kling_shipdoor.wav", 3 ,7 ,100 );
+
+	wait(4);
+	$weapon1.time(2);
+	$weapon2.time(2);
+	$weapon3.time(2);
+
+	$weapon1.rotateZup( -100 );
+	$weapon1_steam.show();
+	$weapon1.playsound( "sound/environment/machine/lift2.wav");
+	wait(.5);
+
+	$weapon1_steam.hide();
+	$weapon2_steam.show();
+	$weapon2.rotateZup( -100 );
+	$weapon2.playsound( "sound/environment/machine/lift2.wav");
+	wait(.5);
+
+	$weapon2_steam.hide();
+	$weapon3_steam.show();
+	$weapon3.rotateZup( -100 );
+	$weapon3.playsound( "sound/environment/machine/lift2.wav");
+
+	wait(.5);
+	$weapon3_steam.hide();
+}
+
+void weapon_taken()
+{
+	//hzm coop mod chrissstrahl - give weapon to all players, make them use the weapon instantly
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	string sPickup;
+	sPickup = "models/weapons/";
+	sPickup = ( sPickup + eTrigger.getStringvar("uservar1"));
+	globalCoop_armory_weaponRegister(sPickup);
+	globalCoop_armory_useTiki(sPickup);
+	
+	if(eTrigger.getRawTargetname() == "weapon1Trigger"){
+		if(doesEntityExist($weapon1Model)){
+			$weapon1Model.remove();
+		}
+	}else if(eTrigger.getRawTargetname() == "weapon2Trigger"){
+		if(doesEntityExist($weapon2Model)){
+			$weapon2Model.remove();
+		}
+	}
+	else if(eTrigger.getRawTargetname() == "weapon3Trigger"){
+		if(doesEntityExist($weapon3Model)){
+			$weapon3Model.remove();
+		}
+	}
+	
+	number_weapons_taken++;
+	if (number_weapons_taken == 3)
+	{
+		//hzm coop mod chrissstrahl - show marker on radar
+		$screen_off.missionobjective(1);
+	
+		wait(2);
+		$transporter_door_left.time(1.5);
+		$transporter_door_right.time(1.5);
+		$transporter_door_left.moveWest(80);
+		$transporter_door_right.moveEast(80);
+		$transporter_door_right.playsound( "sound/doors/sfa_regdoor.wav");
+	}
+}
+
+void transporter_room_entered()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$screen_off.missionobjective(0);
+		
+//hzm coop mod chrissstrahl - make this shitt cinematic
+	spawn ( "Camera" , "targetname" , "cam2" );
+	cam_fadeOut( 1, 0, 0, 0, 1, 0 );
+	cinematic();
+	wait( 1 );
+	letterbox ( .1 );
+	freezeplayer();
+	
+	$cam2.follow( $viewscreenCinematic );
+	$cam2.cut();
+	cuecamera($cam2);	
+	
+	cam_fadeIn( 1, 0, 0, 0, 1, 0 );
+	$screen_off.hide();
+	$screen_on.show();
+	$stevens.renderEffects("fullbright");
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/goodday.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(1);//hzm coop mod chrissstrahl - added to compensate german dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/recorded.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(2);//hzm coop mod chrissstrahl - added to compensate german dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/ihope.mp3",1,10000,0);
+	waitfordialog($stevens);
+	warbird_cin();
+	
+	$cam2.follow( $viewscreenCinematic );
+	$cam2.cut();
+	cuecamera($cam2);
+	
+	wait(0.5);
+	
+	cam_fadein(1, 0, 0, 0, 1, 0 );
+	
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/wehave.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(2);//hzm coop mod chrissstrahl - added to compensate german dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/insteadof.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(2);//hzm coop mod chrissstrahl - added to compensate german dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/enterprise.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(4);//hzm coop mod chrissstrahl - added to compensate german dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/exomorphs.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(1);//hzm coop mod chrissstrahl - added to compensate english dialog length
+	$stevens.playdialog("localization/sound/dialog/map07/stevens/iamsure.mp3",1,10000,0);
+	waitfordialog($stevens);
+	wait(1);//hzm coop mod chrissstrahl - added to compensate english dialog length
+
+	$screen_on.hide();
+	$screen_off.show();
+
+
+	noncinematic();
+	releaseplayer();
+	cueplayer();
+	clearletterbox(.1);
+	cam_fadein(1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - show marker on radar
+	$transporter_platform.missionobjective(1);
+	
+	wait(1);
+	obstacle();
+}
+
+void obstacle()
+{
+	float move_val = 140;
+	float delay_val = .3;
+
+	$screen_off.show();
+	$screen_on.hide();
+
+	$obstacle1.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle1.moveDown(move_val);
+	$down_obstacle1.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle2.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle2.moveDown(move_val);
+	$down_obstacle2.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle3.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle3.moveDown(move_val);
+	$down_obstacle3.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle4.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle4.moveDown(move_val);
+	$down_obstacle4.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle5.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle5.moveDown(move_val);
+	$down_obstacle5.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle6.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle6.moveDown(move_val);
+	$down_obstacle6.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle7.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle7.moveDown(move_val);
+	$down_obstacle7.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle8.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle8.moveDown(move_val);
+	$down_obstacle8.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle9.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle9.moveDown(move_val);
+	$down_obstacle9.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle10.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle10.moveDown(move_val);
+	$down_obstacle10.moveUp(move_val);
+	wait(delay_val);
+
+	$obstacle11.playsound( "sound/environment/machine/mech_move1.wav");
+	$obstacle11.moveDown(move_val);
+}
+
+void doorLocked0()
+{
+	$door0.nottriggerable();
+	$door0.playSound( "sound/doors/door_locked.wav", 3, 4, 50 );
+	waitForSound( "door_locked.wav", 0.2 );
+	$door0.triggerable();
+}
+void doorLocked1()
+{
+	$door1.nottriggerable();
+	$door1.playSound( "sound/doors/door_locked.wav", 3, 4, 50 );
+	waitForSound( "door_locked.wav", 0.2 );
+	$door1.triggerable();
+}
+void doorLocked2()
+{
+	$door2.nottriggerable();
+	$door2.playSound( "sound/doors/door_locked.wav", 3, 4, 50 );
+	waitForSound( "door_locked.wav", 0.2 );
+	$door2.triggerable();
+}
+void doorLocked3()
+{
+	$door3.nottriggerable();
+	$door3.playSound( "sound/doors/door_locked.wav", 3, 4, 50 );
+	waitForSound( "door_locked.wav", 0.2 );
+	$door3.triggerable();
+}
+
+
+void playergotKilled()
+//played when player dies
+{
+	//hzm coop mod chrissstrahl - do not do this in coop
+	if(getcvarInt("g_gametype") == 1 ){
+		return;
+	}
+	$player.setobjectivefailed("findEntrance", 1);
+	$player.missionfailed("findEntrance");
+}
+
+void teekanneGetsSpawned()
+{
+	//hzm coop mod chrissstrahl - give level/story specific name to the actor
+	while(!doesEntityExist($teekanne)){
+		wait(0.05);
+	}
+	$teekanne.setStringVar("uservar1","name a Klingon Warrior");
+	$teekanne.setStringVar("uservar2","name_de einem Klingonischem Krieger");
+}
+
+void coop_batlethPickedUp()
+{
+	//hzm coop mod chrissstrahl - give weapon to all players, make them use the weapon instantly
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Batleth.tik");
+	globalCoop_armory_useTiki("models/weapons/worldmodel-Batleth.tik");
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs8");
+}
+

@@ -1,0 +1,356 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Mission Wide Script
+//
+//  Function:
+//	This script is the system that determines what objective blip should be shown
+//	on the tricorder radar
+//
+//
+//	External Functions:
+//
+//
+//	Script By:    Benson R
+//  Created on:   11/15/2002
+//
+//  Last Edited:  Benson R
+//
+//--------------------------------------------------------------------------------------
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DECLARATIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--- external functions
+void m2Objective_SetPlayerLocation();
+void m2Objective_SetObjectiveLocation( entity entObjective, float fltLocation );
+void m2Objective_Update();
+
+//--- internal functions
+void m2Objective_Update_ResetWaypoint( entity entWaypoint );
+void m2Objective_Update_SetWaypoint( entity entWaypoint );
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CONSTANTS
+
+//--- locations
+float M2OBJECTIVE_MAIN_BUILDING = 1;
+float M2OBJECTIVE_OUTSIDE = 2;
+float M2OBJECTIVE_FACULTY = 3;
+float M2OBJECTIVE_LECTURE_HALL = 4;
+float M2OBJECTIVE_CAFETERIA = 5;
+float M2OBJECTIVE_NONE = 6;
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float enumM2Objective_LocationPlayer = 1;
+float enumM2Objective_LocationObjective = 1;
+
+entity entM2Objective_Objective;
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  EXTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Objective_SetPlayerLocation
+// set the player location based on the trigger he just entered
+//---------------------
+void m2Objective_SetPlayerLocation()
+{
+	entity entTrigger;
+	
+	//--- grab the trigger
+	entTrigger = getCurrentEntity();
+	
+	//--- set the location
+	enumM2Objective_LocationPlayer = entTrigger.getfloatvar( "uservar1" );
+	
+	//print( "M2OBJECTIVE SET PLAYER: setting player location: " + enumM2Objective_LocationPlayer + "\n" );
+	
+	//--- launch the update function
+	thread m2Objective_Update();
+}
+
+
+//---------------------
+// m2Objective_SetObjectiveLocation
+// entObjective - entity, the objective entity
+// fltLocation - float, the location to set
+// set the objective location to the passed in location
+//---------------------
+void m2Objective_SetObjectiveLocation( entity entObjective, float fltLocation )
+{
+	//--- store the objective entity
+	entM2Objective_Objective = entObjective;
+
+	//--- set the location to the passed value
+	enumM2Objective_LocationObjective = fltLocation;
+
+	//print( "M2OBJECTIVE SET OBJECT: setting objective location: " + enumM2Objective_LocationObjective + " : on entity: " + entObjective.getrawtargetname() + "\n" );
+
+	//--- launch the update function
+	thread m2Objective_Update();
+}
+
+
+//---------------------
+// m2Objective_Update
+// figure out which object to show as the current objective based on location
+//---------------------
+void m2Objective_Update()
+{
+	float fltDistance1;
+	float fltDistance2;
+
+	//--- clear all the objective waypoints
+	m2Objective_Update_ResetWaypoint( $waypointMainBuilding_Outside1 );
+	m2Objective_Update_ResetWaypoint( $waypointMainBuilding_Outside2 );
+	m2Objective_Update_ResetWaypoint( $waypointOutside_MainBuilding1 );
+	m2Objective_Update_ResetWaypoint( $waypointOutside_MainBuilding2 );
+	m2Objective_Update_ResetWaypoint( $waypointOutside_LectureHall );
+	m2Objective_Update_ResetWaypoint( $waypointOutside_Faculty );
+	m2Objective_Update_ResetWaypoint( $waypointOutside_Cafeteria );
+	m2Objective_Update_ResetWaypoint( $waypointLectureHall_Outside );
+	m2Objective_Update_ResetWaypoint( $waypointFaculty_Outside );
+	m2Objective_Update_ResetWaypoint( $waypointCafeteria_Outside );
+	
+	//--- update the skybox
+	print( "PLAYERS LOCATION: " + enumM2Objective_LocationPlayer + "\n" );
+	if( enumM2Objective_LocationPlayer != M2OBJECTIVE_OUTSIDE )
+	{
+		//--- on stemmons office floor
+		$skySFA.show();
+		$skySFADome.surface( "material2", "+nodraw" );
+		$skySFADome.surface( "material3", "+nodraw" );
+		$skySFAShuttle1.hide();
+		$skySFAShuttle2.hide();
+	}
+	else
+	{
+		//--- everywhere else
+		$skySFA.hide();
+		$skySFADome.surface( "material2", "-nodraw" );
+		$skySFADome.surface( "material3", "-nodraw" );
+		$skySFAShuttle1.show();
+		$skySFAShuttle2.show();
+	}
+	
+	//--- if the player's location is set to none, then return
+	if( enumM2Objective_LocationObjective == M2OBJECTIVE_NONE )
+	{
+		//print( "M2OBJECTIVE UPDATE: objective set to NONE\n" );
+		return;
+	}
+
+	//--- if the objective is in the same location as the player, then show it
+	if( enumM2Objective_LocationPlayer == enumM2Objective_LocationObjective )
+	{
+		//print( "M2OBJECTIVE UPDATE: objective is in the player's current location\n" );
+		entM2Objective_Objective.missionobjective( 1 );
+		return;
+	}
+	else
+	{
+		//--- clear the mission objective on the entity
+    	if( doesEntityExist( entM2Objective_Objective ) )
+    	{
+    		entM2Objective_Objective.missionobjective( 0 );
+    	}
+    }
+
+	
+	//--------------------------------------------------------------------------------
+	//--------------------------------------------------------------------------------
+	//--- check the player's location and highlight the proper waypoint
+	
+	
+	//--------------------------------------------------------
+	//--- check for main building
+	if( enumM2Objective_LocationPlayer == M2OBJECTIVE_MAIN_BUILDING )
+	{
+		//print( "M2OBJECTIVE UPDATE: the player's location is in the main building\n" );
+		//--- the player's in the main building
+		
+		//hzm coop mod chrissstrahl - check
+		entity eClostest;
+		vector vOrigin;
+		eClosest = globalCoop_return_playerClosestActive($waypointMainBuilding_Outside1);
+		
+		fltDistance1 = 1;
+		fltDistance2 = 0;
+		
+		if(doesEntityExist(eClosest)){
+			if(!globalCoop_check_playerSpectator(eClostest)){
+				vOrigin = eClostest.getorigin();
+				
+				fltDistance1 = globalMath_GetXYDistance( vOrigin, $waypointMainBuilding_Outside1.getorigin() );
+				fltDistance2 = globalMath_GetXYDistance( vOrigin, $waypointMainBuilding_Outside2.getorigin() );
+			}
+		}
+		
+		
+		//fltDistance1 = globalMath_GetXYDistance( $player.getorigin(), $waypointMainBuilding_Outside1.getorigin() );
+		//fltDistance2 = globalMath_GetXYDistance( $player.getorigin(), $waypointMainBuilding_Outside2.getorigin() );
+		//eof HZM
+		
+		//--- pick the closeset one
+		if( fltDistance1 < fltDistance2 )
+		{
+			m2Objective_Update_SetWaypoint( $waypointMainBuilding_Outside1 );
+		}
+		else
+		{
+			m2Objective_Update_SetWaypoint( $waypointMainBuilding_Outside2 );
+		}
+		
+		return;
+	}
+
+	//--------------------------------------------------------
+	//--- check for outside
+	if( enumM2Objective_LocationPlayer == M2OBJECTIVE_OUTSIDE )
+	{
+		//print( "M2OBJECTIVE UPDATE: the player's location is outside\n" );
+		//--- set the waypoint based on where the objective is
+		if( enumM2Objective_LocationObjective == M2OBJECTIVE_MAIN_BUILDING )
+		{
+			//print( "M2OBJECTIVE UPDATE: the objective's location is in the main building\n" );
+			
+			
+			//hzm coop mod chrissstrahl - check
+			entity eClostest;
+			vector vOrigin;
+			eClosest = globalCoop_return_playerClosestActive($waypointMainBuilding_Outside1);
+			
+			fltDistance1 = 1;
+			fltDistance2 = 0;
+			
+			if(doesEntityExist(eClosest)){
+				if(!globalCoop_check_playerSpectator(eClostest)){
+					vOrigin = eClostest.getorigin();
+					
+					fltDistance1 = globalMath_GetXYDistance( vOrigin, $waypointOutside_MainBuilding1.getorigin() );
+					fltDistance2 = globalMath_GetXYDistance( vOrigin, $waypointOutside_MainBuilding2.getorigin() );
+				}
+			}
+			
+			
+    		//--- the player's in the main building
+    		//fltDistance1 = globalMath_GetXYDistance( $player.getorigin(), $waypointOutside_MainBuilding1.getorigin() );
+    		//fltDistance2 = globalMath_GetXYDistance( $player.getorigin(), $waypointOutside_MainBuilding2.getorigin() );
+			//eof HZM
+    		
+    		//--- pick the closeset one
+    		if( fltDistance1 < fltDistance2 )
+    		{
+    			m2Objective_Update_SetWaypoint( $waypointOutside_MainBuilding1 );
+    		}
+    		else
+    		{
+    			m2Objective_Update_SetWaypoint( $waypointOutside_MainBuilding2 );
+    		}
+		
+			return;
+		}
+		
+		if( enumM2Objective_LocationObjective == M2OBJECTIVE_FACULTY )
+		{
+			//print( "M2OBJECTIVE UPDATE: the objective's location is in the faculty building\n" );
+			m2Objective_Update_SetWaypoint( $waypointOutside_Faculty );
+			return;
+		}
+
+		if( enumM2Objective_LocationObjective == M2OBJECTIVE_LECTURE_HALL )
+		{
+			//print( "M2OBJECTIVE UPDATE: the objective's location is in the lecture hall\n" );
+			m2Objective_Update_SetWaypoint( $waypointOutside_LectureHall );
+			return;
+		}
+
+		if( enumM2Objective_LocationObjective == M2OBJECTIVE_CAFETERIA )
+		{
+			//print( "M2OBJECTIVE UPDATE: the objective's location is in the cafeteria\n" );
+			m2Objective_Update_SetWaypoint( $waypointOutside_Cafeteria );
+			return;
+		}
+	}
+
+	//--------------------------------------------------------
+	//--- check for faculty
+	if( enumM2Objective_LocationPlayer == M2OBJECTIVE_FACULTY )
+	{
+		//print( "M2OBJECTIVE UPDATE: the player's location is in the faculty building\n" );
+		m2Objective_Update_SetWaypoint( $waypointFaculty_Outside );
+		return;
+	}
+
+	//--------------------------------------------------------
+	//--- check for lecture hall
+	if( enumM2Objective_LocationPlayer == M2OBJECTIVE_LECTURE_HALL )
+	{
+		//print( "M2OBJECTIVE UPDATE: the player's location is in the lecture hall\n" );
+		m2Objective_Update_SetWaypoint( $waypointLectureHall_Outside );
+		return;
+	}
+
+	//--------------------------------------------------------
+	//--- check for cafeteria
+	if( enumM2Objective_LocationPlayer == M2OBJECTIVE_CAFETERIA )
+	{
+		//print( "M2OBJECTIVE UPDATE: the player's location is in the cafeteria\n" );
+		m2Objective_Update_SetWaypoint( $waypointCafeteria_Outside );
+		return;
+	}
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  INTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Objective_Update_ResetWaypoint
+// entWaypoint - entity, waypoint passed in
+// resets the waypoint
+//---------------------
+void m2Objective_Update_ResetWaypoint( entity entWaypoint )
+{
+	if( doesEntityExist( entWaypoint ) )
+	{
+    	entWaypoint.missionobjective( 0 );
+    	entWaypoint.archetype( "" );
+    }
+}
+
+
+//---------------------
+// m2Objective_Update_SetWaypoint
+// entWaypoint - entity, waypoint passed in
+// sets the waypoint
+//---------------------
+void m2Objective_Update_SetWaypoint( entity entWaypoint )
+{
+	if( doesEntityExist( entWaypoint ) )
+	{
+    	entWaypoint.missionobjective( 1 );
+    	entWaypoint.archetype( "Waypoint" );
+    }
+}
+

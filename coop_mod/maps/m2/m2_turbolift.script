@@ -1,0 +1,1366 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Mission Wide Script
+//
+//  Function:
+//	This script is the turbolift logic and functionality for SFA
+//
+//
+//	External Functions:
+//	m2Turbolift_Setup( strLift )
+//		This function sets up a turbo lift
+//		strLift, string - the basename of the lift
+//
+//	m2Turbolift_Lock( string strLift )
+//		This function will lock a turbolift
+//		strLift, string - the basename of the lift
+//
+//	m2Turbolift_Unlock( string strLift )
+//		This function unlocks a turbolift
+//		strLift, string - the basename of the lift
+//
+//	Script By:    Benson R
+//  Created on:   10/24/2002
+//
+//  Last Edited:  Benson R
+//
+//--------------------------------------------------------------------------------------
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DECLARATIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--- external functions
+void m2Turbolift_Setup( string strLift );
+void m2Turbolift_Lock( string strLift );
+void m2Turbolift_Unlock( string strLift );
+
+//----------------------
+//--- internal functions
+
+//--- logic functions
+void m2Turbolift_CallLift();
+void m2Turbolift_UseLift();
+float m2Turbolift_CheckLift( entity entCab );
+
+//--- position lift functions
+void m2Turbolift_PositionCab( string strLift, float fltLocation );
+void m2Turbolift_MoveLift( string strLift, float fltLocation );
+
+//--- sound location functions
+void m2Turbolift_SoundDestination( float fltDestination );
+
+//--- door functions
+void m2Turbolift_DoorOpen( string strLift, float fltLocation );
+void m2Turbolift_DoorClose( string strLift, float fltLocation );
+string m2Turbolift_DoorCloseDirection( string strOpenDirection );
+void m2Turbolift_DoorMove( entity entDoor1, string strDoor1Direction, float fltDistance );
+
+//--- getter functions
+entity m2Turbolift_GetCab( string strLift );
+entity m2Turbolift_GetCabOrigin( string strLift );
+entity m2Turbolift_GetCabPanel( string strLift );
+entity m2Turbolift_GetCabPanelArchetype( string strLift );
+entity m2Turbolift_GetDoor1( string strLift, float fltLocation );
+entity m2Turbolift_GetDoor2( string strLift, float fltLocation );
+entity m2Turbolift_GetCallTrigger( string strLift, float fltLocation );
+entity m2Turbolift_GetPositionMarker( string strLift, float fltLocation );
+entity m2Turbolift_GetLightLocked( string strLift, float fltLocation );
+entity m2Turbolift_GetLightReady( string strLift, float fltLocation );
+entity m2Turbolift_GetLightBusy( string strLift, float fltLocation );
+float m2Turbolift_GetPosition( entity entCab );
+float m2Turbolift_GetState( entity entCab );
+string m2Turbolift_GetLiftName( entity entEntity );
+float m2Turbolift_GetLocation( entity entEntity );
+string m2Turbolift_GetCaller( entity entCab );
+
+//--- setter functions
+void m2Turbolift_SetPosition( entity entCab, float fltPosition );
+void m2Turbolift_SetState( entity entCab, float fltState );
+void m2Turbolift_SetLiftName( entity entEntity, string strLiftName );
+void m2Turbolift_SetLocation( entity entEntity, float fltLocation );
+void m2Turbolift_SetCaller( entity entCab, entity entCaller );
+
+//--- location status light indicator functions
+void m2Turbolift_SetLightIndicator_Locked( string strLift, float fltLocation );
+void m2Turbolift_SetLightIndicator_Ready( string strLift, float fltLocation );
+void m2Turbolift_SetLightIndicator_Busy( string strLift, float fltLocation );
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- PARAMETER CONSTANTS
+
+//--- cycle timings
+float CYCLE_TIME_CAB_PANEL = 1;			//how long of a wait before you can use the cab panel again
+float CYCLE_TIME_CALL = 1;				//how long of a wait before the call trigger again
+float CYCLE_CHECK_LIFT = .1;			//how many seconds between checks on the lift check function
+
+//--- elevator door
+float LIFT_DOOR_TIME = .25;				//how long it takes to move a lift door
+float LIFT_DOOR_DISTANCE = 44;			//how far to move the lift doors, in units
+
+//--- distance check tolerances
+float DISTANCE_ON_ELEVATOR_TOLERANCE = 256; //134 is close call  //256		//the tolerance to check against the player to see
+												//if he's left the lift
+
+//--- in-motion times
+float TIME_IN_MOTION = 2.5;			//the amount of time the lift is in motion
+
+//--- sounds
+string M2TURBOLIFT_SOUND_LOCKED = "sound/environment/computer/access_denied.wav";			//played when the turbolift is locked
+string M2TURBOLIFT_SOUND_ERROR = "sound/environment/computer/lcars_no.wav";					//played when using the cab panel when it's in motion
+string M2TURBOLIFT_SOUND_ACCEPT = "sound/environment/computer/lcars_yes.wav";				//played when using the cab panel and operating the lift
+string M2TURBOLIFT_SOUND_LIFT_MOTION = "sound/ships/enterprise/ent_turbolift_runloop.wav";	//played when the lift is in motion
+string M2TURBOLIFT_SOUND_LIFT_STOP = "sound/ships/enterprise/ent_turbolift_stop.wav";		//played when the lift stops
+string M2TURBOLIFT_SOUND_DOOR_MOTION = "sound/doors/enterprise_turbodoor1.wav";				//door sound for when they open and close
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- ENUMERATED LISTS CONSTANTS
+
+//--- position constants
+float POSITION_TRANSIT = 0;
+float POSITION_LOCATION1 = 1;
+float POSITION_LOCATION2 = 2;
+
+//--- state constants
+float STATE_READY = 0;
+float STATE_BUSY = 1;
+float STATE_LOCKED = 2;
+
+//--- sound destination constanants
+float M2TURBOLIFT_DEST_GROUND = 1;
+float M2TURBOLIFT_DEST_LECTUREHALL = 2;
+float M2TURBOLIFT_DEST_HEADMASTER = 3;
+float M2TURBOLIFT_DEST_7THFLOOR = 4;
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  SETUP AND EXTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_Setup
+// strLift - String, the base name of the lift to setup
+// setup for and call the functionary armature cinematic
+//---------------------
+void m2Turbolift_Setup( string strLift )
+{
+	entity entTrigger_Location1Call;
+	entity entTrigger_Location2Call;
+	entity entTrigger_CabPanel;
+	entity entArchetype_CabPanel;
+	entity entCabOrigin;
+	entity entCab;
+	
+	//---------------------------------------------------
+	//--- setup the cab
+	//---------------------------------------------------
+	//--- grab the cab
+	entCab = m2Turbolift_GetCab( strLift );
+
+	//--- assign the values onto the cab
+	m2Turbolift_SetLiftName( entCab, strLift );				//the base name
+	m2Turbolift_SetState( entCab, STATE_READY );			//the state of the lift
+	m2Turbolift_SetPosition( entCab, POSITION_LOCATION1 );	//it's current position
+
+	//---------------------------------------------------
+	//--- setup the cab origin
+	//---------------------------------------------------
+	//--- grab the cab origin
+	entCabOrigin = m2Turbolift_GetCabOrigin( strLift );
+
+	//--- bind the cab to the cab origin
+	entCab.bind( entCabOrigin );
+	
+	//---------------------------------------------------
+	//--- setup the cab panel trigger
+	//---------------------------------------------------
+	//--- grab the cab panel
+	entTrigger_CabPanel = m2Turbolift_GetCabPanel( strLift );
+	
+	//--- assign the values onto the trigger
+	m2Turbolift_SetLiftName( entTrigger_CabPanel, strLift );	//the base name
+	entTrigger_CabPanel.thread( "m2Turbolift_UseLift" );		//the thread to call when the panel is used
+	entTrigger_CabPanel.wait( CYCLE_TIME_CAB_PANEL );			//how long to wait between re-triggers
+	
+	//--- bind the trigger to the cab
+	entTrigger_CabPanel.bind( entCab );
+	
+	//---------------------------------------------------
+	//--- setup the cab panel trigger
+	//---------------------------------------------------
+	//--- grab the cab panel
+	entArchetype_CabPanel = m2Turbolift_GetCabPanelArchetype( strLift );
+	
+	//--- make the archetype
+	globalArchetype_Setup( entArchetype_CabPanel, "TurboLiftControls" );
+	wait( .1 );
+
+	//--- grab the cab panel
+	entArchetype_CabPanel = m2Turbolift_GetCabPanelArchetype( strLift );
+	
+	//--- bind the archetype to the cab
+	entArchetype_CabPanel.bind( entCab );
+	
+	//---------------------------------------------------
+	//--- setup the location 1 call trigger
+	//---------------------------------------------------
+	//--- grab the location 1 call trigger
+	entTrigger_Location1Call = m2Turbolift_GetCallTrigger( strLift, 1 );
+	
+	//--- assign the values onto the trigger
+	m2Turbolift_SetLiftName( entTrigger_Location1Call, strLift );	//the base name
+	m2Turbolift_SetLocation( entTrigger_Location1Call, 1 );			//the location of this trigger
+	entTrigger_Location1Call.thread( "m2Turbolift_CallLift" );		//the thread to call when this trigger is entered
+	entTrigger_Location1Call.wait( CYCLE_TIME_CALL );				//how long to wait between re-triggers
+	
+	//---------------------------------------------------
+	//--- setup the location 2 call trigger
+	//---------------------------------------------------
+	//--- grab the location 2 call trigger
+	entTrigger_Location2Call = m2Turbolift_GetCallTrigger( strLift, 2 );	
+	
+	//--- assign the values onto the trigger
+	m2Turbolift_SetLiftName( entTrigger_Location2Call, strLift );	//the base name
+	m2Turbolift_SetLocation( entTrigger_Location2Call, 2 );			//the location of this trigger
+	entTrigger_Location2Call.thread( "m2Turbolift_CallLift" );		//the thread to call when this trigger is entered
+	entTrigger_Location2Call.wait( CYCLE_TIME_CALL );				//how long to wait between re-triggers
+
+	wait( .1 );
+
+	//---------------------------------------------------
+	//--- postion and set the cab for location 1
+	//---------------------------------------------------
+	//--- potision the cab in location1
+	m2Turbolift_PositionCab( strLift, POSITION_LOCATION1 );
+	
+	//--- set the light indicators
+	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION1 );
+	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION2 );
+}
+
+
+
+//---------------------
+// m2Turbolift_Lock
+// strLift - String, the base name of the lift to setup
+// locks a turbolift
+//---------------------
+void m2Turbolift_Lock( string strLift )
+{
+	entity entCab;
+	
+	entCab = m2Turbolift_GetCab( strLift );
+
+	//--- if the lift is busy, wait
+	while( m2Turbolift_GetState( entCab ) != STATE_READY )
+	{
+		wait( .1 );
+	}
+	
+	//--- set the state to locked
+	m2Turbolift_SetState( entCab, STATE_LOCKED );
+	
+	//--- set the lights to locked
+	m2Turbolift_SetLightIndicator_Locked( strLift, POSITION_LOCATION1 );
+	m2Turbolift_SetLightIndicator_Locked( strLift, POSITION_LOCATION2 );
+}
+
+
+//---------------------
+// m2Turbolift_Unlock
+// strLift - String, the base name of the lift to setup
+// unlocks a turbolift
+//---------------------
+void m2Turbolift_Unlock( string strLift )
+{
+	entity entCab;
+	
+	entCab = m2Turbolift_GetCab( strLift );
+
+	//--- if the lift is busy, wait
+	while( m2Turbolift_GetState( entCab ) != STATE_LOCKED )
+	{
+		wait( .1 );
+	}
+	
+	//--- set the state to locked
+	m2Turbolift_SetState( entCab, STATE_READY );
+	
+	//--- set the lights to locked
+	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION1 );
+	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION2 );
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  LOGIC FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_CallLift
+// The call logic for the lift
+//---------------------
+void m2Turbolift_CallLift()
+{
+	//print( "CALL LIFT: calling lift\n" );
+	entity ePlayer;
+	entity entTrigger, entCab;
+	
+	string strLift;
+	
+	float fltState, fltLocation, boolPlayerOffLift;
+	
+	//--- grab the state
+	entTrigger	= getCurrentEntity();
+	ePlayer		= entTrigger.getLastActivatingEntity();
+	
+	strLift = m2Turbolift_GetLiftName( entTrigger );
+	entCab = m2Turbolift_GetCab( strLift );
+	fltState = m2Turbolift_GetState( entCab );
+	
+	//print( "CALL LIFT: grabbing all the entities and states\n" );
+	//print( "CALL LIFT: call trigger activated: " + entTrigger.getrawtargetname() + "\n" );
+	//print( "CALL LIFT: strLift stored on trigger: " + strLift + "\n" );
+	//print( "CALL LIFT: cab entity: " + entCab.getrawtargetname() + "\n" );
+	//print( "CALL LIFT: state of cab entity: " + fltState + "\n" );
+	
+	//--- if the lift is locked, play sound and exit out
+	if( fltState == STATE_LOCKED )
+	{
+		//--- play lift locked sound
+		entTrigger.playsound( M2TURBOLIFT_SOUND_LOCKED, 0, 1, 128 );
+		return;
+	}
+	
+	//print( "CALL LIFT: lift is not locked\n" );
+	
+	//--- if the lift is busy, play the busy sound and exit out
+	if( fltState == STATE_BUSY )
+	{
+		//--- the lift's in use
+		return;
+	}
+	
+	//hzm coop mod chrissstrahl, do not open the door if a player is not approaching the lift
+	//we do this check here so we can close the doors earlier, avoiding players to block others
+	//useing the lift...
+	vector vecCurrentPos;
+	entity entCurrentLocationMarker;
+	float fltCurrentLocation,fltPlayerXYDistance;
+	fltCurrentLocation = m2Turbolift_GetLocation( m2Turbolift_GetCabPanel( strLift ) );
+	entCurrentLocationMarker	= m2Turbolift_GetPositionMarker( strLift, fltCurrentLocation );
+	vecCurrentPos				= entCurrentLocationMarker.getOrigin();
+	
+	//ePlayer.hudprint("triggred\n");
+	
+	if(doesEntityExist(ePlayer)){
+		fltPlayerXYDistance = globalMath_GetXYDistance( ePlayer.getorigin(), vecCurrentPos );
+		if( fltPlayerXYDistance > DISTANCE_ON_ELEVATOR_TOLERANCE && ePlayer.getVelocity() == '0 0 0'){
+			//ePlayer.hudprint("NOT MOVIN\n");
+			return;
+		}
+	}	
+	
+	//print( "CALL LIFT: lift is not busy\n" );
+	
+	//--- set the state to busy
+	m2Turbolift_SetState( entCab, STATE_BUSY );
+	
+	//print( "CALL LIFT: set state to busy\n" );
+	
+	//--- set the lights to busy
+	m2Turbolift_SetLightIndicator_Busy( strLift, POSITION_LOCATION1 );
+	m2Turbolift_SetLightIndicator_Busy( strLift, POSITION_LOCATION2 );
+	
+	//--- get the current location
+	fltLocation = m2Turbolift_GetLocation( entTrigger );
+	
+	//--- move the cab into position if it's not already there
+	if( fltLocation != m2Turbolift_GetPosition( entCab ) )
+	{
+		m2Turbolift_PositionCab( strLift, fltLocation );
+		wait( .1 );
+	}
+	
+	//--- set the new location on the cab and cab panel
+	m2Turbolift_SetPosition( entCab, fltLocation );
+	m2Turbolift_SetLocation( m2Turbolift_GetCabPanel( strLift ), fltLocation );
+	
+	//--- open the doors at the location
+	m2Turbolift_DoorOpen( strLift, fltLocation );
+	
+	//--- check if the player leaves the lift
+	boolPlayerOffLift = m2Turbolift_CheckLift( entCab );	
+	
+	if( boolPlayerOffLift == TRUE )
+	{
+		//--- close the doors and reset the state
+		m2Turbolift_DoorClose( strLift, fltLocation );
+
+    	//--- set the lights to busy
+    	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION1 );
+    	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION2 );
+
+		m2Turbolift_SetState( entCab, STATE_READY );
+	}
+}
+
+
+//---------------------
+// m2Turbolift_UseLift
+// the use logic for the lift
+//---------------------
+void m2Turbolift_UseLift()
+{
+	entity entTrigger, entCab, entCabPanel;
+	
+	string strLift;
+	
+	float fltState, fltLocation, boolPlayerOffLift;
+	
+	//--- grab the state
+	entTrigger = getCurrentEntity();
+	strLift = m2Turbolift_GetLiftName( entTrigger );
+	entCab = m2Turbolift_GetCab( strLift );
+	entCabPanel = m2Turbolift_GetCabPanel( strLift );
+	fltState = m2Turbolift_GetState( entCab );
+	fltLocation = m2Turbolift_GetLocation( entTrigger );
+	
+	//hzm coop mod chrissstrahl, check if no player is blocking the doors
+	entity entCurrentLocationMarker;
+	float fltCurrentLocation,fNoBlock,fltPlayerXYDistance;
+	vector vecCurrentPos;
+	fltCurrentLocation = m2Turbolift_GetLocation( m2Turbolift_GetCabPanel( strLift ) );
+	entCurrentLocationMarker = m2Turbolift_GetPositionMarker( strLift, fltCurrentLocation );
+	fNoBlock = 1;
+	vecCurrentPos = entCurrentLocationMarker.getOrigin();
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				//--- check if the player has left the lift
+				fltPlayerXYDistance = globalMath_GetXYDistance( ePlayer.getorigin(), vecCurrentPos );
+				if( fltPlayerXYDistance > 100 && fltPlayerXYDistance < 140 )
+				{
+					fNoBlock = 0;
+				}
+				
+globalCoop_main_print("distances: " + fltPlayerXYDistance);
+
+			}
+		}
+	}
+		
+	
+
+	if( m2Turbolift_GetPosition( entCab ) == POSITION_TRANSIT || fNoBlock == 0)
+	{
+		//--- play error sound
+		entTrigger.playsound ( M2TURBOLIFT_SOUND_ERROR, 0, 1, 128 );
+		return;
+	}
+
+	//--- set the position to transit
+	m2Turbolift_SetPosition( entCab, POSITION_TRANSIT );
+
+	//--- set the current location on the cab panel
+	m2Turbolift_SetLocation( entCabPanel, fltLocation );
+
+	//--- close the door
+	m2Turbolift_DoorClose( strLift, fltLocation );
+
+	//--- say the destination
+	if( fltLocation == 1 )
+	{
+		m2Turbolift_SoundDestination( entCabPanel.getFloatVar( "uservar2" ) );
+	}
+	else
+	{
+		m2Turbolift_SoundDestination( entCabPanel.getFloatVar( "uservar1" ) );
+	}
+
+	//--- play the accept sound
+	entTrigger.playsound ( M2TURBOLIFT_SOUND_ACCEPT, 0, 1, 256 );
+	wait( .5 );
+	
+	//--- play move sound
+    entCab.loopsound( M2TURBOLIFT_SOUND_LIFT_MOTION, 1, 256 );
+
+	//--- wait for the in-motion time
+	wait( TIME_IN_MOTION );
+	
+	//--- position the lift and the player
+	if( fltLocation == 1 )
+	{
+		//--- goto position 2
+		m2Turbolift_MoveLift( strLift, POSITION_LOCATION2 );
+		fltLocation = POSITION_LOCATION2;
+	}
+	else
+	{
+		//--- goto position 1
+		m2Turbolift_MoveLift( strLift, POSITION_LOCATION1 );
+		fltLocation = POSITION_LOCATION1;
+	}
+
+	//--- play the stopping sound
+	entCab.stoploopsound();
+	entCab.playsound ( M2TURBOLIFT_SOUND_LIFT_STOP, 0, 1, 256 );
+	wait( 2.5 );
+	
+	//--- open the doors
+	m2Turbolift_DoorOpen( strLift, fltLocation );
+	wait( .5 );
+
+	//--- set the new location on the cab and cabpanel
+	m2Turbolift_SetPosition( entCab, fltLocation );
+	m2Turbolift_SetLocation( entCabPanel, fltLocation );
+
+	//--- check if the player leaves the lift
+	boolPlayerOffLift = m2Turbolift_CheckLift( entCab );
+	
+	//print( "USE LIFT: checking for player leaving or using lift: " + boolPlayerOffLift + "\n" );
+	
+	if( boolPlayerOffLift == TRUE )
+	{
+		//--- close the doors and reset the state
+		m2Turbolift_DoorClose( strLift, fltLocation );
+
+    	//--- set the lights to busy
+    	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION1 );
+    	m2Turbolift_SetLightIndicator_Ready( strLift, POSITION_LOCATION2 );
+
+		m2Turbolift_SetState( entCab, STATE_READY );
+	}
+}
+
+
+//---------------------
+// m2Turbolift_CheckLift
+// checking routine for once the lift has been called or used
+//---------------------
+float m2Turbolift_CheckLift( entity entCab )
+{
+	//hzm coop mod chrisssstrahl, make this work in coop
+	float fPlayerIdInUse;
+	float fBool;
+	entity ePlayer;
+	
+	float fltPlayerXYDistance = 0, boolPlayerOffLift = 0;
+
+	while( (m2Turbolift_GetPosition( entCab ) != POSITION_TRANSIT) && (boolPlayerOffLift == FALSE) )
+	{
+		fBool = TRUE;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					//--- check if the player has left the lift
+					fltPlayerXYDistance = globalMath_GetXYDistance( ePlayer.getorigin(), entCab.getorigin() );
+					if( fltPlayerXYDistance < DISTANCE_ON_ELEVATOR_TOLERANCE )
+					{
+						fBool = FALSE;
+					}
+				}
+			}
+		}
+		
+		if(fBool == TRUE){
+			return( TRUE );
+		}
+		wait( CYCLE_CHECK_LIFT );
+	}
+	
+	return( FALSE );
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  SOUND DESTINATION FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// 	m2Turbolift_SoundDestination
+//	fltDestination - float, the destination to say
+// 	takes the passed in destination and says the appropriate dialog
+//---------------------
+void m2Turbolift_SoundDestination( float fltDestination )
+{
+	if( fltDestination == M2TURBOLIFT_DEST_GROUND )
+	{
+		$munro.playDialog( "localization/sound/dialog/m2l1/munro_groundl.mp3", 1, 20000, 1 ); //Ground Level.
+	}
+	else if( fltDestination == M2TURBOLIFT_DEST_LECTUREHALL )
+	{
+		$munro.playDialog( "localization/sound/dialog/m2l1/munro_mainlec.mp3", 1, 20000, 1 ); //Main Lecture Hall.
+	}
+	else if( fltDestination == M2TURBOLIFT_DEST_HEADMASTER )
+	{
+		$munro.playDialog( "localization/sound/dialog/m2l1/munro_headm.mp3", 1, 20000, 1 ); //Headmasters Office.
+	}
+	else if( fltDestination == M2TURBOLIFT_DEST_7THFLOOR )
+	{
+		$munro.playDialog( "localization/sound/dialog/m2l1/munro_7thfloor.mp3", 1, 20000, 1 ); //7th floor
+	}
+	
+	waitForDialog( $munro );
+	wait( .2 );
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  POSITION LIFT FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//player, currentloc, currentangle,newloc,newangle
+void coopTurboliftTransportMultiplePlayers(entity ePlayer,vector vecTemp, float fAngelsLoc, vector vecPlayerNewPosition, float fNewAngelsLoc  )
+{	
+	vector vecPlayerOffset;
+	float x, y, z, fltCurrentLocation, fltOldX, fltOldY, fltAngularDistance = 0;
+	
+	//--- grab the offset of the player at the current location
+	vecPlayerOffset = ePlayer.getorigin();
+	
+	if(vectorlength(vecPlayerOffset - vecTemp) > 100){
+		return;
+	}
+	
+	//vecPlayerOffset -= vecTemp;
+	x = vecPlayerOffset_x - vecTemp_x;
+	y = vecPlayerOffset_y - vecTemp_y;
+	z = vecPlayerOffset_z - vecTemp_z;
+	vecPlayerOffset = vectorsetx( vecPlayerOffset, x );
+	vecPlayerOffset = vectorsety( vecPlayerOffset, y );
+	vecPlayerOffset = vectorsetz( vecPlayerOffset, z );
+	
+	//--- if the new angle facing isn't the same, calcuate the rotations and positions
+	if( fAngelsLoc != fNewAngelsLoc )
+	{
+		fltOldX = vecPlayerOffset_x;
+		fltOldY = vecPlayerOffset_y;
+
+		//--- calculate the degree difference
+		fltAngularDistance = globalMath_GetCircularDistanceInDegrees( fAngelsLoc, fNewAngelsLoc );
+
+		//print( "MOVE LIFT: lift has new angle orientation, angular distance: " + fltAngularDistance + "\n" );
+		
+		//--- figure out the rotation and calculate the new origin
+		if( fltAngularDistance == -90 || fltAngularDistance == 270 )	//90 degrees clockwise rotation
+		{
+			vecPlayerOffset = vectorsetx( vecPlayerOffset, fltOldY );
+			vecPlayerOffset = vectorsety( vecPlayerOffset, (fltOldX * -1) );
+		}
+		else if( fltAngularDistance == -180 || fltAngularDistance == 180 )	//180 degrees rotation
+		{
+			vecPlayerOffset = vectorsetx( vecPlayerOffset, (fltOldX * -1) );
+			vecPlayerOffset = vectorsety( vecPlayerOffset, (fltOldY * -1) );
+		}
+		else if( fltAngularDistance == -270 || fltAngularDistance == 90 )	//270 degrees rotation
+		{
+			vecPlayerOffset = vectorsetx( vecPlayerOffset, (fltOldY * -1) );
+			vecPlayerOffset = vectorsety( vecPlayerOffset, fltOldX * -1 );
+		}
+	}
+	
+	x = vecPlayerOffset_x + vecPlayerNewPosition_x;
+	y = vecPlayerOffset_y + vecPlayerNewPosition_y;
+	z = vecPlayerOffset_z + vecPlayerNewPosition_z;
+	vecPlayerNewPosition = vectorsetx( vecPlayerNewPosition, x );
+	vecPlayerNewPosition = vectorsety( vecPlayerNewPosition, y );
+	vecPlayerNewPosition = vectorsetz( vecPlayerNewPosition, z );
+
+	//--- warp the player
+	ePlayer.turn( fltAngularDistance, 0 );
+	ePlayer.warp( vecPlayerNewPosition );
+}
+
+
+//---------------------
+// m2Turbolift_MoveLift
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// used to re-position the lift with the player in it to the desired location
+//---------------------
+void m2Turbolift_MoveLift( string strLift, float fltLocation )
+{
+	entity entCab, entCurrentLocationMarker, entNewLocationMarker;
+	float fltCurrentLocation;
+	vector vecTemp, vecPlayerNewPosition, vecCurrentLocationAngles, vecNewLocationAngles;
+	
+	//--- grab the cab and it's current position
+	entCab = m2Turbolift_GetCab( strLift );
+	fltCurrentLocation = m2Turbolift_GetLocation( m2Turbolift_GetCabPanel( strLift ) );
+	
+	
+	//--- calculate the facing difference between the location for the player
+	entCurrentLocationMarker = m2Turbolift_GetPositionMarker( strLift, fltCurrentLocation );
+	entNewLocationMarker = m2Turbolift_GetPositionMarker( strLift, fltLocation );	
+	vecCurrentLocationAngles = entCurrentLocationMarker.getangles();
+	vecTemp = entCurrentLocationMarker.getorigin();
+	vecNewLocationAngles = entNewLocationMarker.getangles();
+	vecPlayerNewPosition = entNewLocationMarker.getorigin();
+	
+	//hzm coop mod chrissstrahl, move all the players in the lift
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				coopTurboliftTransportMultiplePlayers(ePlayer,vecTemp,vecCurrentLocationAngles_y, vecPlayerNewPosition, vecNewLocationAngles_y  );
+			}
+		}
+	}
+	
+	//--- reposition the lift
+	m2Turbolift_PositionCab( strLift, fltLocation );
+}
+
+
+//---------------------
+// m2Turbolift_PositionCab
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// warps the lift to the desired location
+//---------------------
+void m2Turbolift_PositionCab( string strLift, float fltLocation )
+{
+	entity entCabOrigin;
+	entity entLocationMarker;
+	
+	//--- grab the cab origin
+	entCabOrigin = m2Turbolift_GetCabOrigin( strLift );
+
+	//--- grab the location marker
+	entLocationMarker = m2Turbolift_GetPositionMarker( strLift, fltLocation );
+
+	//--- set it's angles
+	//print( "LIFT: cabOrigin angles before setting: " + entCabOrigin.getangles() + "\n" );
+	//print( "LIFT: cab marker angles: " + entLocationMarker.getangles() + "\n" );
+	entCabOrigin.angles( entLocationMarker.getangles() );
+	//print( "LIFT: cab origin after setting angles: " + entCabOrigin.getorigin() + "\n" );
+	//print( "LIFT: cabOrigin angles after setting: " + entCabOrigin.getangles() + "\n" );
+
+	//--- warp the cab
+	//print( "LIFT: cab origin before marker: " + entCabOrigin.getorigin() + "\n" );
+	//print( "LIFT: marker origin: " + entLocationMarker.getorigin() + "\n" );
+	entCabOrigin.warp( entLocationMarker.getorigin() );
+	//wait( .1 );
+	
+	//print( "LIFT: cab origin after marker: " + entCabOrigin.getorigin() + "\n" );	
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DOOR FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_DoorOpen
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// open the doors at the desired location
+//---------------------
+void m2Turbolift_DoorOpen( string strLift, float fltLocation )
+{
+	entity entDoor1;
+	entity entDoor2;
+	
+	string strDoor1Direction;
+	string strDoor2Direction;
+	
+	//--- get the doors and their opening directions
+	entDoor1 = m2Turbolift_GetDoor1( strLift, fltLocation );
+	entDoor2 = m2Turbolift_GetDoor2( strLift, fltLocation );
+	
+	strDoor1Direction = entDoor1.getstringvar( "uservar1" );
+	strDoor2Direction = entDoor2.getstringvar( "uservar1" );
+	
+	//--- set door times
+	entDoor1.time( LIFT_DOOR_TIME );
+	entDoor2.time( LIFT_DOOR_TIME );
+	
+	//--- open the doors
+	//thread globalAccelMove_AxisAligned( entDoor1.getrawtargetname(), LIFT_DOOR_TIME, LIFT_DOOR_DISTANCE, strDoor1Direction );
+	//thread globalAccelMove_AxisAligned( entDoor2.getrawtargetname(), LIFT_DOOR_TIME, LIFT_DOOR_DISTANCE, strDoor2Direction );
+
+	//print( "DOOR OPEN: opening doors at location: " + fltLocation + "\n" );
+
+	thread m2Turbolift_DoorMove( entDoor1, strDoor1Direction, LIFT_DOOR_DISTANCE );
+	thread m2Turbolift_DoorMove( entDoor2, strDoor2Direction, LIFT_DOOR_DISTANCE );
+	wait( LIFT_DOOR_TIME );
+	
+}
+
+
+//---------------------
+// m2Turbolift_DoorClose
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// close the lift doors at the desired location
+//---------------------
+void m2Turbolift_DoorClose( string strLift, float fltLocation )
+{
+	entity entDoor1;
+	entity entDoor2;
+	
+	string strDoor1Direction;
+	string strDoor2Direction;
+	
+	//--- get the doors and their opening directions
+	entDoor1 = m2Turbolift_GetDoor1( strLift, fltLocation );
+	entDoor2 = m2Turbolift_GetDoor2( strLift, fltLocation );
+	
+	strDoor1Direction = entDoor1.getstringvar( "uservar1" );
+	strDoor2Direction = entDoor2.getstringvar( "uservar1" );
+	
+	//--- get the reverse directions
+	strDoor1Direction = m2Turbolift_DoorCloseDirection( strDoor1Direction );
+	strDoor2Direction = m2Turbolift_DoorCloseDirection( strDoor2Direction );
+	
+	//--- open the doors
+	//thread globalAccelMove_AxisAligned( entDoor1.getrawtargetname(), LIFT_DOOR_TIME, LIFT_DOOR_DISTANCE, strDoor1Direction );
+	//thread globalAccelMove_AxisAligned( entDoor2.getrawtargetname(), LIFT_DOOR_TIME, LIFT_DOOR_DISTANCE, strDoor2Direction );
+
+	//print( "DOOR CLOSE: closing doors at location: " + fltLocation + "\n" );
+
+	thread m2Turbolift_DoorMove( entDoor1, strDoor1Direction, LIFT_DOOR_DISTANCE );
+	thread m2Turbolift_DoorMove( entDoor2, strDoor2Direction, LIFT_DOOR_DISTANCE );
+	wait( LIFT_DOOR_TIME );
+}
+
+
+//---------------------
+// m2Turbolift_DoorCloseDirection
+// strOpenDirection - String, the origin opening direction
+// takes the passed in open direction and returns the opposite
+//---------------------
+string m2Turbolift_DoorCloseDirection( string strOpenDirection )
+{
+	if( strOpenDirection == "north" )
+	{
+		return( "south" );
+	}
+	else if( strOpenDirection == "south" )
+	{
+		return( "north" );
+	}
+	else if( strOpenDirection == "east" )
+	{
+		return( "west" );
+	}
+	else if( strOpenDirection == "west" )
+	{
+		return( "east" );
+	}
+}
+
+
+//---------------------
+// m2Turbolift_DoorMove
+// entDoor1 - entity, the door to open
+// strDoor1Direction - string, the door direction to open
+// fltDistance - float, the distance to move the door`
+// takes the passed in open direction and returns the opposite
+//---------------------
+void m2Turbolift_DoorMove( entity entDoor1, string strDoor1Direction, float fltDistance )
+{
+	if( strDoor1Direction == "north" )
+	{
+		entDoor1.movenorth( fltDistance );
+	}
+	else if( strDoor1Direction == "south" )
+	{
+		entDoor1.movesouth( fltDistance );
+	}
+	else if( strDoor1Direction == "east" )
+	{
+		entDoor1.moveeast( fltDistance );
+	}
+	else
+	{
+		entDoor1.movewest( fltDistance );
+	}
+	
+	entDoor1.playsound( M2TURBOLIFT_SOUND_DOOR_MOTION, 0, .75, 64 );
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  LIGHT INDICATOR FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_SetLightIndicator_Locked
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// sets the desired location's indicator lights for the desired lift to the Locked condition
+//---------------------
+void m2Turbolift_SetLightIndicator_Locked( string strLift, float fltLocation )
+{
+	entity entLight_Locked;
+	entity entLight_Ready;
+	entity entLight_Busy;
+	
+	//--- grab all the lights
+	entLight_Locked = m2Turbolift_GetLightLocked( strLift, fltLocation );
+	entLight_Ready = m2Turbolift_GetLightReady( strLift, fltLocation );
+	entLight_Busy = m2Turbolift_GetLightBusy( strLift, fltLocation );
+
+	//--- set the lights
+	entLight_Locked.show();
+	entLight_Ready.hide();
+	entLight_Busy.hide();
+}
+
+
+//---------------------
+// m2Turbolift_SetLightIndicator_Ready
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// sets the desired location's indicator lights for the desired lift to the Ready condition
+//---------------------
+void m2Turbolift_SetLightIndicator_Ready( string strLift, float fltLocation )
+{
+	entity entLight_Locked;
+	entity entLight_Ready;
+	entity entLight_Busy;
+	
+	//--- grab all the lights
+	entLight_Locked = m2Turbolift_GetLightLocked( strLift, fltLocation );
+	entLight_Ready = m2Turbolift_GetLightReady( strLift, fltLocation );
+	entLight_Busy = m2Turbolift_GetLightBusy( strLift, fltLocation );
+
+	//--- set the lights
+	entLight_Locked.hide();
+	entLight_Ready.show();
+	entLight_Busy.hide();
+}
+
+
+//---------------------
+// m2Turbolift_SetLightIndicator_Busy
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// sets the desired location's indicator lights for the desired lift to the Busy condition
+//---------------------
+void m2Turbolift_SetLightIndicator_Busy( string strLift, float fltLocation )
+{
+	entity entLight_Locked;
+	entity entLight_Ready;
+	entity entLight_Busy;
+	
+	//--- grab all the lights
+	entLight_Locked = m2Turbolift_GetLightLocked( strLift, fltLocation );
+	entLight_Ready = m2Turbolift_GetLightReady( strLift, fltLocation );
+	entLight_Busy = m2Turbolift_GetLightBusy( strLift, fltLocation );
+
+	//--- set the lights
+	entLight_Locked.hide();
+	entLight_Ready.hide();
+	entLight_Busy.show();
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  GETTER FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_GetCab
+// strLift - String, the base name of the lift
+// gets the cab entity
+//---------------------
+entity m2Turbolift_GetCab( string strLift )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Cab";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing the cab!") );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetCabOrigin
+// strLift - String, the base name of the lift
+// gets the cab origin entity
+//---------------------
+entity m2Turbolift_GetCabOrigin( string strLift )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_CabOrigin";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing the cab origin!") );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetCabPanel
+// strLift - String, the base name of the lift
+// gets the cab panel trigger
+//---------------------
+entity m2Turbolift_GetCabPanel( string strLift )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_CabPanel";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing the cab panel!") );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetCabPanelArchetype
+// strLift - String, the base name of the lift
+// gets the cab panel archetype
+//---------------------
+entity m2Turbolift_GetCabPanelArchetype( string strLift )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_CabPanelArchetype";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing the cab panel archetype!") );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetDoor1
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the door1 entity from the passed location
+//---------------------
+entity m2Turbolift_GetDoor1( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_Door1";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing door 1 at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetDoor2
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the door2 entity from the passed location
+//---------------------
+entity m2Turbolift_GetDoor2( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_Door2";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing door 2 at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetCallTrigger
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the call trigger from the desired location
+//---------------------
+entity m2Turbolift_GetCallTrigger( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_Call";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing a call trigger at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_m2Turbolift_GetPositionMarker
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the cab position marker from the desired location
+//---------------------
+entity m2Turbolift_GetPositionMarker( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_CabMarker";
+	entEntity = getEntity( strAssemble );
+
+	//print( "GET POSITION MARKER: getting for lift: " + strLift + " : marker string: " + strAssemble + "\n" );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing a cab marker at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetLightLocked
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the Locked light from the desired location
+//---------------------
+entity m2Turbolift_GetLightLocked( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_IndicatorLocked";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing an Locked indicator at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetLightReady
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the Ready light from the desired location
+//---------------------
+entity m2Turbolift_GetLightReady( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_IndicatorReady";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing a Ready indicator at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetLightBusy
+// strLift - String, the base name of the lift
+// fltLocation - float, the location to set
+// gets the Busy light from the desired location
+//---------------------
+entity m2Turbolift_GetLightBusy( string strLift, float fltLocation )
+{
+	entity entEntity;
+	
+	string strAssemble;
+	
+	strAssemble = strLift + "_Location" + fltLocation + "_IndicatorBusy";
+	entEntity = getEntity( strAssemble );
+
+	//--- error out if it doesn't exist
+	globalCommon_AssertEntity( entEntity, ("m2_turbolift: " + strLift + " is missing a busy indicator at location: " + fltLocation) );
+	
+	return( entEntity );
+}
+
+
+//---------------------
+// m2Turbolift_GetPosition
+// entCab - entity, the cab the data's stored on
+// gets the position value stored on the cab
+//---------------------
+float m2Turbolift_GetPosition( entity entCab )
+{
+	return( entCab.getfloatvar( "position" ) );
+}
+
+
+//---------------------
+// m2Turbolift_GetState
+// entCab - entity, the cab the data's stored on
+// gets the state value stored on the cab
+//---------------------
+float m2Turbolift_GetState( entity entCab )
+{
+	return( entCab.getfloatvar( "state" ) );
+}
+
+
+//---------------------
+// m2Turbolift_GetLiftName
+// entEntity - entity, entity to retrieve lift value from
+// gets the base lift name stored on the passed entity
+//---------------------
+string m2Turbolift_GetLiftName( entity entEntity )
+{
+	//print( "GET LIFT NAME: getting from entity: " + entEntity.getrawtargetname() + " : lift name: " + entEntity.getstringvar( "lift" ) + "\n" );
+	return( entEntity.getstringvar( "lift" ) );
+}
+
+
+//---------------------
+// m2Turbolift_GetLocation
+// entEntity - entity, entity to retrieve lift value from
+// gets the location value stored on the passed entity
+//---------------------
+float m2Turbolift_GetLocation( entity entEntity )
+{
+	return( entEntity.getfloatvar( "location" ) );
+}
+
+
+//---------------------
+// m2Turbolift_GetCaller
+// entCab - entity, the cab to get the value off of
+// gets the caller entity targetname stored on the cab
+//---------------------
+string m2Turbolift_GetCaller( entity entCab )
+{
+	return( entCab.getstringvar( "caller" ) );
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  SETTER FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// m2Turbolift_SetPosition
+// entCab - entity, the cab the data's stored on
+// fltPosition - float, the position to set
+// sets the position value on the cab
+//---------------------
+void m2Turbolift_SetPosition( entity entCab, float fltPosition )
+{
+	entCab.setfloatvar( "position", fltPosition );
+}
+
+
+//---------------------
+// m2Turbolift_SetState
+// entCab - entity, the cab the data's stored on
+// fltState - float, the state to set
+// sets the state value on the cab
+//---------------------
+void m2Turbolift_SetState( entity entCab, float fltState )
+{
+	entCab.setfloatvar( "state", fltState );
+}
+
+
+//---------------------
+// m2Turbolift_SetLiftName
+// entEntity - entity, the entity to set the data on
+// strLiftName - string, the name of the lift
+// sets the base name of the lift on the passed entity
+//---------------------
+void m2Turbolift_SetLiftName( entity entEntity, string strLiftName )
+{
+	entEntity.setstringvar( "lift", strLiftName );
+	
+	//print( "SET LIFT NAME: setting lift: " + strLiftName + " : on entity: " + entEntity.getrawtargetname() + "\n" );
+}
+
+
+//---------------------
+// m2Turbolift_SetLocation
+// entEntity - entity, the entity to set the data on
+// fltLocation - float, the location to set
+// sets the location value on the passed entity
+//---------------------
+void m2Turbolift_SetLocation( entity entEntity, float fltLocation )
+{
+	entEntity.setfloatvar( "location", fltLocation );
+}
+
+
+//---------------------
+// m2Turbolift_SetCaller
+// entCab - entity, the lift cab
+// entCaller - entity, the entity that called the lift
+// sets the targetname of the entity that called the lift onto the lift
+//---------------------
+void m2Turbolift_SetCaller( entity entCab, entity entCaller )
+{
+	entCab.setstringvar( "caller", entCaller.getrawtargetname() );
+}

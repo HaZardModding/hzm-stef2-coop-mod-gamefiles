@@ -1,0 +1,560 @@
+//created for the hazardmodding coop mod - testmap testing all camera and cinematic related script commands for stability and usability in multiplayer
+void main();
+void printWait( string sPrint );
+void setupLevel();				//do not use name setup for functions it is reserved!
+void cinematicStartsequence();
+void cinematicTransporterRoom();
+void cinematicEnd();
+
+//get how long the game needs to refresh/update the current level
+float fFrameTime;
+float fSVFPS;
+
+void main()
+//------------------------------------------
+// This is started once the level has completed loading
+// Start what ever we want to start at the beginning from in here
+//------------------------------------------
+{
+//fadeout the screen
+	cam_fadeout( 0.05 , 0 , 0 , 0 , 1 );
+
+//get how long the game needs to refresh/update the current level
+	fSVFPS = getCvarInt("sv_fps");
+
+//1 sec divided trough sv_fps this contains how often the server refreshes the level per secound
+	fFrameTime = ( 1 / fSVFPS );
+
+//wait for any player to enter the game
+	//waitForPlayer();
+//run setup routine
+	thread setupLevel();
+//start cinematic
+	thread cinematicStartsequence();
+}
+
+void printWait( string sPrint )
+{
+	//if no empty text, print it
+	if( sPrint != "" )
+	{
+		if( getCvarInt("dedicated") != 0)
+		{
+			stuffcmd("echo " + sPrint + "\n");
+		}
+		else
+		{
+		//print staus to console add a new line to the current text
+			print( sPrint + "\n" );
+		}
+	
+	//wait a moment before closing this function and continuing in script, so that this message will show in the logfile, when the server crashes
+		wait( fFrameTime );
+	}
+}
+
+
+void setupLevel()
+//------------------------------------------
+// setup the level objects
+//------------------------------------------
+{
+	//setup the skybox
+	//$sky.rendereffects( "+skyorigin" );
+	
+	//setup how far we can see objects, before they are dissapearing
+	$world.entity_fade_dist( 8000 );
+	
+	//bind objects to a script origin for precise script controlling
+	$miningplanet.bind( $miningplanet_origin );
+	$moon.bind( $moon_origin );
+	
+	//construct the enterprise
+	//facing direction of the script controlled enterprise model origin
+	$enterprise_origin.angle( 180 );
+	
+	float fPartNumber;
+	entity ePart;
+	for(fPartNumber=1; fPartNumber<5; fPartNumber++)
+	{
+		ePart = getEntity( "enterprise" + fPartNumber );
+		if( doesEntityExist(ePart) )
+		{
+			//set facing direction
+			ePart.angle( 180 );
+			
+			//scale each part, so it is smaller, makes the planet appear bigger
+			ePart.scale( 0.04 );
+			
+			//move all parts to the same location
+			ePart.origin( ( $enterprise_origin.getOrigin() ) );
+			
+			//bind to script controlled origin
+			ePart.bind( $enterprise_origin );
+		}
+	}
+	
+	//move the enterprise to its starting location, set how long the travel will take
+	$enterprise_origin.movetopos($enterpriseStart.getOrigin());
+	$enterprise_origin.time(0.5);
+	
+	//bind ateroids and its steam together, so that they may move as one unit
+	$skyAsteroidSteam.bind($skyAsteroid_origin);
+	$skyAsteroid.bind($skyAsteroid_origin);
+	$skyAsteroid.scale( 0.05 );
+	
+	//skyAsteroid_momy_origin
+	
+	//rotate momy asteroid
+	$skyAsteroid.rotateX( 5 );
+	$skyAsteroid.rotateY( 8 );
+	$skyAsteroid.rotatez( 2 );
+	
+	for(fPartNumber=0; fPartNumber<8; fPartNumber++)
+	{
+		ePart = getEntity( "skyAsteroidPart" + fPartNumber );
+		if( doesEntityExist(ePart) )
+		{			
+			//rotaet ach part
+			ePart.rotateX( 4 );
+			ePart.rotateY( 7 );
+			ePart.rotatez( 4 );
+			
+			//bind to script controlled origin
+			ePart.bind( $skyAsteroid_origin );
+		}
+	}
+}
+
+
+void cinematicStartsequence()
+//------------------------------------------
+// here we do the skybox cinematic sequence
+//------------------------------------------
+{
+	//print status to console for debugging - this seams not to work while on a path
+	//printWait("calling: .lookat");
+	//$cameraSpaceCinematic.lookat($enterprise_origin);
+
+	
+	//create widscreen view, and dissable hud
+	letterbox( 0.05 );
+
+	/*
+	//wait for the warmup time to end in multiplayer
+	if( getCvarInt("g_gametype") != 0 )
+	{
+		float fWarmupTime;
+		fWarmupTime = getCvarInt( "mp_warmUptime" );
+		
+		while(fWarmupTime > getLevelTime()) //can not compare by using getCvarInt function directly!
+		{
+			fWarmupTime = getCvarInt( "mp_warmUptime" );
+			wait(0.1);
+		}
+	}
+	*/
+	
+	//make the moon rotate arround the planet
+	$moon_origin.rotateY(-2);
+	
+	//make the asteroid play a sound
+	$skyAsteroid.loopSound("sound/environment/lava/lava_loop3L.wav", 7 , 8 );
+	
+	//print status to console for debugging
+	printWait("calling: cinematic()");
+
+	//start cinematic
+	cinematic();
+	
+	//print status to console for debugging
+	printWait("calling: freezeplayer");
+	
+	//freeze players, so they can not run arround
+	freezeplayer(); 
+	
+	
+	//let us spawn cameras via script, that is more flexible, besides I never tried to spawn a camera in the level editor
+	spawn("camera","targetname","cameraSpaceCinematic","origin","5276 -14809 3068");
+	
+	//wait at least a frame for the level objects to be spawned and acessible in the game!
+	wait( fFrameTime );
+	
+	//print status to console for debugging
+	printWait("calling: .fov( 90 )");
+	
+	//set field of view for the camera, can also be used to zoom when < 80
+	$cameraSpaceCinematic.fov( 90 );
+	
+	//print status to console for debugging
+	printWait("calling: .cut() ");
+
+	//now make a instant cut from player camera to cinamtic camera, otherwise there will be a transition, and that would look stupid in this cinematic
+	$cameraSpaceCinematic.cut();
+	
+	//print status to console for debugging
+	printWait("calling: .follow( $cameraSpaceStart )");
+	
+	//now get the camera moving
+	$cameraSpaceCinematic.follow( $cameraSpaceStart );
+	
+	//wait at least a frame, so we switch to the camera while it is moving, or we will see the camera filming from its spawnangle and suddenly switching
+	wait( fFrameTime );
+	
+	//print status to console for debugging
+	printWait("calling: cuecamera( $cameraSpaceCinematic )");
+	
+	//make the camera the source of the players view, this is when we see the cinematic
+	cuecamera( $cameraSpaceCinematic );
+	
+	//set the skipthread - called when we cancel the cinematic, ort sometimes when it ends, depending on the scripting
+	skipthread( "cinematicTransporterRoom" );
+	
+	//fade in the screen - fades from black back to a normal screen color, used to make cutscenes
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//move the enterprise to its starting location, set how long the travel will take
+	$enterprise_origin.rotateY(-4);
+	$enterprise_origin.movetopos($enterpriseEnd.getOrigin());
+	$enterprise_origin.time(20);
+	
+	//make the 'steroids' move
+	$skyAsteroid_origin.movetopos($t1430.getOrigin());
+	$skyAsteroid_origin.time(120);
+	
+	//rotate enterprise to correct flight angle
+	wait(1);
+	$enterprise_origin.rotateY(0);
+	
+	//wait for the enterprise to stop moving
+	waitFor($enterprise_origin);
+	
+	//play sound for planetary orbit
+	$enterprise_origin.loopSound("sound/ships/attrexian/att-rumble1.wav", 4 , 64 );
+	
+	//imidatly bind the enterprise origin to a orbit origin, and rotate the orbit origin, so that it seams teh enterprise orbits the planet
+	$enterprise_origin.bind($orbit_origin);
+	$orbit_origin.rotateY( -8 );
+	
+	//print status to console for debugging
+	printWait("calling: .watch");
+	
+	//make this camera watch the given entity
+	$cameraSpaceCinematic.watch("$enterprise_origin");
+	
+	//print status to console for debugging
+	printWait("calling: .fov - changing each frame");
+	//manipulating teh camera fov, that is something that is not done usually
+	float fFieldOfViewCurrent = 90;
+	float fFieldOfViewEachFrame = 40; //90 - 50 = 40 or current - target = diff
+	float fTime = 10;
+	float fRounds;
+	
+	fTime = ( fTime * fSVFPS );
+	fFieldOfViewEachFrame = ( fFieldOfViewEachFrame / (fSVFPS * fTime) );
+	
+	while(fFieldOfViewCurrent > 20)
+	{
+		//set field of view for the camera, can also be used to zoom when < 80
+		$cameraSpaceCinematic.fov( fFieldOfViewCurrent );
+		
+		//wait for the next frame, players get new data from the server each frame, this way the fov chnage will seam smooth
+		wait( fFrameTime );
+		
+		fFieldOfViewCurrent = fFieldOfViewCurrent - (ceil(fFieldOfViewEachFrame));
+	}
+	thread cinematicTransporterRoom();	
+}
+
+
+void cinematicTransporterRoom()
+{
+	//fadeout the screen
+	cam_fadeout( 2 , 0 , 0 , 0 , 1 );
+	
+	//wait 3 sec over all, and substract the time the zoom in sequence is finished neded
+	wait( 2 );
+
+	//print status to console for debugging
+	printWait("calling: killthread('cinematicStartsequence')");
+	
+	//end the previouse cinematic
+	killthread("cinematicStartsequence");
+	
+	//print status to console for debugging
+	printWait("calling:$cameraSpaceCinematic.remove()");
+
+	//setup camera for the transporter room sequence - this probably chrashes the game
+	//$cameraSpaceCinematic.remove();
+	
+	//print status to console for debugging
+	printWait("calling: $picard.walkto");
+	
+	//make picard walk towards transporter room
+	$picard.walkto( "$nodeTransporterDoorOutside" , "walk");
+	
+	//print status to console for debugging
+	printWait("calling: $picard.turnspeed");
+	
+	//let us see if that helps with the jittering
+	$picard.turnspeed(5);
+	
+	//print status to console for debugging
+	printWait("calling: spawn - new camera");
+	
+	//spawn new camera
+	spawn("camera","targetname","cameraPicardWalkby");
+	spawn("camera","targetname","cameraPicardEnter","origin","2256 -12320 96","angle","180");
+	
+	//wait at least a frame for the level objects to be spawned and acessible in the game!
+	wait( fFrameTime );
+	
+	//print status to console for debugging
+	printWait("calling: skipthread");
+	
+	//set thread to skip this sequence
+	skipthread("cinematicEnd");
+	
+	//print status to console for debugging
+	printWait("calling: .follow(e,e)");
+	
+	//make this camera watch the given entity
+//	$cameraSpaceCinematic.watch("$picard");
+
+	//test the follow command
+	$cameraPicardWalkby.follow( $picard , $picard );
+	
+	//print status to console for debugging
+	printWait("calling: .follow_distance(80)");
+	
+	//try follow distance
+	$cameraPicardWalkby.follow_distance( 80 );
+	
+	//print status to console for debugging
+	printWait("calling: .fov( 110 )");
+	
+	//set field of view for the camera, can also be used to zoom when < 80
+	$cameraPicardWalkby.fov( 110 );
+	
+	//print status to console for debugging
+	printWait("calling: cuecamera( $cameraPicardWalkby )");
+	
+	//make this camera our point of view
+	cuecamera( $cameraPicardWalkby );
+	
+	//fadein the screen
+	cam_fadein( 2 , 0 , 0 , 0 , 1 );
+	
+	//wait for picard to walk a bit
+	wait( 6 );
+	
+	//fadeout the screen
+	cam_fadeout( 1 , 0 , 0 , 0 , 1 );
+	
+	wait(1);
+	
+	//make picard run - hurry up captain!
+	$picard.walkto( "$nodeTransporterDoorOutside" , "run");	
+	
+	//print status to console for debugging
+	printWait("calling: cuecamera( $cameraPicardEnter )");
+	
+	//make this camera our point of view
+	cuecamera( $cameraPicardEnter );
+	
+	//set field of view for this cam
+	$cameraPicardEnter.fov( 70 );
+	
+	//now get the camera moving
+	$cameraPicardEnter.follow( $cinematicTransporterDoorNode );
+	
+	wait(1);
+
+	//fadein the screen
+	cam_fadein( 1 , 0 , 0 , 0 , 1 );
+	
+	//print status to console for debugging
+	printWait("calling: .follow( $cameraSpaceStart )");
+	
+	
+	//wait a sec
+	wait(1);
+	
+	//wait for picard to stand behind the door
+	//make picard run - hurry up captain!
+	$picard.walkto( "$nodeTransporterDoorOutside" , "walk"); //make sure the waitFor does not get stuck [b607]
+	waitFor($picard);
+	
+	//make picard walk inside
+	$picard.walkto( "$nodeTransporterDoorInside" , "walk");
+	
+	//wait for picard to stand inside
+	waitFor($picard);
+	
+	//make picard watch barclay
+	$picard.headwatch( $barclay , 5 );
+	
+	//wait
+	wait(3);
+	
+	if(getCvarInt("g_gameType") == 0)
+	{
+		$picard.headwatch( $player , 5 );
+	}
+	else
+	{
+		float fPlayer;
+		float fMaxClients;
+		entity ePlayer;
+		
+		fMaxClients = getCvarInt("sv_maxclients");
+		
+		for( fPlayer=0;fPlayer < fMaxClients;fPlayer++ )
+		{
+			ePlayer = getEntity("player"+fPlayer);
+			if( doesEntityExist(ePlayer) )
+			{
+				fPlayer = 999;
+				$picard.headwatch( ePlayer , 5 );
+			}
+		}
+	}
+	
+	//wait a sec
+	wait(1);
+	
+	//fadeout the screen
+	cam_fadeout( 1 , 0 , 0 , 0 , 1 );
+	
+	//wait a sec
+	wait(1);
+	
+	//print status to console for debugging
+	printWait("calling: .follow_distance(70)");
+	
+	//try follow distance
+	$cameraPicardWalkby.follow_distance( 70 );
+	
+	
+	//print status to console for debugging
+	printWait("calling: .fov( 95 )");
+	
+	//set field of view for the camera, can also be used to zoom when < 80
+	$cameraPicardWalkby.fov( 95 );
+	
+	//print status to console for debugging
+	printWait("calling: cuecamera( $cameraPicardWalkby )");
+	
+	//make this camera our point of view
+	cuecamera( $cameraPicardWalkby );	
+	
+	//wait a sec
+	wait(1);
+	
+	//fadein the screen
+	cam_fadein( 2 , 0 , 0 , 0 , 1 );
+	
+	//make picard walk towards transporter
+	$picard.walkto( "$nodeTransporterBeforePlatform" , "walk");
+	
+	//wait a moment
+	wait(0.5);
+	
+	//reset head of picard
+	$picard.headwatchtarget("none" , 7 );
+	
+	//wait for picard to be close to the platform
+	waitFor($picard);
+	
+	//stop camera follwoing picard
+	$cameraPicardWalkby.pause();
+	
+	//pause
+	//$cameraPicardWalkby.pause();
+	
+	//make picard walk towards transporter
+	$picard.walkto( "$nodeTransporterPlatform" , "walk");
+	
+	//wait for picard to stand on the platform
+	waitFor($picard);
+	
+	//end this sequence
+	thread cinematicEnd();
+}
+
+void cinematicEnd()
+{
+	killthread("cinematicTransporterRoom");
+
+	//fadeout the screen
+	cam_fadeout( 1 , 0 , 0 , 0 , 1 );
+	
+	//wait for cam fade
+	wait(1);
+	
+	//clear cinematic view
+	clearletterbox( 0.05 );
+	
+	//position picard if he isn't at the correct location allready
+	$picard.origin('2400 -12128 40');
+	$picard.walkto( "$nodeTransporterPlatform" , "walk");
+	
+	//reset head of picard
+	$picard.headwatchtarget("none" , 7 );
+	
+	//do not allow players to push picard or barclay
+	$picard.pushable(0);
+	$picard.mass(99999);
+	$barclay.pushable(0);
+	$barclay.mass(99999);
+	
+	//print status to console for debugging
+	printWait("calling: cueplayer()");
+	
+	//make player view from his own camera again
+	cueplayer();
+	
+	//print status to console for debugging
+	printWait("calling: noncinematic())");
+	
+	//end cinematic
+	noncinematic();
+	
+	//wait a moment so teh cut scene is not cutting to fast
+	wait(1);
+	
+	//print status to console for debugging
+	printWait("calling: relaseplayer() )");
+	
+	//release players, so they can run arround again
+	releaseplayer();
+	
+	//wait a fame or so
+	wait(0.05);
+	
+	//fadeout the screen
+	cam_fadeIn( 2 , 0 , 0 , 0 , 1 );
+
+	//lock players inside the transporter room
+	$doorDeck8TransRoom.lock();
+	
+	//remove picard helper
+	if(doesEntityExist($picardTransporterSmoother))
+	{
+		$picardTransporterSmoother.remove();
+	}
+	
+	//give the players a moment
+	wait(4);
+
+	//allow players to leave transporter platform now
+	if(doesEntityExist($playerEntrapment))
+	{
+		$playerEntrapment.remove();
+	}
+}
+
+
+
+
+

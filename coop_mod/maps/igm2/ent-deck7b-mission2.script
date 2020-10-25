@@ -1,0 +1,1433 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck7a - Enterprise Deck 8 - Hazard Ops - MISSION 1
+//  Script By:    Luke W.
+//  Created on:   07/08/2002
+//	Last Edited:  07/08/2002 - LW
+//-----------------------------------------------------------------
+
+void setupMission2Deck7b();
+void justLoadedDeckThreadIGM2();
+
+void raiseShuttleSetup();
+void raiseShuttleGo();
+void sendInOtherShuttleWait();
+void sendInOtherShuttleGo();
+
+void openSecretShuttleGoIGM2();
+void plasmaInverterWaitIGM2();
+void plasmaInverterGoIGM2();
+void threadPlaceInverterIntoShuttle();
+void playerReachedSecretIGM2();
+
+void chell_workIGM2();
+void chellDialog2_1();
+void chellBreakShuttleIGM2();
+void chellDialog2_2();
+void chellDialog2_3();
+void chellDialog2_4();
+void chellDialog2_5();
+void chellDialog2_6();
+
+void burnOutCounterIGM2();
+void burnOutCounterOverIGM2();
+void ventShuttlePlasmaUse();
+void ventShuttlePlasmaCancled();
+void ventShuttlePlasmaGo();
+
+void cinematicDepartureIGM2();
+void cinematicDepartureIGM2Skipthread();
+void cinematicDepartureIGM2End();
+
+void ambientActorsIGM2();
+
+void thompsonrusselTalkIGM2();
+void grayalisonTalkIGM2();
+void waterskatchersideTalkIGM2();
+
+void katcherside_workIGM2();
+void katchersideDialog2_1();
+
+void waters_workIGM2();
+void watersDialog2_1();
+
+void alison_workIGM2();
+void alisonDialog2_1();
+
+void gray_workIGM2();
+void grayDialog2_1();
+void grayDialog2_2();
+void grayDialog2_3();
+void grayDialog2_4();
+
+void miyamoto_workIGM2();
+void miyamotoDialog2_1();
+void miyamotoDialog2_2();
+void miyamotoDialog2_3();
+
+void checkForDeckChangeIGM2();
+
+float teamReadyToTalkIGM2 = 0;
+float initalTimeTillBurnOut = 80;
+float ventPlasmaComplete = 0;
+
+float playerHasInverter = 0;
+
+// Dialog and Cinematics
+
+//===================================================================================================================
+// Setup
+//===================================================================================================================
+//---------------------
+// setupMission2Deck7b
+// does all the little setup stuff for the mission
+//---------------------
+void setupMission2Deck7b()
+{
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$IGM2GoToShuttleBay$$","incomplete",1,1);
+	
+	
+	$tempshuttle.remove();
+
+	spawn( "Camera", "targetname", "cam0" );
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	spawn( "Camera", "targetname", "cam3" );
+	spawn( "Camera", "targetname", "cam4" );
+	spawn( "Camera", "targetname", "cam5" );
+	spawn( "Camera", "targetname", "cam6" );
+
+	cam.load( "cam_igm2_deck7b_0" );
+	cam.load( "cam_igm2_deck7b_1" );
+	cam.load( "cam_igm2_deck7b_2" );
+	cam.load( "cam_igm2_deck7b_3" );
+	cam.load( "cam_igm2_deck7b_4" );
+	cam.load( "cam_igm2_deck7b_5" );
+	cam.load( "cam_igm2_deck7b_6" );
+
+	setstringvar( "level.globalCamera1", "cam1_ent_deck7b_IGM2" );
+	setstringvar( "level.globalCamera2", "cam2_ent_deck7b_IGM2" );
+
+	globalCommon_SpawnActor( "char/hazardteam_chell.tik", "chell", '-11480 -5864 -216', 0 );
+	globalCommon_AiActorUseWeapon( $chell, "tricorder" );
+
+	$chell.angle( 0 );
+	$chell.pushable( 0 );
+	$chell.anim( "tricorder_use_loop" );
+
+	globalCommon_SpawnActor( "char/hazardteam_sydney.tik", "sydney", '-11648 -5568 -216', 90 );
+	globalCommon_AiActorUseWeapon( $sydney, "none" );
+	$sydney.hide();
+	$sydney.notsolid();
+
+	globalCommon_SpawnActor( "char/hazardteam_chang.tik", "chang", '-11648 -5504 -216', 90 );
+	globalCommon_AiActorUseWeapon( $chang, "none" );
+	$chang.hide();
+	$chang.notsolid();
+
+	globalCommon_SpawnActor( "char/hazardteam_jurot.tik", "jurot", '-11648 -5440 -216', 90 );
+	globalCommon_AiActorUseWeapon( $jurot, "none" );
+	$jurot.hide();
+	$jurot.notsolid();
+
+	//Needed For dialog
+	globalCommon_SpawnActor( "char/hazardteam_munro.tik", "scriptmunro", '-11416 -4960 -224', 265 );
+	globalCommon_AiActorUseWeapon( $scriptmunro, "none" );
+	$scriptmunro.hide();
+	$scriptmunro.notsolid();
+
+	globalCommon_SpawnScriptModel( "fx/fx-smoke-gray-directional.tik", "plasmaSmoke0", '-11248.00 -5908.00 -52.00', 240 );
+	globalCommon_SpawnScriptModel( "fx/fx-smoke-gray-directional.tik", "plasmaSmoke1", '-11260.00 -5940.00 -76.00', 240 );
+	//wait( 1 );
+
+	$plasmaSmoke0.scale( 2.5 );
+	$plasmaSmoke1.scale( 2.5 );
+	$plasmaSmoke0.hide();
+	$plasmaSmoke1.hide();
+
+	globalCommon_SpawnScriptModel( "fx/fx-dummy.tik", "shipRiseClip", '-11072 -6016 -80', 0 );
+	$shipRiseClip.setsize( '-384 -672 -144', '384 672 244' );
+
+	//Setup Secret
+	$shuttleSecret.thread( "playerReachedSecretIGM2" );
+	spawn( "trigger_secret", "targetname", "secretSpawner_trigger" );
+	trigger( "$secretSpawner" );
+
+	$shuttleScriptOrigin0.show();
+	$shuttleClip0.solid();
+
+	initDrullShuttle( "shuttle" );
+	wait( .5 );
+	$drullShuttleOrigin.hide();
+
+	//Tricorder Puzzle setup
+	$tricorderPuzzleShuttle.puzzleobject_canceledthread( "ventShuttlePlasmaCancled" );
+	$tricorderPuzzleShuttle.puzzleobject_failedthread( "" );
+	//$tricorderPuzzleShuttle.puzzleobject_itemusedthread( "ventShuttlePlasmaUse" );
+	$tricorderPuzzleShuttle.puzzleobject_solvedthread( "ventShuttlePlasmaGo" );
+	//$tricorderPuzzleShuttle.puzzleobject_itemtouse( "Tricorder" );
+
+	//Show because it is used
+	$shuttleBayObject.show();
+	$shuttleBayObject.solid();
+
+	$shuttleDoors0.anim( "closed" );
+	$shuttleDoorClosedClip0.solid();
+	$shuttleDoorRampClip0.notsolid();
+
+	//Make sure you can open the inverter door.
+	$triggerPlaceInverterIntoShuttle.thread( "openSecretShuttleGoIGM2" );
+
+	globalShuttle_Setup( "sydney", "chang", "chell", "jurot" );
+	$shuttleExterior.anim( "open_idle" );
+
+	//Setup Shuttle Secret
+	$shuttleDoors1.anim( "idle" );
+	$shuttleDoorClosedClip1.solid();
+	$shuttleDoorRampClip1.notsolid();
+
+	$triggerShuttleBay2Right.thread( "chellDialogToPlayer2_0" );
+
+	thread chell_workIGM2();
+
+	ambientActorsIGM2();
+
+	raiseShuttleSetup();
+
+	thread plasmaInverterWaitIGM2();
+}
+
+//---------------------
+// justLoadedDeckThreadIGM2
+// Triggered and check to see if A cinematic should happen.
+//------------------------
+void justLoadedDeckThreadIGM2()
+{
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$IGM2GoToShuttleBay$$","incomplete",1,1);
+}
+
+/////////////////////////////
+// Set up so the Shuttle and chell can be raised.
+/////////////////////////////
+void raiseShuttleSetup()
+{
+	$shuttleLiftCenter.dmg( 0 );
+
+	$shuttleCenterOrigin.bind( $shuttleLiftCenter );
+
+	$shuttleLiftCenter.time( .05 );
+	$shuttleLiftCenter.moveDown( 256 );
+	waitfor( $shuttleLiftCenter );
+
+	$inShuttleBay2.thread( "raiseShuttleGo" );
+	$enterShuttleBay2.thread( "raiseShuttleGo" );
+}
+
+/////////////////////////////
+// Raise the Shuttle and open the doors.
+/////////////////////////////
+void raiseShuttleGo()
+{
+	$inShuttleBay2.thread( "" );
+	$enterShuttleBay2.thread( "" );
+
+	$shuttleLiftCenter.loopsound( "sound/doors/drull_smldoor_01.wav", 1 ,800 );
+
+	$shuttleLiftCenter.time( 2.5 );
+	$shuttleLiftCenter.moveUp( 256 );
+	waitfor( $shuttleLiftCenter );
+
+	$shuttleLiftCenter.stoploopsound();
+	$shuttleLiftCenter.playsound( "sound/doors/drull_smldoor_stop_01.wav", 1 ,1 ,800 );
+
+	$shuttleCenterOrigin.unbind();
+
+	$shipRiseClip.remove();
+
+	cycleShuttleDoor();
+
+	thread sendInOtherShuttleWait();
+}
+
+
+/////////////////////////////
+// Send in Other Shuttle
+/////////////////////////////
+void sendInOtherShuttleWait()
+{
+	$inShuttleBay1.thread( "sendInOtherShuttleGo" );
+	$enterShuttleBay1.thread( "sendInOtherShuttleGo" );
+}
+
+void sendInOtherShuttleGo()
+{
+	$inShuttleBay1.thread( "" );
+	$enterShuttleBay1.thread( "" );
+
+	$shuttleScriptOrigin1.bind( $shuttleCenterOrigin1 );
+
+	$shuttleClip1.dmg( 1000 );
+	
+	//hzm coop mod chrissstrahl - killmessage if a player gets killed by the shuttle added [b607]
+	$shuttleClip1.setStringVar("uservar1","killmessage  was crushed by a ^2Shuttle");
+	$shuttleClip1.setStringVar("uservar2","killmessage_de  wurde zwerquetscht von einem ^2Shuttle");
+
+	$shuttleIncommingPath01.speed( .5 );
+	$shuttleIncommingPath01a.speed( .5 );
+	$shuttleIncommingPath01b.speed( .5 );
+	$shuttleIncommingPath01c.speed( .5 );
+	$shuttleIncommingPath01d.speed( .5 );
+	$shuttleIncommingPath01e.speed( .5 );
+	$shuttleIncommingPath01f.speed( .5 );
+	$shuttleIncommingPath01g.speed( .5 );
+	$shuttleIncommingPath01h.speed( .5 );
+	$shuttleIncommingPath01i.speed( .5 );
+
+	//This should ensure the door is open when the shuttle arrives
+	if( bayDoorRightIsOpen == 0 || bayDoorRightIsOpen == 2 )
+	{
+		while( bayDoorRightIsOpen == 2 )
+		{
+			wait( .05 );
+		}
+		if( bayDoorRightIsOpen == 0 )
+		{
+			openRightShuttleBayDoor();
+		}
+	}
+	//this should keep it open while the shuttle is arriving
+	bayDoorRightIsOpen = 2;
+
+	$shuttleCenterOrigin1.followpath( $shuttleIncommingPath01 );
+	$shuttleScriptOrigin1.show();
+	$shuttleClip1.solid();
+	$shuttleDoors1.anim( "idle" );
+
+	wait ( 12 );
+	$shuttleCenterOrigin1.playsound( "sound/vehicles/shuttlecraft/shuttle_decelerate.wav", 10 , 1 ,1500 );
+
+	waitfor( $shuttleCenterOrigin1 );
+	bayDoorRightIsOpen = 1;
+
+//	$shuttleDoors1.anim( "opening" );
+//	$shuttleDoors1.loopsound( "sound/vehicles/shuttlecraft/shuttle_door_open.wav", 1 ,800 );
+
+//	waitforanimation( $shuttleDoors1, "opening" );
+//	$shuttleDoors1.anim( "open_idle" );
+//	$shuttleDoors1.stoploopsound();
+//	$shuttleDoors1.playsound( "sound/vehicles/shuttlecraft/shuttle_door_openclose_stop.wav", 10 ,1 ,800 );
+
+//	$shuttleDoorClosedClip1.notsolid();
+//	$shuttleDoorRampClip1.solid();
+
+	closeRightShuttleBayDoor();
+}
+
+////////////////////////////////
+// Wait for player to get the inverter
+////////////////////////////////
+void openSecretShuttleGoIGM2()
+{
+	$triggerPlaceInverterIntoShuttle.thread( "" );
+
+	$shuttleExterior0.playsound( "sound/environment/machine/mech_move1.wav", 3, 1, 800 );
+	$shuttleExterior0.anim( "opening-dmg" );
+	waitforanimation( $shuttleExterior0, "opening-dmg" );
+	$shuttleExterior0.anim( "open-dmg" );
+
+	if( playerHasInverter == 1 )
+	{
+		$triggerPlaceInverterIntoShuttle.thread( "threadPlaceInverterIntoShuttle" );
+	}
+	playerHasInverter = 2;
+}
+
+
+////////////////////////////////
+// Wait for player to get the inverter
+////////////////////////////////
+void plasmaInverterWaitIGM2()
+{
+	$shuttleBayObject.onuse( "plasmaInverterGoIGM2" );
+	pause();
+}
+
+////////////////////////////////
+// Wait for player to get the inverter
+////////////////////////////////
+void plasmaInverterGoIGM2()
+{
+	$shuttleBayObject.nouse();
+	$shuttleBayObject.hide();
+	$shuttleBayObject.notsolid();
+
+	$shuttleBayObject.playsound( "sound/environment/machine/phaseinv_pickup.wav", 3, 1, 800 );
+
+	if( playerHasInverter == 2 )
+	{
+		$triggerPlaceInverterIntoShuttle.thread( "threadPlaceInverterIntoShuttle" );
+	}
+
+	playerHasInverter = 1;
+	
+	//hzm coop mod chrissstrahl, now remove, we needed it to play the pickup sound
+	wait(1);
+	$shuttleBayObject.remove();
+}
+
+////////////////////////////////
+// Inverto in shuttle
+////////////////////////////////
+void threadPlaceInverterIntoShuttle()
+{
+	$triggerPlaceInverterIntoShuttle.thread( "" );
+
+	$shuttleExterior0.playsound( "sound/environment/machine/phaseinv_install.wav", 3, 1, 10000 );
+
+	$shuttleSecret.triggerable();
+	$shuttleSecretShip.show();
+	$shuttleSecretShip.solid();
+
+	$shuttleExterior0.anim( "open_idle" );
+	wait( 1 );
+	$shuttleExterior0.anim( "closing_new" );
+	waitforanimation( $shuttleExterior0, "closing_new" );
+	$shuttleExterior0.anim( "closed_new" );
+
+	$shuttleDoors0.anim( "opening" );
+	$shuttleDoors0.loopsound( "sound/vehicles/shuttlecraft/shuttle_door_open.wav", 1 ,800 );
+
+	waitforanimation( $shuttleDoors0, "opening" );
+	$shuttleDoors0.anim( "open_idle" );
+	$shuttleDoors0.stoploopsound();
+	$shuttleDoors0.playsound( "sound/vehicles/shuttlecraft/shuttle_door_openclose_stop.wav", 10 ,1 ,800 );
+
+	$shuttleDoorClosedClip0.notsolid();
+	$shuttleDoorRampClip0.solid();
+}
+
+//---------------------
+// used to place secret pieces in level
+//------------------------
+void playerReachedSecretIGM2()
+{
+	$secretTrigger.thread( "" );
+	trigger( "$secretSpawner_trigger" );
+}
+
+//===================================================================================================================
+// Dialog and Cinematics
+//===================================================================================================================
+
+///////////////////////////
+// chellOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void chell_workIGM2()
+{
+	$chell.missionobjective( 1 );
+
+	setNextDialog( $chell, 1 );
+	setDialogFunction( $chell, "chellDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $chell, "", "", 0 );
+		talkUntilDone( $chell );
+	}
+}
+
+///////////////////////////
+// chellDialog2_1
+// Player and actor talk
+///////////////////////////
+void chellDialog2_1()
+{
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_finished.mp3", 1, 10000, 0 );//All finished?
+	waitfordialog( $scriptmunro );
+
+	$chell.missionobjective( 0 );
+
+	$chell.anim( "tricorder_scan-look" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_mal.mp3", 1, 128, 0 );//I found a malfunction in the starboard nacelle's plasma exhaust. It's not venting properly through the driver coil assembly. It's going to take a little longer than I estimated.
+	waitfordialog( $chell );
+
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_faster.mp3", 1, 10000, 0 );//I thought Starfleet engineers always worked faster than their estimates.
+	waitfordialog( $scriptmunro );
+
+	thread chellBreakShuttleIGM2();
+
+	setNextDialog( $chell, 2 );
+	$chell.resethead();
+	setDialogFinished( $chell );
+}
+
+///////////////////////////
+// chellBreakShuttleIGM2
+// Chell works untill shuttle breaks
+///////////////////////////
+void chellBreakShuttleIGM2()
+{
+	$chell.resethead();
+	$chell.angle( 0 );
+	//--- Wait because it won't work untill you do.
+	wait( .5 );
+
+	$chell.anim( "tricorder_use_loop" );
+	wait( 3 );
+
+	$chell.anim( "tricorder_scan-look" );
+
+	globalCommon_AiActorUseWeapon( $chell, "none" );
+
+	setNextDialog( $chell, 3 );
+
+	//hzm coop mod chrissstrahl, wait until any valid player is available, or script gets stuck
+	while( globalCoop_return_integerPlayersQuantity(1) < 1 ){
+		wait(5);
+	}
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($chell);
+	ePlayer.useentity( $chell );
+}
+
+///////////////////////////
+// chellDialog2_2
+// Player and actor talk
+///////////////////////////
+void chellDialog2_2()
+{
+	$chell.anim( "tricorder_scan-look" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_almost.mp3", 1, 10000, 0); //One second Munro, I'm almost done.
+	waitfordialog( $chell );
+
+	setNextDialog( $chell, 2 );
+
+	$chell.resethead();
+	$chell.angle( 0 );
+	$chell.anim( "tricorder_use_loop" );
+
+	setDialogFinished( $chell );
+
+	// Call this because it was disrupted
+	thread chellBreakShuttleIGM2();
+}
+
+///////////////////////////
+// chellDialog2_3
+// Player and actor talk
+///////////////////////////
+void chellDialog2_3()
+{
+	$plasmaSmoke0.show();
+	$plasmaSmoke1.show();
+
+	$plasmaSmoke1.loopsound( "sound/environment/steam/steam_loop04.wav", 1 , 10000 );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$IGM2GoToShuttleBay$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM2RepairShuttle$$","incomplete",2,1);
+
+	killAllTalking();
+
+	$chell.anim( "tricorder_scan-look" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+
+	wait( .2 );
+
+	$shuttleInterior.anim( "on" );
+	globalArchetype_Setup( $shuttleConsoleArch,  "ShuttleComputerPanel" );
+	$shuttleConsoleArch.missionobjective( 1 );
+
+	thread burnOutCounterIGM2();
+	$tricorderPuzzleShuttle.puzzleobject_itemusedthread( "ventShuttlePlasmaUse" );
+	$tricorderPuzzleShuttle.puzzleobject_itemtouse( "Tricorder" );
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_plasma.mp3", 1, 10000, 1 ); //Plasma vent leak! Get inside the shuttle and use your tricorder to bleed off plasma from the left computer console. We don't have much time till burnout.
+	waitForDialog( $chell );
+
+	setNextDialog( $chell, 4 );
+
+	$chell.resethead();
+	$chell.angle( 0 );
+	$chell.anim( "tricorder_use_loop" );
+
+	setDialogFinished( $chell );
+}
+
+///////////////////////////
+// chellDialog2_4
+// Player and actor talk
+///////////////////////////
+void chellDialog2_4()
+{
+	$chell.anim( "tricorder_scan-look" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_ventplasma.mp3", 1, 128, 0); //I need you to vent the plasma Munro!
+	waitForDialog( $chell );
+
+	setNextDialog( $chell, 5 );
+	$chell.resethead();
+	$chell.angle( 0 );
+	$chell.anim( "tricorder_use_loop" );
+	setDialogFinished( $chell );
+}
+
+///////////////////////////
+// chellDialog2_5
+// Player and actor talk
+///////////////////////////
+void chellDialog2_5()
+{
+	$chell.anim( "tricorder_scan-look" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_muchtime.mp3", 1, 128, 0); //Munro, what are you standing around for?  We don’t have much time!
+	waitForDialog( $chell );
+
+	setNextDialog( $chell, 4 );
+	$chell.resethead();
+	$chell.angle( 0 );
+	$chell.anim( "tricorder_use_loop" );
+	setDialogFinished( $chell );
+}
+
+///////////////////////////
+// chellDialog2_6
+// Player and actor talk
+///////////////////////////
+void chellDialog2_6()
+{
+	pause();
+	$chell.pushable( 1 );
+}
+
+void burnOutCounterIGM2()
+{
+	wait( 1 );
+
+	//Use -1 to allow for an extra second for the kill thread to kick in
+	//Otherwise, you can complete the puzzle with just under 2 seconds left, but
+	//still fail -- SK
+	while( initalTimeTillBurnOut > -1 )
+	{
+		if( initalTimeTillBurnOut == 60 )
+		{
+			$chell.playdialog("localization/sound/dialog/ent_m2/chell_dammit.mp3", 1, 10000, 1); //The shuttle is going critical.  Please hurry!
+		}
+		if( initalTimeTillBurnOut == 30 )
+		{
+			$chell.playdialog("localization/sound/dialog/ent_m2/chell_getin.mp3", 1, 10000, 1); //Munro? I need you to get into the shuttle and use your tricorder on the left computer console.  Hurry, time is almost up!
+		}
+		if( initalTimeTillBurnOut == 15 )
+		{
+			$chell.playdialog("localization/sound/dialog/ent_m2/chell_ventp.mp3", 1, 10000, 1); //We've got to vent the plasma now.
+		}
+		wait( 1 );
+		initalTimeTillBurnOut --;
+		print ( initalTimeTillBurnOut + "\n" );
+	}
+	thread burnOutCounterOverIGM2();
+}
+
+void burnOutCounterOverIGM2()
+{
+	if ( ventPlasmaComplete < 1 )
+	{
+		globalCoop_mission_fail();
+		/* $player.missionfailed(); */
+	}
+}
+
+void ventShuttlePlasmaUse()
+{
+	//Tricorder Puzzle setup
+	globalTricorderMod_SetNumWaves( 1 );
+	globalTricorderMod_SetAllRandomParms();
+	thread globalTricorderMod_Run( $tricorderPuzzleShuttle, initalTimeTillBurnOut );
+}
+
+void ventShuttlePlasmaCancled()
+{
+	$tricorderPuzzleShuttle.puzzleobject_reset();
+}
+
+void ventShuttlePlasmaGo()
+{
+	//[b607] chrissstrahl - prevent puzzle solving when time is over
+	if(initalTimeTillBurnOut < 0){
+		return;
+	}
+
+	//This is here for additional bullet-proofing
+	//to prevent last second puzzle completions from failing
+	ventPlasmaComplete = 1;
+
+	//Stop CountDown
+	killthread ( "burnOutCounterIGM2" );
+	killAllTalking();
+
+	// Close Shuttle Access Panel
+	$plasmaSmoke0.hide();
+	$plasmaSmoke1.hide();
+
+	$plasmaSmoke1.stoploopsound();
+
+	$shuttleInterior.anim( "idle" );
+	$shuttleConsoleArch.missionobjective( 0 );
+	globalCoop_objectives_set("$$IGM2RepairShuttle$$","complete",2,1);
+
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_thatclose.mp3", 1, 10000, 1 );//That was close!
+	waitfordialog( $chell );
+
+	//Setup Trigger For Exiting Shuttle Cinematic
+	$triggerBehindShuttle.thread( "cinematicDepartureIGM2" );
+
+	wait( .5 );
+
+	$chell.playdialog("localization/sound/dialog/combat/chell_goodjobmun.mp3", 1, 10000, 1 );//Good Job Munro.
+	waitfordialog( $chell );
+}
+
+//---------------------
+// cinematicDepartureIGM2
+// setup and begin cinematicDepartureIGM2
+//---------------------
+void cinematicDepartureIGM2()
+{
+	$triggerBehindShuttle.thread( "" );
+
+	//--- Fade Out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .6 );
+
+	freezeplayer();
+	cinematic();
+
+	// --- Setup
+	setNextDialog( $chell, 6 );
+
+//	$shuttleClipVolume.remove();
+	
+	//hzm coop mod chrissstrahl, wait until any valid player is available, or script gets stuck
+	while( globalCoop_return_integerPlayersQuantity(1) < 1 ){
+		wait(5);
+	}
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($chell);
+	ePlayer.useentity( $chell );
+
+	//$scriptmunro.origin( '-11116 -5108 -216' );
+	$scriptmunro.origin( '-11092 -5356 -216' );
+	$scriptmunro.show();
+	//$scriptmunro.angle( 45 );
+	$scriptmunro.angle( 90 );
+	$scriptmunro.solid();
+
+	$chang.origin( '-11416 -4960 -224' );
+	//$chang.origin( '-11140 -5028 -216' );
+	$chang.show();
+	$chang.angle( 270 );
+	$chang.solid();
+
+	$jurot.origin( '-10704 -5136 -224' );
+	//$jurot.origin( '-11068 -5108 -216' );
+	$jurot.show();
+	$jurot.angle( 135 );
+	$jurot.solid();
+
+	$sydney.origin( '-11416 -5024 -224' );
+	//$sydney.origin( '-11156 -5068 -216' );
+	$sydney.show();
+	$sydney.angle( 45 );
+	$sydney.solid();
+
+	globalCommon_AiActorUseWeapon( $chell, "none" );
+
+	wait( 1 );
+	$scriptmunro.walkto( "shuttlePreloadPoint1" );
+	$chang.walkto( "shuttlePreloadPoint2" );
+	$sydney.walkto( "shuttlePreloadPoint4" );
+	$jurot.walkto( "shuttlePreloadPoint3" );
+
+	$chang.headwatch( $sydney, 10 );
+	$jurot.headwatch( $chang, 10 );
+	$sydney.headwatch( $jurot, 10 );
+	//$scriptmunro.headwatch( $chang, 10 );
+
+	// --- Que Cams
+	$cam0.follow( $cam_igm2_deck7b_0 );
+	$cam1.follow( $cam_igm2_deck7b_1 );
+	$cam2.follow( $cam_igm2_deck7b_2 );
+	$cam3.follow( $cam_igm2_deck7b_3 );
+	$cam4.follow( $cam_igm2_deck7b_4 );
+	$cam5.follow( $cam_igm2_deck7b_5 );
+	$cam6.follow( $cam_igm2_deck7b_6 );
+
+	$cam0.cut();
+	$cam0.fov( 60 );
+	$cam1.cut();
+	$cam1.fov( 60 );
+	$cam2.cut();
+	$cam2.fov( 60 );
+	$cam3.cut();
+	$cam3.fov( 60 );
+	$cam4.cut();
+	$cam4.fov( 60 );
+	$cam5.cut();
+	$cam5.fov( 60 );
+	$cam6.cut();
+	$cam6.fov( 60 );
+	//$cam6.watch( "$shuttlePath01a0" );
+	cuecamera( $cam0 );
+	wait( .5 );
+	letterbox( .01 );
+
+	// --- Skip Thread
+	skipthread( "cinematicDepartureIGM2Skipthread");
+
+	//--- Start & Fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	allowMusicDucking ( 0 );
+	music ( "aux3" );
+	wait( .75 );
+
+	$chang.walkto( "shuttlePreloadPoint2" );
+	waitfor( $chang );
+	$sydney.walkto( "shuttlePreloadPoint4" );
+	waitfor( $sydney );
+
+	cuecamera( $cam1 );
+
+	$chang.headwatch( $sydney, 10 );
+	$jurot.headwatch( $sydney, 10 );
+	$sydney.headwatch( $chang, 10 );
+	$scriptmunro.headwatch( $chang, 10 );
+
+	$sydney.playdialog("localization/sound/dialog/ent_m2/syd_comeon.mp3", 1, 10000, 0 ); //Come on, team! Let’s show them what we can do.
+	waitfordialog( $sydney );
+
+	$chell.walkto( "shuttleNode3" );
+
+	$chang.headwatch( $jurot, 10 );
+	$jurot.headwatch( $sydney, 10 );
+	$sydney.headwatch( $jurot, 10 );
+	$scriptmunro.headwatch( $jurot, 10 );
+	cuecamera( $cam2 );
+	$jurot.playdialog("localization/sound/dialog/ent_m2/jurot_caution.mp3", 1, 10000, 0 ); //We need to exercise caution. These aliens are capable of impulse flight. They’re capable of chewing through a tritanium hull…
+	waitfordialog( $jurot );
+
+	$chang.headwatch( $jurot, 10 );
+	$jurot.headwatch( $chang, 10 );
+	$sydney.headwatch( $chang, 10 );
+	$scriptmunro.headwatch( $chang, 10 );
+	cuecamera( $cam3 );
+	$chang.playdialog("localization/sound/dialog/ent_m2/chang_shot.mp3", 1, 10000, 0 ); //They’re capable of falling over when shot.
+	waitfordialog( $chang );
+
+	cuecamera( $cam4 );
+
+	$chang.resetHead();
+	$jurot.resetHead();
+	$sydney.resetHead();
+	$scriptmunro.resetHead();
+
+	$chang.walkto( "shuttleLoadPoint5" );
+	$jurot.walkto( "shuttleLoadPoint6" );
+	$sydney.walkto( "shuttleLoadPoint5" );
+	$scriptmunro.turnTowardsEntity( $chell );
+
+	wait( .5 );
+	$chell.walkto( "shuttleLoadPoint5" );
+	thread openCenterShuttleBayDoor();
+	wait( .5 );
+	$scriptmunro.walkto( "shuttleLoadPoint6" );
+
+	wait( 1.5 );
+
+	thread cycleShuttleDoor();
+	cuecamera( $cam5 );
+
+	$chang.hide();
+	$jurot.hide();
+	$sydney.hide();
+	$chell.hide();
+	$scriptmunro.hide();
+	wait( 1.5 );
+
+	$shuttleCenterOrigin.playsound( "sound/vehicles/shuttlecraft/shuttle_takeoff.wav", 3, 1, 3000 );
+	wait( 1 );
+
+	$shuttleCenterOrigin.followpath( $shuttlePath01a0 );
+	wait( 1 );
+	$cam6.watch( "$shuttlePath01a0" );
+	$cam6.follow( $cam_igm2_deck7b_6 );
+	wait( .25 );
+	cuecamera( $cam6 );
+	wait( 4 );
+
+	//--- End Thread
+	thread cinematicDepartureIGM2End();
+}
+
+//---------------------
+// cinematicDepartureIGM2Skipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicDepartureIGM2Skipthread()
+{
+	//--- kill the cinematicDepartureIGM2 thread
+	skipthread( "Null" );
+	killthread( "cinematicDepartureIGM2" );
+
+	//--- call the ending of the cinematicDepartureIGM2
+	thread cinematicDepartureIGM2End();
+}
+
+//---------------------
+// cinematicDepartureIGM2End
+// wrapup the cinematicDepartureIGM2
+//------------------------
+void cinematicDepartureIGM2End()
+{
+	//--- fade out and set the level up
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .75 );
+	music ("normal");
+
+	//---------------------------------------------------
+	
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalMissionEnterprise",3);//set igm mission
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	//eof HZM
+
+	noIntermission();
+	coop_igm_mapToLoad = "m4l1a-attrexian_station";
+
+	thread coop_endLevel();
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m4l1a-attrexian_station" );
+	setfloatvar ( "game.globalMissionEnterprise", 3 );
+	noIntermission();
+	wait ( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM2
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM2()
+{
+	globalCommon_SpawnActor( "char/starfleet_crew-male6.tik", "russel", '-10072 -4080 0', 180 );
+	$russel.pushable( 0 );
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt2.tik", "thompson", '-10152 -4080 0', 0 );
+	$thompson.pushable( 0 );
+
+	$triggerHallConversation1.thread( "thompsonrusselTalkIGM2" );
+
+	$thompson.headwatch( $russel, 5 );
+	$russel.headwatch( $thompson, 5 );
+
+	thread randomlyAnimateActor( $thompson, "conv" );
+	thread randomlyAnimateActor( $russel, "conv" );
+
+	globalCommon_SpawnActor( "char/starfleet_crew-female5.tik", "alison", '-10174 -4736  0', 300 );
+	$alison.pushable( 0 );
+	globalCommon_SpawnActor( "char/starfleet_crew-male5.tik", "gray", '-10112 -4840  0', 135 );
+	$gray.pushable( 0 );
+
+	$triggerBayConversation1.thread( "grayalisonTalkIGM2" );
+
+	$alison.headwatch( $gray, 5 );
+	$gray.headwatch( $alison, 5 );
+
+	//thread randomlyAnimateActor( $gray, "conv" );
+	//thread randomlyAnimateActor( $alison, "conv" );
+
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt4.tik", "waters", '-12344 -6928 -224', 45 );
+	$waters.pushable( 0 );
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt5.tik", "katcherside", '-12296 -6880 -224', 225 );
+	$katcherside.pushable( 0 );
+
+	$triggerBayConversation3.thread( "waterskatchersideTalkIGM2" );
+
+	$waters.headwatch( $katcherside, 5 );
+	$katcherside.headwatch( $waters, 5 );
+
+	thread randomlyAnimateActor( $waters, "conv" );
+	thread randomlyAnimateActor( $katcherside, "conv" );
+
+	globalCommon_SpawnActor( "char/starfleet_crew-female2.tik", "miyamoto", '-11728 -4760 0', 0 );
+	globalCommon_AiActorUseWeapon( $miyamoto, "EnterpriseDatapad" );
+	$miyamoto.pushable( 0 );
+	$miyamoto.anim( "ent-datapad-use" );
+
+	thread miyamoto_workIGM2();
+
+
+}
+
+////////////////////////////
+// thompson and russel Talk
+/////////////////////////////
+void thompsonrusselTalkIGM2()
+{
+	$triggerHallConversation1.thread( "" );
+
+	$thompson.setFloatVar( "pauseRandomAnimate", 1 );
+	$russel.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$thompson.anim( "idle" );
+	$russel.anim( "idle" );
+
+	$thompson.playdialog("localization/sound/dialog/ent_m2/crewf1_canbd.mp3", 1, 128, 0); //Can you believe that…about the Dallas?
+	waitForDialog( $thompson ); //human male 2
+	$russel.playdialog("localization/sound/dialog/ent_m2/crewm2_tought.mp3", 1, 128, 0); //The Dallas was a good ship.  If it happened to them, it could happen to anyone..
+	waitForDialog( $russel );	//human male 3
+	$thompson.playdialog("localization/sound/dialog/ent_m2/crewf1_itcould.mp3", 1, 128, 0); //It could happen to us..
+	waitForDialog( $thompson );
+	$russel.playdialog("localization/sound/dialog/ent_m2/crewm2_getthese.mp3", 1, 128, 0); //I see.  Let’s just get these GPS conduits replaced.
+	waitForDialog( $russel );
+	$thompson.playdialog("localization/sound/dialog/ent_m2/crewf1_getwork.mp3", 1, 128, 0); //Yeah, let’s get to work.
+	waitForDialog( $thompson );
+
+	$thompson.resethead();
+	$russel.resethead();
+
+	$thompson.setFloatVar( "pauseRandomAnimate", 0 );
+	$russel.setFloatVar( "pauseRandomAnimate", 0 );
+
+	$thompson.setnodeid( 50 );
+	$thompson.alias( "thompsonIGMA1", "localization/sound/dialog/ent_m2/manaan_attend1.mp3" ); //Sorry I'm kinda busy here.
+	$thompson.dialog( "thompsonIGMA" );
+	$thompson.ai_on();
+
+	$russel.setnodeid( 51 );
+	$russel.alias( "russelIGMA1", "localization/sound/dialog/ent_m2/stratton_busy1.mp3", 1, 128, 0); //I'm busy.
+	$russel.alias( "russelIGMA2", "localization/sound/dialog/ent_m2/stratton_chat1.mp3", 1, 128, 0); //Please Lieutenant I need to get back to work.
+	$russel.dialog( "russelIGMA" );
+	$russel.ai_on();
+}
+
+////////////////////////////
+// alison and stockman Talk
+/////////////////////////////
+void waterskatchersideTalkIGM2()
+{
+	$triggerBayConversation3.thread( "" );
+
+	$katcherside.setFloatVar( "pauseRandomAnimate", 1 );
+	$waters.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$katcherside.anim( "idle" );
+	$waters.anim( "idle" );
+
+	$waters.playdialog("localization/sound/dialog/ent_m2/crewm1_cantb.mp3", 1, 128, 0); //I can’t believe Franklin’s gone
+	waitForDialog( $waters ); //human male 2
+	$katcherside.playdialog("localization/sound/dialog/ent_m2/crewm2_knoww.mp3", 1, 128, 0); //Did you know him well?
+	waitForDialog( $katcherside );// human male 3
+	$waters.playdialog("localization/sound/dialog/ent_m2/crewm1_kinda.mp3", 1, 128, 0); //I used to play dom-jot with him every week.  He was a good friend.
+	waitForDialog( $waters );
+	$katcherside.playdialog("localization/sound/dialog/ent_m2/crewm2_goodthey.mp3", 1, 128, 0); //I never really figured out that game.  I’m more of a poker fan.
+	waitForDialog( $katcherside );
+	$waters.playdialog("localization/sound/dialog/ent_m2/crewm1_awayt.mp3", 1, 128, 0); //I don’t see the point in playing an antiquated game which was designed soley to facilitate the transfer of unearned currency.
+	waitForDialog( $waters );
+	$katcherside.playdialog("localization/sound/dialog/ent_m2/crewm2_badid.mp3", 1, 128, 0); //It’s not about currency.  It’s about skill and strategy.  The currency was really only a scorekeeping mechanism.  Except that in those days losers could have their homes taken away.
+	waitForDialog( $katcherside );
+
+	$katcherside.setFloatVar( "pauseRandomAnimate", 0 );
+	$waters.setFloatVar( "pauseRandomAnimate", 0 );
+
+	thread waters_workIGM2();
+	thread katcherside_workIGM2();
+}
+
+///////////////////////////
+// katchersideOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void katcherside_workIGM2()
+{
+	setNextDialog( $katcherside, 1 );
+	setDialogFunction( $katcherside, "katchersideDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $katcherside, "", "", 0 );
+		talkUntilDone( $katcherside );
+	}
+}
+
+///////////////////////////
+// katchersideDialog2_1
+// Player and actor talk
+///////////////////////////
+void katchersideDialog2_1()
+{
+	$katcherside.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+
+	$katcherside.anim( "idle" );
+	$katcherside.headwatch( $player, 10 );
+	$katcherside.turntowardsplayer();
+
+	$katcherside.playdialog("localization/sound/dialog/ent_m2/stratton_busy1.mp3", 1, 128, 0); //I must attend to my duties.  Perhaps we can chat later.
+	waitForDialog( $katcherside );
+
+	setNextDialog( $katcherside, 1 );
+	$katcherside.resethead();
+	$katcherside.turnTowardsEntity( $waters );
+	wait( .5 );
+	$katcherside.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $katcherside );
+}
+
+///////////////////////////
+// watersOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void waters_workIGM2()
+{
+	setNextDialog( $waters, 1 );
+	setDialogFunction( $waters, "watersDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $waters, "", "", 0 );
+		talkUntilDone( $waters );
+	}
+}
+
+///////////////////////////
+// watersDialog2_1
+// Player and actor talk
+///////////////////////////
+void watersDialog2_1()
+{
+	$waters.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+
+	$waters.anim( "idle" );
+	$waters.headwatch( $player, 10 );
+	$waters.turntowardsplayer();
+
+	$waters.playdialog("localization/sound/dialog/ent_m2/manaan_attend1.mp3", 1, 128, 0); //I must attend to my duties, blah blah
+	waitForDialog( $waters );
+
+	setNextDialog( $waters, 1 );
+	$waters.resethead();
+	$waters.turnTowardsEntity( $katcherside );
+	wait( .5 );
+	$waters.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $waters );
+}
+
+////////////////////////////
+// alison and stockman Talk
+/////////////////////////////
+void grayalisonTalkIGM2()
+{
+	$triggerBayConversation1.thread( "" );
+
+	//$alison.setFloatVar( "pauseRandomAnimate", 1 );
+	//$gray.setFloatVar( "pauseRandomAnimate", 1 );
+	//wait( .25 );
+	//$alison.anim( "idle" );
+	//$gray.anim( "idle" );
+
+	$alison.playdialog("localization/sound/dialog/ent_m2/alison_comebym.mp3", 1, 128, 0); //I’ve been doing research on Andorian plantlife.
+	waitForDialog( $alison );
+	$gray.playdialog("localization/sound/dialog/ent_m2/crewm_now.mp3", 1, 128, 0); //Oh really? I didn’t even know they had any plants on Andoria..
+	waitForDialog( $gray );
+	$alison.playdialog("localization/sound/dialog/ent_m2/crewm_comeonp.mp3", 1, 128, 0); //There are only a few, but they’re carnivorous and very dangerous.
+	waitForDialog( $alison );
+	$gray.playdialog("localization/sound/dialog/ent_m2/crewm_waita.mp3", 1, 128, 0); //I was attacked by a Galadorian venom weed on a away mission.  I don’t have a lot of sympathy for hostile plants.
+	waitForDialog( $gray );
+	$alison.playdialog("localization/sound/dialog/ent_m2/alison_ydata.mp3", 1, 128, 0); //I find all plantlife fascinating.  Even so-called hostile plants.
+	waitForDialog( $alison );
+	$gray.playdialog("localization/sound/dialog/ent_m2/crewm_noid.mp3", 1, 128, 0); //Well keep them far away from me.  I need to finish my stellar cartography updates.  Talk to you later.
+	waitForDialog( $gray );
+
+	//$alison.setFloatVar( "pauseRandomAnimate", 0 );
+	//$gray.setFloatVar( "pauseRandomAnimate", 0 );
+
+	$alison.resethead();
+	$gray.resethead();
+
+	thread randomlyAnimateActor( $gray, "ent-stand" );
+	thread randomlyAnimateActor( $alison, "ent-stand" );
+
+	//$gray.turntoangle( 0 );
+	//$alison.turntoangle( 90 );
+
+	$gray.angle( 0 );
+	$alison.angle( 90 );
+
+	thread gray_workIGM2();
+	thread alison_workIGM2();
+}
+
+///////////////////////////
+// alisonOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void alison_workIGM2()
+{
+	setNextDialog( $alison, 1 );
+	setDialogFunction( $alison, "alisonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $alison, "", "", 0 );
+		talkUntilDone( $alison );
+	}
+}
+
+///////////////////////////
+// alisonDialog2_1
+// Player and actor talk
+///////////////////////////
+void alisonDialog2_1()
+{
+	$alison.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+	$alison.anim( "ent-stand-scan" );
+	$alison.headwatch( $player, 10 );
+
+	$alison.playdialog("localization/sound/dialog/ent_m1/alison_kindaBusy.mp3", 1, 128, 0); //Please don’t disturb me.
+	waitForDialog( $alison );
+
+	setNextDialog( $alison, 1 );
+	$alison.resethead();
+	$alison.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $alison );
+}
+
+///////////////////////////
+// grayOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void gray_workIGM2()
+{
+	setNextDialog( $gray, 1 );
+	setDialogFunction( $gray, "grayDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $gray, "", "", 0 );
+		talkUntilDone( $gray );
+	}
+}
+
+///////////////////////////
+// grayDialog2_1
+// Player and actor talk
+///////////////////////////
+void grayDialog2_1()
+{
+	$gray.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+	$gray.anim( "ent-stand-scan" );
+	$gray.headwatch( $player, 10 );
+
+	$gray.playdialog("localization/sound/dialog/ent_m2/russel_howare.mp3", 1, 128, 0); //Hello, I’m Ensign Russel, assistant ship’s counselor.  How are you?
+	waitForDialog( $gray );
+
+	setNextDialog( $gray, 2 );
+	$gray.resethead();
+	$gray.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $gray );
+}
+
+///////////////////////////
+// grayDialog2_2
+// Player and actor talk
+///////////////////////////
+void grayDialog2_2()
+{
+	$gray.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+	$gray.anim( "ent-stand-scan" );
+	$gray.headwatch( $player, 10 );
+
+	$gray.playdialog("localization/sound/dialog/ent_m2/russel_makefeel.mp3", 1, 128, 0); //I’ve been impressed with the way you interact with your team.
+	waitForDialog( $gray );
+
+	setNextDialog( $gray, 3 );
+	$gray.resethead();
+	$gray.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $gray );
+}
+
+///////////////////////////
+// grayDialog2_3
+// Player and actor talk
+///////////////////////////
+void grayDialog2_3()
+{
+	$gray.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+	$gray.anim( "ent-stand-scan" );
+	$gray.headwatch( $player, 10 );
+
+	$gray.playdialog("localization/sound/dialog/ent_m2/russel_really.mp3", 1, 128, 0); //I suspect that your team’s casual banter helps relieve the pressure of potentially lethal situations.
+	waitForDialog( $gray );
+
+	setNextDialog( $gray, 4 );
+	$gray.resethead();
+	$gray.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $gray );
+}
+
+///////////////////////////
+// grayDialog2_4
+// Player and actor talk
+///////////////////////////
+void grayDialog2_4()
+{
+	$gray.setFloatVar( "pauseRandomAnimate", 1 );
+	wait ( .25 );
+	$gray.anim( "ent-stand-scan" );
+	$gray.headwatch( $player, 10 );
+
+	$gray.playdialog("localization/sound/dialog/ent_m2/russel_elu.mp3", 1, 128, 0); //I’ll be glad to give you insights into the group dynamics of your team.
+	waitForDialog( $gray );
+
+	setNextDialog( $gray, 1 );
+	$gray.resethead();
+	$gray.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $gray );
+}
+
+///////////////////////////
+// sydneyOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void miyamoto_workIGM2()
+{
+	setNextDialog( $miyamoto, 1 );
+	setDialogFunction( $miyamoto, "miyamotoDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $miyamoto, "", "", 0 );
+		talkUntilDone( $miyamoto );
+	}
+}
+
+///////////////////////////
+// miyamotoDialog2_1
+// Player and actor talk
+///////////////////////////
+void miyamotoDialog2_1()
+{
+	$miyamoto.anim( "ent-datapad-scan" );
+	$miyamoto.headwatch( $player, 10 );
+	$miyamoto.turntowardsplayer();
+
+	$miyamoto.playdialog("localization/sound/dialog/ent_m2/myamoto_lib.mp3", 1, 128, 0); //Hello, I’m Miyamoto, the ship’s librarian.
+	waitForDialog( $miyamoto );
+
+	setNextDialog( $miyamoto, 2 );
+	$miyamoto.resethead();
+	$miyamoto.angle( 0 );
+	$miyamoto.anim( "ent-datapad-use" );
+	setDialogFinished( $miyamoto );
+}
+
+///////////////////////////
+// miyamotoDialog2_2
+// Player and actor talk
+///////////////////////////
+void miyamotoDialog2_2()
+{
+	$miyamoto.anim( "ent-datapad-scan" );
+	$miyamoto.headwatch( $player, 10 );
+	$miyamoto.turntowardsplayer();
+
+	$miyamoto.playdialog("localization/sound/dialog/ent_m2/myamoto_res.mp3", 1, 128, 0); //We have extensive research capabilities on the Enterprise.  Please take advantage of them.
+	waitForDialog( $miyamoto );
+
+	setNextDialog( $miyamoto, 3 );
+	$miyamoto.resethead();
+	$miyamoto.angle( 0 );
+	$miyamoto.anim( "ent-datapad-use" );
+	setDialogFinished( $miyamoto );
+}
+
+///////////////////////////
+// miyamotoDialog2_3
+// Player and actor talk
+///////////////////////////
+void miyamotoDialog2_3()
+{
+	$miyamoto.anim( "ent-datapad-scan" );
+	$miyamoto.headwatch( $player, 10 );
+	$miyamoto.turntowardsplayer();
+
+	$miyamoto.playdialog("localization/sound/dialog/ent_m2/myamoto_growon.mp3", 1, 128, 0); //Remember, knowledge is half the battle.  That’s one to grow on.
+	waitForDialog( $miyamoto );
+
+	setNextDialog( $miyamoto, 1 );
+	$miyamoto.resethead();
+	$miyamoto.angle( 0 );
+	$miyamoto.anim( "ent-datapad-use" );
+	setDialogFinished( $miyamoto );
+}
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM2
+//---------------------
+void checkForDeckChangeIGM2()
+{
+	if( getfloatvar( "game.checkEntMission2RoomsVisited" ) == 2 )
+	{
+		setfloatvar(  "level.deckToChangeToIGM", 8 );
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

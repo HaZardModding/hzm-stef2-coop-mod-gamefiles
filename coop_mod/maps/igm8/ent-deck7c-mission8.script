@@ -1,0 +1,714 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck7c - MISSION 8
+//  Script By:    K.Thompson
+//  Created on:   08/12/2002
+//	Last Edited:  08/12/2002 - kt
+//-----------------------------------------------------------------
+
+void setupMission8Deck7c();
+void justLoadedDeckThreadIGM8();
+
+void munroToSeeTelsiaQuartersDoor1GoIGM8();
+
+void cinematicTelsiaMunroTalkIGM8();
+void cinematicTelsiaMunroTalkIGM8Skipthread();
+void cinematicTelsiaMunroTalkIGM8End();
+
+void telsia_workIGM8();
+void telsiaDialog8_1();
+void telsiaDialog8_2();
+
+void munroToHazardBreifingRoomWaitIGM8();
+void munroToHazardBreifingRoomIGM8();
+
+void initDoorsIGM8();
+
+void crewQuartersDoor1GoIGM8();
+void crewQuartersDoor2GoIGM8();
+void crewQuartersDoor3GoIGM8();
+
+void ambientActorsIGM8();
+
+void alisonChellTalkIGM8();
+
+void alison_workIGM8();
+void alisonDialog8_1();
+
+void chell_workIGM8();
+void chellDialog8_1();
+
+void thompson_workIGM8();
+void thompsonDialog8_1();
+void thompsonDialog8_2();
+
+void law_workIGM8();
+void lawDialog8_1();
+
+
+//-----------------------------
+//--- variables
+
+entity cinematicArm_IGM8_Telsia;
+
+
+//===================================================================================================================
+// Setup 
+//===================================================================================================================
+
+//---------------------
+// setupMission8Deck7c
+// does all the setup stuff for the mission
+//---------------------
+void setupMission8Deck7c()
+{
+	initDoorsIGM8();
+	ambientActorsIGM8();
+	
+	spawn( "Camera", "targetname", "cam1" );
+		
+	cam.load( "cam1_ent_deck7_igm8" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-telsia.tik", "telsia", '-9328 -176 0', 135 );
+
+	globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '-9376 -128 0', 315 );
+	globalCommon_AiActorUseWeapon( $scriptmunro, "none" );
+	$scriptmunro.hide();
+	$scriptmunro.notsolid();
+	
+	unlockCrewQuartersDoor( 1 );
+	
+	$triggerCrewQuartersDoor1.thread( "munroToSeeTelsiaQuartersDoor1GoIGM8" );
+
+	//Increase Telsia Float Var
+	globalCommon_LoveChoice_Telsia();
+	
+	//--- armature setup
+	cinematicArm_IGM8_Telsia = createCinematic( "igm8_telsia" );
+	cinematicArm_IGM8_Telsia.setendthread( "cinematicTelsiaMunroTalkIGM8End" );	
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$IGM8RemoveImplants$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM8MeetWithPicard$$","complete",2,0);
+	globalCoop_objectives_set("$$IGM8MeetTelsiaOrKleeya$$","incomplete",3,1);
+}
+
+//---------------------
+// munroHereToSeePicardIGM8
+// Triggered and check to see if A cinematic should happen.
+//------------------------
+void justLoadedDeckThreadIGM8()
+{
+	return;//hzm coop mod chrissstrahl - don't do in coop
+	if( getfloatvar( "game.IGM8RemoveImplants" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8RemoveImplants", 1 );		
+	}
+	if( getfloatvar( "game.IGM8RemoveImplants" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8RemoveImplants", 1 );			
+	}
+	if( getfloatvar( "game.IGM8MeetWithPicard" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8MeetWithPicard", 1 );		
+	}
+	if( getfloatvar( "game.IGM8MeetWithPicard" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8MeetWithPicard", 1 );			
+	}
+	
+	if( getfloatvar( "game.IGM8MeetTelsiaOrKleeya" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8MeetTelsiaOrKleeya", 1 );		
+	}
+	if( getfloatvar( "game.IGM8MeetTelsiaOrKleeya" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8MeetTelsiaOrKleeya", 1 );			
+	}
+}
+
+void munroToSeeTelsiaQuartersDoor1GoIGM8()
+{
+	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	ePlayerCinematic	= eTrigger.getLastActivatingEntity();
+
+	$triggerCrewQuartersDoor1.thread( "" );
+
+	$crewQuartersDoor1.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+
+	$crewQuartersDoor1.open( $world );
+	wait( .5 );
+	
+	$telsia.turntowardsplayer();
+	wait( .5 );
+	
+	thread cinematicTelsiaMunroTalkIGM8();
+	
+	$triggerCrewQuartersDoor1.thread( "crewQuartersDoor1GoIGM8" );
+}
+
+//---------------------
+// cinematicTelsiaMunroTalkIGM8
+// setup and begin cinematicTelsiaMunroTalkIGM8
+//---------------------
+void cinematicTelsiaMunroTalkIGM8()
+{
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+	
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	letterbox( .1 );
+
+	//--- hide the player and AI
+	globalCommon_AiDummyHide( $scriptmunro );
+	globalCommon_AiDummyHide( $telsia );
+	
+	//--- start the armature
+	cinematicArm_IGM8_Telsia.beginCinematic( "igm8_telsia" );
+	wait( .2 );
+	
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--- set the skipthread
+	skipthread( "cinematicTelsiaMunroTalkIGM8End" );
+}
+
+//---------------------
+// cinematicTelsiaMunroTalkIGM8Skipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicTelsiaMunroTalkIGM8Skipthread()
+{
+	//--- kill the cinematicTelsiaMunroTalkIGM8 thread
+	skipthread( "Null" );
+	killthread( "cinematicTelsiaMunroTalkIGM8" );
+
+	//--- call the ending of the cinematicTelsiaMunroTalkIGM8
+	thread cinematicTelsiaMunroTalkIGM8End();
+}
+
+//---------------------
+// cinematicTelsiaMunroTalkIGM8End
+// wrapup the cinematicTelsiaMunroTalkIGM8
+//------------------------
+void cinematicTelsiaMunroTalkIGM8End()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_IGM8_Telsia.endCinematic( FALSE );
+
+	killthread( "cinematicSickBayLurker" );
+
+	//--- IGM stuff
+	setfloatvar( "game.IGM8MeetTelsiaOrKleeya", 2 );
+	justLoadedDeckThreadIGM8();
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$IGM8MeetTelsiaOrKleeya$$","complete",3,1);
+
+	//--- set the player
+	//hzm coop mod chrissstrahl - grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(ePlayerCinematic) && ePlayerCinematic.getHealth() > 0){
+		ePlayerCinematic.warp( '-9376 -112 0' );
+		ePlayerCinematic.turnTowardsEntity( $telsia );
+	}
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .5 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	coop_igm_mapToLoad = "ent-deck7a";
+	thread coop_endLevel();
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "triggerLevelDeck7a", "map", "ent-deck7a" );
+	wait( .1 );
+	trigger ( "$triggerLevelDeck7a" );
+	*/
+}
+
+//---------------------
+// telsia_workIGM8
+// After Munro goes to Talk With Telsia, She Works
+//------------------------
+void telsia_workIGM8()
+{
+	setNextDialog( $telsia, 1 );
+	setDialogFunction( $telsia, "telsiaDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $telsia, "crewQuartersTelsiaNode", "idle", 3 );
+		
+		talkUntilDone( $telsia );
+	}
+}
+
+///////////////////////
+// Her Dialog if Used
+///////////////////////
+void telsiaDialog8_1()
+{
+	$telsia.anim( "idle" );
+	$telsia.headwatch( $player, 10 );
+	$telsia.turntowardsplayer();
+	
+	wait( 1 );
+	
+	centerprint( "Telsia: \nPoor, Poor, Gonzales. You Rock! Bye." );
+	wait( 2 );
+	
+	setfloatvar( "game.checkEntMission8RoomsVisited", 5 );
+	
+	setNextDialog( $telsia, 2 );
+	
+	$telsia.resethead();
+	setDialogFinished( $telsia );
+	
+	thread munroToHazardBreifingRoomWaitIGM8();
+}
+
+//------------------------
+// Her Dialog if Used
+//------------------------
+void telsiaDialog8_2()
+{
+	$telsia.anim( "idle" );
+	$telsia.headwatch( $player, 10 );
+	$telsia.turntowardsplayer();
+	
+	wait( 1 );
+	
+	centerprint( "Telsia: I will never say this so... I love Benson and Chris. There, everyone knows the secret." );
+	wait( 2 );
+	
+	setNextDialog( $telsia, 2 );
+	
+	$telsia.resethead();
+	setDialogFinished( $telsia );
+}
+
+//---------------------
+// munroToHazardBreifingRoomIGM8
+// Wait till Munro To Hazard Breifing Room
+//------------------------
+void munroToHazardBreifingRoomWaitIGM8()
+{
+	$triggerCrewQuarters4.thread( "munroToHazardBreifingRoomIGM8" );
+	wait( 8 );
+			
+	thread munroToHazardBreifingRoomIGM8();
+}
+
+//---------------------
+// munroToHazardBreifingRoomIGM8
+// Call Munro To Hazard Breifing Room
+//------------------------
+void munroToHazardBreifingRoomIGM8()
+{
+	$triggerCrewQuarters4.thread( "" );
+	killthread( "munroToHazardBreifingRoomWaitIGM8" );
+	
+	centerprint( "Picard: \nMunro To Hazard Operations" );
+}
+
+//---------------------
+// Door Init
+//---------------------
+void initDoorsIGM8()
+{
+	$triggerCrewQuartersDoor2.thread( "crewQuartersDoor2GoIGM8" );
+	$triggerCrewQuartersDoor3.thread( "crewQuartersDoor3GoIGM8" );
+}
+
+void crewQuartersDoor1GoIGM8()
+{
+	$triggerCrewQuartersDoor1.thread( "" );
+	
+	if( door1IsLocked == 1 )
+	{
+		$crewQuartersDoor1.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+		wait( 2 );
+	}
+	else if( door1IsLocked == 0 )
+	{
+		$crewQuartersDoor1.open( $world );
+	}
+	
+	$triggerCrewQuartersDoor1.thread( "crewQuartersDoor1GoIGM8" );
+}
+void crewQuartersDoor2GoIGM8()
+{
+	$triggerCrewQuartersDoor2.thread( "" );
+	
+	if( door2IsLocked == 1 )
+	{
+		$crewQuartersDoor2.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+		wait( 2 );
+	}
+	else if( door2IsLocked == 0 )
+	{
+		$crewQuartersDoor2.open( $world );
+	}
+	
+	$triggerCrewQuartersDoor2.thread( "crewQuartersDoor2GoIGM8" );
+}
+void crewQuartersDoor3GoIGM8()
+{
+	$triggerCrewQuartersDoor3.thread( "" );
+	
+	if( door3IsLocked == 1 )
+	{
+		$crewQuartersDoor3.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+		wait( 2 );
+	}
+	else if( door3IsLocked == 0 )
+	{
+		$crewQuartersDoor3.open( $world );
+	}
+	
+	$triggerCrewQuartersDoor3.thread( "crewQuartersDoor3GoIGM8" );
+}
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM8	
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM8()
+{
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt2.tik", "thompson", '-11616.00 1920.00  2.00', 0 );
+
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt.tik", "law", '-11517.00 1920.00  2.00', 180 );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt4.tik", "waters", '-9872 1312 0', 0 );
+	$waters.setnodeid( 50 );
+	$waters.alias( "watersIGMA1", "localization/sound/dialog/ent_m8/waters_extrag.mp3" ); //It’s going to be hairy down there, Munro.  Bring an extra gun or two.
+	$waters.alias( "watersIGMA2", "localization/sound/dialog/ent_m8/waters_strike.mp3" ); //We’ll be waiting to give you photon strike support, sir.  Just say the word.
+	$waters.dialog( "watersIGMA" );
+	$waters.ai_on();
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-chell.tik", "chell", '-10047.03 -1951.03  0.00', 225 );
+	$chell.pushable( 0 );	
+	globalCommon_SpawnActor( "char/starfleet_crew-female5.tik", "alison", '-10087.03 -1991.03  0.00', 45 );
+	$alison.pushable( 0 );
+	
+	thread randomlyAnimateActor( $alison, "conv" );
+	thread randomlyAnimateActor( $chell, "conv" );	
+	
+	$triggerChellQuartersHalllTalk.thread( "alisonChellTalkIGM8" );
+	
+	$alison.headwatch( $chell, 10 );
+	$chell.headwatch( $alison, 10 );
+	
+	thread thompson_workIGM8();
+	thread law_workIGM8();
+	
+	thread randomlyAnimateActor( $thompson, "ent-table" );
+	thread randomlyAnimateActor( $law, "ent-table" );
+}
+
+////////////////////////////
+// alisonChell Talk
+/////////////////////////////
+void alisonChellTalkIGM8()
+{
+	$triggerChellQuartersHalllTalk.thread( "" );
+
+	$chell.setFloatVar( "pauseRandomAnimate", 1 );
+	$alison.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_neverf.mp3", 1, 128, 0); //Sigh… I'm never gonna find him…
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_pardon.mp3", 1, 128, 0); //Pardon me?
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_nothing.mp3", 1, 128, 0); //It's nothing.
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_doesnts.mp3", 1, 128, 0); //It doesn't seem like nothing…
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_looklook.mp3", 1, 128, 0); //You know what it's like to look and look and look for someone?  To just want to see them?  Be close to them?
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_what.mp3", 1, 128, 0); // I, uh, no, yes, um… What?
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_longst.mp3", 1, 128, 0); //It's a long story… long, unhappy story…
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_isee.mp3", 1, 128, 0); //I see…
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_basically.mp3", 1, 128, 0); //Basically, someone left a data pad, with all this romantic poetry on it in my quarters, and I've been searching all over this ship trying to find whoever it was.
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_uhreal.mp3", 1, 128, 0); //Real… uh really?
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_everyone.mp3", 1, 128, 0); //Yeah, I think I've asked everyone…
+	waitForDialog( $alison );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_except.mp3", 1, 128, 0); //Except you…
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_me.mp3", 1, 128, 0); //Me?  Um me? Wh…why would I leave a datapad on your bed?
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_neversaid.mp3", 1, 128, 0); //I never said it was on my bed…
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_assume.mp3", 1, 128, 0); //Oh, um, yeah, well I, um just assumed - I uh, need to get going.
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_nodont.mp3", 1, 128, 0); //Oh no you don't… We need to talk about this.
+	waitForDialog( $alison );
+	$chell.playdialog("localization/sound/dialog/ent_m8/chell_wedo.mp3", 1, 128, 0); //We do?
+	waitForDialog( $chell );
+	$alison.playdialog("localization/sound/dialog/ent_m8/alison_crowded.mp3", 1, 128, 0); //Yeah, we do…  But, it's a little crowded here… why don't we go back to my quarters to… discuss this poetry of yours…
+	waitForDialog( $alison );
+		
+	$chell.setFloatVar( "pauseRandomAnimate", 0 );
+	$alison.setFloatVar( "pauseRandomAnimate", 0 );
+	
+	thread alison_workIGM8();
+	thread chell_workIGM8();
+}
+
+///////////////////////////
+// alisonOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void alison_workIGM8()
+{
+	setNextDialog( $alison, 1 );
+	setDialogFunction( $alison, "alisonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $alison, "", "", 0 );
+		talkUntilDone( $alison );
+	}
+}
+
+///////////////////////////
+// alisonDialog4_1
+// Player and actor talk
+///////////////////////////
+void alisonDialog8_1()
+{
+	$alison.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$alison.anim( "idle" );
+	$alison.turntowardsplayer();
+	$alison.headwatch( $player, 10 );
+	
+	$alison.playdialog("localization/sound/dialog/ent_m1/alison_kindabusy.mp3", 1, 128, 0); //Don't disturb me
+	waitForDialog( $alison );
+
+	setNextDialog( $alison, 1 );
+	$alison.headwatch( $chell, 10 );
+	$alison.turnToAngle( 45 );
+	wait( .5 );
+	$alison.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $alison );
+}
+
+///////////////////////////
+// chellOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void chell_workIGM8()
+{
+	setNextDialog( $chell, 1 );
+	setDialogFunction( $chell, "chellDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $chell, "", "", 0 );
+		talkUntilDone( $chell );
+	}
+}
+
+///////////////////////////
+// chellDialog4_1
+// Player and actor talk
+///////////////////////////
+void chellDialog8_1()
+{
+	$chell.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$chell.anim( "idle" );
+	$chell.turntowardsplayer();
+	$chell.headwatch( $player, 10 );
+	
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_almost.mp3", 1, 128, 0); //One second I'm almost done.
+	waitForDialog( $chell );
+	
+	setNextDialog( $chell, 1 );
+	$chell.headwatch( $alison, 10 );
+	$chell.turnToAngle( 225 );
+	wait( .5 );
+	$chell.setFloatVar( "pauseRandomAnimate", 0 );
+	setDialogFinished( $chell );
+}
+
+///////////////////////////
+// lawOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void thompson_workIGM8()
+{
+	setNextDialog( $thompson, 1 );
+	setDialogFunction( $thompson, "thompsonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $thompson, "", "", 0 );
+		talkUntilDone( $thompson );
+	}
+}
+
+///////////////////////////
+// thompsonDialog8_1
+// Player and actor talk
+///////////////////////////
+void thompsonDialog8_1()
+{
+	$thompson.headwatch( $player, 10 );
+	
+	$thompson.playdialog("localization/sound/dialog/ent_m8/thompson_final.mp3", 1, 128, 0); //Looks like this is the final showdown.  Good luck Munro.
+	waitForDialog( $thompson );
+	
+	setNextDialog( $thompson, 2 );
+	$thompson.resethead();
+	setDialogFinished( $thompson );
+}
+
+///////////////////////////
+// thompsonDialog8_2
+// Player and actor talk
+///////////////////////////
+void thompsonDialog8_2()
+{
+	$thompson.headwatch( $player, 10 );
+	
+	$thompson.playdialog("localization/sound/dialog/ent_m8/thompson_nuke.mp3", 1, 128, 0); //I say we torpedo them from orbit.  It’s the only way to be sure.
+	waitForDialog( $thompson );
+
+	setNextDialog( $thompson, 1 );
+	$thompson.resethead();
+	setDialogFinished( $thompson );
+}
+
+///////////////////////////
+// lawOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void law_workIGM8()
+{
+	setNextDialog( $law, 1 );
+	setDialogFunction( $law, "lawDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $law, "", "", 0 );
+		talkUntilDone( $law );
+	}
+}
+
+///////////////////////////
+// lawDialog8_1
+// Player and actor talk
+///////////////////////////
+void lawDialog8_1()
+{
+	$law.headwatch( $player, 10 );
+	
+	$law.playdialog("localization/sound/dialog/ent_m7/kretar_help2.mp3", 1, 128, 0); //Can I help you?
+	waitForDialog( $law );
+
+	setNextDialog( $law, 1 );
+	$law.resethead();
+	setDialogFinished( $law );
+}
+
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM8	
+//---------------------
+void checkForDeckChangeIGM8()
+{
+	if( getfloatvar( "game.checkEntMission7RoomsVisited" ) == 3 )
+	{
+		setfloatvar(  "level.deckToChangeToIGM", 71 );
+
+		$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_dhazaps.mp3", 1, 10000, 0); //Hazard Operations
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

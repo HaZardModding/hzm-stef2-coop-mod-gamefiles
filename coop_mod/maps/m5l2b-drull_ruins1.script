@@ -1,0 +1,2738 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m5l2b-drull_ruins1 - Drull Ruins 1 - Interior
+//  Script By:    R. 'Charon' Heath
+//  Geometry By:  A. Bellefeuil , J. Keehan , R. 'Charon' Heath
+//  Created on:   08/21/2002
+//
+//  Last Edited:  R. 'Charon' Heath
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+void cinematicsSetup();
+void setupArchetypes();
+void setupTurrets();
+void setupMachinery();
+void setupTripWires();
+void setupGasChamber1();
+
+void globalBioFactorySpawn( entity biofactorySpawnName, string biofactorySpawnTargetName, string biofactorySpawnModelName );
+void globalTurretSetup( float biofactoryTurretNumber );
+void globalTurretActivate( float biofactoryTurretNumber );
+void globalWeldBindSetup( string strPrimaryPanel , entity entGasTower );
+void globalBridgeBlink( entity bridgePiece , float bridgePieceWait );
+void globalBioFactoryPodConveyor1( entity biofactoryOriginName , entity biofactoryPathName, float biofactoryDirection );
+void globalBioFactoryPodConveyor2( entity biofactoryOrigin2Name , float biofactoryPodNumber2 );
+void randomAlienLaunch( entity alien );
+
+void biofactoryTurret1Activate();
+void biofactoryTurret2Activate();
+void biofactoryTurret3Activate();
+void biofactoryTurret4Activate();
+void biofactoryTurret5Activate();
+
+void biofactoryGasTrap1();
+void biofactoryGasTrap1_raiseTowers();
+void biofactoryGasTrap1_tricorderPuzzle();
+void biofactoryGasTrap1_tricorderReset();
+void sequenceGasChamber1GasMonitor();
+
+void tripwireFloorPanel1_explode();
+void tripwireFloorPanel2_explode();
+void bridgeBlink();
+
+void biofactoryLiftArm1_move();
+void biofactoryRotateArm1_move();
+void biofactoryPodConveyor1_move();
+void biofactoryConveyor2_move();
+void biofactoryLiftArm2_move();
+
+void introDialog();
+void biofactoryAutoSave();
+void playerNotInRoomThreadOff();
+void playerNotInRoomThreadOn();
+void tripwiresKillAliens();
+void tripwiresKillAliens_skipThread();
+void tripwiresTrapTeam();
+
+void useConsoleSideRoom1();
+void useConsoleFinalRoom();
+
+void levelTransition();
+void teamFollowOff();
+void secretWeakWall1_explode();
+void secretWeakHatch1_explode();
+void secretWeakHatch1_padMove();
+void secretLurkerRunts();
+void secretSkeet();
+void secretSkeetLauncher( float skeetAlien1 , float skeetAlien2 , float skeetAlien3 );
+
+void startGroup2();
+void startGroup4();
+
+void stopGroup2();
+void stopGroup4();
+
+float bioFactoryPodInQue = 1;
+float bioFactoryPodReady = 0;
+float playerNotInRoom = 1;
+float secretSkeetButtonPressed = 0;
+float biofactoryGasTrap1_counter = 0;
+float bridgeBlinking = 1;
+
+entity cinBioscan;
+
+vector biofactoryConveyor1_canister1_origin;
+vector biofactoryConveyor1_canister2_origin;
+vector biofactoryConveyor1_canister3_origin;
+vector biofactoryConveyor1_canister4_origin;
+
+//=============================================================================
+// Includes
+//=============================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_biofactoryGasTrap1_warper();
+void	coop_handleErrorProducingCrapScripting(string sName);
+void	coop_findAndHandleEntities();
+void	coop_reduceFrustration();
+entity	entityPlayerGlobal;
+
+float fRustrationReducerActive;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_tripwire.scr"
+#include "maps/global_scripts/global_weld.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+//===================================================================================================================
+// Main Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// level start stuff
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$RuinsLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - set spawn lopcations
+	coop_float_spawnAngle0 				= 170;
+	coop_vector_spawnOrigin8 			= '7720 -1707 0';
+	coop_vector_spawnOrigin7 			= '7720 -1656 0';
+	coop_vector_spawnOrigin6 			= '7720 -1602 0';
+	coop_vector_spawnOrigin5 			= '7650 -1707 0';
+	coop_vector_spawnOrigin4 			= '7650 -1656 0';
+	coop_vector_spawnOrigin3 			= '7650 -1602 0';
+	coop_vector_spawnOrigin2 			= '7580 -1602 0';
+	coop_vector_spawnOrigin1 			= '7580 -1670 0';
+	
+	//hzm coop mod chrissstrahl, set kill message
+	$biofactoryLiftArm1_canister1_trigger.setStringVar("uservar1","killmessage  was crushed by a ^2Container");
+	$biofactoryLiftArm1_canister1_trigger.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Kontainer");
+	$biofactoryRotateArm1_canister1.setStringVar("uservar1","killmessage  was crushed by a ^2Container");
+	$biofactoryRotateArm1_canister1.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Kontainer");
+	$biofactoryRotateArm1.setStringVar("uservar1","killmessage_de  wurde zerquetscht von einem ^2Roboter Arm");
+	$biofactoryRotateArm1.setStringVar("uservar2","killmessage  was crushed by a ^2Robot arm");
+	$biofactoryLiftArm2.setStringVar("uservar1","killmessage_de  wurde zerquetscht von einem ^2Roboter Arm");
+	$biofactoryLiftArm2.setStringVar("uservar2","killmessage  was crushed by a ^2Robot arm");
+	$biofactoryLiftArm2_canister1.setStringVar("uservar1","killmessage  was crushed by a ^2Container");
+	$biofactoryLiftArm2_canister1.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Kontainer");
+	
+	//kill quick
+	$biofactoryRotateArm1.dmg(99999);
+
+	soundtrack( "music/m5l2b.mus" );
+
+	$world.entity_fade_dist( 2500 );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.05 0.05 0.1' );
+	$world.farplane ( 2000 );
+
+	$fakemunro.ai_off();
+	$fakemunro.hide();
+	$fakemunro.notsolid();
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m5l2b_drull_ruins1" );
+	
+	wait( .1 );
+
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	dontSaveOrientation();
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindScientists$$","incomplete",1,0);
+	globalCoop_objectives_set("$$DestroyTurrets$$","complete",2,0);
+	globalCoop_objectives_set("$$SealGasVents$$","complete",3,1);
+	//globalCoop_objectives_set("$$DeactivateTripWires$$","complete",4,0);
+	//globalCoop_objectives_set("$$ReuniteWithTeam$$","complete",5,1);
+
+	init();
+
+	wait( 10 );
+	
+	//hzm coop mod chrissstrahl, find variouse entities that have no targetname
+	//and make them work better with coop
+	thread coop_findAndHandleEntities();
+}
+//---------------------
+// Function: init
+// Comments:
+// initilization stuff
+//---------------------
+void init()
+{
+//	$world.addAvailableViewMode( "tripwire" );
+	$Chell.ai_on();
+	$Telsia.ai_on();
+	$Kourban.ai_on();
+	
+	cinematicsSetup();
+	setupArchetypes();
+	setupTurrets();
+	setupMachinery();
+	setupGasChamber1();
+	
+	thread introDialog();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	//secrets
+	$secretWeakWall1_fracture.viewmode( "structuralintegrity" );
+	$secretWeakWall1.solid();
+	thread globalCommon_OnDamage( $secretWeakWall1, "secretWeakWall1_explode" );
+
+	$secretWeakHatch1_fracture.viewmode( "structuralintegrity" );
+	$secretWeakHatch1.solid();
+	thread globalCommon_OnDamage( $secretWeakHatch1, "secretWeakHatch1_explode" );
+
+	//buttons
+	$tripwireAliensButton1_red.hide();
+	$tripwirepanel1_red.hide();
+	$podpanel1_red.hide();
+
+	$biofactorySideRoom1_field1.solid();
+	$biofactoryTripHalls1_field2.solid();
+	$biofactoryTripHalls1_field2.show();
+	$biofactoryTripHalls1_field1.hide();
+	
+	$consoleSideRoom1.thread( "useConsoleSideRoom1" );
+	$consoleSideRoom1_off.hide();
+	$consoleSideRoom1_pod_down.hide();
+
+	$launchroomExitDoor1_green.hide();
+	$launchroomExitDoor1_red.show();
+
+	$world.light_lightstyle( "launchroomExitDoor1_greenlight" , "a" , 0 );
+
+	$launchroomExitDoor1.lock();
+
+	$afterFinalRoom.nottriggerable();
+
+	globalCommon_SetupContextDialog( $Chell , "chell" );
+	globalCommon_SetupContextDialog( $Telsia, "telsia" );
+	globalCommon_SetupContextDialog( $Kourban, "korban" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	thread biofactoryLiftArm1_move();
+	thread biofactoryConveyor2_move();
+	thread biofactoryLiftArm2_move();
+
+	$biofactoryGasTrap1_panel1_red.hide();
+
+	$biofactoryGasTrap1_button1.puzzleobject_timeToUse( 5 );
+	$biofactoryGasTrap1_button1.puzzleobject_itemtouse( "Tricorder" );
+	$biofactoryGasTrap1_button1.puzzleobject_solvedthread( "biofactoryGasTrap1_raiseTowers" );
+	$biofactoryGasTrap1_button1.puzzleobject_itemusedthread( "biofactoryGasTrap1_tricorderPuzzle" );
+	$biofactoryGasTrap1_button1.puzzleobject_canceledthread( "biofactoryGasTrap1_tricorderReset" );
+
+	thread sequenceGasChamber1GasMonitor();
+	
+	thread bridgeBlink();
+	
+	$consoleFinalRoom_red.hide();
+	
+	$tripwireFloorPanel1_fracture.viewmode( "structuralintegrity" );
+	//$tripwireFloorPanel2_fracture.viewmode( "structuralintegrity" ); //hzm coop mod chrissstrahl - dissabled null_entity
+
+	thread globalCommon_OnDamage( $tripwireFloorPanel1, "tripwireFloorPanel1_explode" );
+	thread globalCommon_OnDamage( $tripwireFloorPanel2, "tripwireFloorPanel2_explode" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	//start our randomly launching aliens
+	float i;
+	for ( i = 0 ; i <= 7 ; i++ )
+	{
+		entity alien;
+		alien = getentity( "launchAlien"+i );
+		thread randomAlienLaunch ( alien );
+	}
+	
+	wait( 1 );	
+
+	setupTripWires();
+}
+
+
+//===================================================================================================================
+// Setup Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: cinematicsSetup
+// Comments:
+// setups the cinematics
+//---------------------
+void cinematicsSetup()
+{
+	// cinematic stuff
+	cinBioscan = createcinematic( "m5l2-bioscan" );
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	$arch_gascontrol1.contents( "targetable" );
+	$arch_gascontrol1.archetype( "IdryllGasControl" );
+
+	$arch_podpanel1.contents( "targetable" );
+	$arch_podpanel1.archetype( "IdryllSecurityPanel" );
+
+	$arch_podpanel2.contents( "targetable" );
+	$arch_podpanel2.archetype( "IdryllSecurityPanel" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	$arch_securitypanel1.contents( "targetable" );
+	$arch_securitypanel1.archetype( "IdryllSecurityPanel" );
+	
+	$arch_tripwirepanel1.contents( "targetable" );
+	$arch_tripwirepanel1.archetype( "IdryllSecurityPanel" );
+}
+
+//---------------------
+// Function: setupTurrets
+// Comments:
+// setups the turrets in the map
+//---------------------
+void setupTurrets()
+{
+	entity biofactoryTurret;
+	float i = 1;
+	biofactoryTurret = getentity ( "biofactoryTurret"+i );
+	
+	while( doesEntityExist( biofactoryTurret ) )
+	{
+		globalTurretSetup( i );
+		wait( .1 );
+		
+		i++;
+		wait( .1 );
+		
+		biofactoryTurret = getentity ( "biofactoryTurret"+i );
+	}
+}
+
+//---------------------
+// Function: setupMachinery
+// Comments:
+// setups the factory machinery
+//---------------------
+void setupMachinery()
+{
+	$biofactoryLiftArm1_grabber.bind( $biofactoryLiftArm1 );
+	$biofactoryLiftArm1.bind( $biofactoryLiftArm1_mover );
+	$biofactoryLiftArm1_canister1.bind( $biofactoryLiftArm1 );
+	$biofactoryRotateArm1_canister1.bind( $biofactoryRotateArm1 );
+
+	$biofactoryLiftArm1_canister1.dmg( 16384 );
+	$biofactoryRotateArm1_canister1.dmg( 16384 );
+
+	$biofactoryLiftArm1_canister1_trigger.nottriggerable();
+
+	$biofactoryLiftArm1_canister1.hide();
+	$biofactoryRotateArm1_canister1.hide();
+	$biofactoryRotateArm1_canister2.hide();
+	$biofactoryConveyor1_canister1.hide();
+	$biofactoryConveyor1_canister1_clone.hide();
+	$biofactoryConveyor1_canister2_clone.hide();
+	$biofactoryConveyor1_canister3_clone.hide();
+	$biofactoryConveyor1_canister4_clone.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	$biofactoryRotateArm1_canister1.notsolid();
+	$biofactoryRotateArm1_canister2.notsolid();
+	$biofactoryConveyor1_canister1.notsolid();
+	$biofactoryConveyor1_canister1_clone.notsolid();
+	$biofactoryConveyor1_canister2_clone.notsolid();
+	$biofactoryConveyor1_canister3_clone.notsolid();
+	$biofactoryConveyor1_canister4_clone.notsolid();
+
+	$biofactoryRotateArm1_canister1.moveDown( 64 );
+	$biofactoryConveyor1_canister1_clone.moveDown( 192 );
+	$biofactoryConveyor1_canister2_clone.moveDown( 192 );
+	$biofactoryConveyor1_canister3_clone.moveDown( 192 );
+	$biofactoryConveyor1_canister4_clone.moveDown( 192 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	biofactoryConveyor1_canister1_origin = $biofactoryConveyor1_canister1.getorigin();
+	biofactoryConveyor1_canister2_origin = $biofactoryConveyor1_canister2.getorigin();
+	biofactoryConveyor1_canister3_origin = $biofactoryConveyor1_canister3.getorigin();
+	biofactoryConveyor1_canister4_origin = $biofactoryConveyor1_canister4.getorigin();
+
+	float i, podNumber;
+	entity podOrigin, podMover, podPod, podAlien;
+	
+	podNumber = 10;
+	for ( i = 1; i <= podNumber; i++ )
+	{
+		podOrigin = getentity( "biofactoryPodConveyor1_origin" + i );
+		podMover = getentity( "biofactoryPodConveyor1_mover" + i );
+		podPod = getentity( "biofactoryPodConveyor1_pod" + i );
+		podAlien = getentity( "biofactoryPodConveyor1_alien" + i );
+		
+		podMover.bind( podOrigin );
+		podPod.bind( podOrigin );
+//		podAlien.bind( podOrigin );
+	}
+}
+
+//---------------------
+// Function: setupTripWires
+// Comments:
+// setups the first group of tripwires in the level
+//---------------------
+void setupTripWires()
+{
+	//group2
+	globalTripwire_Setup( "group2Wire1" , 100 );
+	thread globalTripwire_Run ( "group2Wire1" );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+	
+	globalTripwire_Setup( "group2Wire2" , 100 );
+	thread globalTripwire_Run ( "group2Wire2" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group2Wire3" , 100 );
+	thread globalTripwire_Run ( "group2Wire3" );
+}
+
+//---------------------
+// Function: setupTripWires2
+// Comments:
+// setups the second group of tripwires in the level
+//---------------------
+void setupTripWires2()
+{
+	//group4
+	globalTripwire_Setup( "group4Wire1" , 100 );
+	thread globalTripwire_Run ( "group4Wire1" );
+
+	globalTripwire_Setup( "group4Wire2" , 100 );
+	thread globalTripwire_Run ( "group4Wire2" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire3" , 100 );
+	thread globalTripwire_Run ( "group4Wire3" );
+
+	globalTripwire_Setup( "group4Wire4" , 100 );
+	thread globalTripwire_Run ( "group4Wire4" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire5" , 100 );
+	thread globalTripwire_Run ( "group4Wire5" );
+
+	globalTripwire_Setup( "group4Wire6" , 100 );
+	thread globalTripwire_Run ( "group4Wire6" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire7" , 100 );
+	thread globalTripwire_Run ( "group4Wire7" );
+
+	globalTripwire_Setup( "group4Wire8" , 100 );
+	thread globalTripwire_Run ( "group4Wire8" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire9" , 100 );
+	thread globalTripwire_Run ( "group4Wire9" );
+
+	globalTripwire_Setup( "group4Wire10" , 100 );
+	thread globalTripwire_Run ( "group4Wire10" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire11" , 100 );
+	thread globalTripwire_Run ( "group4Wire11" );
+
+	globalTripwire_Setup( "group4Wire12" , 100 );
+	thread globalTripwire_Run ( "group4Wire12" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+
+	globalTripwire_Setup( "group4Wire19" , 100 );
+	thread globalTripwire_Run ( "group4Wire19" );
+}
+
+//---------------------
+// setupGasChamber1
+// does setup stuff for first gaschamber puzzle
+//---------------------
+void setupGasChamber1()
+{
+	$biofactoryGasTrap1_clouds1.hide();
+	
+	$biofactoryGasTrap1_field1.hide();
+	$biofactoryGasTrap1_gas1.hide();
+	$biofactoryGasTrap1_gas2.hide();
+	$biofactoryGasTrap1_gas3.hide();
+	$biofactoryGasTrap1_gas4.hide();
+	$biofactoryGasTrap1_gas1.viewmode( "tracegas" );
+	$biofactoryGasTrap1_gas2.viewmode( "tracegas" );
+	$biofactoryGasTrap1_gas3.viewmode( "tracegas" );
+	$biofactoryGasTrap1_gas4.viewmode( "tracegas" );
+	$biofactoryGasTrap1_hurt.nottriggerable();
+	$biofactoryGasTrap1_hurt.damagetype( "gas" );
+
+	$biofactoryGasTrap1_gas1.bind( $biofactoryGasTrap1_gasTower1 );
+	$biofactoryGasTrap1_gas2.bind( $biofactoryGasTrap1_gasTower2 );
+	$biofactoryGasTrap1_gas3.bind( $biofactoryGasTrap1_gasTower3 );
+	$biofactoryGasTrap1_gas4.bind( $biofactoryGasTrap1_gasTower4 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//If no emitter is present, you can make the entire weld section one unit
+	globalWeld_SetupWeldUnit( "panel1_weld1" );
+	globalWeld_SetupWeldUnit( "panel2_weld1" );
+	globalWeld_SetupWeldUnit( "panel3_weld1" );
+	globalWeld_SetupWeldUnit( "panel4_weld1" );
+
+	globalWeldBindSetup( "panel1_weld1" , $biofactoryGasTrap1_gasTower1 );
+	globalWeldBindSetup( "panel2_weld1" , $biofactoryGasTrap1_gasTower2 );
+	globalWeldBindSetup( "panel3_weld1" , $biofactoryGasTrap1_gasTower3 );
+	globalWeldBindSetup( "panel4_weld1" , $biofactoryGasTrap1_gasTower4 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//fake welds
+	globalWeld_SetupWeldUnit( "panel1_weld7" );
+	globalWeld_SetupWeldUnit( "panel1_weld13" );
+	globalWeld_SetupWeldUnit( "panel1_weld19" );
+	globalWeld_SetupWeldUnit( "panel2_weld7" );
+	globalWeld_SetupWeldUnit( "panel2_weld13" );
+	globalWeld_SetupWeldUnit( "panel2_weld19" );
+	globalWeld_SetupWeldUnit( "panel3_weld7" );
+	globalWeld_SetupWeldUnit( "panel3_weld13" );
+	globalWeld_SetupWeldUnit( "panel3_weld19" );
+	globalWeld_SetupWeldUnit( "panel4_weld7" );
+	globalWeld_SetupWeldUnit( "panel4_weld13" );
+	globalWeld_SetupWeldUnit( "panel4_weld19" );
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels
+	wait(0.05);
+
+	globalWeldBindSetup( "panel1_weld7" , $biofactoryGasTrap1_gasTower1 );
+	globalWeldBindSetup( "panel1_weld13" , $biofactoryGasTrap1_gasTower1 );
+	globalWeldBindSetup( "panel1_weld19" , $biofactoryGasTrap1_gasTower1 );
+	globalWeldBindSetup( "panel2_weld7" , $biofactoryGasTrap1_gasTower2 );
+	globalWeldBindSetup( "panel2_weld13" , $biofactoryGasTrap1_gasTower2 );
+	globalWeldBindSetup( "panel2_weld19" , $biofactoryGasTrap1_gasTower2 );
+	globalWeldBindSetup( "panel3_weld7" , $biofactoryGasTrap1_gasTower3 );
+	globalWeldBindSetup( "panel3_weld13" , $biofactoryGasTrap1_gasTower3 );
+	globalWeldBindSetup( "panel3_weld19" , $biofactoryGasTrap1_gasTower3 );
+	globalWeldBindSetup( "panel4_weld7" , $biofactoryGasTrap1_gasTower4 );
+	globalWeldBindSetup( "panel4_weld13" , $biofactoryGasTrap1_gasTower4 );
+	globalWeldBindSetup( "panel4_weld19" , $biofactoryGasTrap1_gasTower4 );
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels
+	wait(0.05);	
+
+	globalWeld_AddEmitter( "panel1_weld1" , "panel1_gas_emitter1" );
+	globalWeld_AddEmitter( "panel2_weld1" , "panel2_gas_emitter1" );
+	globalWeld_AddEmitter( "panel3_weld1" , "panel3_gas_emitter1" );
+	globalWeld_AddEmitter( "panel4_weld1" , "panel4_gas_emitter1" );
+
+	$panel1_gas_emitter1.bind( $biofactoryGasTrap1_gasTower1 );
+	$panel2_gas_emitter1.bind( $biofactoryGasTrap1_gasTower2 );
+	$panel3_gas_emitter1.bind( $biofactoryGasTrap1_gasTower3 );
+	$panel4_gas_emitter1.bind( $biofactoryGasTrap1_gasTower4 );
+
+	//gas emitters visible only with trace gas tricorder filter display
+	$panel1_gas_emitter1.viewmode ( "tracegas" );
+	$panel2_gas_emitter1.viewmode ( "tracegas" );
+	$panel3_gas_emitter1.viewmode ( "tracegas" );
+	$panel4_gas_emitter1.viewmode ( "tracegas" );
+	
+	wait( 1 );
+	
+	$biofactoryGasTrap1_gasTower1.moveDown( 128 );
+	$biofactoryGasTrap1_gasTower2.moveDown( 128 );
+	$biofactoryGasTrap1_gasTower3.moveDown( 128 );
+	$biofactoryGasTrap1_gasTower4.moveDown( 128 );
+}
+
+
+//===================================================================================================================
+// Global Stuff
+//===================================================================================================================
+
+//----------------------------
+// Function: globalBioFactorySpawn
+// Comments:
+// Used to spawn in entity via a func_spawn and will give the new entity a targetname
+// Variables:
+// biofactorySpawnName - entity targetname of the func_spawn to use
+// biofactorySpawnTargetName - string targetname of the newly spawned entity
+// biofactorySpawnModelName - string modelname for the newly spawned entity
+//----------------------------
+void globalBioFactorySpawn( entity biofactorySpawnName, string biofactorySpawnTargetName, string biofactorySpawnModelName )
+{
+	biofactorySpawnName.spawntargetname( biofactorySpawnTargetName );
+	biofactorySpawnName.modelname( biofactorySpawnModelName );
+	triggerentity( biofactorySpawnName );	
+}
+
+//---------------------
+// Function: globalTurretSetup
+// Comments:
+// used to setup each of the turrets in the level
+//---------------------
+void globalTurretSetup( float biofactoryTurretNumber )
+{
+	entity biofactoryTurretName , biofactoryTurretNameDoor1 , biofactoryTurretNameDoor2 , biofactoryTurretNameMover , biofactoryTurretNameBase;
+	
+	biofactoryTurretName = getentity( "biofactoryTurret" + biofactoryTurretNumber );
+	biofactoryTurretNameDoor1 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_door1" );
+	biofactoryTurretNameDoor2 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_door2" );
+	biofactoryTurretNameMover = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_mover" );
+	biofactoryTurretNameBase = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_base" );
+
+	biofactoryTurretName.ai_off();
+
+	biofactoryTurretName.flags( "+notarget" );
+	
+	biofactoryTurretName.pushable( 1 );
+	biofactoryTurretNameBase.pushable( 1 );
+	
+	biofactoryTurretNameBase.bind( biofactoryTurretNameMover );
+	biofactoryTurretName.bind( biofactoryTurretNameMover );
+	biofactoryTurretNameMover.moveUp( 48 );
+}
+
+//---------------------
+// Function: globalTurretActivate
+// Comments:
+// called when a turret needs to become active
+// Variables:
+// biofactoryTurretNumber - float value of the number of the turret
+//---------------------
+void globalTurretActivate( float biofactoryTurretNumber )
+{
+	entity biofactoryTurretName , biofactoryTurretNameDoor1 , biofactoryTurretNameDoor2 , biofactoryTurretNameMover;
+	
+	biofactoryTurretName = getentity( "biofactoryTurret" + biofactoryTurretNumber );
+	biofactoryTurretNameDoor1 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_door1" );
+	biofactoryTurretNameDoor2 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_door2" );
+	biofactoryTurretNameMover = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_mover" );
+	
+	biofactoryTurretNameDoor1.moveSouth( 44 );
+	biofactoryTurretNameDoor2.moveNorth( 44 );
+	biofactoryTurretNameMover.moveDown( 48 );
+
+	waitfor( biofactoryTurretNameMover );
+	
+	wait( 1 );
+
+	biofactoryTurretName.ai_on();
+
+	biofactoryTurretName.flags( "-notarget" );
+}
+
+//---------------------
+// Function: globalWeldBindSetup
+// Comments:
+// goes through a chain of weld entities and binds them to the appropriate tower
+//---------------------
+void globalWeldBindSetup( string strPrimaryPanel , entity entGasTower )
+{
+	entity entNextPanel;
+	entity primaryPanel;
+	float panelcount;
+
+	//Establish the "PrimaryPanel"
+	panelcount = 1;
+	primaryPanel = getentity( strPrimaryPanel );	
+	primaryPanel.bind( entGasTower );
+	
+	entNextPanel = primaryPanel.gettargetentity();
+
+	while ( doesEntityExist( entNextPanel ) )
+	{
+		entNextPanel.bind( entGasTower );
+		panelcount++;
+
+		entNextPanel = entNextPanel.gettargetentity();
+	}
+}
+
+//----------------------------
+// Function: globalBridgeBlink
+// Comments:
+// used to make pieces of the forcefield bridge blink in and out of existance
+// Variables:
+// bridgePiece - entity name of the piece of bridge you want to blink
+// bridgePieceWait - float value of the time between showing and hiding of the piece
+//----------------------------
+void globalBridgeBlink( entity bridgePiece , float bridgePieceWait )
+{
+	while( bridgeBlinking == 1 )
+	{
+		bridgePiece.hide();
+		wait( .25 );
+		bridgePiece.show();
+		wait( .25 );
+		bridgePiece.hide();
+		wait( .25 );
+		bridgePiece.show();
+		wait( .25 );
+		bridgePiece.hide();
+		bridgePiece.notsolid();
+		wait( bridgePieceWait );
+
+		bridgePiece.show();
+		bridgePiece.solid();
+		wait( .1 );
+		bridgePiece.hide();
+		wait( .1 );
+		bridgePiece.show();
+		wait( .1 );
+		bridgePiece.hide();
+		wait( .1 );
+		bridgePiece.show();
+		wait( bridgePieceWait );
+//		wait( randomint ( 5 ) + bridgePieceWait );
+	}
+	bridgePiece.show();
+	bridgePiece.solid();
+}
+
+//---------------------
+// Function: globalBioFactoryPodConveyor1
+// Comments:
+// Used to move the biofactoryPodConveyor pods along their paths
+// Variables:
+// biofactoryOriginName - entity targetname of the pod origin
+// biofactoryPathName - entity targetname of the origin to warp the pod to
+// biofactoryDirection - float that represents what direction to move the pod
+// 		1 - Up
+//		2 - Down
+//---------------------
+void globalBioFactoryPodConveyor1( entity biofactoryOriginName , entity biofactoryPathName, float biofactoryDirection )
+{
+	while( 1 )
+	{
+		biofactoryOriginName.origin( biofactoryPathName.getorigin() );
+		wait( .1 );
+		biofactoryOriginName.show();
+	
+		biofactoryOriginName.time( 20 );
+		if( biofactoryDirection == 1)
+		{
+			biofactoryOriginName.moveUp( 2944 );
+			biofactoryOriginName.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );
+		
+		}
+		else if( biofactoryDirection == 2 )
+		{
+			biofactoryOriginName.moveDown( 2944 );
+			biofactoryOriginName.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );		
+		}
+		else
+		{
+			centerprint( "incorrect direction" );
+		}
+		waitfor( biofactoryOriginName );
+	
+		biofactoryOriginName.stoploopsound();
+		biofactoryOriginName.playsound( "sound/environment/machine/lift3stop.wav", 10, 1, 300 );			
+		biofactoryOriginName.hide();
+		wait( .1 );
+	
+		while( playerNotInRoom == 1 )
+		{
+			wait( 1 );
+		}
+	}
+}
+
+//---------------------
+// Function: globalBioFactoryPodConveyor2
+// Comments:
+// Used to move the biofactoryPodConveyor pods along their paths
+// Variables:
+// biofactoryOriginName - entity targetname of the pod origin
+// biofactoryPathName - entity targetname of the origin to warp the pod to
+// biofactoryDirection - float that represents what direction to move the pod
+// 		1 - Up
+//		2 - Down
+//---------------------
+// 2304 -to first tube
+// 512 -between tubes
+// 400 -after tubes
+// 1024 -to the west
+// 1264 -south
+// 4752 -yay!...nowweheadwest!
+// 2944 -down
+void globalBioFactoryPodConveyor2( entity biofactoryOrigin2Name , float biofactoryPodNumber2 )
+{
+	entity vertMoverOriginName , vertMoverOrigin2Name , moverName , vertMoverName , bottomMoverName , podMoverName , alienMoverName;
+	
+	vertMoverOriginName = getentity( "biofactoryPodConveyor2_vertmover" + biofactoryPodNumber2 + "_origin" );
+	moverName = getentity( "biofactoryPodConveyor2_mover" + biofactoryPodNumber2 );
+	vertMoverName = getentity( "biofactoryPodConveyor2_vertmover" + biofactoryPodNumber2 );
+	bottomMoverName = getentity( "biofactoryPodConveyor2_bottom" + biofactoryPodNumber2 );
+	podMoverName = getentity( "biofactoryPodConveyor2_pod" + biofactoryPodNumber2 );
+	alienMoverName = getentity( "biofactoryPodConveyor2_alien" + biofactoryPodNumber2 );
+
+	moverName.bind( biofactoryOrigin2Name );
+	vertMoverName.bind( vertMoverOriginName );
+	bottomMoverName.bind( moverName );
+	podMoverName.bind( bottomMoverName );
+
+	moverName.hide();
+	vertMoverName.hide();
+	bottomMoverName.hide();
+	podMoverName.hide();
+	biofactoryOrigin2Name.hide();
+	vertMoverOriginName.hide();
+
+	moverName.notsolid();
+	vertMoverName.notsolid();
+	bottomMoverName.notsolid();
+	podMoverName.notsolid();
+	biofactoryOrigin2Name.notsolid();
+	vertMoverOriginName.notsolid();
+	wait( .1 );
+
+	podMoverName.nodamage();
+
+	biofactoryOrigin2Name.origin( $biofactoryPodConveyor2_origin1.getorigin() );
+	vertMoverOriginName.origin( $biofactoryPodConveyor2_vertorigin1.getorigin() );
+	wait( .1 );
+
+	vertMoverOriginName.moveDown( 864 );
+	vertMoverOriginName.time( .1 );
+	waitfor( vertMoverOriginName );
+
+	moverName.show();
+	vertMoverName.show();
+	bottomMoverName.show();
+	podMoverName.show();
+	biofactoryOrigin2Name.show();
+	vertMoverOriginName.show();
+
+	moverName.solid();
+	vertMoverName.solid();
+	bottomMoverName.solid();
+	podMoverName.solid();
+	biofactoryOrigin2Name.solid();
+	vertMoverOriginName.solid();
+
+	// start moving pod
+	vertMoverOriginName.moveUp( 864 );
+	vertMoverOriginName.time( 2 );
+	biofactoryOrigin2Name.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );	
+	biofactoryOrigin2Name.time( 2 );
+	biofactoryOrigin2Name.moveSouth( 2304 );
+	waitfor( biofactoryOrigin2Name );
+		
+	biofactoryOrigin2Name.time( 2 );
+	biofactoryOrigin2Name.moveSouth( 512 );
+	waitfor( biofactoryOrigin2Name );
+
+	biofactoryOrigin2Name.stoploopsound();				
+	biofactoryOrigin2Name.playsound( "sound/environment/machine/lift3stop.wav", 11, 1, 300 );		
+		
+	wait( 1 );
+	
+	biofactoryOrigin2Name.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );		
+	biofactoryOrigin2Name.time( 2 );
+	biofactoryOrigin2Name.moveSouth( 512 );
+	waitfor( biofactoryOrigin2Name );
+
+	biofactoryOrigin2Name.stoploopsound();				
+	biofactoryOrigin2Name.playsound( "sound/environment/machine/lift3stop.wav", 11, 1, 300 );		
+		
+	wait( 1 );
+
+	biofactoryOrigin2Name.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );
+	biofactoryOrigin2Name.time( 3 );
+	biofactoryOrigin2Name.moveSouth( 400 );
+	waitfor( biofactoryOrigin2Name );
+
+	biofactoryOrigin2Name.stoploopsound();				
+	biofactoryOrigin2Name.playsound( "sound/environment/machine/lift3stop.wav", 11, 1, 300 );		
+
+	wait( 2 );
+
+	biofactoryOrigin2Name.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );
+	biofactoryOrigin2Name.time( 5 );
+	biofactoryOrigin2Name.moveWest( 1024 );
+	waitfor( biofactoryOrigin2Name );
+
+	biofactoryOrigin2Name.stoploopsound();				
+	biofactoryOrigin2Name.playsound( "sound/environment/machine/lift3stop.wav", 11, 1, 300 );		
+
+	wait( 1 );
+		
+//	vertMoverOriginName.bind( biofactoryOrigin2Name );
+
+	vertMoverOriginName.moveDown( 864 );
+	vertMoverOriginName.time( 5 );
+	biofactoryOrigin2Name.loopsound( "sound/ships/drull/drull_tram.wav", .7, 300 );	
+	biofactoryOrigin2Name.time( 5 );
+	biofactoryOrigin2Name.moveDown( 864 );
+	waitfor( biofactoryOrigin2Name );
+
+	biofactoryOrigin2Name.stoploopsound();				
+	biofactoryOrigin2Name.playsound( "sound/environment/machine/lift3stop.wav", 11, 1, 300 );		
+
+	bioFactoryPodReady = 1;
+}
+
+//-----------------------------------------------------------------------------------------------
+// Function			: randomAlienLaunch
+// Parameters		: the alien to be launched
+// Returns			: none
+// Comments
+//	In the map there are tubes that eject aliens at random intervals.  This function will
+// 	do that.  Set it up in the map by creating a script_model, set the model to whatever
+//	alien it is, then create a splinepath of where it's supposed to go, then target-chain
+// 	the script_model to the start of the path, then target-chain the path together and
+// 	leave the last node with no target.  Then at the beginning of the map thread this function
+//	with the script_model's targetname.
+//
+//	You can tweak the times by changing the following globals:
+//		ALIEN_LAUNCH_MIN and ALIEN_LAUNCH_MAX
+//-----------------------------------------------------------------------------------------------
+float ALIEN_LAUNCH_MIN = 1;
+float ALIEN_LAUNCH_MAX = 10;
+
+void randomAlienLaunch( entity alien )
+{
+	if( doesEntityExist( alien ))
+	{
+		vector v;
+		v = alien.getorigin ();
+		while( 1 )
+		{
+			alien.origin ( v );
+			alien.hide();
+	
+			wait( ALIEN_LAUNCH_MIN + randomfloat( ALIEN_LAUNCH_MAX - ALIEN_LAUNCH_MIN ) );
+	
+			alien.show();
+			alien.time ( 1 );
+			alien.moveup ( 2048 );
+			waitfor( alien );
+		}
+	}
+}
+
+
+//===================================================================================================================
+// Turrets
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryTurret1Activate
+// Comments:
+// activates turret 1
+//---------------------
+void biofactoryTurret1Activate()
+{
+	thread coop_reduceFrustration();
+	globalTurretActivate( 1 );
+	//centerprint("biofactoryTurret1Activate");
+}
+
+//---------------------
+// Function: biofactoryTurret2Activate
+// Comments:
+// activates turret 2
+//---------------------
+void biofactoryTurret2Activate()
+{
+	globalTurretActivate( 2 );
+	//centerprint("biofactoryTurret2Activate");
+}
+
+//---------------------
+// Function: biofactoryTurret3Activate
+// Comments:
+// activates turret 3
+//---------------------
+void biofactoryTurret3Activate()
+{
+	globalTurretActivate( 3 );
+	killthread("coop_reduceFrustration");
+	//centerprint("biofactoryTurret3Activate");
+	
+	coop_float_spawnAngle0 = 180;
+	float fSpawn;
+	float fOffset;
+	
+	vector v;
+	v = '11574 1300 412';
+	fOffset = v_y;
+	for(fSpawn=coop_integer_maxPlayers;fSpawn>=1;fSpawn--){
+		setFloatScriptVariable("coop_float_spawnAngle"+fSpawn,0);
+		setVectorScriptVariable("coop_vector_spawnOrigin"+fSpawn,v);
+		fOffset -= 50;
+		v_y = fOffset;
+	}
+}
+
+//---------------------
+// Function: biofactoryTurret4Activate
+// Comments:
+// activates turret 4
+//---------------------
+void biofactoryTurret4Activate()
+{
+	globalTurretActivate( 4 );
+	//centerprint("biofactoryTurret4Activate");
+}
+
+//---------------------
+// Function: biofactoryTurret5Activate
+// Comments:
+// activates turret 5
+//---------------------
+void biofactoryTurret5Activate()
+{
+	thread globalTurretActivate( 5 );
+	thread globalTurretActivate( 6 );
+	//centerprint("biofactoryTurret5Activate");
+}
+
+//===================================================================================================================
+// Trap Functions
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryGasTrap1
+// Comments:
+// this is where the player gets stuck in a large gas trap in the launch room
+//---------------------
+void biofactoryGasTrap1()
+{	
+	//hzm coop mod chrissstrahl - make players spawn/respawn here
+	coop_float_spawnAngle0 				= 90;
+	coop_float_spawnAngle1 				= 90;
+	coop_float_spawnAngle2 				= 90;
+	coop_float_spawnAngle3 				= 90;
+	coop_float_spawnAngle4				= 90;
+	coop_float_spawnAngle5 				= 90;
+	coop_float_spawnAngle6 				= 90;
+	coop_float_spawnAngle7 				= 90;
+	coop_float_spawnAngle8 				= 90;
+	coop_vector_spawnOrigin1 			= '3350 5847 3';
+	coop_vector_spawnOrigin2 			= '3300 5847 3';
+	coop_vector_spawnOrigin3 			= '3250 5847 3';
+	coop_vector_spawnOrigin4 			= '3200 5847 3';
+	coop_vector_spawnOrigin5 			= '3150 5847 3';
+	coop_vector_spawnOrigin6 			= '3100 5847 3';
+	coop_vector_spawnOrigin7 			= '3050 5847 3';
+	coop_vector_spawnOrigin8 			= '3000 5847 3';
+	
+	//hzm coop mod chrissstrahl - mopve players trough forcefield
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	spawn("trigger_multiple","thread","coop_biofactoryGasTrap1_warper","origin","4266 5990 0","targetname","coop_biofactoryGasTrap1_warper_trigger");
+	wait(.2);
+	$coop_biofactoryGasTrap1_warper_trigger.setSize('-150 -150 -0','140 140 200');
+	
+	$biofactoryGasTrap1_clouds1.show();
+	$biofactoryGasTrap1_field1.solid();
+	$biofactoryGasTrap1_field1.show();
+
+	$biofactoryGasTrap1_gas1.show();
+	$biofactoryGasTrap1_gas2.show();
+	$biofactoryGasTrap1_gas3.show();
+	$biofactoryGasTrap1_gas4.show();
+
+	music( "mystery","suspense" );
+	
+	$biofactoryGasTrap1_field1.loopsound ( "sound/environment/machine/poisongas_loop.wav", .1, 332 );
+
+	$biofactoryGasTrap1_hurt.triggerable();
+}
+
+//---------------------
+// Function: biofactoryGasTrap1_raiseTowers
+// Comments:
+//
+//---------------------
+void biofactoryGasTrap1_raiseTowers()
+{
+	$arch_gascontrol1.contents( "targetable" );
+	//$arch_gascontrol1.archetype( "IdryllGasControlUsed" );
+
+	wait( .1 );
+	
+	$arch_gascontrol1.remove();
+
+	$biofactoryGasTrap1_panel1_green.hide();
+	$biofactoryGasTrap1_panel1_red.show();
+	$biofactoryGasTrap1_panel1_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+
+	$biofactoryGasTrap1_gas1.hide();
+	$biofactoryGasTrap1_gas2.hide();
+	$biofactoryGasTrap1_gas3.hide();
+	$biofactoryGasTrap1_gas4.hide();
+
+	$biofactoryGasTrap1_gasTower1.time( 2 );
+	$biofactoryGasTrap1_gasTower2.time( 2 );
+	$biofactoryGasTrap1_gasTower3.time( 2 );
+	$biofactoryGasTrap1_gasTower4.time( 2 );
+	
+	$biofactoryGasTrap1_gasTower1.moveUp( 128 );
+	$biofactoryGasTrap1_gasTower1.playsound( "sound/environment/machine/mech_move2.wav", 7, 1, 200 );
+
+	wait( 1 );
+	$biofactoryGasTrap1_gasTower2.moveUp( 128 );
+	$biofactoryGasTrap1_gasTower2.playsound( "sound/environment/machine/mech_move2.wav", 8, 1, 200 );
+	wait( 1 );
+	$biofactoryGasTrap1_gasTower3.moveUp( 128 );
+	$biofactoryGasTrap1_gasTower3.playsound( "sound/environment/machine/mech_move2.wav", 7, 1, 200 );
+	wait( 1 );
+	$biofactoryGasTrap1_gasTower4.moveUp( 128 );
+	$biofactoryGasTrap1_gasTower4.playsound( "sound/environment/machine/mech_move2.wav", 8, 1, 200 );
+}
+
+//---------------------
+// Function: biofactoryGasTrap1_tricorderPuzzle
+// Comments:
+//
+//---------------------
+void biofactoryGasTrap1_tricorderPuzzle()
+{
+	globalTricorderMod_SetNumWaves ( 1 );
+	globalTricorderMod_SetAllRandomParms();
+	globalTricorderMod_Run( $biofactoryGasTrap1_button1, 0 );
+}
+
+//---------------------
+// Function: biofactoryGasTrap1_tricorderReset
+// Comments:
+//
+//---------------------
+void biofactoryGasTrap1_tricorderReset()
+{
+	$biofactoryGasTrap1_button1.puzzleobject_reset();
+}
+
+
+//---------------------
+// sequenceGasChamber1GasMonitor	
+// checks status of gas vents, and if sequence should end
+//---------------------
+void sequenceGasChamber1GasMonitor()
+{
+	float unitsFinished;
+	float unitStatus;
+	float checkUnit1;
+	float checkUnit2;
+	float checkUnit3;
+	float checkUnit4;
+	float totalUnits;
+
+	unitsFinished = 0;
+	checkUnit1 = 1;
+	checkUnit2 = 1;
+	checkUnit3 = 1;
+	checkUnit4 = 1;
+	totalUnits = 4;
+	
+	//There should be 1 checkUnit for each panel you added an emitter to
+	while ( unitsFinished != totalUnits )
+	{
+		if ( checkUnit1 )
+		{
+			unitStatus = $panel1_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit1 = 0;
+			}
+		}
+
+		if ( checkUnit1 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel1");
+		}
+
+		if ( checkUnit2 )
+		{
+			unitStatus = $panel2_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit2 = 0;
+			}			
+		}
+
+		if ( checkUnit2 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel2");
+		}
+			
+		if ( checkUnit3 )
+		{
+			unitStatus = $panel3_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit3 = 0;
+			}
+		}
+
+		if ( checkUnit3 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel3");
+		}
+
+		if ( checkUnit4 )
+		{
+			unitStatus = $panel4_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit4 = 0;
+			}
+		}
+
+		if ( checkUnit4 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel4");
+		}
+
+		wait ( .21 );
+	}
+
+	if ( unitsFinished == totalUnits )
+	{
+		//Puzzle finished events	
+		wait ( 1 );
+
+		music ( "success", "normal" );	
+
+		//hzm coop mod chrissstrahl, remove the trigger that moves players trugh the ff
+		globalCoop_level_remove($coop_biofactoryGasTrap1_warper_trigger);
+
+		$biofactoryGasTrap1_field1.stoploopsound ();
+		$biofactoryGasTrap1_field1.playsound ( "sound/environment/machine/poisongas_stop.wav", 14, 1, 100 );
+
+		$biofactoryGasTrap1_clouds1.hide();
+		$biofactoryGasTrap1_hurt.nottriggerable();
+		$biofactoryGasTrap1_field1.notsolid();
+		$biofactoryGasTrap1_field1.hide();
+		
+		$biofactoryGasTrap1_gasTower1.time( 2 );
+		$biofactoryGasTrap1_gasTower2.time( 2 );
+		$biofactoryGasTrap1_gasTower3.time( 2 );
+		$biofactoryGasTrap1_gasTower4.time( 2 );
+		
+		$biofactoryGasTrap1_gasTower1.moveDown( 128 );
+		$biofactoryGasTrap1_gasTower1.playsound( "sound/environment/machine/mech_move2.wav", 7, 1, 200 );
+
+		wait( 1 );
+		$biofactoryGasTrap1_gasTower2.moveDown( 128 );
+		$biofactoryGasTrap1_gasTower2.playsound( "sound/environment/machine/mech_move2.wav", 8, 1, 200 );
+
+		wait( 1 );
+		$biofactoryGasTrap1_gasTower3.moveDown( 128 );
+		$biofactoryGasTrap1_gasTower3.playsound( "sound/environment/machine/mech_move2.wav", 7, 1, 200 );
+
+		wait( 1 );
+		$biofactoryGasTrap1_gasTower4.moveDown( 128 );
+		$biofactoryGasTrap1_gasTower4.playsound( "sound/environment/machine/mech_move2.wav", 8, 1, 200 );
+		
+	}	
+}
+
+
+//===================================================================================================================
+// Factory Functions
+//===================================================================================================================
+
+//---------------------
+// Function: tripwireFloorPanel1_explode
+// Comments:
+// called when the tripwireFloorPanel1 is shot
+// explodes the floor panel
+//---------------------
+void tripwireFloorPanel1_explode()
+{
+	$tripwireFloorPanel1.nodamage();
+	thread globalBioFactorySpawn( $tripwireFloorPanel1_explosion , "tripwireFloorPanel1_exploder" , "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$tripwireFloorPanel1.playsound( "sound/impact/explosion/expl_alien.wav", 6, 1, 500 );	
+
+	wait( .1 );
+	
+	$tripwireFloorPanel1.remove();
+	$tripwireFloorPanel1_fracture.remove();
+}
+
+//---------------------
+// Function: tripwireFloorPanel2_explode
+// Comments:
+// called when the tripwireFloorPanel2 is shot
+// explodes the floor panel
+//---------------------
+void tripwireFloorPanel2_explode()
+{
+	$tripwireFloorPanel2.nodamage();
+	thread globalBioFactorySpawn( $tripwireFloorPanel2_explosion , "tripwireFloorPanel2_exploder" , "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$tripwireFloorPanel2.playsound( "sound/impact/explosion/expl_alien.wav", 6, 1, 500 );	
+
+	wait( .1 );
+	
+	$tripwireFloorPanel2.remove();
+	$tripwireFloorPanel2_fracture.remove();
+}
+
+//---------------------
+// Function: bridgeBlink
+// Comments:
+// makes all the peices to the bridge blink in and out
+//---------------------
+void bridgeBlink()
+{
+	thread globalBridgeBlink( $bridgePiece1 , 2.5 );
+	thread globalBridgeBlink( $bridgePiece2 , 4 );
+	thread globalBridgeBlink( $bridgePiece3 , 2.5 );
+	thread globalBridgeBlink( $bridgePiece4 , 3 );
+	thread globalBridgeBlink( $bridgePiece5 , 4 );
+	thread globalBridgeBlink( $bridgePiece6 , 2.5 );
+	thread globalBridgeBlink( $bridgePiece7 , 3 );
+	thread globalBridgeBlink( $bridgePiece8 , 4 );
+	thread globalBridgeBlink( $bridgePiece9 , 2.5 );
+	thread globalBridgeBlink( $bridgePiece10 , 3 );
+	thread globalBridgeBlink( $bridgePiece11 , 1 );
+}
+
+
+//===================================================================================================================
+// Side Room Functions
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryLiftArm1_move
+// Comments:
+// used to move the first lift arm in the main room
+//---------------------
+void biofactoryLiftArm1_move()
+{
+	while( 1 )
+	{
+		$biofactoryLiftArm1.playsound( "sound/ships/drull/drull_machpickup.wav", 11, 1, 160 );
+
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1_canister1.show();
+		$biofactoryLiftArm1_canister2.hide();
+		$biofactoryLiftArm1_canister2.moveDown( 256 );
+		$biofactoryLiftArm1.time( 1.5 );
+		$biofactoryLiftArm1.moveUp( 384 );
+		waitfor( $biofactoryLiftArm1 );
+		$biofactoryLiftArm1_canister1.stoploopsound ();	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );	
+	
+		wait( .5 );
+	
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1_mover.time( 1.5 );
+		$biofactoryLiftArm1_mover.moveSouth( 352 );
+		waitfor( $biofactoryLiftArm1_mover );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );		
+		
+		wait( .5 );
+	
+		$biofactoryLiftArm1_canister1_trigger.triggerable();
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1.time( 1 );
+		$biofactoryLiftArm1.moveDown( 128 );
+		waitfor( $biofactoryLiftArm1 );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/factory_pneuhit2.wav", 13, .5, 500 );	
+
+		wait( .5 );
+
+		thread biofactoryRotateArm1_move();
+		
+		$biofactoryLiftArm1_canister1_trigger.nottriggerable();
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1_canister1.hide();
+		$biofactoryLiftArm1_canister2.show();
+		$biofactoryLiftArm1_canister2.moveUp( 256 );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );		
+
+		wait( .5 );
+	
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1.time( 1 );
+		$biofactoryLiftArm1.moveUp( 128 );
+		waitfor( $biofactoryLiftArm1 );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );	
+
+		wait( .5 );
+	
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1_mover.time( 1.5 );
+		$biofactoryLiftArm1_mover.moveNorth( 352 );
+		waitfor( $biofactoryLiftArm1_mover );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );	
+
+		wait( .5 );
+	
+		$biofactoryLiftArm1_canister1.loopsound ( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+		$biofactoryLiftArm1.time( 1.5 );
+		$biofactoryLiftArm1.moveDown( 384 );
+		waitfor( $biofactoryLiftArm1 );
+		$biofactoryLiftArm1_canister1.stoploopsound ( );	
+		$biofactoryLiftArm1_canister1.playsound ( "sound/environment/machine/factory_pneuhit2.wav", 13, .5, 500 );	
+
+		wait( 1 );
+	}
+}
+
+//---------------------
+// Function: biofactoryRotateArm1_move
+// Comments:
+// used to rotate a canister down and then move the canisters on the first conveyor
+//---------------------
+void biofactoryRotateArm1_move()
+{
+	$biofactoryRotateArm1_canister1.playsound ( "sound/environment/machine/mech_move2.wav", 10, .7, 300 );	
+	$biofactoryRotateArm1_canister1.show();
+	$biofactoryRotateArm1_canister1.solid();
+
+	$biofactoryRotateArm1.time( 1 );
+	$biofactoryRotateArm1.rotateZup( 90 );
+	waitfor( $biofactoryRotateArm1 );
+
+	$biofactoryRotateArm1_canister1.playsound( "sound/ships/drull/drull_tubehit.wav", 10, 1, 160 );
+
+	wait( 1 );
+	
+	$biofactoryRotateArm1_canister1.playsound ( "sound/environment/machine/mech_move1.wav", 11, .7, 300 );
+	$biofactoryRotateArm1_canister1.hide();
+	$biofactoryRotateArm1_canister1.notsolid();
+	
+	$biofactoryRotateArm1_canister2.show();
+	$biofactoryRotateArm1_canister2.solid();
+	
+	$biofactoryRotateArm1_canister2.time( .25 );
+	$biofactoryRotateArm1_canister2.moveSouth( 16 );
+	waitfor( $biofactoryRotateArm1_canister2 );
+
+	//$biofactoryConveyor1_canister1_clone.show();
+	$biofactoryConveyor1_canister2_clone.show();
+	$biofactoryConveyor1_canister3_clone.show();
+	$biofactoryConveyor1_canister4_clone.show();
+
+	wait( .05 );
+
+	$biofactoryConveyor1_canister1.hide();
+	$biofactoryConveyor1_canister2.hide();
+	$biofactoryConveyor1_canister3.hide();
+	$biofactoryConveyor1_canister4.hide();
+
+	$biofactoryConveyor1_canister1_clone.solid();
+	$biofactoryConveyor1_canister2_clone.solid();
+	$biofactoryConveyor1_canister3_clone.solid();
+	$biofactoryConveyor1_canister4_clone.solid();
+
+//	$biofactoryConveyor1_canister1.notsolid();
+//	$biofactoryConveyor1_canister2.notsolid();
+//	$biofactoryConveyor1_canister3.notsolid();
+//	$biofactoryConveyor1_canister4.notsolid();
+
+	wait( .05 );
+
+	$biofactoryConveyor1_canister1.origin( biofactoryConveyor1_canister1_origin );
+	$biofactoryConveyor1_canister2.origin( biofactoryConveyor1_canister2_origin );
+	$biofactoryConveyor1_canister3.origin( biofactoryConveyor1_canister3_origin );
+	$biofactoryConveyor1_canister4.origin( biofactoryConveyor1_canister4_origin );
+
+	wait( .05 );
+
+	$biofactoryConveyor1_canister1.show();
+	$biofactoryConveyor1_canister2.show();
+	$biofactoryConveyor1_canister3.show();
+	$biofactoryConveyor1_canister4.show();
+
+	wait( .05 );
+
+	$biofactoryConveyor1_canister1_clone.hide();
+	$biofactoryConveyor1_canister2_clone.hide();
+	$biofactoryConveyor1_canister3_clone.hide();
+	$biofactoryConveyor1_canister4_clone.hide();
+
+	$biofactoryConveyor1_canister1_clone.notsolid();
+	$biofactoryConveyor1_canister2_clone.notsolid();
+	$biofactoryConveyor1_canister3_clone.notsolid();
+	$biofactoryConveyor1_canister4_clone.notsolid();
+
+	$biofactoryConveyor1_canister1.solid();
+	$biofactoryConveyor1_canister2.solid();
+	$biofactoryConveyor1_canister3.solid();
+	$biofactoryConveyor1_canister4.solid();
+	
+	$biofactoryRotateArm1_canister2.hide();
+	$biofactoryRotateArm1_canister2.notsolid();
+	
+	$biofactoryConveyor1_canister1.show();
+	$biofactoryConveyor1_canister1.solid();
+
+	$biofactoryRotateArm1_canister2.playsound ( "sound/environment/machine/mech_move2.wav", 10, .7, 300 );
+	$biofactoryRotateArm1_canister2.time( .25 );
+	$biofactoryRotateArm1_canister2.moveNorth( 16 );
+	waitfor( $biofactoryRotateArm1_canister2 );
+
+	$biofactoryRotateArm1.playsound ( "sound/environment/machine/mech_move1.wav", 10, .7, 300 );
+	$biofactoryRotateArm1.time( 1 );
+	$biofactoryRotateArm1.rotateZdown( 90 );
+	
+	$biofactoryConveyor1_canister1.time( 1 );
+	$biofactoryConveyor1_canister2.time( 1 );
+	$biofactoryConveyor1_canister3.time( 1 );
+	$biofactoryConveyor1_canister4.time( 1 );
+	$biofactoryConveyor1_canister1.moveEast( 64 );
+	$biofactoryConveyor1_canister2.moveEast( 64 );
+	$biofactoryConveyor1_canister3.moveEast( 64 );
+	$biofactoryConveyor1_canister4.moveEast( 64 );
+	waitfor( $biofactoryConveyor1_canister1 );
+	
+	$biofactoryConveyor1_canister4.bind( $biofactoryConveyor1_mover1 );
+
+	$biofactoryConveyor1_mover1.playsound ( "sound/environment/machine/mech_move2.wav", 10, .7, 300 );
+	$biofactoryConveyor1_mover1.time( 1 );
+	$biofactoryConveyor1_mover1.moveUp( 96 );
+	waitfor( $biofactoryConveyor1_mover1 );
+	wait( 2 );
+
+	$biofactoryConveyor1_mover1.playsound ( "sound/environment/machine/mech_move1.wav", 10, .7, 300 );
+	$biofactoryConveyor1_mover1.time( 1 );
+	$biofactoryConveyor1_mover1.moveDown( 288 );
+	waitfor( $biofactoryConveyor1_mover1 );
+	
+	$biofactoryConveyor1_canister4.hide();
+	$biofactoryConveyor1_canister4.notsolid();
+	$biofactoryConveyor1_canister4.unbind();
+
+	$biofactoryConveyor1_mover1.playsound ( "sound/environment/machine/mech_move2.wav", 10, .7, 300 );
+	$biofactoryConveyor1_mover1.time( 1 );
+	$biofactoryConveyor1_mover1.moveUp( 192 );
+	waitfor( $biofactoryConveyor1_mover1 );
+}
+
+//---------------------
+// Function: biofactoryConveyor2_move
+// Comments:
+// rotates the canisters around on the second canister conveyor
+//---------------------
+void biofactoryConveyor2_move()
+{
+	$biofactoryConveyor2_canister1.bind( $biofactoryConveyor2_origin1 );
+	$biofactoryConveyor2_canister2.bind( $biofactoryConveyor2_origin2 );
+	$biofactoryConveyor2_canister3.bind( $biofactoryConveyor2_origin3 );
+	$biofactoryConveyor2_canister4.bind( $biofactoryConveyor2_origin4 );
+	$biofactoryConveyor2_canister5.bind( $biofactoryConveyor2_origin5 );
+	$biofactoryConveyor2_canister1_alien1.bind( $biofactoryConveyor2_origin1 );
+	$biofactoryConveyor2_canister3_alien1.bind( $biofactoryConveyor2_origin3 );
+
+	$biofactoryConveyor2_canister1.loopsound( "sound/ships/drull/drull_machmove.wav", 1, 160 );
+	$biofactoryConveyor2_canister2.loopsound( "sound/ships/drull/drull_machmove.wav", 1, 160 );
+	$biofactoryConveyor2_canister3.loopsound( "sound/ships/drull/drull_machmove.wav", 1, 160 );
+	$biofactoryConveyor2_canister4.loopsound( "sound/ships/drull/drull_machmove.wav", 1, 160 );
+	$biofactoryConveyor2_canister5.loopsound( "sound/ships/drull/drull_machmove.wav", 1, 160 );
+
+	$biofactoryConveyor2_origin1.origin( $biofactoryConveyor2_path1.getorigin() );
+	$biofactoryConveyor2_origin1.followpath( $biofactoryConveyor2_path1 , "loop" );
+	wait( 4 );
+
+	$biofactoryConveyor2_origin2.origin( $biofactoryConveyor2_path1.getorigin() );
+	$biofactoryConveyor2_origin2.followpath( $biofactoryConveyor2_path1 , "loop" );
+	wait( 4 );
+
+	$biofactoryConveyor2_origin3.origin( $biofactoryConveyor2_path1.getorigin() );
+	$biofactoryConveyor2_origin3.followpath( $biofactoryConveyor2_path1 , "loop" );
+	wait( 4 );
+
+	$biofactoryConveyor2_origin4.origin( $biofactoryConveyor2_path1.getorigin() );
+	$biofactoryConveyor2_origin4.followpath( $biofactoryConveyor2_path1 , "loop" );
+	wait( 4 );
+
+	$biofactoryConveyor2_origin5.origin( $biofactoryConveyor2_path1.getorigin() );
+	$biofactoryConveyor2_origin5.followpath( $biofactoryConveyor2_path1 , "loop" );
+}
+
+//---------------------
+// Function: biofactoryPodConveyor1_move
+// Comments:
+// moves the pods on the pod conveyor
+//---------------------
+void biofactoryPodConveyor1_move()
+{
+	$podpanel1_red.show();
+	$podpanel1_green.hide();
+	$podpanel1_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin1 , $biofactoryPodConveyor1_path1 , 1 );
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin2 , $biofactoryPodConveyor1_path2 , 2 );
+	wait( 5 );
+
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin3 , $biofactoryPodConveyor1_path1 , 1 );
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin4 , $biofactoryPodConveyor1_path2 , 2 );
+	wait( 5 );
+
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin5 , $biofactoryPodConveyor1_path1 , 1 );
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin6 , $biofactoryPodConveyor1_path2 , 2 );
+	wait( 5 );
+
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin7 , $biofactoryPodConveyor1_path1 , 1 );
+	thread globalBioFactoryPodConveyor1( $biofactoryPodConveyor1_origin8 , $biofactoryPodConveyor1_path2 , 2 );
+	wait( 5 );
+}
+
+//---------------------
+// Function: biofactoryLiftArm2_move
+// Comments:
+// used to move the second lift arm in the side room
+//---------------------
+void biofactoryLiftArm2_move()
+{
+	float biofactoryLiftArm2MoveNorth1, biofactoryLiftArm2MoveNorth2;
+	float randomBioFactoryLiftArm2;
+	entity biofactoryLiftArm2_canister;
+	
+	$biofactoryLiftArm2_grabber.bind( $biofactoryLiftArm2 );
+	$biofactoryLiftArm2.bind( $biofactoryLiftArm2_mover );
+	$biofactoryLiftArm2_canister1.bind( $biofactoryLiftArm2 );
+	$biofactoryLiftArm2_canister1.dmg( 16384 );
+
+	$biofactoryLiftArm2.moveUp( 384 );
+	waitfor( $biofactoryLiftArm2 );
+
+	while( 1 )
+	{
+		randomBioFactoryLiftArm2 = randomint ( 3 );
+		
+		if( randomBioFactoryLiftArm2 == 0 )
+		{
+			biofactoryLiftArm2MoveNorth1 = 1232;
+//			biofactoryLiftArm2MoveNorth2 = 1264;
+//			biofactoryLiftArm2MoveNorth1 = 1088;
+			biofactoryLiftArm2MoveNorth2 = 1120;
+			biofactoryLiftArm2_canister = $biofactoryLiftArm2_canister2;
+		}
+		else if( randomBioFactoryLiftArm2 == 1 )
+		{
+			biofactoryLiftArm2MoveNorth1 = 1488;
+//			biofactoryLiftArm2MoveNorth2 = 1008;
+//			biofactoryLiftArm2MoveNorth1 = 1344;
+			biofactoryLiftArm2MoveNorth2 = 864;
+			biofactoryLiftArm2_canister = $biofactoryLiftArm2_canister3;
+		}
+		else if( randomBioFactoryLiftArm2 == 2 )
+		{
+			biofactoryLiftArm2MoveNorth1 = 1744;
+//			biofactoryLiftArm2MoveNorth2 = 752;
+//			biofactoryLiftArm2MoveNorth1 = 1600;
+			biofactoryLiftArm2MoveNorth2 = 608;
+			biofactoryLiftArm2_canister = $biofactoryLiftArm2_canister4;
+		}
+		else
+		{
+			biofactoryLiftArm2MoveNorth1 = 1232;
+//			biofactoryLiftArm2MoveNorth2 = 1264;
+//			biofactoryLiftArm2MoveNorth1 = 1088;
+			biofactoryLiftArm2MoveNorth2 = 1120;
+			biofactoryLiftArm2_canister = $biofactoryLiftArm2_canister2;
+		}
+		
+		$biofactoryLiftArm2_canister1.loopsound( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+
+		$biofactoryLiftArm2.hide();
+		$biofactoryLiftArm2_mover.hide();
+		$biofactoryLiftArm2_canister1.hide();
+		$biofactoryLiftArm2_canister1.notsolid();
+		wait( .05 );
+		$biofactoryLiftArm2_mover.origin( $biofactoryLiftArm2_origin.getorigin() );
+		wait( .05 );
+
+		while( playerNotInRoom == 1 )
+		{
+			wait( 1 );
+		}
+		
+		$biofactoryLiftArm2.show();
+		$biofactoryLiftArm2_mover.show();
+
+		$biofactoryLiftArm2_mover.time( .5 );
+		$biofactoryLiftArm2_mover.moveEast( 128 );
+		waitfor( $biofactoryLiftArm2_mover );
+		
+		$biofactoryLiftArm2_mover.time( 2 );
+		$biofactoryLiftArm2_mover.moveNorth( biofactoryLiftArm2MoveNorth1 );
+		waitfor( $biofactoryLiftArm2_mover );
+
+		$biofactoryLiftArm2_canister1.stoploopsound();	
+		$biofactoryLiftArm2_canister1.playsound( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );	
+
+		wait( .5 );
+
+		$biofactoryLiftArm2_canister1.loopsound( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+
+		$biofactoryLiftArm2.time( 1 );
+		$biofactoryLiftArm2.moveDown( 384 );
+		waitfor( $biofactoryLiftArm2 );
+
+		$biofactoryLiftArm2_canister1.stoploopsound();	
+		$biofactoryLiftArm2_canister1.playsound( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );	
+
+		wait( 1 );
+
+		$biofactoryLiftArm2.playsound( "sound/ships/drull/drull_machpickup.wav", 11, 1, 160 );
+
+		$biofactoryLiftArm2_canister1.loopsound( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+
+		$biofactoryLiftArm2_canister1.show();
+		$biofactoryLiftArm2_canister1.solid();
+		biofactoryLiftArm2_canister.hide();
+		biofactoryLiftArm2_canister.moveDown( 256 );
+		$biofactoryLiftArm2.time( 1 );
+		$biofactoryLiftArm2.moveUp( 384 );
+		waitfor( $biofactoryLiftArm2 );
+
+		$biofactoryLiftArm2_canister1.stoploopsound();	
+		$biofactoryLiftArm2_canister1.playsound( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );
+
+		wait( .5 );
+
+		$biofactoryLiftArm2_canister1.loopsound( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+	
+		$biofactoryLiftArm2_mover.time( 2 );
+		$biofactoryLiftArm2_mover.moveNorth( biofactoryLiftArm2MoveNorth2 );
+		waitfor( $biofactoryLiftArm2_mover );
+
+		$biofactoryLiftArm2_mover.time( .5 );
+		$biofactoryLiftArm2_mover.moveEast( 128 );
+		waitfor( $biofactoryLiftArm2_mover );
+
+		$biofactoryLiftArm2_canister1.stoploopsound();	
+		$biofactoryLiftArm2_canister1.playsound( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );		
+	
+		wait( 1 );
+
+		$biofactoryLiftArm2_canister1.loopsound( "sound/environment/machine/factory_loop2.wav", .7, 500 );	
+	
+		$biofactoryLiftArm2_canister1.hide();
+		$biofactoryLiftArm2_canister1.notsolid();
+		biofactoryLiftArm2_canister.show();
+		biofactoryLiftArm2_canister.moveUp( 256 );
+
+		$biofactoryLiftArm2_canister1.stoploopsound();	
+		$biofactoryLiftArm2_canister1.playsound( "sound/environment/machine/pneu_small1.wav", 13, .3, 500 );
+	}
+}
+
+//===================================================================================================================
+// Other Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: introDialog
+// Comments:
+// dialog that plays when the level starts
+//---------------------
+void introDialog()
+{
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_localized.mp3", 1, 800000); //Infestation becoming acute. Detection of individual life forms acquired. Escalating to localized eradication system.
+	wait( 4 );
+	
+	$Telsia.playdialog("localization/sound/dialog/m5l2/jurot_thatmean.mp3", 1, 20000, 1); //What does THAT mean?
+	waitForDialog( $Telsia );
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_checksense.mp3", 1, 20000, 1); //I’m not sure. Checking sensors now...
+	waitForDialog( $Chell );
+}
+
+//---------------------
+// Function: biofactoryAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void biofactoryAutoSave()
+{
+//hzm coop mod chrissstrahl - dont do this in coop
+//	globalCommon_Autosave();
+}
+
+//---------------------
+// Function: playerNotInRoomThreadOff
+// Comments:
+// disables machines in the room the player is not in
+//---------------------
+void playerNotInRoomThreadOff()
+{
+//hzm coop mod chrissstrahl - disabled for coop, not sure if that was the right choise
+	//playerNotInRoom = 1;
+}
+
+//---------------------
+// Function: playerNotInRoomThreadOn
+// Comments:
+// enables machines in the room the player is not in
+//---------------------
+void playerNotInRoomThreadOn()
+{
+	playerNotInRoom = 0;
+}
+
+
+//---------------------
+// Function: tripwiresKillAliens
+// Comments:
+// spawns aliens that die in the trip wires
+//---------------------
+void tripwiresKillAliens()
+{
+	$Kourban.stopdialog();
+	$Chell.stopdialog();
+	$Telsia.stopdialog();
+	$fakemunro.stopdialog();
+
+	//begin cinematic
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	cinematic();
+	letterbox( .1 );
+	freezeplayer();
+        allowmusicducking (0);
+	music ("aux1");
+
+	$Chell.ai_off();
+	$Telsia.ai_off();
+	$Kourban.ai_off();
+
+	$Chell.hide();
+	$Telsia.hide();
+	$Kourban.hide();
+
+	wait ( 1 );
+
+	//set the skipthread
+	skipthread( "tripwiresKillAliens_skipThread" );
+	
+	cinBioscan.setendthread( "tripwiresKillAliens_skipThread" );
+	cinBioscan.beginCinematic( "m5l2-bioscan" ) ;
+	
+	$tripwireAlien1.modelname( "char/alien-type1a-lurker.tik" );
+
+	$tripwireAlien1.spawntargetname( "tripwireAlien1Spawned" );
+	
+	trigger( "$tripwireAlien1" );
+	
+	wait( .1 );
+	
+	$tripwireAlien1Spawned.ai_off();
+	
+	$tripwireAlien1Spawned.turntowardsplayer();
+
+	wait( 4 );
+	
+	$tripwireAlien1Spawned.anim( "walk" );
+	
+	wait( 4 );
+
+	$tripwireAlien1Spawned.anim( "idle" );
+	
+	wait( 3 );
+
+	$tripwireAlien1Spawned.anim( "walk" );
+
+	wait( 1.5 );
+	
+	$tripwireAlien1Spawned.kill();
+}
+
+//---------------------
+// Function: tripwiresKillAliens_skipThread
+// Comments:
+// spawns aliens that die in the trip wires
+//---------------------
+void tripwiresKillAliens_skipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	music ("normal");
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	killthread( "tripwiresKillAliens" );
+	
+	cinBioscan.endCinematic();
+
+	//--- Set up Scene
+//	$Kourban.ai_on();
+//	$Chell.ai_on();
+//	$Telsia.ai_on();
+	
+	$Chell.show();
+	$Telsia.show();
+	$Kourban.show();
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 0;
+	coop_float_spawnAngle1 				= 0;
+	coop_float_spawnAngle2 				= 0;
+	coop_float_spawnAngle3 				= 0;
+	coop_float_spawnAngle4				= 0;
+	coop_float_spawnAngle5 				= 0;
+	coop_float_spawnAngle6 				= 0;
+	coop_float_spawnAngle7 				= 0;
+	coop_float_spawnAngle8 				= 0;
+	coop_vector_spawnOrigin1 			= '8070 837 8';
+	coop_vector_spawnOrigin2 			= '8070 941 8';
+	coop_vector_spawnOrigin3 			= '8000 770 8';
+	coop_vector_spawnOrigin4 			= '8000 830 8';
+	coop_vector_spawnOrigin5 			= '8000 890 8';
+	coop_vector_spawnOrigin6 			= '8000 950 8';
+	coop_vector_spawnOrigin7 			= '8000 1010 8';
+	coop_vector_spawnOrigin8 			= '8000 1070 8';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+	//hzm coop mod chrissstrahl - move every player that is still behind the ff
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				vOriginPlayer = ePlayer.getOrigin();
+				if(vOriginPlayer_x < 7974){
+					thread globalCoop_player_warpToSpawn(ePlayer);
+				}
+			}
+		}
+	}
+
+	wait ( .1 );
+
+	$tripwireAlien1Spawned.remove();
+	
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .1 );
+
+	//--- Action
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DeactivateTripWires$$","incomplete",4,1);
+
+	$tripwireAliensButton1_green.missionobjective( 1 );
+
+	$Kourban.walkto( "$tripwireTrapTeam_node1" , "run" );
+	$Chell.walkto( "$tripwireTrapTeam_node2" , "run" );
+	$Telsia.walkto( "$tripwireTrapTeam_node3" , "run" );
+}
+
+//---------------------
+// Function: tripwiresTrapTeam
+// Comments:
+// player accidentally traps the team when shutting down the first set of tripwires
+//---------------------
+void tripwiresTrapTeam()
+{
+	$tripwireAliensButton1_green.hide();
+	$tripwireAliensButton1_red.show();
+	$tripwireAliensButton1_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DeactivateTripWires$$","complete",4,1);
+
+	$tripwireAliensButton1_green.missionobjective( 0 );
+
+//	$triggerGroup1.nottriggerable();//hzm coop chrissstrahl - this does not exist, it spamms console with errors
+
+	thread globalTripwire_Halt ( "group2Wire1" );
+	thread globalTripwire_Halt ( "group2Wire2" );
+	thread globalTripwire_Halt ( "group2Wire3" );
+	
+	wait( .1 );
+
+	stopGroup2();
+
+	$group2Wire1_beam.remove();
+	$group2Wire2_beam.remove();
+	$group2Wire3_beam.remove();
+
+	$Kourban.stopdialog();
+	$Chell.stopdialog();
+	$Telsia.stopdialog();
+	$fakemunro.stopdialog();
+
+	$biofactoryTripHalls1_field1.solid();
+	
+	$biofactoryTripHalls1_field1.show();
+	$biofactoryTripHalls1_field2.hide();
+	wait( .25 );
+	$biofactoryTripHalls1_field1.hide();
+	$biofactoryTripHalls1_field2.show();
+	wait( .25 );
+	$biofactoryTripHalls1_field1.show();
+	$biofactoryTripHalls1_field2.hide();
+	wait( .25 );
+	$biofactoryTripHalls1_field1.hide();
+	$biofactoryTripHalls1_field2.show();
+	wait( .25 );
+	$biofactoryTripHalls1_field1.show();
+	$biofactoryTripHalls1_field2.hide();
+
+	$biofactoryTripHalls1_field2.notsolid();
+
+	wait( .5 );
+
+	thread globalBioFactorySpawn( $biofactoryAlien1, "biofactoryAlien1_spawned", "char/alien-type1a-lurker.tik" );
+	wait( .5 );
+	thread globalBioFactorySpawn( $biofactoryAlien2, "biofactoryAlien2_spawned", "char/alien-type1a-lurker.tik" );
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_fieldon.mp3", 1, 20000, 1); //Well, the bio-scanners are down, but that panel activated a forcefield. Looks like we’ll have to find another way around.
+	waitForDialog( $Chell );
+
+	$Kourban.walkto( "$tripwireTrapTeam_node4" , "run" );
+	$Chell.walkto( "$tripwireTrapTeam_node5" , "run" );
+	$Telsia.walkto( "$tripwireTrapTeam_node6" , "run" );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReuniteWithTeam$$","incomplete",5,1);
+	
+	waitfor( $Telsia );
+	
+	$Kourban.remove();
+	$Chell.hide();
+	$Telsia.remove();
+}
+
+
+//===================================================================================================================
+// Misc
+//===================================================================================================================
+
+//---------------------
+// useConsoleFinalRoom
+// unlocks door in level A, starts fun on trip back
+//---------------------
+void useConsoleFinalRoom()
+{
+	setfloatvar( "game.statusM5L2CUnlocked", 1 );
+	$consoleFinalRoom_red.show();
+	$consoleFinalRoom_green.hide();
+	$consoleFinalRoom_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+	$launchroomExitDoor1.unlock();
+
+	$launchroomExitDoor1_green.show();
+	$launchroomExitDoor1_red.hide();
+	$world.light_lightstyle( "launchroomExitDoor1_redlight" , "a" , 0 );
+	$world.light_lightstyle( "launchroomExitDoor1_greenlight" , "z" , 0 );
+
+	$biofactoryTurret5.ai_off();
+	$biofactoryTurret6.ai_off();
+
+	$afterFinalRoom.triggerable();
+	bridgeBlinking = 0;
+	wait( 2 );
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_opensec.mp3", 1, 20000, 1); //Munro, whatever you did just opened the second door in the main hall!
+
+	wait( .1 );
+	
+	biofactoryAutoSave();
+	
+	wait( 1 );
+
+	trigger( "$biofactoryAlien5" );
+}
+
+//---------------------
+// useConsoleSideRoom1
+// Console is used, and unlocks door
+//---------------------
+void useConsoleSideRoom1()
+{
+	$consoleSideRoom1.nottriggerable();
+	
+	if($world.getFloatVar("useConsoleSideRoom1") != 1){
+		$world.setFloatVar("useConsoleSideRoom1",1);
+		
+		//hzm coop mod Chrissstrahl - spawn players here
+		coop_float_spawnAngle0 			= 90;
+		coop_float_spawnAngle1 			= 90;
+		coop_float_spawnAngle2 			= 90;
+		coop_float_spawnAngle3 			= 90;
+		coop_float_spawnAngle4 			= 90;
+		coop_float_spawnAngle5 			= 90;
+		coop_float_spawnAngle6 			= 90;
+		coop_float_spawnAngle7 			= 90;
+		coop_float_spawnAngle8 			= 90;
+		coop_vector_spawnOrigin1 			= '10337 1547 515';
+		coop_vector_spawnOrigin2 			= '10407 1547 515';
+		coop_vector_spawnOrigin3 			= '10477 1547 515';
+		coop_vector_spawnOrigin4 			= '10547 1547 515';
+		coop_vector_spawnOrigin5 			= '10337 1470 515';
+		coop_vector_spawnOrigin6 			= '10407 1470 515';
+		coop_vector_spawnOrigin7 			= '10477 1470 515';
+		coop_vector_spawnOrigin8 			= '10547 1470 515';
+		thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	}
+	
+	$consoleSideRoom1_off.show();
+	$consoleSideRoom1_on.hide();
+
+	$consoleSideRoom1_pod_down.hide();
+	$consoleSideRoom1_pod_up.show();
+
+	$consoleSideRoom1_on.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+
+	globalBioFactoryPodConveyor2( $biofactoryPodConveyor2_mover1_origin , 1 );
+	secretSkeetButtonPressed++;
+
+	if( secretSkeetButtonPressed == 9 )
+	{
+		thread secretSkeet();
+	}
+
+	while( bioFactoryPodReady == 0 )
+	{
+		wait( 1 );
+	}
+
+	$consoleSideRoom1_on.show();
+	$consoleSideRoom1_off.hide();
+	
+	$consoleSideRoom1_pod_up.hide();
+	$consoleSideRoom1_pod_down.show();
+	
+	$consoleSideRoom1_on.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+
+	wait( .1 );
+
+	$consoleSideRoom1.triggerable();
+}
+
+//---------------------
+// Function: endTripwireGroup
+// Comments:
+// shuts down all the trip wires
+//---------------------
+void endTripwireGroup()
+{
+	$biofactorySideRoom1_field1.hide();
+	$biofactorySideRoom1_field1.notsolid();
+
+	$tripwirepanel1_green.hide();
+	$tripwirepanel1_red.show();
+
+	$world.playsound( "sound/ships/drull/drull_forcetrapstop.wav", 7, 1, 500000 );	
+	
+	thread globalTripwire_Halt ( "group4Wire1" );
+	thread globalTripwire_Halt ( "group4Wire2" );
+	thread globalTripwire_Halt ( "group4Wire3" );
+	thread globalTripwire_Halt ( "group4Wire4" );
+	thread globalTripwire_Halt ( "group4Wire5" );
+	thread globalTripwire_Halt ( "group4Wire6" );
+	thread globalTripwire_Halt ( "group4Wire7" );
+	thread globalTripwire_Halt ( "group4Wire8" );
+	thread globalTripwire_Halt ( "group4Wire9" );
+	thread globalTripwire_Halt ( "group4Wire10" );
+	thread globalTripwire_Halt ( "group4Wire11" );
+	thread globalTripwire_Halt ( "group4Wire12" );
+	thread globalTripwire_Halt ( "group4Wire19" );
+	
+	wait( .1 );
+	
+	stopGroup4();
+
+	$group4Wire1_beam.remove();
+	$group4Wire2_beam.remove();
+	$group4Wire3_beam.remove();
+	$group4Wire4_beam.remove();
+	$group4Wire5_beam.remove();
+	$group4Wire6_beam.remove();
+	$group4Wire7_beam.remove();
+	$group4Wire8_beam.remove();
+	$group4Wire9_beam.remove();
+	$group4Wire10_beam.remove();
+	$group4Wire11_beam.remove();
+	$group4Wire12_beam.remove();
+	$group4Wire19_beam.remove();
+}
+
+//---------------------
+// Function: levelTransition
+// Comments:
+// the end of the level transition
+//---------------------
+void levelTransition()
+{
+	vector v;
+	vector o;
+	entity e;
+	e = getCurrentEntity();
+	v = e.getMaxs();
+	v_y += 300;
+	v_z += 100;
+	o=e.getOrigin();
+	o_y -= 100;
+	o_z = 0;
+	//hzm coop mod chrissstrahl - use our own function to manage this
+	globalCoop_level_gatheringArea("coopgather","coop_endLevel",75,v,o);
+	
+	/*
+	spawn( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m5l2a-drull_ruins1" , "spawnspot" , "m5l2b-to-m5l2a" );
+	wait( .5 );
+	trigger( "$trigger_endlevel" );
+	*/
+}
+
+//---------------------
+// Function: teamFollowOff
+// Comments:
+// team does not follow
+//---------------------
+void teamFollowOff()
+{
+	$Kourban.settendency( "follow" , 0.0 );
+	$Chell.settendency( "follow" , 0.0 );
+	$Telsia.settendency( "follow" , 0.0 );
+}
+
+//---------------------
+// Function: secretWeakWall1_explode
+// Comments:
+// explodes the secretWeakWall1 when shot
+//---------------------
+void secretWeakWall1_explode()
+{
+	$secretWeakWall1.nodamage();
+	
+	thread globalBioFactorySpawn( $secretWeakWall1_explosion, "secretWeakWall1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$secretWeakWall1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+
+	$secretWeakWall1.remove();
+	$secretWeakWall1_fracture.remove();
+}
+
+//---------------------
+// Function: secretWeakHatch1_explode
+// Comments:
+// explodes the secretWeakHatch1 when shot
+//---------------------
+void secretWeakHatch1_explode()
+{
+	$secretWeakHatch1.nodamage();
+	
+	thread globalBioFactorySpawn( $secretWeakHatch1_explosion, "secretWeakHatch1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$secretWeakHatch1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+
+	$secretWeakHatch1.remove();
+	$secretWeakHatch1_fracture.remove();
+
+	thread globalCommon_OnTouch( $secretWeakHatch1_pad, "secretWeakHatch1_padMove" );
+}
+
+//---------------------
+// Function: secretWeakHatch1_padMove
+// Comments:
+//
+//---------------------
+void secretWeakHatch1_padMove()
+{
+	$secretWeakHatch1_pad.notouch();
+	while( 1 )
+	{
+		$secretWeakHatch1_pad.time( 5 );
+		$secretWeakHatch1_pad.moveUp( 744 );
+		waitfor( $secretWeakHatch1_pad );
+		wait( 5 );
+
+		$secretWeakHatch1_pad.time( 5 );
+		$secretWeakHatch1_pad.moveDown( 744 );
+		wait( 5 );
+		waitfor( $secretWeakHatch1_pad );
+	}
+}
+
+//---------------------
+// Function: secretLurkerRunts
+// Comments:
+// spawns a group of lurker runts as a secret
+//---------------------
+void secretLurkerRunts()
+{
+	$secretLurkerRunts1.modelname( "char/alien-type1a-lurker.tik" );
+	$secretLurkerRunts2.modelname( "char/alien-type1a-lurker.tik" );
+	$secretLurkerRunts3.modelname( "char/alien-type1a-lurker.tik" );
+	$secretLurkerRunts4.modelname( "char/alien-type1a-lurker.tik" );
+	
+	trigger( "$secretLurkerRunts1" );
+	trigger( "$secretLurkerRunts2" );
+	trigger( "$secretLurkerRunts3" );
+	trigger( "$secretLurkerRunts4" );
+}
+
+//---------------------
+// Function: secretSkeet
+// Comments:
+// a secret with a skeet shoot of lurkers
+//---------------------
+void secretSkeet()
+{
+	float secretSkeetAlienCounter = 0;
+	
+	while( secretSkeetAlienCounter < 10 )
+	{
+		$secretSkeetAlienSpawn1.modelname( "char/alien-type1a-lurker.tik" );
+		$secretSkeetAlienSpawn2.modelname( "char/alien-type1a-lurker.tik" );
+		$secretSkeetAlienSpawn3.modelname( "char/alien-type1a-lurker.tik" );
+	
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 1 , 0 , 0 );
+		secretSkeetLauncher( 1 , 0 , 0 );
+		secretSkeetLauncher( 0 , 0 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 0 , 0 );
+		wait( 5 );
+		
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 1 , 0 , 0 );
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 0 , 0 );
+		secretSkeetLauncher( 0 , 1 , 1 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 1 , 1 );
+		secretSkeetLauncher( 1 , 0 , 0 );
+		wait( 5 );
+		
+		secretSkeetLauncher( 1 , 0 , 0 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 0 , 0 );
+		secretSkeetLauncher( 0 , 0 , 0 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 0 , 1 );
+		secretSkeetLauncher( 0 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 0 );
+		secretSkeetLauncher( 1 , 1 , 1 );
+		wait( 5 );
+	}
+}
+
+//---------------------
+// Function: secretSkeetLauncher
+// Comments:
+// launchs the aliens for the skeet shoot
+//---------------------
+void secretSkeetLauncher( float skeetAlien1 , float skeetAlien2 , float skeetAlien3 )
+{
+	if( skeetAlien1 == 1 )
+	{
+		trigger( "$secretSkeetAlienSpawn1" );
+		wait( .1 );
+		
+		$secretSkeetAlien1.ai_off();
+		$secretSkeetAlien1.health( 1 );
+	}
+	if( skeetAlien2 == 1 )
+	{
+		trigger( "$secretSkeetAlienSpawn2" );
+		wait( .1 );
+		
+		$secretSkeetAlien2.ai_off();
+		$secretSkeetAlien2.health( 1 );
+	}
+	if( skeetAlien3 == 1 )
+	{
+		trigger( "$secretSkeetAlienSpawn3" );
+		wait( .1 );
+		
+		$secretSkeetAlien3.ai_off();
+		$secretSkeetAlien3.health( 1 );
+	}
+	
+	wait( 3 );
+
+	$secretSkeetAlien1.kill();
+	$secretSkeetAlien2.kill();
+	$secretSkeetAlien3.kill();
+	
+	wait( 1 );
+}
+
+
+//===================================================================================================================
+// Tripwire stuff
+//===================================================================================================================
+
+//---------------------
+// Function: startGroup2
+// Comments:
+// turn the damage on to the second group of trip wires
+//---------------------
+void startGroup2()
+{
+	$group2Wire1_beam.anim( "idle_damage" );
+	$group2Wire1_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );	
+	$group2Wire2_beam.anim( "idle_damage" );
+	$group2Wire2_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );		
+	$group2Wire3_beam.anim( "idle_damage" );
+	$group2Wire3_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );		
+}
+
+//---------------------
+// Function: startGroup4
+// Comments:
+// turns the damage on to the fourth group of trip wires
+//---------------------
+void startGroup4()
+{
+	$group4Wire1_beam.anim( "idle_damage" );
+	$group4Wire1_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );
+	
+	$group4Wire2_beam.anim( "idle_damage" );
+	$group4Wire2_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );	
+
+	$group4Wire3_beam.anim( "idle_damage" );
+	$group4Wire3_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );
+	
+	$group4Wire4_beam.anim( "idle_damage" );
+	$group4Wire4_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );	
+
+	$group4Wire5_beam.anim( "idle_damage" );
+	$group4Wire5_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );	
+
+	$group4Wire6_beam.anim( "idle_damage" );
+	$group4Wire6_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );	
+
+	$group4Wire8_beam.anim( "idle_damage" );
+	$group4Wire8_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );	
+		
+	$group4Wire9_beam.anim( "idle_damage" );
+	$group4Wire9_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );
+		
+	$group4Wire10_beam.anim( "idle_damage" );
+	$group4Wire10_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );
+		
+	$group4Wire11_beam.anim( "idle_damage" );
+	$group4Wire11_beam.loopsound( "sound/ships/drull/drull_tripwireL.wav", 1, 190 );
+		
+	$group4Wire12_beam.anim( "idle_damage" );
+	$group4Wire12_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1,190 );	
+
+	$group4Wire19_beam.anim( "idle_damage" );
+	$group4Wire19_beam.loopsound( "sound/ships/drull/drull_tripwireR.wav", 1, 190 );	
+}
+
+//---------------------
+// Function: stopGroup2
+// Comments:
+// turns the damage off to the second group of trip wires
+//---------------------
+void stopGroup2()
+{
+//hzm coop chrissstrahl - this does not exist, it spamms console with errors
+return;
+	$group2Wire1_beam.anim( "idle" ); 
+	$group2Wire1_beam.stoploopsound();
+
+	$group2Wire2_beam.anim( "idle" );
+	$group2Wire2_beam.stoploopsound();	
+
+	$group2Wire3_beam.anim( "idle" );
+	$group2Wire3_beam.stoploopsound();	
+}
+
+//---------------------
+// Function: stopGroup4
+// Comments:
+// turns the damage off to the fourth group of trip wires
+//---------------------
+void stopGroup4()
+{
+	$group4Wire1_beam.anim( "idle" );
+	$group4Wire1_beam.stoploopsound();
+	
+	$group4Wire2_beam.anim( "idle" );
+	$group4Wire2_beam.stoploopsound();	
+
+	$group4Wire3_beam.anim( "idle" );
+	$group4Wire3_beam.stoploopsound();	
+
+	$group4Wire4_beam.anim( "idle" );
+	$group4Wire4_beam.stoploopsound();
+
+	$group4Wire5_beam.anim( "idle" );
+	$group4Wire5_beam.stoploopsound();
+		
+	$group4Wire6_beam.anim( "idle" );
+	$group4Wire6_beam.stoploopsound();
+		
+	$group4Wire8_beam.anim( "idle" );
+	$group4Wire8_beam.stoploopsound();	
+
+	$group4Wire9_beam.anim( "idle" );
+	$group4Wire9_beam.stoploopsound();	
+
+	$group4Wire10_beam.anim( "idle" );
+	$group4Wire10_beam.stoploopsound();	
+
+	$group4Wire11_beam.anim( "idle" );
+	$group4Wire11_beam.stoploopsound();	
+
+	$group4Wire12_beam.anim( "idle" );
+	$group4Wire12_beam.stoploopsound();	
+
+	$group4Wire19_beam.anim( "idle" );
+	$group4Wire19_beam.stoploopsound();	
+}
+
+
+
+
+
+
+
+
+
+
+void coop_reduceFrustrationSetSpawnAt(vector v, float fAngle)
+{
+	coop_float_spawnAngle0 				= fAngle;
+	float fSpawn;
+	for(fSpawn=1;fSpawn<=coop_integer_maxPlayers;fSpawn++){
+		setFloatScriptVariable("coop_float_spawnAngle"+fSpawn,0);
+		setVectorScriptVariable("coop_vector_spawnOrigin"+fSpawn,v);
+	}
+}
+
+void coop_reduceFrustration()
+{
+	//hzm coop mod chrissstrahl - if one player makes it they all spawn at the new location
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	float fStage;
+	while(1)
+	{
+		wait(0.5);
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					vOriginPlayer = ePlayer.getOrigin();
+					if(fStage == 0){
+						if(vOriginPlayer_x > 10070 && vOriginPlayer_z > 127 ){
+							fStage++;
+							coop_reduceFrustrationSetSpawnAt('10150 463 128',299);
+						}
+					}
+					else if(fStage == 1){
+						if(vOriginPlayer_x > 10800 && vOriginPlayer_z > 383 ){
+							fStage++;
+							coop_reduceFrustrationSetSpawnAt('11209 -259 512',90);
+							return;
+						}
+					}
+				}
+			}
+		}		
+	}
+}
+
+void coop_developerFindTrigger(entity e)
+//function to help us find all the kill triggers
+{
+	while(doesEntityExist(e))
+	{
+		e.selfdetonate();
+		wait(1);
+	}
+}
+
+void coop_findAndHandleEntities()
+//find entities without targetname and give em a targetname
+{	
+	float fEntity;
+	entity e;
+	for(fEntity=0;fEntity<1023;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if(	e.getOrigin() == '11264 960 -16'	||
+				e.getOrigin() == '9584 976 -544'	||
+				e.getOrigin() == '3424 8892 -1328'	||
+				e.getOrigin() == '7840 2176 -1936'
+			){
+				e.damagetype("falling");
+				//e.message(""+e.getOrigin());
+			}
+			else if(e.getOrigin() == '10004 272 -192'	||
+					e.getOrigin() == '10624 -256 -128'	||
+					e.getOrigin() == '11616 224 2176'	||
+					e.getOrigin() == '11648 224 -640'
+			){
+				e.damagetype("electric");
+			}
+			/*
+			else if(e.getOrigin() == '11200 768 15'		||
+					e.getOrigin() == '11200 1024 156'	||
+					e.getOrigin() == '11200 1280 156'	||
+					e.getOrigin() == '10304 2496 -12'	||
+					e.getOrigin() == '10304 3008 -12'	||
+					e.getOrigin() == '10304 3520 -12'	||
+					e.getOrigin() == '9728 832 -172'
+			){
+				e.damagetype("slime");
+			}
+			*/
+		}
+	}
+}
+
+
+void coop_handleErrorProducingCrapScripting(string sName)
+//fixes code that creates errorts and spams the console, also creates lag
+{
+	entity e,e2;
+	e=getEntity(sName+"_explosion");
+	e2=getEntity(sName+"_gas_emitter2");
+	if(doesEntityExist(e)){
+		trigger("$"+sName+"_explosion");
+	}
+	if(doesEntityExist(e2)){
+		e2.playsound( "sound/ships/drull/drull_gastrapstop.wav", 10, 1, 260 );
+	}
+	if(doesEntityExist(e)){
+		e.remove();
+	}
+}
+
+
+void coop_biofactoryGasTrap1_warper()
+//warp player to avoid him getting stuck at the area behind the gas trap
+{
+entity eTrigger;
+entity ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			vector vOrigin;
+			vOrigin = ePlayer.getOrigin();
+			vOrigin_x = 4043;
+			thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vOrigin);
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	stuffcmd("seta coop_igm 4\n");
+	stuffcmd("seta coop_igmH 0\n");
+	stuffcmd("seta coop_igmT 0\n");
+	wait(0.05);
+	setfloatvar ( "game.statusM5L2CUnlocked", 1 );
+	setfloatvar ( "game.globalMissionEnterprise", 4 );
+	thread globalCoop_mission_completed("m5l2a-drull_ruins1");
+}
+

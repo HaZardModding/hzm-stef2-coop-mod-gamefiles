@@ -1,0 +1,360 @@
+
+//player has entred a valid pattern enhancer area
+void enhancer_Area(){
+	float	fArea	= 2;
+	string	sTargetname;
+	entity	eTrigger,ePlayer;
+	
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger)){
+		ePlayer		= eTrigger.getLastActivatingEntity();
+		sTargetname	= eTrigger.getRawTargetName();
+		
+		if(	sTargetname == "patternenhancer1TriggerMom")
+		{
+			fArea = 2;
+		}
+		
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(ePlayer.getFloatVar("playerInSideArea") == 0){
+				ePlayer.setFloatVar("playerInSideArea",fArea);
+				ePlayer.setStringVar("enhancherAreaTriggerName",eTrigger.getRawTargetname());
+				thread enhancer_AreaManagePlayer(ePlayer,eTrigger);
+			}
+		}
+	}
+}
+
+void enhancer_AreaManagePlayer(entity ePlayer, entity eTrigger)
+{
+	if(globalCoop_check_isEntityInsideOfEntity(ePlayer,eTrigger,0))
+	{
+		entity eUseTrigger;
+		vector vOrigin;
+		eUseTrigger = spawn("trigger_use","targetname","peTrigger_"+ePlayer.getRawTargetname());
+		globalCoop_main_waitAFrame();
+		
+		if(globalCoop_check_isEntityInsideOfEntity(ePlayer,eTrigger,0))
+		{
+			//ePlayer.notsolid();
+			eUseTrigger.setSize('-20 -20 -10','20 20 20');
+			eUseTrigger.thread("enhancer_AreaPlayerUsed");
+			
+			globalCoop_huds_Add(ePlayer,"coopbugs_beamArea");
+			ePlayer.setStringVar("beamAreaTrigger",""+eTrigger.getRawtargetname());
+			
+			while(globalCoop_check_existingLivingEntity(ePlayer))
+			{
+				if(!globalCoop_check_isEntityInsideOfEntity(ePlayer,eTrigger,0))
+				{
+					ePlayer.setStringVar("beamAreaTrigger","");	
+					ePlayer.setFloatVar("playerInSideArea",0);
+					globalCoop_huds_Remove(ePlayer,"coopbugs_beamArea");
+					//thread globalCoop_player_makeSolidASAP(ePlayer);
+					return;
+				}
+				else if(doesEntityExist(eUseTrigger))
+				{
+					vOrigin = ePlayer.getOrigin();
+					vOrigin_z += 65;
+					eUseTrigger.origin(vOrigin);
+				}
+				wait(.1);
+			}
+		}
+	}
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.setStringVar("beamAreaTrigger","");	
+		ePlayer.removehud("coopBugs_beamArea");
+		ePlayer.setFloatVar("playerInSideArea",0);
+		globalCoop_huds_Remove(ePlayer,"coopbugs_beamArea");
+		//thread globalCoop_player_makeSolidASAP(ePlayer);
+	}
+	globalCoop_level_remove(eUseTrigger);
+}
+
+void enhancer_AreaPlayerUsed()
+{
+
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			if("peTrigger_"+ePlayer.getRawTargetname() == eTrigger.getRawTargetname())
+			{
+				string sTriggerName;
+				sTriggerName	= ePlayer.getStringVar("enhancherAreaTriggerName");
+				sTriggerName	= sTriggerName+"Mom";
+				eTrigger		= getEntity(sTriggerName);
+				if(doesEntityExist(eTrigger))
+				{
+					ePlayer.trigger("$"+sTriggerName);
+				}
+			}
+		}
+	}
+}
+
+
+void enhancer_pickup()
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			thread globalCoop_huds_Add(ePlayer,"coopbugs_enhancer2x");
+			ePlayer.setFloatVar("enhancersAttached",2);
+			enhancer_attach(ePlayer);
+		}
+	}
+}
+
+
+void enhancer_attach(entity ePlayer)
+{
+	globalCoop_main_waitAFrame();
+	
+	if(doesEntityExist(ePlayer))
+	{
+		entity ePe;
+		string sTargetname;
+		sTargetname	= "patternEnhancer_"+ePlayer.getRawTargetname();
+		ePe = getEntity(sTargetname);
+		//ePlayer.removeattachedmodel("tag_head",0,"models/coop_bugs/p1.tik");
+		globalCoop_level_remove(ePe);
+		globalCoop_main_waitAFrame();
+		globalCoop_main_waitAFrame();
+		//ePlayer.attachmodel("models/weapons/p1w.tik","tag_Rhand",0.8,"",0,-1,-1,-1,-1,'0 0 -20','0 0 0');		
+		ePlayer.attachmodel("models/coop_bugs/p1.tik","tag_head",0.8,sTargetname,0,-1,-1,-1,-1,'-16 0 0','0 60 0');
+		globalCoop_main_waitAFrame();
+		ePe = getEntity(sTargetname);
+		if(doesEntityExist(ePe))
+		{
+			ePe.anim("off");
+		}
+		// ePlayer.forceMoveType("3rdPerson");
+		// wait(3);
+		// ePlayer.forceMoveType("none");
+	}
+}
+
+void enhancer_reattach(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		string sTargetname;
+		sTargetname	= "patternEnhancer_"+ePlayer.getRawTargetname();
+		if(doesEntityExist(getEntity(sTargetname)))
+		{
+			enhancer_attach(ePlayer);
+		}
+	}
+}
+
+void enhancer_position()
+//position the pe where the sprite was located
+{
+	vector	vOrigin;
+	entity	eTrigger,ePlayer,eEnhancer,eEnhancerBeam,eAreaTrigger;
+	float	fStartEnhancer,fEnhancersActive,fEnhancerAreaNumber;
+	string	sTargetname;
+	
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		eTrigger.nouse();
+		
+		sTargetname			= eTrigger.getRawTargetname();
+		fStartEnhancer		= eTrigger.getFloatVar("uservar1");
+		fEnhancerAreaNumber	= eTrigger.getFloatVar("uservar2");
+		
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			eEnhancer = getEntity("patternEnhancer_"+ePlayer.getRawTargetname());
+			if(doesEntityExist(eEnhancer))
+			{
+				vOrigin		= eTrigger.getOrigin();
+				vOrigin_z	-= 25;
+				float fEnhanchers;
+				fEnhanchers = ePlayer.getFloatVar("enhancersAttached");
+				fEnhanchers--;
+				ePlayer.setFloatVar("enhancersAttached",fEnhanchers);
+				if(fEnhanchers < 1)
+				{
+					eEnhancer.remove();				
+					thread globalCoop_huds_Remove(ePlayer,"coopbugs_enhancer");
+				}
+				else{
+					globalCoop_huds_Remove(ePlayer,"coopbugs_enhancer2x");
+					thread globalCoop_huds_Add(ePlayer,"coopbugs_enhancer");
+				}
+				
+				//remove use symbol and missionobjective marker
+				entity eUse;
+				eUse = getEntity(sTargetname+"use");
+				eUse.missionobjective(0);	
+				eUse.remove();
+				
+				//remove sprite
+				eTrigger.remove();
+				globalCoop_main_waitAFrame();
+							
+				eTrigger = spawn("script_model","model","models/coop_bugs/p1.tik","origin",""+vOrigin,"notsolid","1");
+				globalCoop_main_waitAFrame();
+				eTrigger.scale(1);
+				eTrigger.targetname(sTargetname);
+				
+			//activate area trigger if 4 enhancers are in  place
+				fEnhancersActive = $world.getFloatVar("coopBugs_patternEnhancerSeries"+fStartEnhancer);
+				fEnhancersActive++;
+				$world.setFloatVar("coopBugs_patternEnhancerSeries"+fStartEnhancer,fEnhancersActive);
+				
+			//hit limit when start enhancer +4 is even with the current enhancer
+				if(fEnhancersActive == 4)
+				{
+					float	fActivate;
+					entity	eEnhancher;
+					for(fActivate=fStartEnhancer;fActivate<(fStartEnhancer + 4);fActivate++)
+					{
+						eEnhancher		= getEntity("patternenhancer"+fActivate);
+						eEnhancerBeam	= getEntity("patternenhancer"+fActivate+"beam");
+						if(doesEntityExist(eEnhancher))
+						{
+							forcemusic("success");
+							eEnhancher.anim("blue");
+							if(doesEntityExist(eEnhancerBeam))
+							{
+								eEnhancerBeam.show();
+							}
+						}
+						else
+						{
+							centerprint("missing: patternenhancer"+fActivate+"\n");
+						}
+					}
+				
+					eAreaTrigger = getEntity("patternenhancer"+fEnhancerAreaNumber+"Trigger");
+				//activate area trigger
+					if(doesEntityExist(eAreaTrigger))
+					{
+						thread objective_buildPeFieldComplete();
+						eAreaTrigger.triggerable();
+						eAreaTrigger.setStringVar("uservar2","active");
+					//remove items from the old beam in area
+						globalCoop_level_remove($requested_health);
+						globalCoop_level_remove($requested_plasma);
+						globalCoop_level_remove($requested_patternenhancer);
+					}
+					else
+					{
+						centerPrint("missing area trigger");
+					}
+				}
+				
+				//for testing //thread enhancer_attach($player1);
+
+			//make model solid as soon as no player is inside it anymore
+				while(doesEntityExist(eTrigger))
+				{
+					ePlayer = globalCoop_return_playerClosestPreferActive(eTrigger);
+					if(	ePlayer.getRawTargetname() == "world" ||
+						ePlayer.isWithinDistanceOf(eTrigger,80) != 1 )
+					{
+						eTrigger.solid();
+						return;
+					}
+					globalCoop_main_waitAFrame();
+				}
+			}
+			else
+			{
+				if(cvar_bool_multiplayer)
+				{
+					if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+						ePlayer.hudPrint("^5INFO:^8 Sie brauchen einen Muster-Verst...!\n^5INFO:^8 Fordern Sie einen von der Enterprise an\n");
+					}else{
+						ePlayer.hudPrint("^5INFO:^8 You have no Pattern-Enhancer with you!\n^5INFO:^8 You need to request a one from the Enterprise\n");
+					}
+				}
+				else
+				{
+					if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+						centerPrint("^5INFO:^8 Sie brauchen einen Muster-Verst...!\n^5INFO:^8 Fordern Sie einen von der Enterprise an\n");
+					}else{
+						centerPrint("^5INFO:^8 You have no Pattern-Enhancer with you!\nYou need to request a one from the Enterprise\n");
+					}
+				}
+				wait(1);
+			}
+		}
+		globalCoop_main_waitAFrame();
+		thread globalCoop_level_onUse(eTrigger,"enhancer_position");		
+	}
+	else
+	{
+		centerprint("can not be called from console");
+	}
+}
+
+void enhancer_restore()
+{
+	forcemusic("success");
+	
+	$patternenhancer10_useSymbol.missionobjective(0);
+	$patternenhancer12.missionobjective(1);
+	
+	$patternenhancer10_useSymbol.remove();
+	$patternenhancer10.origin('12575.00 -3080.00 -1053.00');
+	$patternenhancer10.angles('0 0 0');
+	wait(0.5);
+	$patternenhancer8beam.show();
+	$patternenhancer9beam.show();
+	$patternenhancer10beam.show();
+	$patternenhancer11beam.show();
+	$patternenhancer8.anim("blue");
+	$patternenhancer9.anim("blue");
+	$patternenhancer10.anim("blue");
+	$patternenhancer11.anim("blue");
+	$patternenhancer2Trigger.setStringVar("uservar2","active");
+	$patternenhancer2Trigger.triggerable();
+//remove items from the old beam in area
+	globalCoop_level_remove($requested_health);
+	globalCoop_level_remove($requested_plasma);
+	globalCoop_level_remove($requested_patternenhancer);
+//beam attrexian dude up
+	while(!$lift_dude.isWithinDistanceOf($patternenhancer2TriggerMom,512))
+	{
+		wait(2);
+	}
+	$munro.notsolid();
+	$munro.origin('12465 -2969 -986');
+	$lift_dude.ai_off();
+	$lift_dude.walkto("$attraxianBeamUp");
+	waitFor($lift_dude);
+	
+	$munro.playDialog( "localization/sound/dialog/dallas02/munro_leavem3.mp3",1,128,0 );
+	waitfordialog($munro);
+	
+	$lift_dude.displayEffect("TransportOut","Federation");
+	$lift_dude.notsolid();
+	$lift_dude.nodamage();
+	wait(1.8);
+	$lift_dude.remove();
+	thread objective_liftDudeSurviveComplete();
+//unlock pyramid entrace
+	$t33.unlock();
+}
+
+
+	

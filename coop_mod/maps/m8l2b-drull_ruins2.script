@@ -1,0 +1,1439 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  m8l2b-drull_ruins2
+//  Script By:    J. Keehan, A. Bellefeuil, J. Hefty
+//  Geometry By:  J. Keehan, A. Bellefeuil
+//  Created on:   2/8/2002
+//
+//  Last Modified 8/23/2002 J.H.
+//
+//-----------------------------------------------------------------
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  DEFINE
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void main();
+
+//--setup functions
+void setupAI();
+void setupArmatureCinematics();
+void setupWorld();
+
+//--game functions
+void triggerPredatorDeath();
+void connectLiftPathNodes();
+void triggerBattleBegin();
+void levelTransition();
+void liftDown1();
+void liftDoor1OpenLeft();
+void liftDoor1OpenRight();
+void liftDoor1CloseLeft();
+void liftDoor1CloseRight();
+void liftDoor2OpenLeft();
+void liftDoor2OpenRight();
+void liftUp1();
+void lift1GateOpen();
+void lift1GateClose();
+void lift1Gate2Open();
+void smallLiftDown();
+void smallLift_DoorOpenLeft();
+void smallLift_DoorOpenRight();
+void endLiftDown();
+void endLiftGateOpen();
+void endLiftGateClose();
+void endLiftDoor1OpenLeft();
+void endLiftDoor1OpenRight();
+void endLiftDoor2OpenLeft();
+void endLiftDoor2OpenRight();
+void endLiftUp();
+void endLiftDoor1CloseLeft();
+void endLiftDoor1CloseRight();
+void endLiftDoor2CloseLeft();
+void endLiftDoor2CloseRight();
+void openSmallDoor7();
+
+void gameEndRoomCleared();
+void inaccessible_sound();
+void secretpanel();
+void seqlightsoff();
+
+//--cinematic functions
+void cinematicArm_Predator_Start();
+void cinematicArm_Predator_ArmEnd();
+
+void cinematicShuttleFly();
+void cinematicShuttleFly_Skipthread();
+void cinematicShuttleFly_ScaleShuttleUp();
+void cinematicShuttleFly_ScaleShuttleDown();
+
+void secretRuneCheck();
+void secretRuneFailed();
+void secretRunePassed();
+void secretStaffRecieved();
+
+//--variables
+float hack = 0;		//the JJ hack-O-rama....which should be removed....but it'll probably ship with this hack.....*cough* *hack* *cough*....//FIX ME
+float secretRuneCounter = 0;
+
+entity cinematicArm_Predator;
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  INCLUDES
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_liftDoor2OpenLeft();
+void coop_liftDoor2OpenRight();
+void coop_liftDoor2CloseLeft();
+void coop_liftDoor2CloseRight();
+void	coop_lift1Gate2Close();
+void	coop_liftDoor2CloseLeft();
+void	coop_liftDoor2CloseRight();
+void	coop_lift1Activate();
+void	coop_liftDown1();
+void	coop_liftUp1();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+float	float_liftState;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_flyin.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/maps/m8/m8_drullDoors.script"
+#include "coop_mod/maps/m8/m8_alienCombat.script"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  MAIN
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+void main ()
+//---------------------
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 183;
+	coop_vector_spawnOrigin1 			= '-8882 3035 3';
+	coop_vector_spawnOrigin2 			= '-8882 3125 3';
+	coop_vector_spawnOrigin3 			= '-8812 3035 3';
+	coop_vector_spawnOrigin4 			= '-8812 3125 3';
+	coop_vector_spawnOrigin5 			= '-8722 3035 3';
+	coop_vector_spawnOrigin6 			= '-8722 3125 3';
+	coop_vector_spawnOrigin7 			= '-8652 3035 3';
+	coop_vector_spawnOrigin8 			= '-8652 3125 3';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins2LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - make it deadly
+	$drull_lift1_gate2.dmg(666999);
+	$drull_lift1.dmg(666999);
+	
+	//hzm coop mod chrissstrahl - set kill message
+	$drull_lift1_gate.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Lift Gate");
+	$drull_lift1_gate2.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Lift Gate");
+	$drull_lift1.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Lift");
+	$liftDoorSide2a.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Lift Door");
+	$liftDoorSide2b.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Lift Door");
+	//de
+	$drull_lift1_gate.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einem ^2Aufzug Tor");
+	$drull_lift1_gate2.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einem ^2Aufzug Tor");
+	$drull_lift1.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einem ^2Aufzug");
+	$liftDoorSide2a.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einer ^2Aufzugs T$$u$$re");
+	$liftDoorSide2b.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einer ^2Aufzugs T$$u$$re");
+	
+	//--- set the soundtrack
+	soundtrack( "music/m8l2b.mus" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m8l2a_drull_ruins2" );
+
+	//--- setup the level
+	setupAI();
+	setupArmatureCinematics();
+	setupWorld();
+	
+	waitforplayer ();
+
+	//--- set the first objective
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$ProtectKrindo$$","incomplete",1,1);
+	
+	$krindo.missionobjective( 1 );
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  SETUP FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void setupAI()
+{
+	//--krindo
+	$krindo.ai_off ();
+	//$krindo.health ( 300 );
+	$krindo.immortal( 1 );
+	$krindo.mass( 9999999 );
+	$krindo.anim( "ent-curvedconsole-gesture" );
+	//$krindo.warpto ( "$krindoWorkPos1" );
+	//$krindo.setstringvar ( "status" , "ready" );
+	
+	//--mission fails if krindo dies
+	//$krindo.not_allowed_to_kill();
+	
+	//--munro
+	spawn ( "Actor" , "model" , "models/char/hazardteam_munro.tik" , "targetname" , "munro" , "hide" , "1" , "ai_off" , "1" );
+	$munro.notsolid ();
+	
+	//--- predator
+	$predator.forcealpha( 1 );
+	$predator.alpha( 0 );
+	$predator.ai_off();
+	$predator.contents( "-targetable" );
+	$predator.notsolid();
+	$predator.archetype ( "PredatorNoRadar" );
+	$predator.rendereffects( "-shadow" );//turn off predator's shadow
+	
+	//--aliens in the upper areas
+	$alienEndRoom1.setgroupid( 9 );
+	$alienEndRoom2.setgroupid( 9 );
+	$alienEndRoom1.groupDeathThread( "gameEndRoomCleared" );
+	$basher_10.setgroupid( 10 );
+	$basher_10.groupDeathThread( "openSmallDoor7" );
+	
+	$deadDrull_1.ai_off();
+	$deadDrull_2.ai_off();
+	$deadDrull_2.ai_off();
+	$deadDrull_4.ai_off();
+	$deadDrull_5.ai_off();
+	$deadDrull_6.ai_off();
+	$deadDrull_7.ai_off();
+	$deadDrull_1.anim( "hunched_dead4" );
+	$deadDrull_2.anim( "hunched_dead1" );
+	$deadDrull_3.anim( "hunched_dead1" );
+	$deadDrull_4.anim( "hunched_dead4" );
+	$deadDrull_5.anim( "hunched_dead3" );
+	$deadDrull_6.anim( "hunched_dead2" );
+	$deadDrull_7.anim( "hunched_dead3" );
+	
+	$alienEndRoom1.settendency ( "fakeattack" , 1.0 );
+	$alienEndRoom2.settendency ( "fakeattack" , 1.0 );
+	$alienChewer_1.settendency ( "fakeattack" , 1.0 );
+}
+
+void setupArmatureCinematics()
+{
+	//--predator introduction
+	cinematicArm_Predator = createCinematic( "m8l2-pred" );
+	cinematicArm_Predator.setendthread( "cinematicArm_Predator_ArmEnd" );
+}
+
+void setupWorld()
+{
+	//--- spawn cinematic cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	
+	//--- setup the sky
+	$sky.rendereffects( "+skyorigin" );
+	$starDome.angles ( '45 0 0' );	
+
+	//--world
+	$world.entity_fade_dist( 8000 );
+	$world.farplane_color( '.14 .13 .15' );
+	$world.farplane( 6000 );
+	$world.farplane_cull( 1 );
+	
+	//--lifts
+	$liftClip.hide();
+	$liftClip.notsolid();
+	$endLiftClip.notsolid();
+	$drull_endLift_gate.solid();
+	$pathnodeClip1.remove();
+	$drull_endLift.solid();
+	$endLiftDoor1a.solid();
+	$endLiftDoor1b.solid();
+	$endLiftDoor2a.solid();
+	$endLiftDoor2b.solid();
+	//$predatorMonsterClip.solid();
+	
+	//--triggers
+	$triggerCinematicArm_Predator_Start.nottriggerable();
+	$triggerEndRoom_KrindoTerminal.nottriggerable();
+	$liftUpTrigger.nottriggerable();
+	$endLiftUpTrigger.nottriggerable();
+	$bigDoorTrigger1.nottriggerable();
+	$triggerAlienAttack_1.nottriggerable();
+	$drullSmallDoor7_trigger.nottriggerable();
+	$shutSecretDoorTrigger.nottriggerable();
+	
+	//--archetype setups	
+	globalArchetype_Setup ( $lift_control_archtype , "TriDrullLiftControl" );
+	globalArchetype_Setup ( $lift_control2_archtype , "DrullLiftControl" );
+
+	//--attach archetype to elevator switch
+	$lift_control2_archtype.bind( $drull_lift3 );
+	//--attach doors to first small elevator
+	$liftDoorSide1a.bind( $drull_lift1 );
+	$liftDoorSide1b.bind( $drull_lift1 );
+	$liftDoorSide2a.bind( $drull_lift1 );
+	$liftDoorSide2b.bind( $drull_lift1 );
+	$endLiftDoor1a.bind( $drull_endLift );
+	$endLiftDoor1b.bind( $drull_endLift );
+	$endLiftDoor2a.bind( $drull_endLift );
+	$endLiftDoor2b.bind( $drull_endLift );
+	$drull_lift3_door1a.bind( $drull_lift3 );
+	$drull_lift3_door1b.bind( $drull_lift3 );
+	
+	//--move the lifts into position
+	$drull_lift1.time( .01 );
+	$drull_lift1.moveUp( 2272 );
+	waitFor( $drull_lift1 );
+	$drull_endLift.time( .01 );
+	$drull_endLift.moveUp( 2272 );
+	waitFor( $drull_lift1 );
+	
+	//--secret panel setup
+	$greenpanel.hide();
+	$yellowpanel.hide();
+	$finishpanel.hide();
+	$secretStaff.notsolid();
+	$secretStaffShip.hide();
+	
+	//--basherdoor stuff
+	$basherdoor_clip.notsolid();
+	$basherdoor_after.hide();
+	$basher_10.immortal( 1 );
+
+	//--set ambien klaxon horn
+	$klaxon1.loopsound ( "sound/ships/drull/drull_destruct.wav", 1.0, 1024);
+	$klaxonBossRoom.loopsound ( "sound/ships/drull/drull_destruct.wav", 0.8, 1024);
+	
+	//--disconnect pathnodes for predator battle
+/*	disconnectPathNodes( "$liftPathNode1", "$northPathNode1" );
+	disconnectPathNodes( "$northPathNode1", "$liftPathNode1" );
+	disconnectPathNodes( "$liftPathNode1", "$northPathNode2" );
+	disconnectPathNodes( "$northPathNode2", "$liftPathNode1" );
+	disconnectPathNodes( "$liftPathNode1", "$northPathNode3" );
+	disconnectPathNodes( "$northPathNode3", "$liftPathNode1" );
+	disconnectPathNodes( "$liftPathNode6", "$southPathNode1" );
+	disconnectPathNodes( "$southPathNode1", "$liftPathNode6" );
+	disconnectPathNodes( "$liftPathNode6", "$southPathNode2" );
+	disconnectPathNodes( "$southPathNode2", "$liftPathNode6" );
+	disconnectPathNodes( "$liftPathNode6", "$southPathNode3" );
+	disconnectPathNodes( "$southPathNode3", "$liftPathNode6" );
+*/	
+	disconnectPathNodes( "$liftPathNode1", "$liftPathNode2" );
+	disconnectPathNodes( "$liftPathNode2", "$liftPathNode1" );
+	disconnectPathNodes( "$liftPathNode2", "$liftPathNode3" );
+	disconnectPathNodes( "$liftPathNode3", "$liftPathNode2" );
+	disconnectPathNodes( "$liftPathNode3", "$liftPathNode4" );
+	disconnectPathNodes( "$liftPathNode4", "$liftPathNode3" );
+	disconnectPathNodes( "$liftPathNode4", "$liftPathNode5" );
+	disconnectPathNodes( "$liftPathNode5", "$liftPathNode4" );
+	disconnectPathNodes( "$liftPathNode5", "$liftPathNode6" );
+	disconnectPathNodes( "$liftPathNode6", "$liftPathNode5" );
+
+	//--- setup the cinematic shuttle
+	$shuttleSpace_Body.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Door.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Body.scale( .1 );
+	$shuttleSpace_Door.scale( .1 );
+	
+	$shuttleSpace_Door.anim( "closed" );
+	$drull_smalldoor6_portal.closeportal();
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  GAME FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void triggerPredatorDeath()
+{
+	$predatorMonsterClip.remove();//remove monster clip surrounding the end lift
+	wait ( 5 );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_sucrt.mp3", 1, 8000, 1); //I've successfully re-routed power to the lift control mechanism, lets get out of here!
+	waitForDialog( $krindo );
+	
+	thread endLiftDown();
+	wait( 4 );
+	$krindo.walkto ( "$elevatorNode" , "run", 0, -1 );
+	waitfor( $krindo );
+	$krindo.walkto ( "$krindoSpecialPath" , "run", 0, -1 );
+	waitfor( $krindo );
+	//$krindo.walkto ( "liftPathNode1" , "run" );
+	//waitfor( $krindo );
+	//$krindo.walkto ( "liftPathNode2" , "run" );
+	//waitfor( $krindo );
+	//$krindo.walkto ( "liftPathNode3" , "run" );
+	//waitfor( $krindo );
+	$krindo.walkto ( "$liftPathNode4" , "run", 0, -1 );
+	waitfor( $krindo ); 
+	
+	//$krindo.ai_on();
+	//$krindo.setstringvar ( "status" , "ready" );
+	//$predatorLift.triggerable();
+}
+
+void connectLiftPathNodes()
+{
+/*	connectPathNodes( "$liftPathNode1", "$northPathNode1" );
+	connectPathNodes( "$northPathNode1", "$liftPathNode1" );
+	connectPathNodes( "$liftPathNode1", "$northPathNode2" );
+	connectPathNodes( "$northPathNode2", "$liftPathNode1" );
+	connectPathNodes( "$liftPathNode1", "$northPathNode3" );
+	connectPathNodes( "$northPathNode3", "$liftPathNode1" );
+	connectPathNodes( "$liftPathNode6", "$southPathNode1" );
+	connectPathNodes( "$southPathNode1", "$liftPathNode6" );
+	connectPathNodes( "$liftPathNode6", "$southPathNode2" );
+	connectPathNodes( "$southPathNode2", "$liftPathNode6" );
+	connectPathNodes( "$liftPathNode6", "$southPathNode3" );
+	connectPathNodes( "$southPathNode3", "$liftPathNode6" );
+*/	
+	connectPathNodes( "$liftPathNode1", "$liftPathNode2" );
+	connectPathNodes( "$liftPathNode2", "$liftPathNode1" );
+	connectPathNodes( "$liftPathNode2", "$liftPathNode3" );
+	connectPathNodes( "$liftPathNode3", "$liftPathNode2" );
+	connectPathNodes( "$liftPathNode3", "$liftPathNode4" );
+	connectPathNodes( "$liftPathNode4", "$liftPathNode3" );
+	connectPathNodes( "$liftPathNode4", "$liftPathNode5" );
+	connectPathNodes( "$liftPathNode5", "$liftPathNode4" );
+	connectPathNodes( "$liftPathNode5", "$liftPathNode6" );
+	connectPathNodes( "$liftPathNode6", "$liftPathNode5" );
+}
+
+//---------------------
+// gameEndRoomCleared
+// when the aliens in the end room are defeated, set
+// the trigger for the predator cinematic
+//---------------------
+void gameEndRoomCleared()
+{
+	//--set the trigger
+	$triggerCinematicArm_Predator_Start.triggerable();
+	$bigDoorTrigger1.triggerable();
+	
+	//hzm coop mod chrissstrahl - make the trigger work with multiple players
+	$bigDoorTrigger1.setsize('-128 -128 -64','128 128 256');
+	$bigDoorTrigger1.origin('-7029 1845 2100');
+	
+	//hzm coop mod chrissstrahl - set player spawn locations
+	coop_float_spawnAngle1 				= 360;
+	coop_float_spawnAngle2 				= 360;
+	coop_float_spawnAngle3 				= 360;
+	coop_float_spawnAngle4 				= 360;
+	coop_float_spawnAngle5 				= 360;
+	coop_float_spawnAngle6 				= 360;
+	coop_float_spawnAngle7 				= 360;
+	coop_float_spawnAngle8 				= 360;
+	coop_vector_spawnOrigin1 			= '-6492 1860 2200';
+	coop_vector_spawnOrigin2 			= '-6492 1790 2200';
+	coop_vector_spawnOrigin3 			= '-6392 1930 2200';
+	coop_vector_spawnOrigin4 			= '-6392 1860 2200';
+	coop_vector_spawnOrigin5 			= '-6392 1790 2200';
+	coop_vector_spawnOrigin6 			= '-6292 1930 2200';
+	coop_vector_spawnOrigin7 			= '-6292 1860 2200';
+	coop_vector_spawnOrigin8 			= '-6292 1790 2200';
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+}
+
+//---------------------
+// cinematicArm_Predator_Start
+// predator introduction
+//---------------------
+void cinematicArm_Predator_Start()
+{
+	//hzm coop mod chrissstrahl, get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+	allowmusicducking(0);
+
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	letterbox( .1 );
+	
+	//--- hide the player and chell	
+	globalCommon_AiDummyHide( $krindo );
+	
+	//--- start the armature
+	cinematicArm_Predator.beginCinematic( "m8l2-pred" );
+	wait( .25 );
+	
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+        forcemusic ("aux1");
+	//--- set the skipthread
+	skipthread( "cinematicArm_Predator_ArmEnd" );
+}
+
+//---------------------
+// cinematicArm_Predator_ArmEnd
+// predator introduction
+//---------------------
+void cinematicArm_Predator_ArmEnd()
+{
+	//--kill the cinematic
+	skipthread( "null" );
+	//--fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	//--end the armature cinematics, FALSE means don't launch the end thread
+
+	cinematicArm_Predator.endCinematic( FALSE );
+        forcemusic ("normal");
+
+	killthread( "cinematicArm_Predator_Start" );
+	
+	//--set AI and position them
+	globalCommon_AiDummy( $krindo, "" );
+	$krindo.warp( $nodeKrindo_PostCinematic.getOrigin() );
+	$krindo.turntoangle( 360 );
+
+	//--set the player
+
+	//hzm coop mod chrissstrahl, grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( $nodePlayer_PostCinematic.getOrigin() );
+		//entityPlayerGlobal.playerviewangles( '0 -486 0' );
+		entityPlayerGlobal.turntowardsentity( $krindo );
+	}
+
+	$krindo.anim( "ent-curvedconsole-gesture" );
+	
+	//--release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .75 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .75 );
+	
+	//--some hack thing
+	hack = 1;
+	
+	//--start the predator fight
+	thread triggerBattleBegin();
+	
+	//--activate krindo
+	//globalCommon_AiActor( $krindo );
+
+	//--set triggers
+	$triggerEndRoom_KrindoTerminal.triggerable();
+}
+
+void testLoad()
+{
+	cam.load( "m8l2b_ShuttleFly_Shot1" );
+	cam.load( "m8l2b_ShuttleFly_Shuttle" );
+}
+
+void testFly()
+{
+	$shuttleSpace_Body.scale( .05 );
+	$shuttleSpace_Door.scale( .05 );
+    	
+	$cam1.fov( 90 );
+	$cam1.cut();
+	$cam1.follow( $m8l2b_ShuttleFly_Shot1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+	
+	$cam1.pause();
+	
+	thread cinematicShuttleFly_ScaleShuttleUp();
+	$shuttleSpace_Origin.followPath( $m8l2b_ShuttleFly_Shuttle );
+	wait( 1 );
+	
+	$cam1.continue();
+	wait( 3 );
+	
+	thread globalCineFX_CameraFOVLerp( $cam1, 90, 70, 4, "rampupdown" );
+	wait( 1 );
+	
+	thread cinematicShuttleFly_ScaleShuttleDown();
+	wait( 10 );
+	
+	cueplayer();
+}
+
+void testFlyStop()
+{
+	$shuttleSpace_Origin.endPath();
+}
+
+
+//---------------------
+// cinematicShuttleFly
+// idryll shuttle leaves the planet
+//---------------------
+void cinematicShuttleFly()
+{
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	allowmusicducking(0);
+    forcemusic ("aux2");
+
+	letterbox( .1 );
+
+	//--- load the camera paths
+	cam.load( "m8l2b_ShuttleFly_Shot1" );
+	cam.load( "m8l2b_ShuttleFly_Shuttle" );
+	
+	//--- world fog stuff
+	$world.entity_fade_dist( 100000 );
+	//$world.farplane_color( '.14 .13 .15' );
+	$world.farplane( 0 );
+	$world.farplane_cull( 0 );
+	
+	//--- the shuttle
+	$shuttleSpace_Body.scale( .05 );
+	$shuttleSpace_Door.scale( .05 );
+	wait( .5 );
+
+	//--------------------------------------------------------
+	//shot1 establishing, shuttle leaving the planet
+	    	
+	$cam1.fov( 90 );
+	$cam1.cut();
+	$cam1.follow( $m8l2b_ShuttleFly_Shot1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+	
+	$cam1.pause();
+	
+	//--- scale the shuttle as it flies by
+	thread cinematicShuttleFly_ScaleShuttleUp();
+	$shuttleSpace_Origin.followPath( $m8l2b_ShuttleFly_Shuttle );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	
+	$cam1.continue();
+	wait( 3 );
+	
+	//--- slightly zoom in
+	thread globalCineFX_CameraFOVLerp( $cam1, 90, 70, 4, "rampupdown" );
+	wait( 1 );
+	
+	//--- start to scale it down
+	thread cinematicShuttleFly_ScaleShuttleDown();
+	wait( 1 );
+	
+	//--- end the cinematic
+	thread cinematicShuttleFly_Skipthread();
+}
+
+//---------------------
+// cinematicShuttleFly_Skipthread
+// skipthread for cinematic
+//---------------------
+void cinematicShuttleFly_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicShuttleFly" );
+
+	//--- fade in
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+		
+	//--- release the cinematic
+	noncinematic();
+	clearLetterbox( .1 );
+	
+	//hzm coop mod chrissstrahl - end level
+	thread coop_endLevel();
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_changeToIGM", "map", "ent-deck8" );
+	setfloatvar ( "game.globalMissionEnterprise", 6 );
+	wait ( 1 );
+	trigger ( "$trigger_changeToIGM" );
+	*/
+}
+
+void triggerBattleBegin()
+{
+	//hzm coop mod chrissstrahl - adapt health to player count
+	$predator.health((1801 * globalCoop_return_integerPlayersQuantity(1)));
+	$predator.maxbosshealth((1801 * globalCoop_return_integerPlayersQuantity(1)));
+
+	$predator.rendereffects( "+shadow" );
+	$predator.archetype ( "Predator" );
+	$predator.contents( "+targetable" );
+	$predator.solid();
+	$predator.fadein( 1 );
+	//$predator.maxbosshealth( 1801 ); //adapted to player count
+	$predator.updatebosshealth( 1, 1 );
+	$predator.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than just attack $player
+	$predator.aggressive( 1 );
+}
+
+//---------------------
+// 	cinematicShuttleFly_ScaleShuttleUp
+// 	scale the shuttle up on the first part of it's path
+//---------------------
+void cinematicShuttleFly_ScaleShuttleUp()
+{
+	float i;
+	
+	for( i = .01 ; i <= .25 ; i += .003 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .1 );
+    }
+}
+
+//---------------------
+// 	cinematicShuttleFly_ScaleShuttleDown
+// 	scale the shuttle down on the last part of it's path
+//---------------------
+void cinematicShuttleFly_ScaleShuttleDown()
+{
+	float i;
+	
+	killthread( "cinematicShuttleFly_ScaleShuttleUp" );
+	
+	for( i = .15 ; i >= .01 ; i -= .002 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .1 );
+    }
+}
+
+void levelTransition()
+{
+	//setfloatvar ( "game.enable_m8l1a_cinematic" , 1 );
+
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m8l1b-drull_ruins2" );
+	//wait ( 1 );
+	//trigger ( "$trigger_endlevel" );
+	
+	thread cinematicShuttleFly();
+}
+
+void liftDown1()
+{
+	$lift_control_archtype.remove();//delete archetype after use
+	$liftClip.show();
+	$liftClip.solid();
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1.1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 -2368', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.1, 1500 );
+	$liftUpTrigger.triggerable();
+	$liftClip.notsolid();
+	
+	thread lift1GateOpen();
+	wait( 2 );
+	
+	thread liftDoor1OpenLeft();
+	thread liftDoor1OpenRight();
+}
+
+void liftUp1()
+{
+	wait(3);
+	$liftClip.show();
+	/*$liftClip.solid();*/ //hzm coop mod chrissstrahl - we don't do this in coop
+	wait( .5 );
+	thread liftDoor1CloseLeft();
+	thread liftDoor1CloseRight();
+	wait( 2 ); //wait for doors to close
+	thread lift1GateClose();
+	wait( 1 );
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 2368', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1, 1500 );
+	
+	thread lift1Gate2Open();
+	wait( 1.5 );
+	thread liftDoor2OpenLeft();
+	thread liftDoor2OpenRight();
+	
+	wait(7);
+	spawn("trigger_multiple","targetname","coop_tM_lift1_Call","origin","-10502 2951 20");//-10322 2845 70
+	wait(.2);
+	$coop_tM_lift1_Call.setsize('-168 -168 0','168 168 3000');
+	$coop_tM_lift1_Call.thread("coop_lift1Activate");
+	float_liftState = 2;
+}
+
+void lift1GateOpen()
+{
+	$drull_lift1_gate.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	//globalAccelMove( $drull_lift1_gate, '0 0 348', 4, "rampupdown", "" );
+	globalAccelMove( $drull_lift1_gate, '0 0 316', 4, "rampupdown", "" );
+	$drull_lift1_gate.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+void lift1GateClose()
+{
+	$drull_lift1_gate.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	//globalAccelMove( $drull_lift1_gate, '0 0 -348', 4, "rampupdown", "" );
+	globalAccelMove( $drull_lift1_gate, '0 0 -316', 4, "rampupdown", "" );
+	$drull_lift1_gate.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+void lift1Gate2Open()
+{
+	$drull_lift1_gate2.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	//globalAccelMove( $drull_lift1_gate2, '0 0 412', 4, "rampupdown", "" );
+	globalAccelMove( $drull_lift1_gate2, '0 0 380', 4, "rampupdown", "" );
+	$drull_lift1_gate2.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+void liftDoor1OpenLeft()
+{
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1a, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void liftDoor1OpenRight()
+{
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1b, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void liftDoor1CloseLeft()
+{
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1a, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void liftDoor1CloseRight()
+{
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1b, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void liftDoor2OpenLeft()
+{
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2a, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void liftDoor2OpenRight()
+{
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2b, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void smallLiftDown()
+{
+	//centerprint("smallLiftDown");//hzm info
+	$lift_control2Trigger.nottriggerable();
+	$lift_control2_archtype.remove();//delete the archetype after using the lift
+	$drull_lift3.playsound( "sound/environment/machine/lift4.wav", 8, 1, 1500 );
+	globalAccelMove( $drull_lift3, '0 0 -304', 4, "rampupdown", "" );
+	$drull_lift3.playsound( "sound/environment/machine/lift4stop.wav", 8, 1, 1500 );
+	wait( .5 );
+	thread smallLift_DoorOpenLeft();
+	thread smallLift_DoorOpenRight();
+}
+
+void smallLift_DoorOpenLeft()
+{
+	$drull_lift3_door1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $drull_lift3_door1a, '0 90 0', 2, "rampupdown", "" );
+	$drull_lift3_door1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void smallLift_DoorOpenRight()
+{
+	globalAccelMove_Rotate( $drull_lift3_door1b, '0 -90 0', 2, "rampupdown", "" );
+}
+
+void endLiftDown()
+{
+	//$endLiftClip.solid();
+	$drull_endLift.playsound( "sound/environment/machine/lift4.wav", 8, 1.5, 1500 );
+	globalAccelMove( $drull_endLift, '0 0 -2360', 5, "rampupdown", "" );
+	$drull_endLift.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.5, 1500 );
+	$endLiftUpTrigger.triggerable();
+	$endLiftClip.notsolid();
+	
+	thread endLiftGateOpen();
+	wait ( 2 );
+	$inner_endLiftClip.solid();
+	thread endLiftDoor1OpenLeft();
+	thread endLiftDoor1OpenRight();
+	thread endLiftDoor2OpenLeft();
+	thread endLiftDoor2OpenRight();
+	wait( .25 );
+	thread connectLiftPathNodes();
+}
+
+void endLiftGateOpen()
+{
+	$drull_endLift_gate.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	globalAccelMove( $drull_endLift_gate, '0 0 380', 4, "rampupdown", "" );
+	$drull_endLift_gate.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+void endLiftGateClose()
+{
+	$drull_endLift_gate.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	globalAccelMove( $drull_endLift_gate, '0 0 -380', 4, "rampupdown", "" );
+	$drull_endLift_gate.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+//--OPEN LIFT DOORS
+void endLiftDoor1OpenLeft()
+{
+	$endLiftDoor1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $endLiftDoor1a, '0 90 0', 2, "rampupdown", "" );
+	$endLiftDoor1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void endLiftDoor1OpenRight()
+{
+	globalAccelMove_Rotate( $endLiftDoor1b, '0 -90 0', 2, "rampupdown", "" );
+	
+}
+
+void endLiftDoor2OpenLeft()
+{
+	$endLiftDoor2a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $endLiftDoor2a, '0 90 0', 2, "rampupdown", "" );
+	$endLiftDoor2a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void endLiftDoor2OpenRight()
+{
+	globalAccelMove_Rotate( $endLiftDoor2b, '0 -90 0', 2, "rampupdown", "" );
+}
+
+void coop_endLiftUp()
+{
+	/*$player.immobilize( 1 );*/ //hzm coop mod chrissstrahl - we don't do this
+
+	/*$endLiftClip.solid();*/ //hzm coop mod chrissstrahl - we don't do this
+	wait( .25 );
+	thread endLiftDoor1CloseLeft();
+	thread endLiftDoor1CloseRight();
+	thread endLiftDoor2CloseLeft();
+	thread endLiftDoor2CloseRight();
+	wait( 2.0 );
+	
+	thread endLiftGateClose();
+	
+	wait( 1.5 );
+	
+	$drull_endLift.playsound( "sound/environment/machine/lift4.wav", 8, 1.0, 1500 );
+	globalAccelMove( $drull_endLift, '0 0 2368', 7, "rampupdown", "" );
+}
+
+void endLiftUp()
+{
+	//--- turn off the call volume trigger
+	$endLiftTriggerVolume.nottriggerable();
+	
+	//--- wait until the player is near the center of the lift
+	/*while( globalMath_GetXYDistance( $player.getOrigin(), $drull_endLift.getOrigin() ) > 32 )
+	{
+		wait( .05 );
+	}*/ //hzm coop mod chrissstrahl - don't use this in coop
+	
+	//hzm coop mod chrissstrahl - wait for the player to reach the lift
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLiftUp",65,'200 200 400',$drull_endLift.getOrigin());
+}
+//--CLOSE LIFT DOORS
+void endLiftDoor1CloseLeft()
+{
+	$endLiftDoor1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $endLiftDoor1a, '0 -90 0', 2, "rampupdown", "" );
+	$endLiftDoor1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void endLiftDoor1CloseRight()
+{
+	globalAccelMove_Rotate( $endLiftDoor1b, '0 90 0', 2, "rampupdown", "" );
+}
+
+void endLiftDoor2CloseLeft()
+{
+	$endLiftDoor2a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $endLiftDoor2a, '0 -90 0', 2, "rampupdown", "" );
+	$endLiftDoor2a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void endLiftDoor2CloseRight()
+{
+	globalAccelMove_Rotate( $endLiftDoor2b, '0 90 0', 2, "rampupdown", "" );
+}
+
+//--this is used to move krindo into the last room to test the end cinematic armature
+void test()
+{
+	$krindo.warp( '-6960 1832 2064' );
+	$krindo.ai_on();
+}
+
+//--inaccesable doors
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, 1, 90 );
+}
+
+//--secretpanel
+void secretpanel()
+{
+	$redpanel.remove();
+	
+	//hzm coop mod chrissstrahl - play sound on script object istead on $player
+	$greenpanel.playsound ( "sound/enviroment/switch/switch-01.wav", 0, 1, 500 ); //--temp sound -zak
+	
+	$greenpanel.show();
+}
+
+//--quake turns off lights
+void seqlightsoff()
+{
+	//hzm coop mod Chrissstrahl - show earthquake for all players
+	globalCoop_player_earthquake( .5, 2, 60 );
+	
+	wait( .25 );
+	$lowerBasher1.allowfall( 1 );
+	$lowerBasher2.allowfall( 1 );	
+	//$world.light_lightstyle( "lights_off1" , "a" , 0 );
+	//$world.light_lightstyle( "lights_blink1" , "zzzzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaaaaazzzzzzzzzzzaaaaaaaaaaaaaaaa" , 0 );
+}
+
+//-- basher explosdes through door
+void seqbasherdoor()
+{
+	//hzm coop mod Chrissstrahl - show earthquake for all players
+	globalCoop_player_earthquake( .5 , 2 , 60 );
+	
+	$basherdoor_after.show();
+	$basherdoor_before.remove();
+	$basher_10.show();
+	$basher_10.warpTo( "$basherWarpToPos1" );
+	$basher_10.walkTo( "$basher10_walkToPos", "run" );
+	wait( 2 );
+	
+	$basher_10.ai_on();
+	$basher_10.solid();
+	$basher_10.immortal( 0 );
+	wait( 2 );
+	//$basherdoor_clip.solid();
+}
+/*
+void triggerAlienAttack_1()
+{
+	$alienEndRoom1.attack( $player );
+	$alienEndRoom2.attack( $player );	
+}
+*/
+void openSmallDoor7()
+{
+	$drullSmallDoor7_trigger.triggerable();
+}
+//===================================================================================================================
+// Secret Staff Functions
+//===================================================================================================================
+
+//---------------------
+// Function: secretRuneCheck
+// Comments:
+// checks to see which rune was stepped on
+//---------------------
+void secretRuneCheck()
+{
+	entity caller , activator;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if( caller.getTargetName() == "$secretRune1_trigger" )
+	{
+		$redpanel.hide();
+		$yellowpanel.show();
+		$secretRune1_trigger.nottriggerable();
+		secretRuneCounter++;
+	}
+
+	if( caller.getTargetName() == "$secretRune2_trigger" )
+	{
+		$secretRune2_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+	
+	if( caller.getTargetName() == "$secretRune3_trigger" )
+	{
+		$secretRune3_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+
+	if( caller.getTargetName() == "$secretRune4_trigger" )
+	{
+		if( secretRuneCounter == 1 )
+		{
+			$yellowpanel.hide();
+			$greenpanel.show();
+			$secretRune4_trigger.nottriggerable();
+			secretRuneCounter++;
+		}
+		else
+		{
+			$secretRune6_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune5_trigger" )
+	{
+		$secretRune5_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+	if( caller.getTargetName() == "$secretRune6_trigger" )
+	{
+		$secretRune6_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+
+	if( caller.getTargetName() == "$secretRune7_trigger" )
+	{
+		$secretRune7_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+	
+	if( caller.getTargetName() == "$secretRune8_trigger" )
+	{
+		if( secretRuneCounter == 2 )
+		{
+			$secretRune8_trigger.nottriggerable();
+			wait( 1 );
+			secretRunePassed();
+		}
+		else
+		{
+			$secretRune8_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune9_trigger" )
+	{
+		$secretRune9_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+
+	if( caller.getTargetName() == "$secretRune10_trigger" )
+	{
+		$secretRune10_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+}
+
+//---------------------
+// Function: secretRuneFailed
+// Comments:
+//
+//---------------------
+void secretRuneFailed()
+{
+	secretRuneCounter = 0;
+
+	$redpanel.show();
+	$yellowpanel.hide();
+	$greenpanel.hide();
+
+	$secretRune1.close();
+	$secretRune2.close();
+	$secretRune3.close();
+	$secretRune4.close();
+	$secretRune5.close();
+	$secretRune6.close();
+	$secretRune7.close();
+	$secretRune8.close();
+	$secretRune9.close();
+	$secretRune10.close();
+
+	$secretRune1_trigger.triggerable();
+	$secretRune2_trigger.triggerable();
+	$secretRune3_trigger.triggerable();
+	$secretRune4_trigger.triggerable();
+	$secretRune5_trigger.triggerable();
+	$secretRune6_trigger.triggerable();
+	$secretRune7_trigger.triggerable();
+	$secretRune8_trigger.triggerable();
+	$secretRune9_trigger.triggerable();
+	$secretRune10_trigger.triggerable();
+}
+
+//---------------------
+// Function: secretRunePassed
+// Comments:
+//
+//---------------------
+void secretRunePassed()
+{
+	$secretRune_door.open( $world );
+	$finishpanel.show();
+	$startpanel.hide();
+	
+	music( "mystery" );
+
+	$secretRune1_trigger.nottriggerable();
+	$secretRune2_trigger.nottriggerable();
+	$secretRune3_trigger.nottriggerable();
+	$secretRune4_trigger.nottriggerable();
+	$secretRune5_trigger.nottriggerable();
+	$secretRune6_trigger.nottriggerable();
+	$secretRune7_trigger.nottriggerable();
+	$secretRune8_trigger.nottriggerable();
+	$secretRune9_trigger.nottriggerable();
+	$secretRune10_trigger.nottriggerable();
+
+	$secretFxSpawner1.modelname( "fx/fx-beamsparkle-drull.tik" );
+	$secretFxSpawner1.spawntargetname( "secretFxSpawned1" );
+	triggerentity( $secretFxSpawner1 );
+}
+
+void shutSecretDoor()
+{
+	$secretRune_door.close();
+}
+
+//---------------------
+// Function: secretStaffRecieved
+// Comments:
+//
+//---------------------
+void secretStaffRecieved()
+{
+	$secretStaff.hide();
+	$secretFxSpawned1.hide();
+	
+	//hzm coop mod chrissstrahl - register weapon into server side managed coop_status.ini file
+	//so that the weapon will be there even after a server reboot
+	globalCoop_server_itemUnlockedSet("models/weapons/worldmodel-drull-staff.tik");
+	
+	//hzm coop mod Chrissstrahl - Register a weapon all players spawn with
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-drull-staff.tik");
+	
+	setfloatvar( "game.secretWeapon_IdryllStaff", TRUE );
+
+	//hzm coop mod Chrissstrahl - use weapon named
+	globalCoop_armory_useNamed("DrullStaff");
+	
+	//hzm coop mod Chrissstrahl - added to remove trigger that would otherwise close the door and lock players in
+	$shutSecretDoorTrigger.remove();
+}
+
+
+
+
+
+void coop_liftDoor2OpenLeft()
+{
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2a, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void coop_liftDoor2OpenRight()
+{
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2b, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void coop_liftDoor2CloseLeft()
+{
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2a, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide2a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void coop_liftDoor2CloseRight()
+{
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide2b, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide2b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1, 1500 );
+}
+
+void coop_lift1Gate2Close()
+{
+	$drull_lift1_gate2.playsound( "sound/environment/metal/bigcreak.wav", 0, 1, 512 );
+	//globalAccelMove( $drull_lift1_gate2, '0 0 412', 4, "rampupdown", "" );
+	globalAccelMove( $drull_lift1_gate2, '0 0 -380', 4, "rampupdown", "" );
+	$drull_lift1_gate2.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 512 );
+}	
+
+void coop_lift1Activate()
+{
+entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		entity eCaller;
+		eCaller = eTrigger.getLastActivatingEntity();
+		
+		$coop_tM_lift1_Call.nottriggerable();
+		if(globalCoop_check_entityValidPlayerTargetname(eCaller) == 1)
+		{
+			if(float_liftState == 1)
+			{
+				float_liftState = 3;
+				coop_liftUp1();
+				float_liftState = 2;
+			}
+			else if(float_liftState == 2)
+			{
+				float_liftState = 3;
+				coop_liftDown1();
+				float_liftState = 1;
+			}
+		}
+		$coop_tM_lift1_Call.triggerable();
+	}
+}
+
+void coop_liftDown1()
+//------------------------------------------------------------------------------
+//allowes lift to go down
+//------------------------------------------------------------------------------
+{
+	wait( 1 );
+	thread coop_liftDoor2CloseLeft();
+	thread coop_liftDoor2CloseRight();
+	wait( 2 ); //wait for doors to close
+	thread coop_lift1Gate2Close();
+	wait( 1 );
+	
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1.1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 -2368', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.1, 1500 );
+	
+	thread lift1GateOpen();
+	wait( 2 );
+	
+	thread liftDoor1OpenLeft();
+	thread liftDoor1OpenRight();
+	wait(5);
+}
+
+void coop_liftUp1()
+//------------------------------------------------------------------------------
+//allowes lift to go up
+//------------------------------------------------------------------------------
+{
+	wait( 1 );
+	thread liftDoor1CloseLeft();
+	thread liftDoor1CloseRight();
+	wait( 2 ); //wait for doors to close
+	thread lift1GateClose();
+	wait( 1 );
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 2368', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1, 1500 );
+	
+	thread lift1Gate2Open();
+	wait( 2 );
+	
+	thread coop_liftDoor2OpenLeft();
+	thread coop_liftDoor2OpenRight();
+	wait(5);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	//eof HZM
+	
+	setfloatvar("game.globalMissionEnterprise",6);
+	
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("m9l1a-klingon_base");
+			return;
+		}
+	}
+	//eof hzm
+	
+	thread globalCoop_mission_completed("ent-deck8");
+}
+
+
+
+
+

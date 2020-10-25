@@ -1,0 +1,276 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:	  cinematic FX functions
+//  Script By:    Squirrel, Benson R.
+//  Created on:   12/09/2002
+//
+//  Last Edited:  9-22-2002 Benson R.
+//
+//-----------------------------------------------------------------
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEFINE SCRIPT
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- external functions
+
+//--- camera FX
+void globalCineFX_CameraFOVLerp( entity entCamera, float fltFOVStart, float fltFOVEnd, float fltTime, string strCurve );
+void globalCineFX_CameraPathRemove( entity entCamPath );
+void globalCineFX_CameraPathRotate( entity entCamPath, float fltDegrees, vector vecPivotCoordinate, vector vecDestinationCoordinate );
+
+//--- timescale FX
+void globalCineFX_TimeLerp( float fltTimeScaleStart, float fltTimeScaleEnd, float fltTime, string strCurve );
+
+//--- positioning objects
+void globalCineFX_PositionObject( entity entObject, entity entDestination );
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variable declaration
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  EXTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//	CAMERA FX
+
+//--------------------------------
+//	globalCineFX_CameraFOVLerp
+//	entCamera - entity, the camera to lerp the FOV on
+//	fltFOVStart, float, the starting FOV
+//	fltFOVEnd, float, the ending FOV
+//	fltTime - float, the total time to take for lerp
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//	Change FOV's on a camera with acceleration
+//--------------------------------
+void globalCineFX_CameraFOVLerp( entity entCamera, float fltFOVStart, float fltFOVEnd, float fltTime, string strCurve )
+{
+	if(doesEntityExist(entCamera)){
+		float fltCurrentFrame, fltTotalFrames, fltPercentageDone_Move, fltPercentageDone_Distance;
+		float fltFOVDistance, fltFOVDistanceCurrent, fltFOVCurrent;
+
+		//--- calculate the total number of frames
+		fltTotalFrames = fltTime / .05;
+		fltCurrentFrame = 1;
+		
+		//--- set the passed in camera to the starting fov
+		globalCoop_cin_fov(entCamera,fltFOVStart);
+
+		//--- calculate the FOV distance
+		fltFOVDistance = fltFOVStart - fltFOVEnd;
+		fltFOVDistance *= -1;
+		
+		//--- start the loop
+		while( doesEntityExist( entCamera ) && (fltCurrentFrame <= fltTotalFrames) )
+		{
+			//--- get the percentage of the total move the object should be at based on the curve selected
+			fltPercentageDone_Move = fltCurrentFrame / fltTotalFrames;
+			
+			if( strCurve == "rampup" )
+			{
+				fltPercentageDone_Distance = globalMath_RampUp_GetMovementPercentage( fltPercentageDone_Move );
+			}
+			else if( strCurve == "rampdown" )
+			{
+				fltPercentageDone_Distance = globalMath_RampDown_GetMovementPercentage( fltPercentageDone_Move );
+			}
+			else
+			{
+				fltPercentageDone_Distance = globalMath_RampUpDown_GetMovementPercentage( fltPercentageDone_Move );
+			}
+			
+			//--- get the actual position the object should be at for this frame
+			fltFOVDistanceCurrent = fltFOVDistance * fltPercentageDone_Distance;
+			fltFOVCurrent = fltFOVStart + fltFOVDistanceCurrent;
+			
+			
+			globalCoop_cin_fov(entCamera,fltFOVCurrent);
+			//entCamera.interpolatefov( fltFOVCurrent , 0 );
+			
+			wait( .05 );
+					
+			//--- up the frame counter
+			fltCurrentFrame++;
+		}
+	}
+}
+
+
+//--------------------------------
+//	globalCineFX_CameraPathRemove
+//	entCamPath - entity, the camera path to remove
+//	will delete the passed in camera path
+//--------------------------------
+void globalCineFX_CameraPathRemove( entity entCamPath )
+{
+	globalCoop_level_removePath(entCamPath);
+}
+
+
+//--------------------------------
+//	globalCineFX_CameraPathRotate
+//	entCamPath - entity, the camera path to rotate
+//	fltDegrees - float, the number of degrees to transform rotate the path
+//	vecPivotCoordinate - vector, the pivot point to transform rotate the path around
+//	vecDestinationCoordinate - vector, the coordinate to put the root of the path at, after it's been rotated
+//	will rotation transform the passed in camera path by the passed in degrees
+//--------------------------------
+void globalCineFX_CameraPathRotate( entity entCamPath, float fltDegrees, vector vecPivotCoordinate, vector vecDestinationCoordinate )
+{
+	if(doesEntityExist(entCamPath)){
+		entity entCurrentNode;
+		string strNextNodeTargetname;
+
+		vector vecNewAngles, vecNewOrigin, vecNewOriginOffset;
+
+		entCurrentNode = entCamPath;
+
+		//print( "LOOP: base path targetname: " + entCurrentNode.gettargetname() + "\n" );
+		
+		//--- loop through the chain and delete the nodes
+		while( doesEntityExist( entCurrentNode ) == 1 )
+		{
+			//print( "=====================================\n" );
+			//print( "============ START ==================\n" );
+			//print( "LOOP: current node to process: " + entCurrentNode.getTargetname() + "\n" );
+			//print( "LOOP: current nodes existence: " + doesEntityExist( entCurrentNode ) + "\n" );
+			//print( "LOOP: before angles: " + entCurrentNode.getAngles() + "\n" );
+			//print( "LOOP: before origin: " + entCurrentNode.getOrigin() + "\n" );
+			//print( "--------------------------\n" );
+					
+			//--- transform the point
+			//--- get the new angles and position
+			vecNewAngles = globalMath_RotateAnglesInXYPlane( entCurrentNode.getAngles(), fltDegrees );
+			vecNewOrigin = globalMath_RotatePointInXYPlane( entCurrentNode.getOrigin(), vecPivotCoordinate, fltDegrees );
+			
+			//--- get the offset between the destination and the pivot
+			vecNewOriginOffset_x = vecDestinationCoordinate_x - vecPivotCoordinate_x;
+			vecNewOriginOffset_y = vecDestinationCoordinate_y - vecPivotCoordinate_y;
+			vecNewOriginOffset_z = vecDestinationCoordinate_z - vecPivotCoordinate_z;
+			
+			//--- apply the offset to the new origin
+			vecNewOrigin_x = vecNewOrigin_x + vecNewOriginOffset_x;
+			vecNewOrigin_y = vecNewOrigin_y + vecNewOriginOffset_y;
+			vecNewOrigin_z = vecNewOrigin_z + vecNewOriginOffset_z;
+			
+			//--- set the new angles and position
+			entCurrentNode.angles( vecNewAngles );
+			entCurrentNode.origin( vecNewOrigin );
+
+			//print( "LOOP: after angles: " + entCurrentNode.getAngles() + "\n" );
+			//print( "LOOP: after origin: " + entCurrentNode.getOrigin() + "\n" );
+			
+			//--- set the current node to the next node
+			strNextNodeTargetname = entCurrentNode.getTarget();
+			//print( "LOOP: next targetname: " + strNextNodeTargetname + "\n" );
+
+			entCurrentNode = getentity( strNextNodeTargetname );
+		}
+	}
+	
+	//print( "LOOP: exiting\n" );
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//	TIMESCALE FX
+
+//--------------------------------
+//	globalCineFX_TimeLerp
+//	fltTimeScaleStart, float, the starting timescale
+//	fltTimeScaleEnd, float, the ending timescale
+//	fltTime - float, the total time to take for lerp
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//	changes the timescale with acceleration
+//--------------------------------
+void globalCineFX_TimeLerp( float fltTimeScaleStart, float fltTimeScaleEnd, float fltTime, string strCurve )
+{
+	float fltCurrentFrame, fltTotalFrames, fltPercentageDone_Move, fltPercentageDone_Distance;
+	float fltTimeScaleDistance, fltTimeScaleDistanceCurrent, fltTimeScaleCurrent;
+
+	//--- calculate the total number of frames
+	fltTotalFrames = fltTime / .05;
+	fltCurrentFrame = 1;
+	
+	//--- set the passed in camera to the starting fov
+	$world.time_scale( fltTimeScaleStart );
+
+	//--- calculate the FOV distance
+	fltTimeScaleDistance = fltTimeScaleStart - fltTimeScaleEnd;
+	fltTimeScaleDistance *= -1;
+	
+	//--- start the loop
+	while( fltCurrentFrame <= fltTotalFrames )
+	{
+		//--- get the percentage of the total lerp the object should be at based on the curve selected
+		fltPercentageDone_Move = fltCurrentFrame / fltTotalFrames;
+		
+		if( strCurve == "rampup" )
+		{
+			fltPercentageDone_Distance = globalMath_RampUp_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		else if( strCurve == "rampdown" )
+		{
+			fltPercentageDone_Distance = globalMath_RampDown_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		else
+		{
+			fltPercentageDone_Distance = globalMath_RampUpDown_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		
+		//--- get the actual position the object should be at for this frame
+		fltTimeScaleDistanceCurrent = fltTimeScaleDistance * fltPercentageDone_Distance;
+		fltTimeScaleCurrent = fltTimeScaleStart + fltTimeScaleDistanceCurrent;
+		
+		//print( "TIME LERP: set timescale to: " + fltTimeScaleCurrent + "\n" );
+		
+   		$world.time_scale( fltTimeScaleCurrent );
+		wait( .05 );
+				
+		//--- up the frame counter
+		fltCurrentFrame++;
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+// POSITIONING OBJECTS
+
+//--------------------------------
+//	globalCineFX_PositionObject
+//	entObject - entity, the object to reposition
+//	entDestination - entity, the entity to reposition the object at
+//	takes the passed object and places it's origin at the destinations origin
+//	also takes the passed objects angles and sets them to the destinations angles
+//--------------------------------
+void globalCineFX_PositionObject( entity entObject, entity entDestination )
+{
+	if(doesEntityExist(entObject) == 1 && doesEntityExist(entDestination) == 1){
+		entObject.origin( entDestination.getOrigin() );
+		entObject.angles( entDestination.getAngles() );
+	}
+}

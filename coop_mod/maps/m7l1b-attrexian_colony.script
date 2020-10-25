@@ -1,0 +1,2303 @@
+//-------------------------------------------
+// EF2 Level Script File
+//
+// Level: m7l1-attrexian_colony
+// Script by: Richard "Charon" H.
+// Geometry by: J. Keehan,  Richard "Charon" H.
+// Created on: 15 Feb, 2002
+//
+// Last Edited:  Richard "Charon" H.
+//--------------------------------------------
+
+void main();
+void init();
+
+void setupTeam();
+void setupCameras();
+void setupArchetypes();
+void setupGeneratorPuzzle();
+void setupMachines();
+
+void globalSewerSpawn( entity sewerSpawnName, string sewerSpawnTargetName, string sewerSpawnModelName );
+void globalTeammateSetup( entity teammateName, float teammateNodeID , string teammateWeapon );
+void globalTeammateHideAiOff( entity teammateName );
+void globalTeammateShowAiOff( entity teammateName );
+
+void sewerGeneratorButton1_onUse();
+void sewerGeneratorButton1_cancel();
+void sewerGeneratorButton1_failed();
+
+void sewerGeneratorRestorePower();
+void sewerGeneratorDoor1_buttonBreak1();
+void sewerGeneratorButton1_solved();
+void sewerBigFan1_alien1Explode();
+void sewerGiantGateDoor1_open();
+
+void sewerIntro();
+void sewerIntro_skipThread();
+void sewerTeamSighting1();
+void sewerTeamSighting1_alienAttack();
+void sewerTeamSighting1_changSpeakCheck();
+void sewerTeamSighting1_changSpeak();
+void sewerTeamSighting1_alien1Killthread();
+void sewerTeamSighting2();
+void sewerTeamSighting3();
+void sewerTeamSighting3_AiOn();
+
+void sewer_attrexians_door_explode();
+void exitDialog1();
+void levelExit();
+
+void sewerCollapse1();
+void pitBasherCollapseDialog();
+void pitBasherCollapse();
+void pitBasher_ladderMove();
+void sewerCollapseExit();
+void sewerCollapseExit_ladderMove();
+
+void alien_celing_spawn_thread();
+void alien_celing_spawn2_thread();
+void alien_tube_spawn_thread();
+void alien_corner_spawn_thread();
+void alien_oversewer_spawn_thread();
+void alien_oversewer_spawn2_thread();
+void alien_exit_spawn_thread();
+
+void machineroom1_door1_thread();
+
+void hallway_wallexplode1_thread();
+void hallway_wallexplode2_thread();
+void hallway_wallexplode3_thread();
+void hallway_wallexplode4_thread();
+void hallway_wallexplode5_thread();
+
+void secret1_wallexplode1_thread();
+void secret1_wallexplode2_thread();
+
+void sewer_attrexians_behind();
+void sewer_attrexians_door_down_dialog();
+void sewer_attrexians_door_down_dialog_SkipThread();
+void attrexian_lost1_OnUse();
+
+void attrexianDoorBeepAccept();
+void attrexianDoorBeepReject();
+void attrexianAutoSave();
+void attrexian_killThread();
+
+void setupCrateMonster();
+void crateMonsterAccessCheck();
+void crateMonsterAttack();
+void crateMonsterDie();
+
+float exit_door1_open = 0;
+float sewer_attrexians_door_flee = 0;
+float restorepowerfound = 0;
+float changCanSpeak = 0;
+float crateMonsterCratesUsed = 5;
+
+entity cinIntro;
+entity cinRescue;
+
+//==========================================================================================
+//  INCLUDES
+//==========================================================================================
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_afterBasherGateDoor1Open();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+#include "maps/global_scripts/global_tricorderRouteData.scr"
+#include "maps/m7/m7l1b_dialog.scr"
+
+//==========================================================================================
+// Main Stuff
+//==========================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// main thread
+//---------------------
+void main()
+{
+	cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_float_spawnAngle0 			= 220;
+	coop_vector_spawnOrigin1 		= '-1400 610 30';
+	coop_vector_spawnOrigin2 		= '-1333 610 30';
+	coop_vector_spawnOrigin3 		= '-1400 680 30';
+	coop_vector_spawnOrigin4 		= '-1333 680 30';
+	coop_vector_spawnOrigin5 		= '-1400 750 30';
+	coop_vector_spawnOrigin6 		= '-1333 750 30';
+	coop_vector_spawnOrigin7 		= '-1400 832 30';
+	coop_vector_spawnOrigin8 		= '-1333 832 30';
+	
+	/*
+	if(getCvar("username") == "Chrissstrahl"){
+		coop_vector_spawnOrigin1 		= '5432 2344 -106';
+	}
+	*/
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$AColonyLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+
+	soundtrack( "music/m7l1b-attrexian_colony.mus" );
+	$world.entity_fade_dist( 8000 );
+
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane( 1000 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m7l1b_attrexian_colony" );
+
+	thread init();
+
+	//--- wait for the player and start the intro cinematic
+	waitForPlayer();
+	freezeplayer();
+	cinematic();
+	letterbox( .01 );
+	wait( .1 );
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$RescueTrappedAttrexians$$","incomplete",1,1);
+	globalCoop_objectives_set("$$ReuniteWithTeam$$","incomplete",2,1);
+	
+	$attrexian_lost1.missionobjective( 1 );
+
+	wait( 1 );
+
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	wait(1);
+	
+	thread sewerIntro();
+	thread initDialog();
+}
+
+
+//==========================================================================================
+// SETUP FUNCTIONS
+//==========================================================================================
+
+//---------------------
+// Function: init
+// Comments:
+// initilization thread
+//---------------------
+void init()
+{
+	//ai stuff
+	$fake_munro.hide();
+	$fake_munro.ai_off();
+	$fake_munro.notsolid();
+	$attrexian_lost3.ai_off();
+	$attrexian_lost4.ai_off();
+	
+	$sewerExitDoor1.solid();
+	$sewer_attrexians_door.lock();
+	$exitroom_collapsed_blocker.hide();
+	$exit_trigger.nottriggerable();
+
+	thread setupTeam();
+	thread setupCameras();
+	thread setupArchetypes();
+	thread setupGeneratorPuzzle();
+	thread setupMachines();
+	thread setupCrateMonster();
+	
+	$sewerFan2.loopsound( "sound/environment/machine/fan1_loop.wav", 1, 512 );
+	$sewerFan2.rotateZ( 360 );
+
+	$sewerSoundWater1.loopsound( "sound/environment/water/amb3new.wav", 1, 512 );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$sewerGiantGateDoor1.solid();
+	$sewerGiantGateDoor1_blinkFX.hide();
+	$sewerGiantGateDoor1_redlightcone.hide();
+	$sewerGiantGateDoor1_redlightcone.bind( $sewerGiantGateDoor1_redlight );
+
+	$sewerExitDoor1.solid();
+
+	$sewer_attrexians_door.solid();
+	$sewer_attrexians_door_onfloor.solid();
+	$sewer_attrexians_door_onfloor.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$sewer_attrexians_door_fracture.viewmode( "structuralintegrity" );
+
+	$secret1_wallexplode1.solid();
+	$secret1_wallexplode2.solid();
+	$secret1_wallexplode2_fracture.viewmode( "structuralintegrity" );
+
+	$machineroom1_door1.solid();
+	$machineroom1_door1_breaking1.solid();
+	$machineroom1_door1_breaking1.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$sewerExitDoor1.lock();
+	$sewerExitDoor1_explosion1Trigger.nottriggerable();
+
+	$afterBasherGateDoor1.nottriggerable();
+
+	$attrexian_lost3.anim( "incell-bars-idle" );
+	$attrexian_lost4.anim( "sitting-incell" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$attrexian_lost1.pushable( 0 );
+	$attrexian_lost2.pushable( 0 );
+	$attrexian_lost3.pushable( 0 );
+	$attrexian_lost4.pushable( 0 );
+
+	$attrexian_lost1.killthread( "attrexian_killThread" );
+	$attrexian_lost2.killthread( "attrexian_killThread" );
+	$attrexian_lost3.killthread( "attrexian_killThread" );
+	$attrexian_lost4.killthread( "attrexian_killThread" );
+
+	$attrexian_lost1.health( 200 );
+	$attrexian_lost2.health( 200 );
+	$attrexian_lost3.health( 200 );
+	$attrexian_lost4.health( 200 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+//	$attrexian_lost1.immortal( 1 );
+//	$attrexian_lost2.immortal( 1 );
+//	$attrexian_lost3.immortal( 1 );
+//	$attrexian_lost4.immortal( 1 );
+
+	$attrexian_lost1.mass( 9999999999999 );
+	$attrexian_lost2.mass( 9999999999999 );
+	$attrexian_lost3.mass( 9999999999999 );
+	$attrexian_lost4.mass( 9999999999999 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//basher pit
+	$pitBasher_ladderButton1.puzzleobject_timeToUse( 5 );
+	$pitBasher_ladderButton1.puzzleobject_itemtouse( "Tricorder" );
+	$pitBasher_ladderButton1.puzzleobject_solvedthread( "pitBasher_ladderMove" );
+
+	$pitBasher_ladderTrigger.nottriggerable();
+
+	$pitBasherClip.solid();
+	$pitBasherBridge_railing.bind( $pitBasherBridge );
+	$pitBasher_ladder.solid();
+	$pitBasher_ladder.time( .1 );
+	$pitBasher_ladder.moveUp( 248 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//collapse stuff
+	$sewerCollapseExit_ladderButton1.puzzleobject_timeToUse( 5 );
+	$sewerCollapseExit_ladderButton1.puzzleobject_itemtouse( "Tricorder" );
+	$sewerCollapseExit_ladderButton1.puzzleobject_solvedthread( "sewerCollapseExit_ladderMove" );
+
+	$sewerCollapseExit_ladderTrigger.nottriggerable();
+
+	$sewerCollapse1_rocks.hide();
+	$sewerCollapse1_broken.hide();
+	$sewerCollapseExit_rocks.hide();
+	$sewerCollapseExit_broken.hide();
+	$sewerCollapseExit_ladder.solid();
+	$sewerCollapseExit_ladder.time( .1 );
+	$sewerCollapseExit_ladder.moveUp( 256 );
+
+	//hzm coop mod chrissstrahl - don't make it that easy in coop
+	//$sewerGeneratorButton1.becomeModBarInSkill( 0 );
+}
+
+//---------------------
+// Function: setupTeam
+// Comments:
+// setups the hazard team
+//---------------------
+void setupTeam()
+{
+	globalCommon_SetupContextDialog( $chang , "chang" );
+	globalCommon_SetupContextDialog( $jurot, "jurot" );
+	globalCommon_SetupContextDialog( $klingon, "korban" );
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	thread globalTeammateSetup( $jurot, 999 , "fieldassaultrifle" );
+	thread globalTeammateSetup( $chang, 999 , "fieldassaultrifle" );
+	thread globalTeammateSetup( $klingon, 999 , "fieldassaultrifle" );
+}
+
+//---------------------
+// Function: setupCameras
+// Comments:
+// setting up cameras
+//---------------------
+void setupCameras()
+{
+	wait(.1);
+
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	wait( .1 );
+
+	//load camera paths
+	cam.load( "m7l1b_attrexianrescue" );
+	cam.load( "m7l1b_introcam" );
+
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+	
+	cinIntro = createcinematic( "m7l1b_sewerenter" );
+	cinRescue = createcinematic( "m7l1b_rescue" );
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(5);
+	
+	$arch_doorpanel1.contents( "targetable" );
+	$arch_doorpanel1.archetype( "AttrexianDoorPanel" );
+
+	$arch_powerpanel1.contents( "targetable" );
+	$arch_powerpanel1.archetype( "AttrexianPowerPanel" );
+
+	$arch_ladderpanel1.contents( "targetable" );
+	$arch_ladderpanel1.archetype( "LadderReleaseSwitch" );
+
+	$arch_ladderpanel2.contents( "targetable" );
+	$arch_ladderpanel2.archetype( "LadderReleaseSwitch" );
+
+	$arch_exit1.archetype( "Waypoint" );
+	$arch_exit1.notsolid();
+}
+
+//---------------------
+// Function: setupGeneratorPuzzle
+// Comments:
+// setups the generator puzzle
+//---------------------
+void setupGeneratorPuzzle()
+{
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(4);
+	
+	$sewerGeneratorSparks1.hide();
+	$sewerGiantGateDoor1_Sparks1.hide();
+
+	$sewerFan1_hurt.nottriggerable();
+	$sewerBigFan1_hurt.nottriggerable();
+	$sewerBigFan2_hurt.nottriggerable();
+
+	$sewerGeneratorDoor1_greenLight.hide();
+	$sewerGeneratorDoor1.lock();
+
+	$sewerBigFan1Door1_redLight.hide();
+	$sewerBigFan1Door1.lock();
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	$sewerBigFan1_gravNode1.speed( 0 );
+	$sewerBigFan1_gravNode2.speed( 0 );
+	$sewerBigFan1_gravNode3.speed( 0 );
+	$sewerBigFan1_gravNode4.speed( 0 );
+
+	$sewerBigFan1_alien1Trigger.nottriggerable();
+	$sewerGenerator_afteralien1_trigger.nottriggerable();
+	$alien_corner_spawn_trigger.nottriggerable();
+	$sewerGenerator_afteralien2_trigger.nottriggerable();
+	$sewerGenerator_afterTrigger.nottriggerable();
+}
+
+//---------------------
+// Function: setupMachines
+// Comments:
+// setups the machinery that is around the level
+//---------------------
+void setupMachines()
+{
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(6);
+	
+	$sewerGiantGateDoor1_Spinny1.moveSouth( 128 );
+	$sewerGiantGateDoor1_Spinny1.moveEast( 16 );
+	waitfor( $sewerGiantGateDoor1_Spinny1 );
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	$sewerGeneratorSpinny1.moveNorth( 132 );
+	$sewerGeneratorSpinny1.moveWest( 176 );
+	waitfor( $sewerGeneratorSpinny1 );
+}
+
+
+//==========================================================================================
+// Generic Functions
+//==========================================================================================
+
+//----------------------------
+// Function: globalSewerSpawn
+// Comments:
+// Used to spawn in entity via a func_spawn and will give the new entity a targetname
+// Variables:
+// sewerSpawnName - entity targetname of the func_spawn to use
+// sewerSpawnTargetName - string targetname of the newly spawned entity
+// sewerSpawnModelName - string modelname for the newly spawned entity
+//----------------------------
+void globalSewerSpawn( entity sewerSpawnName, string sewerSpawnTargetName, string sewerSpawnModelName )
+{
+	//hzm coop mod chrissstrahl - make sure the trigger really exists
+	if(doesEntityExist(sewerSpawnName)){
+		sewerSpawnName.spawntargetname( sewerSpawnTargetName );
+		sewerSpawnName.modelname( sewerSpawnModelName );
+		triggerentity( sewerSpawnName );
+	}
+}
+
+//---------------------
+// Function: globalTeammateSetup
+// Comments:
+// Used to setup the teammates at the start of the level
+// Variables:
+// teammateName - entity name of the teammate to use
+// teammateNodeID - number of the node ID this teammate will use
+// teammateWeaponModel - string modelname of the actorweaponmodel to give the teammate
+// teammateWeapon - string weapon name of the weapon the teammate should use
+//---------------------
+void globalTeammateSetup( entity teammateName, float teammateNodeID , string teammateWeapon )
+{
+	//hzm coop mod chrissstrahl - make sure the ai
+	if(doesEntityExist(teammateName)){
+		teammateName.ai_off();
+		wait( .1 );
+		teammateName.setnodeid( teammateNodeID );
+		teammateName.settendency( "follow" , 0.0 );
+		teammateName.hide();
+		teammateName.notsolid();
+		teammateName.useactorweapon( teammateWeapon );
+	}
+}
+
+//---------------------
+// Function: globalTeammateHideAiOff
+// Comments:
+// Hides, notsolids, and ai_offs an actor
+// used specifically for the teammates that continue to appear and disappear throughout the level
+// Variables:
+// teammateName - entity name of the teammate to use
+//---------------------
+void globalTeammateHideAiOff( entity teammateName )
+{
+	wait( .1 );
+	//hzm coop mod chrissstrahl - make sure the ai
+	if(doesEntityExist(teammateName)){
+		teammateName.ai_off();
+		teammateName.hide();
+		teammateName.notsolid();
+	}
+}
+
+//---------------------
+// Function: globalTeammateShowAiOff
+// Comments:
+// Shows, Solids, and ai_offs an actor
+// used specifically for the teammates that continue to appear and disappear throughout the level
+// Variables:
+// teammateName - entity name of the teammate to use
+//---------------------
+void globalTeammateShowAiOff( entity teammateName )
+{
+	wait( .1 );
+	//hzm coop mod chrissstrahl - make sure the ai
+	if(doesEntityExist(teammateName)){
+		teammateName.ai_off();
+		teammateName.show();
+		teammateName.solid();
+	}
+}
+
+
+//==========================================================================================
+// Tricorder Functions
+//==========================================================================================
+
+//---------------------
+// Function: sewerGeneratorButton1_onUse
+// Comments:
+//
+//---------------------
+void sewerGeneratorButton1_onUse()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	float skill;
+	skill = getcvarfloat( "skill" );
+
+	if( skill <= 1 )
+	{
+	   	globalTricorderRoute_Reset();
+		globalTricorderRoute_SetSource1Row( 9 );
+		globalTricorderRoute_SetDestination1( 3, 9 );
+		globalTricorderRoute_SetDestination2( 6, 9 );
+		globalTricorderRoute_SetDestination3( 9, 9 );
+
+		//--- begin row definitions
+    	globalTricorderRoute_BeginDef();
+		globalTricorderRoute_SetNextRow(32,32,32,32,32,32,32,32,27);
+		globalTricorderRoute_SetNextRow(32,32,32,32,32,27,32,32,17);
+		globalTricorderRoute_SetNextRow(27,4 ,16,16,16,26,16,16,7 );
+		globalTricorderRoute_SetNextRow(32,17,32,32,32,17,32,32,17);
+		globalTricorderRoute_SetNextRow(32,17,32,32,32,2 ,16,16,3 );
+		globalTricorderRoute_SetNextRow(19,26,4 ,32,32,17,32,3 ,16);
+		globalTricorderRoute_SetNextRow(17,6 ,5 ,32,32,17,32,17,32);
+		globalTricorderRoute_SetNextRow(17,17,32,32,32 ,17,32,17,32);
+		globalTricorderRoute_SetNextRow(2 ,2 ,16,4 ,32,5 ,16,26,16);
+		globalTricorderRoute_SetNextRow(18,21,32,17,32,32,32,17,32);
+		globalTricorderRoute_SetNextRow(32,32,27,5 ,16,16,16,21,32);
+
+    	//--- run the puzzle
+    	globalTricorderRoute_Run( puzzle, 0 );
+    }
+	else if( skill >= 2 )
+	{
+    	globalTricorderRoute_Reset();
+		globalTricorderRoute_SetSource1Row( 9 );
+		globalTricorderRoute_SetDestination1( 3, 9 );
+		globalTricorderRoute_SetDestination2( 6, 9 );
+		globalTricorderRoute_SetDestination3( 9, 9 );
+
+		//--- begin row definitions
+    	globalTricorderRoute_BeginDef();
+		globalTricorderRoute_SetNextRow(32,32,32,32,32,32,32,32,27);
+		globalTricorderRoute_SetNextRow(32,32,32,32,32,27,32,32,17);
+		globalTricorderRoute_SetNextRow(27,4 ,16,16,16,26,16,16,7 );
+		globalTricorderRoute_SetNextRow(32,17,32,32,32,17,32,32,17);
+		globalTricorderRoute_SetNextRow(32,17,32,32,19,2 ,16,16,3 );
+		globalTricorderRoute_SetNextRow(19,26,4 ,32,17,17,32,3 ,16);
+		globalTricorderRoute_SetNextRow(17,6 ,5 ,32,17,17,32,17,32);
+		globalTricorderRoute_SetNextRow(17,17,32,19,4 ,17,32,17,32);
+		globalTricorderRoute_SetNextRow(4 ,2 ,16,4 ,18,5 ,16,26,16);
+		globalTricorderRoute_SetNextRow(18,21,32,17,32,32,32,17,32);
+		globalTricorderRoute_SetNextRow(32,32,27,5 ,16,16,16,21,32);
+
+    	//--- run the puzzle
+    	globalTricorderRoute_Run( puzzle, 0 );
+    }
+}
+
+//---------------------
+// Function: sewerGeneratorButton1_cancel
+// Comments:
+//
+//---------------------
+void sewerGeneratorButton1_cancel()
+{
+	$sewerGeneratorButton1.puzzleobject_reset();
+	wait( 1 );
+}
+
+//---------------------
+// Function: sewerGeneratorButton1_failed
+// Comments:
+//
+//---------------------
+void sewerGeneratorButton1_failed()
+{
+	$sewerGeneratorButton1.puzzleobject_reset();
+	wait( 1 );
+}
+
+
+//==========================================================================================
+// Generator Functions
+//==========================================================================================
+
+//---------------------
+// Function: sewerGeneratorRestorePower
+// Comments:
+//
+//---------------------
+void sewerGeneratorRestorePower()
+{
+	//hzm coop mod chrissstrahl - get current trigger for later use
+	entity eTrigger;
+	eTrigger = getcurrententity();
+	
+	
+	if( restorepowerfound == 0 )
+	{
+		$sewerBigFan1Door1_redLight.show();
+		$sewerBigFan1Door1_greenLight.hide();
+
+		//hzm coop mod chrissstrahl - play sound on trigger instead of player
+		eTrigger.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 0, .7, 500 );
+
+		$sewerBigFan1Door1_buttonExplosion.playsound ( "sound/environment/electric/elec_impact.wav", 8, .7, 500 );
+		$sewerBigFan1Door1_buttonExplosion.modelname( "fx/fx-explosion-sparks-yellow.tik" );
+		$sewerBigFan1Door1_buttonExplosion.spawntargetname( "sewerBigFan1Door1_buttonExploder" );
+		trigger( "$sewerBigFan1Door1_buttonExplosion" );
+
+		eTrigger.playsound( "sound/ships/forever/for_powerdown.wav", 9, .7, 500 );
+
+		$world.light_lightstyle ( "sewerBigFan1Door1_lights" , "jgzfwfsa" , 0 );
+
+		wait ( 1.5 );
+
+		$world.light_lightstyle ( "sewerBigFan1Door1_lights" , "a" , 0 );
+		
+		//hzm coop mod Chrissstrahl - set the objective
+		globalCoop_objectives_set("$$RestorePower$$","incomplete",3,1);
+
+		$arch_powerpanel1.missionobjective( 1 );
+		restorepowerfound = 1;
+	}
+
+	if( restorepowerfound == 1 )
+	{
+		//hzm coop mod chrissstrahl - play sound on trigger instead of player
+		eTrigger.playsound ( "sound/ships/attrexian/att-beepreject.wav", 0, .7, 500 );
+	}
+
+	if( restorepowerfound == 1 )
+	{
+		//hzm coop mod chrissstrahl - play sound on trigger instead of player
+		eTrigger.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 0, .7, 500 );
+	}
+
+}
+
+//---------------------
+// Function: sewerGeneratorDoor1_buttonBreak1
+// Comments:
+// button explodes into sparks when player tries to use the door to the generator room
+//---------------------
+void sewerGeneratorDoor1_buttonBreak1()
+{
+	$sewerGeneratorDoor1.playsound( "sound/ships/attrexian/att-beepreject.wav", 3, .7, 500 );
+	wait( .5 );
+
+	$sewerGeneratorDoor1_buttonExplosion.playsound ( "sound/environment/electric/elec_impact.wav", 3, .7, 500 );
+	$sewerGeneratorDoor1_buttonExplosion.modelname( "fx/fx-explosion-sparks-yellow.tik" );
+	trigger( "$sewerGeneratorDoor1_buttonExplosion" );
+	wait( 1 );
+
+	$sewerGeneratorDoor1_buttonExplosion.modelname( "fx/fx-sparks-random-yellow.tik" );
+	trigger( "$sewerGeneratorDoor1_buttonExplosion" );
+}
+
+//---------------------
+// Function: sewerGeneratorButton1_solved
+// Comments:
+// called when the sewer generator button is used
+//---------------------
+void sewerGeneratorButton1_solved()
+{
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$RestorePower$$","complete",3,1);
+
+	$arch_powerpanel1.missionobjective( 0 );
+	restorepowerfound = 2;
+	
+	/* //hzm coop mod chrissstrahl - this should be used to adapt sucking strength to movespeed, otherwise it will be impossible for the players to overcome that obsticle
+	if(!cvar_bool_multiplayer){//Singleplayer
+		$sewerBigFan1_gravNode1.speed(coop_calcDivideGiven300MultipliWithMaxspeed(40));
+		$sewerBigFan1_gravNode2.speed(coop_calcDivideGiven300MultipliWithMaxspeed(65));
+		$sewerBigFan1_gravNode3.speed(coop_calcDivideGiven300MultipliWithMaxspeed(65));
+		$sewerBigFan1_gravNode4.speed(coop_calcDivideGiven300MultipliWithMaxspeed(40));
+	}
+	else{
+		$sewerBigFan1_gravNode1.speed(coop_calcDivideGiven300MultipliWithMaxspeed(29));
+		$sewerBigFan1_gravNode2.speed(coop_calcDivideGiven300MultipliWithMaxspeed(49));
+		$sewerBigFan1_gravNode3.speed(coop_calcDivideGiven300MultipliWithMaxspeed(49));
+		$sewerBigFan1_gravNode4.speed(coop_calcDivideGiven300MultipliWithMaxspeed(29));
+	}*/
+
+	attrexianAutoSave();
+
+	//$arch_powerpanel1.archetype( "AttrexianPowerPanelUsed" );
+	$arch_powerpanel1.remove();
+
+	$fake_munro.playdialog( "localization/sound/dialog/m7l2/attcomp_powres.mp3", 1, 20000, 0 );
+
+	$sewerGeneratorSparks1.show();
+	$sewerGeneratorSpinny1.rotateZ( 720 );
+ 	$sewerGeneratorSpinny1.loopsound( "sound/environment/machine/generator1.wav", .8, 256 );
+
+	$sewerGeneratorDoor1_greenLight.show();
+	$sewerGeneratorDoor1_redLight.hide();
+	$sewerGeneratorDoor1.unlock();
+
+	$sewerBigFan1Door1_greenLight.show();
+	$sewerBigFan1Door1_redLight.hide();
+	$sewerBigFan1Door1.unlock();
+
+	$world.light_lightstyle ( "sewerBigFan1Door1_lights" , "z" , 0 );
+
+	$sewerFan1.loopsound( "sound/environment/machine/fan1_loop.wav", 1, 512 );
+	$sewerBigFan1.loopsound( "sound/environment/machine/fan1_loop.wav", 1, 768 );
+	$sewerBigFan2.loopsound( "sound/environment/machine/fan1_loop.wav", 1, 768 );
+
+	$sewerFan1.rotateX( 360 );
+	$sewerBigFan1.rotateX( 180 );
+	$sewerBigFan2.rotateZ( 180 );
+
+	$sewerFan1.dmg( 16384 );
+	$sewerBigFan1.dmg( 16384 );
+	$sewerBigFan2.dmg( 16384 );
+
+	$sewerFan1_hurt.triggerable();
+	$sewerBigFan1_hurt.triggerable();
+	$sewerBigFan2_hurt.triggerable();
+
+	$sewerBigFan1_gravNode1.speed( 25 );//40
+	$sewerBigFan1_gravNode2.speed( 50 );//65
+
+	$sewerBigFan1_gravNode3.speed( 50 );//65
+	$sewerBigFan1_gravNode4.speed( 25 );//40
+
+	$sewerBigFan1_alien1Trigger.triggerable();
+	$sewerGenerator_afteralien1_trigger.triggerable();
+	$sewerGenerator_afterTrigger.triggerable();
+}
+
+//---------------------
+// Function: sewerBigFan1_alien1Explode
+// Comments:
+// causes the fans to spin faster due to a power surge
+// if alien in front of fan is still alive, it explodes them into a pile of gibbys
+//---------------------
+void sewerBigFan1_alien1Explode()
+{
+	thread globalSewerSpawn( $sewerBigFan1AlienSpawn1, "sewerBigFan1AlienSpawn1_alien1", "char/alien-type1b-chewer.tik" );
+
+	$sewerBigFan1.stoploopsound();
+	$sewerBigFan2.stoploopsound();
+	wait( .1 );
+
+	$sewerBigFan1.loopsound ( "sound/environment/machine/fan3_loop.wav", 1, 768 );
+	$sewerBigFan2.loopsound ( "sound/environment/machine/fan3_loop.wav", 1, 768 );
+	$sewerBigFan1.rotateX( 640 );
+	$sewerBigFan2.rotateZ( 640 );
+
+	$sewerBigFan1_explosion1.playsound ( "sound/environment/electric/elec_impact.wav", 3, .7, 500 );
+	$sewerBigFan1_explosion1.modelname( "fx/fx-explosion-sparks-yellow.tik" );
+	trigger( "$sewerBigFan1_explosion1" );
+	wait( .5 );
+
+	$sewerBigFan1_explosion1.modelname( "fx/fx-sparks-random-yellow.tik" );
+	trigger( "$sewerBigFan1_explosion1" );
+
+	if ( doesEntityExist( $sewerBigFan1_alien1 ) )
+	{
+		$sewerBigFan1_alien1Explosion1.scale( 3 );
+		thread globalSewerSpawn( $sewerBigFan1_alien1Explosion1, "sewerBigFan1_alien1Explosion1_spawned", "fx/fx-aliengib-yelloworange-mist.tik" );
+
+		wait( .1 );
+
+		$sewerBigFan1_alien1.remove();
+		$sewerBigFan1_alien1Explosion1_spawned.remove();
+	}
+}
+
+//---------------------
+// Function: sewerGiantGateDoor1_open
+// Comments:
+// called when the sewergiantGateDoor1 is opened
+//---------------------
+void sewerGiantGateDoor1_open()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle1 			= 360;
+	coop_float_spawnAngle2 			= 360;
+	coop_float_spawnAngle3 			= 360;
+	coop_float_spawnAngle4 			= 360;
+	coop_float_spawnAngle5 			= 360;
+	coop_float_spawnAngle6 			= 360;
+	coop_float_spawnAngle7 			= 360;
+	coop_float_spawnAngle8 			= 360;
+	coop_vector_spawnOrigin8 			= '2620 550 240';
+	coop_vector_spawnOrigin7 			= '2620 620 240';
+	coop_vector_spawnOrigin6 			= '2620 690 240';
+	coop_vector_spawnOrigin5 			= '2620 760 240';
+	coop_vector_spawnOrigin4 			= '2620 830 240';
+	coop_vector_spawnOrigin3 			= '2620 900 240';
+	coop_vector_spawnOrigin2 			= '2620 970 240';
+	coop_vector_spawnOrigin1 			= '2620 1040 240';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+		
+	$sewerGiantGateDoor1_blinkFX.show();
+	$sewerGiantGateDoor1_redlightcone.show();
+	$sewerGiantGateDoor1_redlight.rotateY( 360 );
+	$sewerGiantGateDoor1_Spinny1.rotateY( 360 );
+	$sewerGiantGateDoor1_Sparks1.show();
+
+ 	$sewerGiantGateDoor1_Spinny1.loopsound ( "sound/environment/machine/generator1.wav", .8, 256 );
+
+	$alien_corner_spawn_trigger.triggerable();
+	$sewerGenerator_afteralien2_trigger.triggerable();
+
+	$sewerGiantGateDoor1.time( 10 );
+	$sewerGiantGateDoor1.moveUp( 504 );
+	$sewerGiantGateDoor1.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 10, 1, 1024 );
+
+	float redlightconenoise;
+	for ( redlightconenoise = 0 ; redlightconenoise <= 5 ; redlightconenoise++ )
+	{
+		$sewerGiantGateDoor1_redlightcone.playsound ( "sound/ships/attrexian/att-alarm1.wav", 7, 1, 1024 );
+		wait( 2 );
+	}
+
+//	$sewerGiantGateDoor1_blinkFX.hide();
+	$sewerGiantGateDoor1_redlightcone.hide();
+	$sewerGiantGateDoor1_redlight.rotateY( 0 );
+	$sewerGiantGateDoor1_Spinny1.rotateY( 0 );
+//	$sewerGiantGateDoor1_Sparks1.hide();
+
+	$sewerGiantGateDoor1_Spinny1.stoploopsound();
+}
+
+
+//==========================================================================================
+// Team Sighting Functions
+//==========================================================================================
+
+//---------------------
+// Function: sewerIntro
+// Comments:
+//
+//---------------------
+void sewerIntro()
+{
+	freezeplayer();
+	cinematic();
+	letterbox( .01 );
+	wait ( .1 );
+
+	//set the skipthread
+	skipthread( "sewerIntro_skipThread");
+
+	cinIntro.setendthread( "sewerIntro_skipThread" );
+	cinIntro.beginCinematic( "m7l1b_sewerenter" ) ;
+}
+
+//---------------------
+// Function: sewerIntro_skipThread
+// Comments:
+// skipthread for the sewerIntro cinematic
+//---------------------
+void sewerIntro_skipThread()
+{
+	skipthread( "null" );
+	cinIntro.setendthread( "" );
+	wait( .1 );
+
+	//kill the cinematic
+	killthread( "sewerIntro" );
+
+	//--- Back to Game
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait( 1 );
+
+	$fake_munro.hide();
+	$fake_munro.notsolid();
+
+	wait( .1 );
+
+	//hzm coop mod chrissstrahl - 
+	/*
+	$player.playerviewangles( '0 220 0' );
+	*/
+
+	$jurot.show();
+	$klingon.show();
+	$chang.show();
+
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .1 );
+
+	cinIntro.endCinematic();
+
+	//--- Action
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait( 2 );
+
+	$chang.walkto( "$sewerIntro_node1" , "run" );
+	wait( .5 );
+	$jurot.walkto( "$sewerIntro_node2" , "run" );
+	wait( .5 );
+	$klingon.walkto( "$sewerIntro_node3" , "run" );
+	waitfor( $klingon );
+
+	$jurot.hide();
+	$klingon.hide();
+	$chang.hide();
+
+	$jurot.origin( '1212.00 3052.00 136.00' );
+	$klingon.origin( '1148.00 3012.00 136.00' );
+	$chang.origin( '1276.00 3012.00 128.00' );
+}
+
+//---------------------
+// Function: sewerTeamSighting1
+// Comments:
+// first sighting of the team behind bars near the generator room
+//---------------------
+void sewerTeamSighting1()
+{
+	$jurot.origin( '1212.00 3052.00 136.00' );
+	$klingon.origin( '1148.00 3012.00 136.00' );
+	$chang.origin( '1276.00 3012.00 128.00' );
+
+	wait( .1 );
+
+	thread globalTeammateShowAiOff( $jurot );
+	thread globalTeammateShowAiOff( $klingon );
+	thread globalTeammateShowAiOff( $chang );
+
+	wait( .1 );
+
+	$jurot.walkto( "$sewerTeamSighting1_node1" , "run" );
+	$klingon.walkto( "$sewerTeamSighting1_node2" , "run" );
+	$chang.walkto( "$sewerTeamSighting1_node3" , "run" );
+
+	$klingon.playdialog( "localization/sound/dialog/m7l1/korban_couldbe.mp3", 1, 8000, 1 ); //They could be miles from here.
+	waitForDialog( $klingon );
+
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_ifdown.mp3", 1, 8000, 1 ); //If they’re down here, we’ll find them.
+	waitForDialog( $jurot );
+}
+
+//---------------------
+// Function: sewerTeamSighting1_alienAttack
+// Comments:
+// the team attacks and alien behind the bars
+//---------------------
+void sewerTeamSighting1_alienAttack()
+{
+	$jurot.ai_on();
+	$klingon.ai_on();
+	$chang.ai_on();
+
+	thread globalSewerSpawn( $sewerTeamSighting1_alien1, "sewerTeamSighting1_alien1Spawned", "char/alien-type1a-lurker.tik" );
+	wait( .1 );
+
+	$sewerTeamSighting1_alien1Spawned.killthread( "sewerTeamSighting1_alien1Killthread" );
+	wait( .1 );
+
+	$sewerTeamSighting1_alien1Spawned.attack( $jurot );
+	$jurot.attack( $sewerTeamSighting1_alien1Spawned );
+	$klingon.attack( $sewerTeamSighting1_alien1Spawned );
+	$chang.attack( $sewerTeamSighting1_alien1Spawned );
+}
+
+//---------------------
+// Function: sewerTeamSighting1_changSpeakCheck
+// Comments:
+// check to see if chang can speak or not
+//---------------------
+void sewerTeamSighting1_changSpeakCheck()
+{
+	entity activator , caller;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if( activator.getTargetName() == "$chang" && caller.getTargetName() == "$sewerTeamSighting1_changSpeakCheckTrigger1" )
+	{
+		$sewerTeamSighting1_changSpeakCheckTrigger1.remove();
+		changCanSpeak = 1;
+	}
+	if( activator.getTargetName() == "$chang" && caller.getTargetName() == "$sewerTeamSighting1_changSpeakCheckTrigger2" )
+	{
+		$sewerTeamSighting1_changSpeakCheckTrigger2.remove();
+		changCanSpeak = 0;
+	}
+}
+
+//---------------------
+// Function: sewerTeamSighting1_changSpeak
+// Comments:
+// chang speaks to munro from behind the bars
+//---------------------
+void sewerTeamSighting1_changSpeak()
+{
+	if( changCanSpeak == 1 )
+	{
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive($chang);
+	
+		$chang.headwatchtarget( ""+ePlayer.getrawtargetname(), 5 );
+
+		$sewerTeamSighting1_changSpeakTrigger.remove();
+
+		$chang.playdialog( "localization/sound/dialog/m7l1/chang_behindbars.mp3", 1, 800, 1 ); //I never thought I'd see you behind bars, Munro.
+		waitForDialog( $chang );
+
+		$chang.headwatchtarget( "none", 5 );
+	}
+	wait( 1 );
+}
+
+//---------------------
+// Function: sewerTeamSighting1_alien1Killthread
+// Comments:
+// when teammamtes kill the alien that is spawned they are then sent down the hallway and removed
+//---------------------
+void sewerTeamSighting1_alien1Killthread()
+{
+	wait( 2 );
+
+	$jurot.ai_off();
+	$klingon.ai_off();
+	$chang.ai_off();
+
+	$jurot.walkto( "$sewerTeamSighting1_node1" , "run" );
+	wait( .5 );
+	$klingon.walkto( "$sewerTeamSighting1_node2" , "run" );
+	wait( .5 );
+	$chang.walkto( "$sewerTeamSighting1_node3" , "run" );
+
+	waitfor( $chang );
+
+	thread globalTeammateHideAiOff( $jurot );
+	thread globalTeammateHideAiOff( $klingon );
+	thread globalTeammateHideAiOff( $chang );
+
+	wait( .1 );
+
+	$jurot.walkto( "" );
+	$klingon.walkto( "" );
+	$chang.walkto( "" );
+
+	$jurot.ai_off();
+	$klingon.ai_off);
+	$chang.ai_off();
+
+	wait( .1 );
+
+	$jurot.origin( '6208 1568 136' );
+	$klingon.origin( '6208 1632 136' );
+	$chang.origin( '6208 1696 136' );
+
+	$jurot.angles( '0 270 0' );
+	$klingon.angles( '0 270 0' );
+	$chang.angles( '0 270 0' );
+
+	wait( .1 );
+}
+
+//---------------------
+// Function: sewerTeamSighting2
+// Comments:
+// second sighting of the team on catwalks near basher pit
+//---------------------
+void sewerTeamSighting2()
+{
+	$jurot.walkto( "" );
+	$klingon.walkto( "" );
+	$chang.walkto( "" );
+
+	$jurot.ai_off();
+	$klingon.ai_off);
+	$chang.ai_off();
+
+	wait( .1 );
+
+	$jurot.origin( '6208 1568 136' );
+	$klingon.origin( '6208 1632 136' );
+	$chang.origin( '6208 1696 136' );
+
+	$jurot.angles( '0 270 0' );
+	$klingon.angles( '0 270 0' );
+	$chang.angles( '0 270 0' );
+
+	wait( .1 );
+
+	thread globalTeammateShowAiOff( $jurot );
+	thread globalTeammateShowAiOff( $klingon );
+	thread globalTeammateShowAiOff( $chang );
+
+	wait( .1 );
+
+	$jurot.walkto( "$sewerTeamSighting2_node1" , "run" );
+	wait( .1 );
+	$klingon.walkto( "$sewerTeamSighting2_node2" , "run" );
+	wait( .1 );
+	$chang.walkto( "$sewerTeamSighting2_node3" , "run" );
+
+	waitfor( $chang );
+
+	thread globalTeammateHideAiOff( $jurot );
+	thread globalTeammateHideAiOff( $klingon );
+	thread globalTeammateHideAiOff( $chang );
+}
+
+//---------------------
+// Function: sewerTeamSighting3
+// Comments:
+//
+//---------------------
+void sewerTeamSighting3()
+{
+	$jurot.walkto( "" );
+	$klingon.walkto( "" );
+	$chang.walkto( "" );
+
+	$jurot.ai_off();
+	$klingon.ai_off);
+	$chang.ai_off();
+
+	wait( .1 );
+
+	$jurot.origin( '5288 -736 128' );
+	$klingon.origin( '5288 -672 128' );
+	$chang.origin( '5288 -800 128' );
+
+	$jurot.angles( '0 0 0' );
+	$klingon.angles( '0 0 0' );
+	$chang.angles( '0 0 0' );
+
+	wait( .1 );
+
+	thread globalTeammateShowAiOff( $jurot );
+	thread globalTeammateShowAiOff( $klingon );
+	thread globalTeammateShowAiOff( $chang );
+}
+
+//---------------------
+// Function: sewerTeamSighting3_AiOn
+// Comments:
+//
+//---------------------
+void sewerTeamSighting3_AiOn()
+{
+	$jurot.ai_off();
+	$klingon.ai_off);
+	$chang.ai_off();
+
+	$jurot.walkto( "" );
+	$klingon.walkto( "" );
+	$chang.walkto( "" );
+
+	wait( .1 );
+
+	$jurot.origin( '5288 -736 128' );
+	$klingon.origin( '5288 -672 128' );
+	$chang.origin( '5288 -800 128' );
+
+	$jurot.angles( '0 0 0' );
+	$klingon.angles( '0 0 0' );
+	$chang.angles( '0 0 0' );
+
+	$jurot.ai_on();
+	$klingon.ai_on();
+	$chang.ai_on();
+
+	$jurot.flags( "-notarget" );
+	$klingon.flags( "-notarget" );
+	$chang.flags( "-notarget" );
+
+	$jurot.settendency( "follow" , 1.0 );
+	$klingon.settendency( "follow" , 1.0 );
+	$chang.settendency( "follow" , 1.0 );
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$ReuniteWithTeam$$","complete",2,1);
+
+	attrexianAutoSave();
+
+	$afterBasherGateDoor1.triggerable();
+	
+	//hzm coop mod chrissstrahl - make sure all players can use/open that gate
+	spawn("trigger_use","thread","coop_afterBasherGateDoor1Open","wait","1","origin",""+$afterBasherGateDoor1.getOrigin());
+	$afterBasherGateDoor1.remove();
+
+	$chang.playdialog( "localization/sound/dialog/m7l1/chang_getgo.mp3", 1, 8000, 1); //Let’s get going.
+	waitForDialog( $chang );
+}
+
+
+//==========================================================================================
+// Sewer Attrexians Functions
+//==========================================================================================
+
+//---------------------
+// Function: sewer_attrexians_door_explode
+// Comments:
+// thread that is called when the door fracture near the trapped attrexians is used
+//---------------------
+void sewer_attrexians_door_explode()
+{
+	trigger( "$sewer_attrexians_crate" );
+
+	$sewer_attrexians_door_explosion.modelname( "fx/fx-explosion-debris-idryllruins-large.tik" );
+	$sewer_attrexians_door_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	trigger( "$sewer_attrexians_door_explosion" );
+
+	$sewer_attrexians_door_explosion.earthQuake( 1 , 2 );
+
+	wait( .1 );
+
+	$sewer_attrexians_door_explosion.modelname( "fx/fx-explosion-door-forever.tik" );
+	trigger( "$sewer_attrexians_door_explosion" );
+
+	$sewer_attrexians_door_wallexplode1.remove();
+	$sewer_attrexians_door_fracture.remove();
+	$sewer_attrexians_door.remove();
+	$sewer_attrexians_door_onfloor.show();
+	$sewerExplosiveCrate3.remove();
+	wait ( 1 );
+}
+
+//---------------------
+// Function: exitDialog1
+// Comments:
+// dialog right before player climbs the debris
+//---------------------
+void exitDialog1()
+{
+	$fake_munro.playdialog( "localization/sound/dialog/m7l1/munro_changyou.mp3", 1, 20000, 1 ); //Chang, you and the team will escort the survivors to safety.
+	waitfordialog( $fake_munro );
+
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_wherego.mp3", 1, 20000, 1 ); //Where are you going?
+	waitfordialog( $jurot );
+
+	$fake_munro.playdialog( "localization/sound/dialog/m7l1/munro_upthere.mp3", 1, 20000, 1 ); //I'm going to look for the Idryll they mentioned.
+	waitfordialog( $fake_munro );
+}
+
+//---------------------
+// Function: levelExit
+// Comments:
+// called to exit the level
+//---------------------
+void levelExit()
+{
+	thread attrexianDoorBeepAccept();	
+	
+	//hzm coop mod chrissstrahl - wait for team to gather
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'500 500 400','4209 622 900');
+
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m7l2a-attrexian_colony" );
+	wait( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+
+//==========================================================================================
+// Dialog Functions
+//==========================================================================================
+
+//---------------------
+// Function: sewer_attrexians_behind
+// Comments:
+// attrexian lifesigns are discovered behind some bars
+//---------------------
+void sewer_attrexians_behind()
+{
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_munroattrex.mp3", 1, 20000, 1 ); //JUROT: Munro! Attrexian lifesigns behind those bars.
+	waitfordialog( $jurot );
+
+	$attrexian_lost1.playdialog( "localization/sound/dialog/m7l1/attrexm1_helpthere.mp3", 2, 1000, 1 ); //TRAPPED ATTREXIAN 1: Help! Is someone there?
+	waitfordialog( $attrexian_lost1 );
+
+	$klingon.playdialog( "localization/sound/dialog/m7l1/korban_wefed.mp3", 1, 20000, 1 ); //KLINGON: We’re with the Federation.
+	waitfordialog( $klingon );
+
+	$fake_munro.playdialog( "localization/sound/dialog/m7l1/munro_wegetyouout.mp3", 1, 20000, 1 ); //MUNRO: We’re going to try to get you out.
+	waitfordialog( $fake_munro );
+}
+
+//---------------------
+// Function: sewer_attrexians_door_down_dialog
+// Comments:
+// cinematic with the attrexians after the door is exploded
+//---------------------
+void sewer_attrexians_door_down_dialog()
+{
+	//hzm coop mod chrissstrahl, get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	
+	$attrexian_lost1.missionobjective( 0 );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	freezeplayer();
+	cinematic();
+	letterbox( .01 );
+	wait ( .1 );
+
+	$jurot.hide();
+	$kourban.hide();
+//	$chang.hide();
+
+	$jurot.notsolid();
+	$kourban.notsolid();
+	$chang.notsolid();
+
+	$jurot.ai_off();
+	$kourban.ai_off();
+	$chang.ai_off();
+
+	$chang.headwatchtarget( "attrexian_lost1" , 3 );
+	$chang.anim( "idle" );
+	$chang.angles( '0 270 0' );
+	$chang.origin( '3732 -290 128' );
+	$chang.show();
+
+	$fake_munro.headwatchtarget( "attrexian_lost1" , 3 );
+	$fake_munro.useactorweapon( "fieldassaultrifle" );
+	$fake_munro.anim( "idle" );
+//	$fake_munro.anim( "fieldassaultrifle_idle" );
+	$fake_munro.angles( '0 270 0' );
+	$fake_munro.origin( '3696 -322 128' );
+	$fake_munro.show();
+
+	//set the skipthread
+	skipthread( "sewer_attrexians_door_down_dialog_SkipThread");
+
+	$attrexian_lost1.ai_off();
+	$attrexian_lost2.ai_off();
+
+	$attrexian_lost1.hide();
+	$attrexian_lost2.hide();
+
+	cinRescue.setendthread( "sewer_attrexians_door_down_dialog_SkipThread" );
+	cinRescue.beginCinematic( "m7l1b_rescue" ) ;
+}
+
+//---------------------
+// Function: sewer_attrexians_door_down_dialog_SkipThread
+// Comments:
+// skipthread for the sewer_attrexians_door_down_dialog cinematic
+//---------------------
+void sewer_attrexians_door_down_dialog_SkipThread()
+{
+	skipthread( "null" );
+	cinRescue.setendthread( "" );
+	wait(.1);
+
+	//--- Back to Game
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	//kill the cinematic
+	killthread( "sewer_attrexians_door_down_dialog" );
+
+	wait( 1 );
+
+	$fake_munro.hide();
+	$fake_munro.notsolid();
+
+	$jurot.show();
+	$kourban.show();
+	$chang.show();
+
+	$jurot.solid();
+	$kourban.solid();
+	$chang.solid();
+
+	$jurot.ai_on();
+	$klingon.ai_on();
+	$chang.ai_on();
+
+	$jurot.origin( '3840 -416 128' );
+	$klingon.origin( '3712 -416 128' );
+	$chang.origin( '3840 -352 128' );
+
+	$jurot.settendency( "follow" , 0.0 );
+	$klingon.settendency( "follow" , 0.0 );
+	$chang.settendency( "follow" , 0.0 );
+
+	$chang.headwatchtarget( "none" , 3 );
+	$fake_munro.headwatchtarget( "none" , 3 );
+
+	$attrexian_lost1.ai_on();
+	$attrexian_lost2.ai_on();
+
+	$attrexian_lost1.show();
+	$attrexian_lost2.show();
+
+	
+	//hzm coop mod chrissstrahl, grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( '3776 -416 128' );
+		entityPlayerGlobal.playerviewangles( '0 -486 0' );
+	}
+
+	wait( .1 );
+
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .1 );
+
+	cinRescue.endCinematic();
+
+	//--- Action
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait( .5 );
+
+	$sewerExitDoor1_explosion1Trigger.triggerable();
+	$sewer_attrexians_behind_trigger.nottriggerable();
+
+	attrexianAutoSave();
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindElderlyIdryll$$","incomplete",4,0);
+	globalCoop_objectives_set("$$FindExitToSurface$$","incomplete",5,1);
+
+	$arch_ladderpanel2.missionobjective( 1 );
+
+	thread globalCommon_OnUse( $attrexian_lost1, "attrexian_lost1_OnUse" );
+	thread exitDialog1();
+}
+
+//---------------------
+// Function: attrexian_lost1_OnUse
+// Comments:
+// onuse thread for using the lost attrexian
+//---------------------
+void attrexian_lost1_OnUse()
+{
+	$attrexian_lost1.nouse();
+
+	$fake_munro.playdialog("localization/sound/dialog/m7l1/munro_safeworry.mp3", 1, 20000, 1); //Don’t worry, you’re safe now.
+	waitForDialog( $fake_munro );
+
+	wait( 1 );
+
+//	$attrexian_lost1.playdialog("localization/sound/dialog/m7l1/attrexm1_wehide.mp3", 1, 20000, 1); //If you want to get to the Waste Reclamation Center you'll need to use the service door.  You should have passed it on the way here.  It's down the hallway.
+//	waitForDialog( $attrexian_lost1 );
+}
+
+
+//==========================================================================================
+// Collapses
+//==========================================================================================
+
+//---------------------
+// Function: sewerCollapse1
+// Comments:
+// rocks fall and block the player from backtracking to the start of the level from the fan area
+//---------------------
+void sewerCollapse1()
+{
+	//hzm coop mod chrissstrahl - do not block other players
+/* 
+	$sewerCollapse1_explosion.scale( 2 );
+	$sewerCollapse1_explosion.modelname( "fx/fx-explosion-debris-idryllruins-xtralarge.tik" );
+	trigger( "$sewerCollapse1_explosion" );
+
+	$sewerCollapse1_rocks.playsound( "sound/environment/rock/rock_collapse.wav", 9, 1, 2048 );
+
+	wait( .1 );
+
+	$sewerCollapse1_rocks.earthQuake( 1 , 2 );
+
+	$sewerCollapse1_notbroken.remove();
+	$sewerCollapse1_bridge.remove();
+	
+	
+	$sewerCollapse1_broken.show();
+	$sewerCollapse1_rocks.show();
+	$sewerCollapse1_rocks.solid();
+	*/
+}
+
+//---------------------
+// Function: pitBasherCollapseDialog
+// Comments:
+// jurot welcomes munro back before the bridge collapses
+//---------------------
+void pitBasherCollapseDialog()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle1			= 180;
+	coop_float_spawnAngle2			= 360;
+	coop_float_spawnAngle3			= 180;
+	coop_float_spawnAngle4			= 360;
+	coop_float_spawnAngle5			= 180;
+	coop_float_spawnAngle6			= 360;
+	coop_float_spawnAngle7			= 180;
+	coop_float_spawnAngle8			= 360;
+	coop_vector_spawnOrigin1 			= '5928 -738 -120';
+	coop_vector_spawnOrigin2 			= '5206 -797 -120';
+	coop_vector_spawnOrigin3 			= '5928 -738 -120';
+	coop_vector_spawnOrigin4 			= '5206 -797 -120';
+	coop_vector_spawnOrigin5 			= '5928 -738 -120';
+	coop_vector_spawnOrigin6 			= '5206 -797 -120';
+	coop_vector_spawnOrigin7 			= '5928 -738 -120';
+	coop_vector_spawnOrigin8 			= '5206 -797 -120';
+	//make players respawn exactly here...
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();	
+		
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_welcome.mp3", 1, 8000, 1); //Welcome back.	
+	waitForDialog( $jurot );
+}
+
+//---------------------
+// Function: pitBasherCollapse
+// Comments:
+// bridge collapses into the pit with the basher
+//---------------------
+void pitBasherCollapse()
+{
+	$jurot.stopdialog();
+
+	wait( .1 );
+
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_lookout.mp3", 1, 8000, 1); //Look out!
+
+	$pitBasherBridge.earthQuake( 1.25 , 1 );
+
+	$pitBasherBridge_explosion.playsound( "sound/environment/metal/bigcreak_impact.wav", 0, 1, 1024 );
+
+	$pitBasherBridge_explosion.modelname( "fx/fx-explosion-debris-idryllruins-large.tik" );
+	trigger( "$pitBasherBridge_explosion" );
+
+	wait( .1 );
+
+	$pitBasherBridge_explosion.modelname( "fx/fx-explosion-door-forever.tik" );
+	trigger( "$pitBasherBridge_explosion" );
+
+	$pitBasherClip.notsolid();
+	$pitBasherBridge.notsolid();
+	$pitBasherBridge.time( .25 );
+	$pitBasherBridge.rotateZup( 65 );
+	waitfor( $pitBasherBridge );
+
+	$pitBasherBridge_railing.notsolid();
+	$pitBasherBridge_railing.time( .5 );
+	$pitBasherBridge_railing.rotateZup( 40 );
+	$pitBasherBridge.time( .5 );
+	$pitBasherBridge.rotateZdown( 10 );
+	waitfor( $pitBasherBridge );
+
+	$pitBasherBridge_railing.time( .5 );
+	$pitBasherBridge_railing.rotateZup( 40 );
+	$pitBasherBridge.time( .5 );
+	$pitBasherBridge.rotateZup( 10 );
+	waitfor( $pitBasherBridge );
+}
+
+//---------------------
+// Function: pitBasher_ladderMove
+// Comments:
+// drops the ladder in the pit with the basher
+//---------------------
+void pitBasher_ladderMove()
+{
+	thread attrexianDoorBeepAccept();
+
+	//$arch_ladderpanel1.archetype( "LadderReleaseSwitchUsed" );
+	$arch_ladderpanel1.remove();
+
+	$pitBasher_ladder.playsound( "sound/environment/metal/bigcreak.wav", 0, .7, 768 );
+
+	$pitBasher_ladderTrigger.triggerable();
+
+	$pitBasher_ladder.time( 1 );
+	$pitBasher_ladder.moveDown( 248 );
+	waitfor( $pitBasher_ladder );
+
+	$pitBasher_ladder.time( .5 );
+	$pitBasher_ladder.moveUp( 32 );
+	waitfor( $pitBasher_ladder );
+
+	$pitBasher_ladder.time( .5 );
+	$pitBasher_ladder.moveDown( 32 );
+	waitfor( $pitBasher_ladder );}
+
+//---------------------
+// Function: sewerCollapseExit
+// Comments:
+// rocks fall and block the player from backtracking to the start of the level from the fan area
+//---------------------
+void sewerCollapseExit()
+{
+	$sewerCollapseExit_explosion.scale( 2 );
+	$sewerCollapseExit_explosion.modelname( "fx/fx-explosion-debris-idryllruins-xtralarge.tik" );
+	trigger( "$sewerCollapseExit_explosion" );
+
+	$sewerCollapseExit_rocks.playsound( "sound/environment/rock/rock_collapse.wav", 3, 1.2, 2048 );
+
+	wait( .1 );
+
+	$sewerCollapseExit_rocks.earthQuake( 1.5 , 1.5 );
+
+	$sewerCollapseExit_notbroken.remove();
+	$sewerCollapseExit_broken.show();
+	
+	/*$sewerCollapseExit_rocks.solid();*/ //hzm coop mod Chrissstrahl - don't block other players 
+	/*$sewerCollapseExit_rocks.show();*/
+	wait( .1 );
+
+	trigger( "$sewerCollapseExit_debris" );
+
+	$sewerCollapseExit_explosion2.playsound( "sound/impact/explosion/explo_wall1.wav", 7, 2, 550 );
+
+	wait( 1 );
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindExitToSurface$$","complete",5,1);
+
+	$fake_munro.playdialog( "localization/sound/dialog/m7l1/munro_statusjurot.mp3", 1, 20000, 1 ); //MUNRO: Status, Jurot!
+	waitfordialog( $fake_munro );
+
+	$jurot.playdialog( "localization/sound/dialog/m7l1/jurot_everyoneok.mp3", 1, 20000, 1 ); //JUROT: Everyone's OK. We are heading through the sewers.
+	waitfordialog( $jurot );
+
+	$fake_munro.playdialog( "localization/sound/dialog/m7l1/munro_rendez.mp3", 1, 20000, 1 ); //MUNRO: I will rendezvous with you soon. Proceed with caution.
+	waitfordialog( $fake_munro );
+}
+
+//---------------------
+// Function: sewerCollapseExit_ladderMove
+// Comments:
+// drops the ladder so the player can exit
+//---------------------
+void sewerCollapseExit_ladderMove()
+{
+	thread attrexianDoorBeepAccept();
+
+	$arch_exit1.missionobjective( 1 );
+
+	//$arch_ladderpanel2.archetype( "LadderReleaseSwitchUsed" );
+	$arch_ladderpanel2.remove();
+
+	$sewerCollapseExit_ladder.playsound( "sound/environment/metal/bigcreak.wav", 0, .7, 768 );
+
+	$sewerCollapseExit_ladderTrigger.triggerable();
+
+	$sewerCollapseExit_ladder.time( 1 );
+	$sewerCollapseExit_ladder.moveDown( 256 );
+	waitfor( $sewerCollapseExit_ladder );
+
+	$sewerCollapseExit_ladder.time( .5 );
+	$sewerCollapseExit_ladder.moveUp( 32 );
+	waitfor( $sewerCollapseExit_ladder );
+
+	$sewerCollapseExit_ladder.time( .5 );
+	$sewerCollapseExit_ladder.moveDown( 32 );
+	waitfor( $sewerCollapseExit_ladder );
+}
+
+//==========================================================================================
+// Alien Spawn Functions
+//==========================================================================================
+
+//------------------------------------
+void alien_celing_spawn_thread()
+//------------------------------------
+{
+	$alien_celing_spawn_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_celing_spawn1, "alien_celing1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn2, "alien_celing2", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn3, "alien_celing3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn4, "alien_celing4", "char/alien-type1a-lurker.tik" );
+	wait( 2 );
+	thread globalSewerSpawn( $alien_celing_spawn5, "alien_celing5", "char/alien-type1b-chewer.tik" );
+
+	$alien_celing_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+}
+
+//------------------------------------
+void alien_celing_spawn2_thread()
+//------------------------------------
+{
+	$alien_celing_spawn2_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_celing_spawn1, "alien_celing1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn2, "alien_celing2", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn3, "alien_celing3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_celing_spawn4, "alien_celing4", "char/alien-type1a-lurker.tik" );
+	wait( 2 );
+	thread globalSewerSpawn( $alien_celing_spawn5, "alien_celing5", "char/alien-type1b-chewer.tik" );
+
+	$alien_celing_spawn2_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+}
+
+//------------------------------------
+void alien_tube_spawn_thread()
+//------------------------------------
+{
+	$alien_tube_spawn_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_tube_spawn1, "alien_tube1", "char/alien-type1a-lurker.tik" );
+//	thread globalSewerSpawn( $alien_tube_spawn3, "alien_tube3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_tube_spawn4, "alien_tube7", "char/alien-type1b-chewer.tik" );
+
+	$alien_tube_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+
+	wait( .1 );
+
+	$alien_tube_spawned4.setturretmode( 1 );
+}
+
+//------------------------------------
+void alien_corner_spawn_thread()
+//------------------------------------
+{
+	$alien_corner_spawn_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_corner_spawn1, "alien_corner1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_corner_spawn3, "alien_corner3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_corner_spawn5, "alien_corner5", "char/alien-type1b-chewer.tik" );
+
+	$alien_corner_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+
+	hallway_wallexplode4_thread();
+}
+
+//------------------------------------
+void alien_oversewer_spawn_thread()
+//------------------------------------
+{
+	$alien_oversewer_spawn_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_oversewer_spawn3, "alien_oversewer3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_oversewer_spawn5, "alien_oversewer5", "char/alien-type1a-lurker.tik" );
+
+	$alien_oversewer_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+
+	wait( 4 );
+	thread globalSewerSpawn( $alien_oversewer_spawn1, "alien_oversewer1", "char/alien-type1a-lurker.tik" );
+}
+
+//------------------------------------
+void alien_oversewer_spawn2_thread()
+//------------------------------------
+{
+	$alien_oversewer_spawn2_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_oversewer_spawn1, "alien_oversewer1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_oversewer_spawn3, "alien_oversewer3", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_oversewer_spawn5, "alien_oversewer5", "char/alien-type1a-lurker.tik" );
+
+	$alien_oversewer_spawn2_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+}
+
+//------------------------------------
+void alien_exit_spawn_thread()
+//------------------------------------
+{
+	$alien_exit_spawn_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_exit_spawn1, "alien_exit1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_exit_spawn2, "alien_exit2", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $alien_exit_spawn3, "alien_exit3", "char/alien-type1a-lurker.tik" );
+
+	$alien_exit_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+}
+
+//------------------------------------
+void alien_hall_spawn_thread()
+//------------------------------------
+{
+	$alien_hall_spawn_trigger.nottriggerable();
+
+	wait( 1 );
+
+	thread globalSewerSpawn( $alien_hall_spawn1, "alien_hall1", "char/alien-type1b-chewer.tik" );
+
+	$alien_hall_spawn_trigger.playsound( "sound/chars/lurker/lurk_ambush.wav", 7, 2, 550 );
+
+	thread machineroom1_door1_thread();
+
+	wait( 1 );
+
+	hallway_wallexplode3_thread();
+}
+
+//------------------------------------
+void machineroom1_door1_thread()
+//------------------------------------
+{
+
+	$machineroom1_door1_breaking1.show();
+	$machineroom1_door1.remove();
+	wait( 2 );
+
+	thread globalSewerSpawn( $machineroom1_door1_explosion, "machineroom1_door1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$machineroom1_door1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+
+	$machineroom1_door1_breaking1.remove();
+	$machineroom1_door1_wallexplode1.remove();
+
+}
+
+//------------------------------------
+void hallway_wallexplode1_thread()
+//------------------------------------
+{
+	$hallway_wallexplode1_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $hallway_wallexplode1_explosion, "hallway_wallexplode1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode1_alien, "hallway_wallexplode1_alien1", "char/alien-type1a-lurker.tik" );
+
+	$hallway_wallexplode1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$hallway_wallexplode1_explosion.playsound( "sound/chars/lurker/lurk_attack1.wav", 7, 2, 550 );
+
+	$hallway_wallexplode1.remove();
+}
+
+//------------------------------------
+void hallway_wallexplode2_thread()
+//------------------------------------
+{
+	$hallway_wallexplode2_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $alien_tube_spawn1, "alien_tube1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode2_explosion, "hallway_wallexplode2_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode2_alien, "hallway_wallexplode2_alien1", "char/alien-type1a-lurker.tik" );
+
+	$hallway_wallexplode2_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$hallway_wallexplode2_explosion.playsound( "sound/chars/lurker/lurk_attack2.wav", 7, 2, 550 );
+
+	$hallway_wallexplode2.remove();
+}
+
+//------------------------------------
+void hallway_wallexplode3_thread()
+//------------------------------------
+{
+	$hallway_wallexplode3_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $hallway_wallexplode3_alien, "hallway_wallexplode3_alien1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode3_explosion, "hallway_wallexplode3_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$hallway_wallexplode3_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$hallway_wallexplode3_explosion.playsound( "sound/chars/lurker/lurk_attack3.wav", 7, 2, 550 );
+
+	$hallway_wallexplode3.remove();
+
+	wait( .1 );
+	
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($alien_hall1);
+	$alien_hall1.attack( ePlayer );
+	
+	ePlayer = globalCoop_return_playerClosestPreferActive($hallway_wallexplode3_alien1);
+	$hallway_wallexplode3_alien1.attack( ePlayer );
+}
+
+//------------------------------------
+void hallway_wallexplode4_thread()
+//------------------------------------
+{
+	$hallway_wallexplode4_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $hallway_wallexplode4_alien, "hallway_wallexplode4_alien1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode4_explosion, "hallway_wallexplode4_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$hallway_wallexplode4_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$hallway_wallexplode4_explosion.playsound( "sound/chars/lurker/lurk_attack1.wav", 7, 2, 550 );
+
+	$hallway_wallexplode4.remove();
+}
+
+//------------------------------------
+void hallway_wallexplode5_thread()
+//------------------------------------
+{
+	$hallway_wallexplode5_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $hallway_wallexplode5_alien, "hallway_wallexplode5_alien1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $hallway_wallexplode5_explosion, "hallway_wallexplode5_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$hallway_wallexplode5_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$hallway_wallexplode5_explosion.playsound( "sound/chars/lurker/lurk_attack2.wav", 7, 2, 550 );
+
+	$hallway_wallexplode5.remove();
+}
+
+//------------------------------------
+void secret1_wallexplode1_thread()
+//------------------------------------
+{
+	$secret1_wallexplode1_trigger.nottriggerable();
+
+	thread globalSewerSpawn( $secret1_wallexplode1_alien, "secret1_wallexplode1_alien1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $secret1_wallexplode1_explosion, "secret1_wallexplode1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$secret1_wallexplode1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$secret1_wallexplode1_explosion.playsound( "sound/chars/lurker/lurk_attack3.wav", 7, 2, 550 );
+
+	$secret1_wallexplode1.remove();
+}
+
+//------------------------------------
+void secret1_wallexplode2_thread()
+//------------------------------------
+{
+	$secret1_wallexplode2_trigger.nottriggerable();
+
+	$jurot.ai_off();
+	$klingon.ai_off();
+	$chang.ai_off();
+
+	$jurot.hide();
+	$klingon.hide();
+	$chang.hide();
+
+	$jurot.notsolid();
+	$klingon.notsolid();
+	$chang.notsolid();
+
+	$jurot.flags("+notarget");
+	$klingon.flags("+notarget");
+	$chang.flags("+notarget");
+
+	thread globalSewerSpawn( $alien_corner_spawn5, "alien_corner5", "char/alien-type1b-chewer.tik" );
+	thread globalSewerSpawn( $secret1_wallexplode2_alien, "secret1_wallexplode2_alien1", "char/alien-type1a-lurker.tik" );
+	thread globalSewerSpawn( $secret1_wallexplode2_explosion, "secret1_wallexplode2_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$secret1_wallexplode2_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 2, 550 );
+	$secret1_wallexplode2_explosion.playsound( "sound/chars/lurker/lurk_attack1.wav", 7, 2, 550 );
+
+	$secret1_wallexplode2.remove();
+	$secret1_wallexplode2_fracture.remove();
+}
+
+
+//==========================================================================================
+// other functions
+//==========================================================================================
+
+//---------------------
+// Function: attrexianDoorBeepAccept
+// Comments:
+// plays a confirmation beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepAccept()
+{
+	//hzm coop mod chrissstrahl - play sound on world instead of player
+	$world.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 0, .7, 500000 );
+}
+
+//---------------------
+// Function: attrexianDoorBeepReject
+// Comments:
+// plays a rejection beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepReject()
+{
+	//hzm coop mod chrissstrahl - play sound on world instead of player
+	$world.playsound ( "sound/ships/attrexian/att-beepreject.wav", 0, .7, 500000 );
+}
+
+//---------------------
+// Function: attrexianAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void attrexianAutoSave()
+{
+	globalCommon_Autosave();
+}
+
+//---------------------
+// Function: attrexian_killThread
+// Comments:
+// killthread for the cityEngineer
+//---------------------
+void attrexian_killThread()
+{
+	globalCoop_mission_failWithReason( "CivilianKilled" );
+}
+
+//---------------------
+// Function: setupCrateMonster
+// Comments:
+// the crate monster prepares itself
+//---------------------
+void setupCrateMonster()
+{
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(5); //have different delay on each setup function to avoid them overloading the events and thus skipping scripts
+	$crateMonster.health( 2600 );
+	$crateMonster.anim( "idle" );
+	$crateMonster.immortal( 1 );
+	
+	//$crateMonster.hide(); //hzm coop mod chrissstrahl - fuck this, work you stupid thing
+	$crateMonster.pushable( 0 );
+	
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	//$crateMonster.forcealpha( 1 );//hzm coop mod chrissstrahl - fuck this, work you stupid thing
+	//$crateMonster.alpha( 1 );//hzm coop mod chrissstrahl - fuck this, work you stupid thing
+	//$crateMonster.fade( 1, 0 );//hzm coop mod chrissstrahl - fuck this, work you stupid thing
+	wait( 1 );
+	//$crateMonster.alpha( 0 );//hzm coop mod chrissstrahl - fuck this, work you stupid thing
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	$sewerCrateMonsterGateDoor1.time( 1 );
+	$sewerCrateMonsterGateDoor1.moveUp( 256 );
+	waitfor( $sewerCrateMonsterGateDoor1 );
+}
+
+//---------------------
+// Function: crateMonsterAccessCheck
+// Comments:
+// checks to see if the player can access the crate monster area
+//---------------------
+void crateMonsterAccessCheck()
+{
+	crateMonsterCratesUsed--;
+
+	if( crateMonsterCratesUsed >= 1 )
+	{
+		centerprint( "Only " + crateMonsterCratesUsed + " more left" );
+	}
+	else if( crateMonsterCratesUsed == 0 )
+	{
+		centerprint( "A door has opened elsewhere" );
+		$secretCrateMonsterEntrance1.remove();
+	}
+}
+
+//---------------------
+// Function: crateMonsterAttack
+// Comments:
+// crate monster ATTACK!
+//---------------------
+void crateMonsterAttack()
+{
+	//hzm coop mod chrissstrahl - allow loading next mission on timeranout
+	globalCoop_mission_accomplished();
+	coop_float_spawnAngle0 				= 170;
+	coop_float_spawnAngle1 				= 170;
+	coop_float_spawnAngle2 				= 170;
+	coop_float_spawnAngle3 				= 170;
+	coop_float_spawnAngle4 				= 170;
+	coop_float_spawnAngle5 				= 170;
+	coop_float_spawnAngle6 				= 170;
+	coop_float_spawnAngle7 				= 170;
+	coop_float_spawnAngle8 				= 170;
+	coop_vector_spawnOrigin1 			= '5488 2490 -180';
+	coop_vector_spawnOrigin2 			= '5494 2557 -180';
+	coop_vector_spawnOrigin3 			= '5401 2562 -180';
+	coop_vector_spawnOrigin4 			= '5393 2435 -180';
+	coop_vector_spawnOrigin5 			= '5386 2334 -180';
+	coop_vector_spawnOrigin6 			= '5381 2221 -180';
+	coop_vector_spawnOrigin7 			= '5374 2119 -180';
+	coop_vector_spawnOrigin8 			= '5521 2111 -180';
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+	
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+	//hzm coop mod chrissstrahl - get em all together, and avoid anyone to finsih the level...
+	float fPlayerIdInUse;
+	fPlayerIdInUse=0;
+	while(fPlayerIdInUse<coop_integer_maxPlayers)
+	{
+		thread globalCoop_player_warpToSpawn(getentity("player"+fPlayerIdInUse));
+		fPlayerIdInUse++;
+	}
+	wait(0.5);
+
+	$sewerCrateMonsterGateDoor1.time( .1 );
+	$sewerCrateMonsterGateDoor1.moveDown( 256 );
+	waitfor( $sewerCrateMonsterGateDoor1 );
+
+	$sewerCrateMonsterGateDoor1.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 0, 1, 1024 );
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+	
+	/* screw this it wont work chrissstrahl
+	$crateMonster_head1.attach( $crateMonster, "Bip01 Head" );
+	$crateMonster_torso1.attach( $crateMonster, "Bip01 Spine" );
+	$crateMonster_arm1.attach( $crateMonster, "Bip01 L Forearm" );
+	$crateMonster_arm2.attach( $crateMonster, "Bip01 R Forearm" );
+	$crateMonster_arm1_2.attach( $crateMonster, "Bip01 L Upperarm" );
+	$crateMonster_arm2_2.attach( $crateMonster, "Bip01 R Upperarm" );
+	wait( .1 );
+	$crateMonster_leg1.attach( $crateMonster, "Bip01 L Foot" );
+	$crateMonster_leg2.attach( $crateMonster, "Bip01 R Foot" );
+	*/
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	$crateMonster_head1_mover.followpath ( $crateMonster_head1_path );
+	$crateMonster_torso1_mover.followpath ( $crateMonster_torso1_path );
+	$crateMonster_leg1_mover.followpath ( $crateMonster_leg1_path );
+	$crateMonster_leg2_mover.followpath ( $crateMonster_leg2_path );
+	$crateMonster_arm1_mover.followpath ( $crateMonster_arm1_path );
+	$crateMonster_arm2_mover.followpath ( $crateMonster_arm2_path );
+	waitfor( $crateMonster_torso1_mover );
+
+	$crateMonsterSpawnFx.scale( 4 );
+	$crateMonsterSpawnFx.modelname( "fx/fx-explosion-distnode.tik" );
+	trigger( "$crateMonsterSpawnFx" );
+	wait( .1 );
+
+	$crateMonsterSpawnFx.modelname( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	trigger( "$crateMonsterSpawnFx" );
+
+	$crateMonster.playsound ( "sound/impact/explosion/expl_drullship.wav", 0, 1.25, 2048 );
+	
+	$crateMonster_leg1_mover.remove();
+	$crateMonster_leg2_mover.remove();
+	$crateMonster_arm1_mover.remove();
+	$crateMonster_arm2_mover.remove();
+	$crateMonster_head1_mover.remove();
+	$crateMonster_torso1_mover.remove();
+	
+	//this works now, really hate it when things in mp and sp work so differently
+	//hzm coop mod chrissstrahl - try fucking different approach, fuck will not work in mp, fuck fuck fuck fuck
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingHead","origin","5432 2344 -106","scale","0.5");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingTorso","origin","5432 2344 -106","scale","0.6");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingArm1","origin","5432 2344 -106","scale","0.4");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingArm2","origin","5432 2344 -106","scale","0.4");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingArm3","origin","5432 2344 -106","scale","0.4");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingArm4","origin","5432 2344 -106","scale","0.4");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingFoot1","origin","5432 2344 -106","scale","0.75");
+	spawn("script_model","model","models/enviro/crate-k7-32x32.tik","targetname","fuckingFoot2","origin","5432 2344 -106","scale","0.75");
+	wait(0.05);
+	$fuckingHead.attach( $crateMonster, "Bip01 Head" );
+	$fuckingTorso.attach( $crateMonster, "Bip01 Spine" );
+	$fuckingArm1.attach( $crateMonster, "Bip01 L Forearm" );
+	$fuckingArm2.attach( $crateMonster, "Bip01 R Forearm" );
+	$fuckingArm3.attach( $crateMonster, "Bip01 L Upperarm" );
+	$fuckingArm4.attach( $crateMonster, "Bip01 R Upperarm" );
+	$fuckingFoot1.attach( $crateMonster, "Bip01 L Foot" );
+	$fuckingFoot2.attach( $crateMonster, "Bip01 R Foot" );
+	
+	$fuckingHead.angles('0 90 0');
+	
+	//hzm coop mod chrissstrahl - mp server needs more pause cycels inbetween than singleplayer
+	wait(0.05);
+
+	$crateMonster.updatebosshealth( 1 , 1 );
+	$crateMonster.maxbosshealth( 2601 );
+
+	$crateMonster.ai_on();
+	$crateMonster.immortal( 0 );
+	$crateMonster.killthread( "crateMonsterDie" );
+	$crateMonster.show();
+}
+
+//---------------------
+// Function: crateMonsterDie
+// Comments:
+// crate monster dies
+//---------------------
+void crateMonsterDie()
+{
+	//hzm coop mod chrissstrahl - Restore previouse spawn locations
+	coop_float_spawnAngle1			= 180;
+	coop_float_spawnAngle2			= 360;
+	coop_float_spawnAngle3			= 180;
+	coop_float_spawnAngle4			= 360;
+	coop_float_spawnAngle5			= 180;
+	coop_float_spawnAngle6			= 360;
+	coop_float_spawnAngle7			= 180;
+	coop_float_spawnAngle8			= 360;
+	coop_vector_spawnOrigin1 			= '5928 -738 -120';
+	coop_vector_spawnOrigin2 			= '5206 -797 -120';
+	coop_vector_spawnOrigin3 			= '5928 -738 -120';
+	coop_vector_spawnOrigin4 			= '5206 -797 -120';
+	coop_vector_spawnOrigin5 			= '5928 -738 -120';
+	coop_vector_spawnOrigin6 			= '5206 -797 -120';
+	coop_vector_spawnOrigin7 			= '5928 -738 -120';
+	coop_vector_spawnOrigin8 			= '5206 -797 -120';
+	//make players respawn exactly here...
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	$sewerCrateMonsterFloorDoor1.time( .5 );
+	$sewerCrateMonsterFloorDoor1.moveDown( 16 );
+	$sewerCrateMonsterGateDoor1.time( 1 );
+	$sewerCrateMonsterGateDoor1.moveUp( 256 );
+	waitfor( $sewerCrateMonsterGateDoor1 );
+
+	$sewerCrateMonsterGateDoor1.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 0, 1, 1024 );
+
+	$sewerCrateMonsterFloorDoor1.time( 1 );
+	$sewerCrateMonsterFloorDoor1.moveWest( 318 );
+	waitfor( $sewerCrateMonsterFloorDoor1 );
+
+	$sewerCrateMonsterFloorDoor1.notsolid();
+}
+
+
+void coop_afterBasherGateDoor1Open()
+//------------------------------------------------------------------------------
+//opens a door, this door can be blocked by a player or ai, so we use a trigger use to allow multi use of it
+//------------------------------------------------------------------------------
+{
+	attrexianDoorBeepAccept();
+	$t348.open($world);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m7l2a-attrexian_colony");
+}
+
+
+
+

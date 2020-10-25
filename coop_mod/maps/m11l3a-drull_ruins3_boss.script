@@ -1,0 +1,851 @@
+//-------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  Drull Ruins 3 Boss Fight: Level A
+//  Script By:    Richard 'Charon' Heath
+//  Geometry By:  Richard 'Charon' Heath
+//
+//--------------------------------------------
+
+void main();
+void init();
+void lowerLift();
+
+void setup_effects();
+void setup_ai();
+void setup_areaportals();
+void bobRockPlat1 ();
+void earthquakes ();
+void turretKillThread ();
+
+float canActivateAutoSave = 0;
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_waitForTeam();
+entity	coop_returnMeARandomPlayer();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/m11/m11_beamInAmmo.scr"
+#include "maps/m11/m11_groupSpawn.scr"
+
+//==========================================================================
+// Main Stuff
+//==========================================================================
+
+//---------------------
+// main
+// do start up stuff
+//---------------------
+
+void main()
+{		
+	//hzm coop mod chrissstrahl - set spawnangles for this level
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin8 			= '-713 18377 -167';
+	coop_vector_spawnOrigin7 			= '-713 18450 -167';
+	coop_vector_spawnOrigin6 			= '-713 18530 -167';
+	coop_vector_spawnOrigin5 			= '-713 18600 -167';
+	coop_vector_spawnOrigin4 			= '-406 18474 700';//-780 18377 -167
+	coop_vector_spawnOrigin3 			= '-417 18595 700';//-780 18450 -167
+	coop_vector_spawnOrigin2 			= '-367 18560 700';//-780 18530 -167
+	coop_vector_spawnOrigin1 			= '-439 18541 700';//-780 18600 -167
+	
+	//hzm coop mod chrissstrahl - use z axis of lift
+	vector vOriginZ;
+	vOriginZ_z = vectorGetZ($finalLift.getOrigin());
+	vOriginZ_z += 8;
+	coop_vector_spawnOrigin1_z = vOriginZ_z;
+	coop_vector_spawnOrigin2_z = vOriginZ_z;
+	coop_vector_spawnOrigin3_z = vOriginZ_z;
+	coop_vector_spawnOrigin4_z = vOriginZ_z;
+
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins3LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m11l3a_drull_ruins3" );
+	
+	$world.entity_fade_dist( 4000 );
+	$world.farplane_color( '.5 0.22 0.00' );
+	$world.farplane( 3500 );
+	$world.farplane_cull ( 1 );
+	$world.farplane_fog ( 1 );
+
+	soundtrack ( "music/m11l3a-drull_ruins3_boss.mus" );
+	waitforplayer ();
+	
+	init();
+	thread bobRockPlat1();
+	thread lowerLift ();
+
+	$quad0.hide ();
+	$quad0.notsolid ();
+	CommandToGroup ( 999 , "groupdeaththread" , "bothPredatorsDead" , "" );
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$StopCommander$$","incomplete",1,1);
+	
+	//hzm coop mod Chrissstrahl - spawn a clip, so that players can no longer fall out of the map
+	//look at the service we provide to the players ;-)
+	entity eSpawn;
+	eSpawn = spawn("script_model","model","fx/fx-dummy.tik","origin","-1277 17591 -152");
+	wait(.05);
+	eSpawn.setSize('-200 -200 -32','200 200 1');
+	eSpawn.solid();
+}
+
+//---------------------
+// init
+//---------------------
+void init()
+{
+	thread setup_effects();
+	thread setup_ai();
+	thread setup_areaportals();
+
+	globalArchetype_Setup( $dooropener1_archetype , "RomulanTricorderDoor" );
+
+	$commander.killthread ( "commanderDeath" );
+	//$commander.health ( 800 );
+
+	$commanderFulcrum1.movedown ( 128 );
+
+	thread earthquakes ();
+
+	$finalLiftDoor1a.bind ( $finalLift );
+	$finalLiftDoor1b.bind ( $finalLift );
+	$finalLiftDoor2a.bind ( $finalLift );
+	$finalLiftDoor2b.bind ( $finalLift );
+}
+
+//==========================================================================
+// Setup Stuff
+//==========================================================================
+
+
+//---------------------
+// setup_effects
+// setups all the effects in the level
+//---------------------
+void setup_effects()
+//---------------------
+{
+	$door1_steam1.hide();
+	$door2_steam1.hide();
+	$door2_sparks1.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$world.light_lightstyle ( "introLights1" , "aaaaaaaaaaaaaaaaaaaaaaaaaazzzzaaaaaaaaaaaaaaaaaaazzzz" , 0 );
+	$world.light_lightstyle ( "introLights2" , "aaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaazz" , 0 );
+	$world.light_lightstyle ( "introLights3" , "aaaaaaaaaaaazzzzzzaaaaaaaaaaaaaaazzzz" , 0 );
+	$world.light_lightstyle( "flicker1", "zxazcyazauwxazdaawtbzcya" );
+
+	$world.light_lightstyle ( "predatorLights1" , "aaaaaaaaaaaaazzzzaaaazzzzaaaammmmaaaaaaaaaaaaaaaaaa" , 0 );
+	$world.light_lightstyle ( "predatorLights2" , "aaaaaaazzzzaazzzzaaaazzzzaaaazzzzaaaaaaammmmmmaaaaaaa" , 0 );
+}
+
+//---------------------
+// setup_ai
+// setups all the ai in the level
+//---------------------
+void setup_ai()
+{
+	$door1_alien1.ai_off();
+	$door2_alien1.ai_off();
+
+	$door1_alien1.forcealpha ( 1 );
+	$door1_alien1.alpha ( 0 );
+
+	$door2_alien1.forcealpha ( 1 );
+	$door2_alien1.alpha ( 0 );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$door1_alien1.notsolid();
+	$door2_alien1.notsolid();
+
+	$door1_alien1.health ( 600 );
+	$door2_alien1.health ( 600 );
+
+	//make the bottom of the door solid again
+	//it was notsolid so that pathnodes would connect through it
+	$door1_middle_mid1.solid();
+	$door1_middle_mid2.solid();
+	$door1_bottom_mid1.solid();
+	$door1_bottom_mid2.solid();
+
+	$door2_bottom2.solid ();
+	$door1_top1.solid ();
+	$door1_top2.solid ();
+
+}
+
+//---------------------
+// setup_areaportals
+// setups all the areaportals in the level
+//---------------------
+void setup_areaportals()
+{
+	$door1_portal1.hide();
+	$door1_portal2.hide();
+
+	$door1_portal1.notsolid();
+	$door1_portal2.notsolid();
+}
+
+//==========================================================================
+// Stuff
+//==========================================================================
+
+//---------------------
+// lowerLift
+// makes the lift at the start of the level move down
+//---------------------
+void finalLiftDoor1CloseLeft()
+{
+	$finalLiftDoor1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.5, 1500 );
+	globalAccelMove_Rotate( $finalLiftDoor1a, '0 90 0', 2, "rampupdown", "" );
+	$finalLiftDoor1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.5, 1500 );
+}
+
+void finalLiftDoor1CloseRight()
+{
+	globalAccelMove_Rotate( $finalLiftDoor1b, '0 -90 0', 2, "rampupdown", "" );
+
+}
+void lowerLift()
+{
+	$finalLift.playsound( "sound/environment/machine/lift4.wav", 4, 1, 1500 );
+	$finalLift.time( 8 );
+	$finalLift.moveDown( 776 );
+	
+	//hzm coop mod chrissstrahl - make sure players spawn on the lift
+	//update spawn locations (z axis) to match the lift its current position
+	//update each frame
+	vector vOriginZ;
+	do
+	{
+		vOriginZ_z = vectorGetZ($finalLift.getOrigin());
+		vOriginZ_z += 8;
+		coop_vector_spawnOrigin1_z = vOriginZ_z;
+		coop_vector_spawnOrigin2_z = vOriginZ_z;
+		coop_vector_spawnOrigin3_z = vOriginZ_z;
+		coop_vector_spawnOrigin4_z = vOriginZ_z;
+		wait(0.05);
+	}while(vectorGetZ($finalLift.getVelocity()) != 0 );
+
+	//waitfor( $finalLift );
+	$finalLift.playsound( "sound/environment/machine/lift4stop.wav", 4, 1, 1500 );
+
+	thread finalLiftDoor1CloseLeft ();
+	thread finalLiftDoor1CloseRight ();
+
+}
+
+//==========================================================================
+// Door Stuff
+//==========================================================================
+
+//---------------------
+// door1_open
+// opens the first door of the two door puzzle
+//---------------------
+void door1Open()
+{
+	$dooropener1_archetype.remove ();
+	$door1_top1.openportal();
+
+	$door1_steam1.show();
+
+	wait( .5 );
+
+ 	$door1_middle_mid1.playsound( "sound/ships/attrexian/att-colonydoor2.wav", 7, 1.5, 1500 );
+
+	$door1_middle_mid1.time(2);
+	$door1_middle_mid2.time(2);
+	$door1_bottom_mid1.time(2);
+	$door1_bottom_mid2.time(2);
+
+	$door1_middle_mid1.rotateZdown( 45 );
+	$door1_middle_mid2.rotateZdown( 45 );
+	$door1_bottom_mid1.moveEast( 8 );
+	$door1_bottom_mid2.moveWest( 8 );
+	wait( 2 );
+
+	wait( .5 );
+	$door1_middle_mid1.time(3);
+	$door1_middle_mid2.time(3);
+	$door1_bottom_mid1.time(3);
+	$door1_bottom_mid2.time(3);
+	$door1_bottom1.time(3);
+	$door1_bottom2.time(3);
+	$door1_top1.time(3);
+	$door1_top2.time(3);
+	$door1_middle1.time(3);
+	$door1_middle2.time(3);
+
+	$door1_bottom1.moveNorth( 56 );
+	$door1_bottom2.moveSouth( 56 );
+	$door1_bottom_mid1.moveDown( 64 );
+	$door1_bottom_mid2.moveDown( 64 );
+	$door1_top1.moveNorth( 80 );
+	$door1_top2.moveSouth( 80 );
+	$door1_middle1.moveNorth( 80 );
+	$door1_middle2.moveSouth( 80 );
+	$door1_middle_mid1.moveNorth( 80 );
+	$door1_middle_mid2.moveSouth( 80 );
+
+	wait( .25 );
+	$door1_steam1.hide();
+}
+
+//---------------------
+// door1_close
+// closes the first door of the two door puzzle
+//---------------------
+void door2Close()
+{
+	//hzm coop mod chrissstrahl - make sure this door does not close in coop
+	//this would lock in/out players
+	return;
+
+	$door2Clip.solid ();
+	waitfor ( $door2_middle_mid2 );
+	$door2_steam1.show();
+
+	$door2_clip1.solid();
+ 	$door2_middle_mid1.playsound( "sound/ships/attrexian/att-colonydoor2.wav", 7, 1.5, 1500 );
+	wait( .5 );
+
+	$door2_middle_mid1.time(3);
+	$door2_middle_mid2.time(3);
+	$door2_bottom_mid1.time(3);
+	$door2_bottom_mid2.time(3);
+	$door2_bottom1.time(3);
+	$door2_bottom2.time(3);
+	$door2_top1.time(3);
+	$door2_top2.time(3);
+	$door2_middle1.time(3);
+	$door2_middle2.time(3);
+
+	$door2_middle_mid1.moveSouth( 64 );
+	$door2_middle_mid2.moveNorth( 64 );
+	$door2_middle1.moveSouth( 64 );
+	$door2_middle2.moveNorth( 64 );
+	$door2_top1.moveSouth( 80 );
+	$door2_top2.moveNorth( 80 );
+	$door2_bottom_mid1.moveUp( 64 );
+	$door2_bottom_mid2.moveUp( 64 );
+	$door2_bottom1.moveSouth( 56 );
+	$door2_bottom2.moveNorth( 56 );
+	wait( 3 );
+
+	wait( .5 );
+	$door2_middle_mid1.time(2);
+	$door2_middle_mid2.time(2);
+	$door2_bottom_mid1.time(2);
+	$door2_bottom_mid2.time(2);
+
+	$door2_bottom_mid1.moveWest( 8 );
+	$door2_bottom_mid2.moveEast( 8 );
+	$door2_middle_mid1.rotateZup( 45 );
+	$door2_middle_mid2.rotateZup( 45 );
+	wait( 2 );
+
+	wait( .25 );
+	$door2_steam1.hide();
+
+	$door2_top1.closeportal();
+}
+
+//---------------------
+// door2_open
+// opens the second door of the two door puzzle
+//---------------------
+void door2Open()
+{
+	if ( canActivateAutoSave )
+		$postPredatorAutoSave.triggerable ( );
+	else
+		canActivateAutoSave = 1;
+	$dooropener2_archetype.remove ();
+	$door2_top1.openportal();
+
+	$door2_steam1.show();
+ 	$door2_middle_mid1.playsound( "sound/ships/attrexian/att-colonydoor1.wav", 7, 1.5, 1500 );
+	wait( .5 );
+
+	$door2_middle_mid1.time(2);
+	$door2_middle_mid2.time(2);
+	$door2_bottom_mid1.time(2);
+	$door2_bottom_mid2.time(2);
+
+	$door2_middle_mid1.rotateZdown( 45 );
+	$door2_middle_mid2.rotateZdown( 45 );
+	$door2_bottom_mid1.moveEast( 8 );
+	$door2_bottom_mid2.moveWest( 8 );
+
+	wait( 2 );
+
+	wait( .5 );
+	$door2_middle_mid1.time(3);
+	$door2_middle_mid2.time(3);
+	$door2_bottom_mid1.time(3);
+	$door2_bottom_mid2.time(3);
+	$door2_bottom1.time(3);
+	$door2_bottom2.time(3);
+	$door2_top1.time(3);
+	$door2_top2.time(3);
+	$door2_middle1.time(3);
+	$door2_middle2.time(3);
+
+	$door2_bottom1.moveNorth( 56 );
+	$door2_bottom2.moveSouth( 56 );
+	$door2_bottom_mid1.moveDown( 64 );
+	$door2_bottom_mid2.moveDown( 64 );
+	$door2_top1.moveNorth( 80 );
+	$door2_top2.moveSouth( 80 );
+	$door2_middle1.moveNorth( 64 );
+	$door2_middle2.moveSouth( 64 );
+	$door2_middle_mid1.moveNorth( 64 );
+	$door2_middle_mid2.moveSouth( 64 );
+
+	wait( .25 );
+	$door2_steam1.hide();
+}
+
+
+void commanderSequence ()
+{
+//hzm coop mod chrissstrahl - move spawnpoints closer
+//so if a player dies and can't respawn at position, he will be spawning at that location
+//move the locations closer, so that teh players do not spawn to far away from current mission progress
+	vector v;
+	float i;
+	float fOffset;
+	for(i=1;i<=5;i++){
+		v = '-610 9900 -300';
+		v_x += fOffset;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		setFloatScriptVariable("coop_float_spawnAngle"+i,90);
+		fOffset -= 50;
+	}
+	//reset offset a bit
+	fOffset = -100;
+	for(i=6;i<=8;i++){
+		v = '-610 9800 -300';
+		v_x += fOffset;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		setFloatScriptVariable("coop_float_spawnAngle"+i,90);
+		fOffset -= 50;
+	}
+//eof hzm
+
+	$commander.ai_on ();
+	
+	//hzm coop mod chrissstrahl - make ai aggressive, rather than attacking $player
+	$commander.aggressive ( 1 );
+
+	turretKillThread(); 	//spawn some turrets
+}
+
+
+float doSmallBobbing = 1;
+void bobRockPlat1 ()
+{
+	float t;
+
+	while ( doSmallBobbing == 1 )
+	{
+
+		globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 2 ) , 32 , "up" );
+		globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 2 ) , 32 , "down" );
+	}
+
+	globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 4 ) , 128 , "up" );
+
+	while ( doSmallBobbing == 2 )
+	{
+
+		globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 2 ) , 32 , "up" );
+		globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 2 ) , 32 , "down" );
+	}
+
+	globalAccelMove_AxisAligned ( "rockPlat1" , randomfloat ( 2 ) , 128 , "down" );
+}
+
+void raiseRockPlat1 ()
+{
+	doSmallBobbing = 2;
+}
+
+void lowerRockPlat1 ()
+{
+	doSmallBobbing = 3;
+}
+
+void monsterRage ( )	//trigger_once
+{
+	entity caller, activator;
+	caller = getCurrentEntity ();	//the trigger_once that started this thread
+	activator = caller.getLastActivatingEntity ();	//the monster that activated the trigger_once
+	if (doesEntityExist ( activator ))
+		activator.aggressive ( 1 );	//H8 teH PL4y3R //hzm coop mod chrissstrahl - make ai aggressive, rather than attacking $player
+}
+
+
+void dropPredatorRock1 ()
+{
+        forcemusic ("aux1");
+ 	$predatorRock1.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 7, 1, 1500 );
+	$predatorRock1.playsound( "sound/impact/explosion/explo_wall1.wav", 8, 1, 1500 );
+	$predatorRock1.time ( 1 );
+	$predatorRock1.movedown ( 840 );
+	$predatorRock1.rotateZ ( 40 );
+
+	waitfor ( $predatorRock1 );
+	$predatorRock1.playsound( "sound/impact/explosion/explo_neonsign.wav", 10, 1, 1500 );
+	$predatorRock1.playsound( "sound/impact/explosion/explo_grate2.wav", 11, 1.7, 1500 );
+
+	$predatorRock1.remove ();
+	trigger ( "$predatorRock1Explode" );
+}
+
+void activatePanel1 ()
+{
+ 	$door1_button1_panel1.playsound( "sound/environment/machine/mech_move2.wav", 7, 1.2, 1500 );
+	$door1_button1_panel1.time( 2 );
+	$door1_button1_panel1.rotateXup( 90 );
+}
+
+void activatePanel2 ()
+{
+	thread door1Open();
+	$world.light_lightstyle ( "panel2Light" , "mamaz" , 1 );
+ 	$door2_button1_panel1.playsound( "sound/environment/machine/mech_move2.wav", 7, 1.2, 1500 );
+	$door2_button1_panel1.time( 2 );
+	$door2_button1_panel1.rotateZdown( 90 );
+	$door2_button1_panel1.playsound ( "sound/ships/forever/for_poweron.wav", 3, .9, 10000);
+
+	globalArchetype_Setup( $dooropener2_archetype , "RomulanTricorderDoor" );
+	$dooropener2_archetype.playsound( "sound/doors/drull_smldoor_01.wav", 11, 1 , 700 );
+
+    forcemusic ("mystery", "action");
+
+	$door2PuzzleObject.puzzleobject_itemToUse ( "Tricorder" );
+	$door2PuzzleObject.puzzleobject_timeToUse ( 5 );
+	$door2PuzzleObject.puzzleobject_solvedthread ( "door2Open" );
+
+	$door2_alien1.ai_on();
+	$door2_alien1.fadein ( 2 );
+	$door2_alien1.solid();
+
+}
+
+void quadDeath ()
+{
+        forcemusic ("success","normal");
+	$quadHurtTrigger.remove();
+	$quadHurtTriggerSteam1.remove();
+	$quadHurtTriggerSteam1.stoploopsound();
+	$quadHurtTriggerSteam2.stoploopsound();
+
+	$quadHurtTriggerSteam2.remove();
+}
+
+void quadSequence ()
+{
+	//hzm coop mod chrissstrahl - set new spawn locations
+	coop_float_spawnAngle1 				= 275;
+	coop_float_spawnAngle2				= 275;
+	coop_float_spawnAngle3 				= 275;
+	coop_float_spawnAngle4 				= 275;
+	coop_float_spawnAngle5 				= 275;
+	coop_float_spawnAngle6 				= 275;
+	coop_float_spawnAngle7 				= 275;
+	coop_float_spawnAngle8 				= 275;
+	coop_vector_spawnOrigin8 			= '-2264 14521 -155';
+	coop_vector_spawnOrigin7 			= '-2340 14521 -155';
+	coop_vector_spawnOrigin6 			= '-2410 14521 -155';
+	coop_vector_spawnOrigin5 			= '-2480 14521 -155';
+	coop_vector_spawnOrigin4 			= '-2264 14450 -155';
+	coop_vector_spawnOrigin3 			= '-2340 14450 -155';
+	coop_vector_spawnOrigin2 			= '-2410 14450 -155';
+	coop_vector_spawnOrigin1 			= '-2480 14450 -155';
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+
+	$quadHurtTriggerSteam1.loopsound( "sound/environment/steam/steam_loop04.wav", .7 , 110 );
+	$quadHurtTriggerSteam1.loopsound( "sound/environment/steam/steam_loop05.wav", .7 , 110 );
+
+	//make them slightly easier since we're dealing with 2 of them
+	$quad.health ( $quad.gethealth () - 100 );
+	$quad0.health ( $quad0.gethealth () - 100 );
+
+	$quad.setgroupid ( 123 );
+	$quad0.setgroupid ( 123 );
+	$quad.groupdeaththread ( "quadDeath" );
+	$quad.ai_on ();
+	
+	//hzm coop mod chrissstrahl - make ai aggressive, rather than attacking $player
+	$quad.aggressive ( 1 );
+
+	//wait to drop the second quad in
+	float quadHealth;
+	quadHealth = $quad.gethealth () * 0.20;
+
+	while ( isActorAlive ( "quad" ) && ($quad.gethealth ()  > quadHealth) )
+	{
+		//print ( "waiting" + $quad.gethealth() + "\n" );
+		wait ( .5 );
+	}
+
+	$quadPushTrigger.triggerable ();
+	wait ( .25 );
+	$quadPushTrigger.remove ();
+	trigger ( "$quad0Debris" );
+	$quad0.show ();
+	$quad0.solid ();
+	$quad0.anim ( "flying_landing" );
+	waitforanimation ( $quad0, "flying_landing" );
+	$quad0.walkto ( "$quad2Node" , "run" );
+	waitfor ( $quad0 );
+
+	$quad0.ai_on ();
+	
+	//hzm coop mod chrissstrahl - make ai aggressive, rather than attacking $player
+	$quad0.aggressive( 1 );
+}
+
+//random earthquakes + debris
+void earthquakes ()
+{
+	entity quake,debris;
+	vector _origin,forward;
+	float fX, fY, fZ, sign;
+
+
+	float ramdomQuakeIntensity;
+	float randomQuakeLength;
+
+	quake = spawn ( "func_earthquake" , "targetname" , "rockDebrisQuake" );
+
+	//hzm coop mod chrissstrahl - make compatible to multiplayer
+	entity ePlayer;
+	
+	while ( 1 )
+	{
+		ePlayer = coop_returnMeARandomPlayer();
+		//hzm coop mod chrissstrahl - make sure there is nothing spawned if no player is on the server, otherwise this will create no free edicts error
+		if(globalCoop_return_integerPlayerId(ePlayer) < 0){
+			wait(10);
+		}else{
+			wait ( randomfloat ( 10 ));
+			_origin = ePlayer.getorigin();
+			quake.origin ( _origin );
+
+			ramdomQuakeIntensity = randomFloat( .5 ) + .1;
+			randomQuakeLength = randomFloat( .4 ) + .4;
+
+			$rockDebrisQuake.duration( ramdomQuakeIntensity );
+			$rockDebrisQuake.magnitude( ramdomQuakeIntensity );
+
+			trigger ( "$rockDebrisQuake" );
+
+			wait ( .25 );
+
+			debris = spawn ( "script_model" ,
+							 "model" , "models/fx/fx-explosion-debris-rocks-dust-brown.tik",
+							 "angles" , "-90 0 0" );
+							 
+			if(doesEntityExist(ePlayer)){
+				forward = vectorforward ( ePlayer.getangles() );
+			}
+
+			fX = vectorgetx ( forward );
+			fY = vectorgety ( forward );
+
+			if ( randomint ( 2 ) == 1 )
+			{
+				sign = -1;
+				fX *= -1;
+			}
+
+			fX *= randomfloat ( 512 );
+			fY *= randomfloat ( 512 );
+
+			fX += vectorgetx ( _origin );
+			fY += vectorgety ( _origin );
+
+			fX += ( sign * 256 );
+	//		fY += 512;
+
+			fZ = vectorgetz ( _origin );
+			fZ += 384;
+
+			forward = _origin;
+			_origin = vectorsetx ( _origin , fX );
+			_origin = vectorsety ( _origin , fY );
+			_origin = vectorsetz ( _origin , fZ );
+			debris.origin ( _origin );
+		}
+	}
+}
+float commandersKilled = 0;
+void commanderDeath ()
+{
+	commandersKilled++;
+
+	if ( commandersKilled >=1 )
+	{
+		$finalDoor.triggerable ();
+		$commanderFulcrum1.moveup ( 128 );
+        forcemusic ("success","normal");
+		
+		//hzm coop mod chrissstrahl - spawn a gathering area
+		spawn("trigger_once","targetname","coop_levelEnd","thread","coop_waitForTeam","origin","1152 8608 -128");
+		wait(7);
+		$coop_levelEnd.setSize('-513 -33 -321','513 33 321');
+	}
+}
+
+void activatePredators ()
+{
+	$door1_alien1.fadein ( 2 );
+	$door1_alien1.solid();
+	$door1_alien1.ai_on();
+}
+
+float totalTurretsAlive = 0;
+void turretKillThread ()
+{
+	totalTurretsAlive--;
+	if ( totalTurretsAlive <= 0 && isActorAlive ( "commander" ))
+	{
+		trigger ( "$turretSpawner1" );
+		trigger ( "$turretSpawner2" );
+
+		wait ( .25 );
+		$turret1Dude.killthread ( "turretKillThread" );
+		$turret2Dude.killthread ( "turretKillThread" );
+
+		//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+		$turret1Dude.aggressive ( 1 );
+		$turret2Dude.aggressive ( 1 );
+
+		totalTurretsAlive=2;
+	}
+}
+
+void firstPredatorEncounter ()
+{
+	$firstPredator.health ( 700 );
+	$firstPredator.ai_on ();
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+	$firstPredator.aggressive ( 1 );
+}
+
+void bothPredatorsDead ( )
+{
+	if ( !canActivateAutoSave )
+		canActivateAutoSave = 1;
+
+	else
+		$postPredatorAutoSave.triggerable ( );
+}
+
+entity coop_returnMeARandomPlayer()
+//------------------------------------------------------------------------------
+//returns a random player - used for the blitz to impact upon the player
+//------------------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("hatoria_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	if( fPlayerIdInUse > 0 )//only access if there is a player
+	{
+		for(fTries=6;fTries>0;fTries--){
+			fRandom = randomint(fExistingPlayers);
+			fPlayerIdInUse = $world.getFloatVar("hatoria_activeplayer"+fRandom);
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(globalCoop_check_existingLivingEntity(ePlayer)){
+				if(!globalCoop_check_playerSpectator(ePlayer)){
+					fTries = 0;
+					eRandomPlayer = ePlayer;
+				}
+			}
+		}
+	}
+	
+	//return the world if no player could be found
+	if(!doesEntityExist(eRandomPlayer)){
+		eRandomPlayer = $world;
+	}
+	return eRandomPlayer;
+}
+
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",60,'800 800 1000','1199 7991 -280');
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//stuffcmd("seta coop_igm 7\n");//set mission number
+	//stuffcmd("seta coop_igmH 0\n");//set spawn in holodeck
+	//globalCoop_main_waitAFrame();
+	//stuffcmd("seta coop_igmT 0\n");//set spawn in turbolift
+	//stuffCMD("seta coop_igmR 0\n");//set rooms visited
+	//setfloatvar("game.globalMissionEnterprise",7);
+	thread globalCoop_mission_completed("m11l3b-drull_ruins3_boss");
+}
+

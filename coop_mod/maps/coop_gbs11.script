@@ -1,0 +1,540 @@
+//--------------------------------------------------------------------------------------
+//
+//  A Gate Two Birds And The Beautiful Sky Level Script File
+//	
+//  Level:		map10
+//  Script By:	DrBob & Others
+//  Geometry By:	Others
+//  Created on:	09/03/04
+//
+// Last Edited on:  $Date: 2007-04-08 23:58:18 +0200 (So, 08 Apr 2007) $
+// Last Edited by:	$Author: lars $
+//
+//--------------------------------------------------------------------------------------
+
+//The Cell Threads
+void setupCellCin();
+void doCellCin();
+
+//The Credits Threads
+void credits_cin();
+
+//The Beach Threads
+void initTrees();
+void flyShuttle();
+void tide();
+void beach_cin();
+
+//Other Threads
+void skip_scene();
+
+//Variables
+//This is treated as a boolean variable
+float beach_run = 0;
+//This is also treates as a boolean value
+float skipthread_run = 0;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+   	soundtrack( "/music/map10.mus");
+	beach_run = 0;
+	//Prepare for cin mode
+	freezeplayer();
+	cinematic();
+	letterbox( 0.1 );
+
+	//Do the cell cinematic
+	setupCellCin();
+	doCellCin();
+
+	wait( 2 );
+
+	//Credits
+	credits_cin();
+
+	wait( 2 );
+
+	if( beach_run == 0 ) {
+		//Beach cinematic
+		initTrees();
+		thread tide();
+		beach_cin();
+		beach_run = 1;
+	}
+}
+
+void skip_scene()
+{
+	if( beach_run == 0 ) {
+		beach_run = 1;
+		skipthread_run = 1;
+
+		cam_fadeout( 2, 0, 0, 0, 1, 0 );
+		wait( 1 );
+
+		killthread( "credits_cin" );
+		wait( 1 );
+
+		//Hide the credits (menus)
+		globalCoop_player_transmittToAll( "hidemenu credits-staff-gbs\n" );
+		globalCoop_player_transmittToAll( "popmenu 0\n" );
+		globalCoop_player_transmittToAll( "hidemenu credits-voice2-gbs\n" );
+		globalCoop_player_transmittToAll( "popmenu 0\n" );
+		globalCoop_player_transmittToAll( "hidemenu credits-voice1-gbs\n" );
+		globalCoop_player_transmittToAll( "popmenu 0\n" );
+		globalCoop_player_transmittToAll( "hidemenu credits-specialthanks-gbs\n" );
+		globalCoop_player_transmittToAll( "popmenu 0\n" );
+
+		beach_cin();
+	}
+}
+
+void initTrees()
+{
+	float i;
+	entity e;
+	//Get all the trees and move them down
+	for ( i = 1; i <= 18; i++ )
+	{
+		e = getentity ( "tree" + i );
+		e.randomscale( 4.0, 5.5 );
+		e.bind ( $tree_origin );
+	}
+	$tree_origin.speed( 500 );
+	$tree_origin.moveDown( 100 );
+}
+
+void flyShuttle()
+{
+	//Make the shuttle fly around
+	$shuttle.bind ( $shuttle_origin );
+	$shuttle_origin.followpath( $shuttle_path, "normalangles" );
+}
+
+void tide()
+{
+	//This is a small thread to make the water ebb and flow
+	$water.speed( 2 );
+	while( 1 > 0 )
+	{			
+		$water.moveDown( 20 );
+		wait( 5 );
+		$water.moveUp( 20 );	
+		wait( 5 );
+	}		
+}
+
+void beach_cin()
+{
+	//Spawn the cameras
+	spawn ( "Camera" , "targetname" , "cam1" );
+	spawn ( "Camera" , "targetname" , "cam2" );
+	spawn ( "Camera" , "targetname" , "cam3" );
+	spawn ( "Camera" , "targetname" , "cam4" );
+	spawn ( "Camera" , "targetname" , "cam5" );
+	spawn ( "Camera" , "targetname" , "cam6" );
+	spawn ( "Camera" , "targetname" , "cam7" );
+
+	wait ( 0.5 );
+
+	//Setup the cameras
+	$cam1.follow( $beach_cam2 );
+	$cam2.follow( $beach_cam3 );
+	$cam3.follow( $beach_cam4 );
+	$cam4.follow( $beach_cam_stevens );
+	$cam5.follow( $beach_cam_stammheim2 );
+	$cam7.follow( $beach_cam_illia );
+
+	wait( 0.5 );
+
+	//Start the ball rolling ;)
+	$cam1.cut();
+	wait( 1 );
+	nointermission();
+	cuecamera ( $cam1 );
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+
+	wait( 5 );
+
+	//Show the 'Risa' text (menu)
+	//Show the 'Three months later' text (menu)
+	globalCoop_player_transmittToAll( "showmenu 3monthslater\n" );
+	wait( 1 );
+	globalCoop_player_transmittToAll( "popmenu 0\n" );
+	globalCoop_player_transmittToAll( "popmenu 1\n" );
+	wait( 0.1 );
+	globalCoop_player_transmittToAll( "showmenu risa\n" );
+	wait( 4 );
+	globalCoop_player_transmittToAll( "popmenu 1\n" );
+	wait( 0.1 );
+
+	cuecamera ( $cam2 );
+	wait( 2 );
+
+	$beach_stammheim.ai_off();		
+	$beach_stammheim.walkto( "$go_to_ship" );
+
+	wait( 1 );
+
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	
+	wait( 2.5 );
+	
+	
+	//hzm coop mod chrissstrahl - reuse actor!
+	$beach_stammheim.notsolid();
+	$beach_stammheim.origin('9738.06 1956.06 72.00');
+	$beach_stammheim.scale(1.3);//1.4?
+	$beach_stammheim.angle(135);
+	$beach_stammheim.anim( "bar_sitting_left" );
+	wait(0.25);
+
+	
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	cuecamera( $cam3 );
+
+	$stevens.playdialog("localization/sound/dialog/map11/stevens/ihope.mp3",1,10000,0);
+	waitfordialog($stevens);
+
+	wait( 1 );
+	cuecamera( $cam5 );
+
+
+	$beach_stammheim.playdialog( "localization/sound/dialog/map11/stammheim/stayforever.mp3", 1, 10000, 0 );
+	waitfordialog( $beach_stammheim );
+
+	wait( 1 );
+
+	cuecamera( $cam4 );
+
+	$stevens.playdialog("localization/sound/dialog/map11/stevens/donotbestupid.mp3",1,10000,0);
+	waitfordialog($stevens);
+
+	wait( 1 );
+
+	$stevens.playdialog("localization/sound/dialog/map11/stevens/iknowyou.mp3",1,10000,0);
+	waitfordialog($stevens);
+
+	wait( 1 );
+
+	$stevens.playdialog("localization/sound/dialog/map11/stevens/nextmission.mp3",1,10000,0);
+	waitfordialog($stevens);
+
+	wait( 1 );
+
+	//cuecamera( $cam5 );
+
+	wait( 1 );
+
+	$stevens.playdialog("localization/sound/dialog/map11/stevens/meetingpoint.mp3",1,10000,0);
+	waitfordialog($stevens);
+	
+	//hzm coop mod chrissstrahl - remove, get off my viewscreen
+	$stevens.remove();
+	
+	//hzm coop mod chrissstrahl - place illia
+	$illia_prisoner.origin('4144.97 -3443.03 32.00');
+	$illia_prisoner.angle(135);
+	$illia_prisoner.anim("idle");
+
+	thread flyShuttle();
+
+	$cam6.follow( $beach_cam5 );
+	wait( 0.5 );
+
+ 	cuecamera ( $cam6 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait ( 5.95 );
+
+	trigger( "$bigBang3" );
+	trigger( "$exp_sound" );
+	trigger( "$exp_sound0" );
+	trigger( "$exp_sound1" );
+	trigger( "$exp_sound2" );
+
+	$shuttle.hide();
+	wait( 7 );
+	
+	//hzm coop mod chrissstrahl - show illia now
+	$illia_prisoner.show();
+
+	cuecamera ( $cam7 );
+
+	wait( 2.8 );
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map11/illia/beautifulsky.mp3", 2, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	wait( 5 );
+
+	cam_fadeout( 4, 0, 0, 0, 1, 0 );
+
+	wait( 1.5 );
+
+	//Show 'The End' text (menu)
+	globalCoop_player_transmittToAll( "showmenu endgbs\n" );
+	wait( 5 );
+	globalCoop_player_transmittToAll( "popmenu 0\n" );
+	wait( 0.1 );
+
+	wait( 2 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+}
+
+void setupCellCin()
+{
+	//hzm coop mod chrissstrahl - ready illia actor
+	$illia_prisoner.morph( "exp_Nervous" );
+	$illia_prisoner.killattach();
+	$illia_prisoner.pushable( 0 );
+	$illia_prisoner.notsolid();
+}
+
+void doCellCin()
+{
+	//Spawn the cameras
+	spawn ( "Camera" , "targetname" , "c_cam1" );
+	spawn ( "Camera" , "targetname" , "c_cam2" );
+	spawn ( "Camera" , "targetname" , "c_cam3" );
+	spawn ( "Camera" , "targetname" , "c_cam6" );
+	wait( 0.5 );
+
+	//Setup the cameras
+	$c_cam1.follow( $cell_cam1 );
+	$c_cam2.follow( $cell_cam2 );
+	wait( 1 );
+
+	trigger( "$door" );
+
+	//Lights! Camera! Action!
+	cuecamera ( $c_cam1 );
+
+	
+
+	
+	$guard1.walkto( "$mark3" , "walk" , 0 , -1 );
+	wait( 0.5 );
+	$illia_prisoner.walkto( "$mark1" , "walk" , 0 , -1 );
+	wait( 1 );
+	
+	//hzm coop mod chrissstrahl - make em NOW watch tebok
+	$illia_prisoner.headwatch($tebok);
+	$guard2.headwatch($tebok);
+	
+	$guard2.walkto( "$mark4" , "walk" , 0 , -1 );
+	wait( 4.5 );
+	
+	//hzm coop mod chrissstrahl - reuse actors, we do not have anything to waste online
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	$tebok.origin('-11.03 52.97 16.00');
+	$tebok.angle(315);
+	$illia_prisoner.origin('-2.00 28.00 22.00');
+	$illia_prisoner.angle(180);	
+	$illia_prisoner.headwatchTarget("none",5);
+	cuecamera ( $c_cam2 );
+	wait( 0.5 );
+	cam_fadein( 0.5, 0, 0, 0, 0, 0 );
+
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/sitdown.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+	
+	//hzm coop mod chrissstrahl - make her NOW sit down
+	$illia_prisoner.anim("cin-m8_situp");
+
+	//Guards are too brightly lit, better if they are not seen from here on
+	$guard1.hide();
+	$guard2.hide();
+
+	wait( 1 );
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/starttelling.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+	
+	//hzm coop mod chrissstrahl - make her look at him now
+	$illia_prisoner.headwatch($tebok);
+	wait(0.25);
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map11/illia/withpleasure.mp3", 2, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map11/illia/story.mp3", 2, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map11/illia/everythingbegan.mp3", 2, 10000, 0 );
+
+	wait( 1 );
+
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+
+	wait( 3 );
+
+	$c_cam3.follow( $cell_cam3 );
+
+	wait( 0.1 );
+
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	cuecamera ( $c_cam3 );
+	
+	//hzm coop mod chrissstrahl - make tebok watchg illia
+	$tebok.headwatch($cell_cam2);
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map11/illia/thatishowigot.mp3", 2, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	wait( 2 );
+	
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/cooperation.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/factremains.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/executionis.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+	
+	$illia_prisoner.headwatchTarget("none",5);
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/ifyourcooperation.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+
+	wait( 2 );
+	
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/followguard.mp3", 2, 10000, 0 );
+	waitfordialog( $tebok );
+
+	$tebok.playdialog( "localization/sound/dialog/map11/Tebok/seeagain.mp3", 2, 10000, 0 );
+
+	//hzm coop mod chrissstrahl - make fade out for cut
+	wait(1);
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+		
+	$c_cam6.follow( $cell_cam6, $guard2 );
+	
+	wait(2.1);
+	
+	waitfordialog( $tebok );
+	
+	cuecamera ( $c_cam6 );
+	
+	//hzm coop mod chrissstrahl - reuse actors
+	$illia_prisoner.resethead(100);
+	$illia_prisoner.origin('562.00 176.00 26.00');
+	$illia_prisoner.angle(0);
+	$illia_prisoner.headwatch($final_mark1B);
+	
+	$guard1.show();
+	$guard1.resethead(100);
+	$guard1.resethead(100);
+	$guard1.headwatch($final_mark1B);
+	$guard1.origin('440.00 176.00 24.00');
+	$guard1.angle(0);
+	
+	$guard2.show();
+	$guard2.resethead(100);
+	$guard2.headwatch($final_mark1B);
+	$guard2.origin('624.00 176.00 16.00');
+	$guard2.angle(0);	
+	
+	wait(0.5);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	
+	$guard2.walkto( "final_mark1A" , "walk" , 0 , -1 );
+	wait( 0.5 );
+	$illia_prisoner.walkto( "final_mark1B" , "walk" , 0 , -1 );
+	wait( 0.5 );
+	$guard1.walkto( "final_markB" , "walk" , 0 , -1 );
+
+	wait( 3 );
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+}
+
+void credits_cin()
+{
+
+
+	
+
+
+	skipthread( "skip_scene" );
+	wait( 1 );
+
+	//Setup for the credits cinematic
+	$illia_prisoner.hide();
+	$illia_prisoner.notsolid();
+	$tebok.remove();
+
+	//Ready the camera
+	spawn( "Camera" , "targetname" , "credits_camera" );
+	wait( 0.5 );
+	$credits_camera.follow( $credits_cam, $interrogation_chair );
+	$credits_camera.cut();
+	cuecamera( $credits_camera );
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	
+	//In here, we need to make the credit menus come up
+	if( skipthread_run == 0 ) {
+		globalCoop_player_transmittToAll( "showmenu credits-staff-gbs\n" );
+		wait( 8 );
+		globalCoop_player_transmittToAll( "popmenu 1\n" );
+		wait( 1 );
+	}
+
+	if( skipthread_run == 0 ) {
+		globalCoop_player_transmittToAll( "showmenu credits-voice1-gbs\n" );
+		wait( 8 );
+		globalCoop_player_transmittToAll( "popmenu 1\n" );
+		wait( 1 );
+	}
+
+	if( skipthread_run == 0 ) {
+		globalCoop_player_transmittToAll( "showmenu credits-voice2-gbs\n" );
+		wait( 8 );
+		globalCoop_player_transmittToAll( "popmenu 1\n" );
+		wait( 1 );
+	}
+
+	if( skipthread_run == 0 ) {
+		globalCoop_player_transmittToAll( "showmenu credits-specialthanks-gbs\n" );
+		wait( 8 );
+		globalCoop_player_transmittToAll( "popmenu 1\n" );
+		wait( 1 );
+	}
+
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+
+	skipthread( "" );
+	wait( 1 );
+}
+
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbsCredits");
+}
+
+
+
+

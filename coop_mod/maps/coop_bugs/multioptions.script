@@ -1,0 +1,499 @@
+//MOM - Multi Options Menu
+//Christian Sebastian Strahl 2011.02.26
+//
+//This Script and Menu Combination detects what button the player pressed in the menu,
+//and runs the appropirate script/function
+//
+//Distributed under the Creative Common License BY-NC
+//Means Keep these Comment Lines and do not use it for comercial purpose,
+//other than that, edit/alter/upgrade/rerealse or do what you want with it.
+
+
+//declaration
+////////////////////////////////////////////////////////////////////////////////
+void	mom_playerUsePreviouseWeapon(entity ePlayer);
+void	mom_giveOrTakeWeapons(entity ePlayer,float fGive);
+entity	mom_returnPlayerForTrigger(entity eTrigger);
+void	mom_exitMenuPlayer(entity ePlayer);
+void	mom_removeMenuPlayer(entity ePlayer);
+void	mom_showMessagePlayer(entity ePlayer,string sMessage);
+entity	mom_returnPlayerForFunction(string sFunctionName);
+void	mom_doActivate(entity eTrigger,entity ePlayer);
+void	mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon);
+void	mom_exitMenu(string sFunctionName);
+void	mom_showMessage(string sFunctionName,string sMessage);
+void	mom_basic();
+
+void mom_playerUsePreviouseWeapon(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		string sWeapon;
+		sWeapon = ePlayer.getStringVar("mom_previouseWeapon");
+		ePlayer.use(sWeapon);
+	}
+}
+
+void mom_giveOrTakeWeapons(entity ePlayer,float fGive)
+//gives or takes all the menu weapons
+{
+	if(doesEntityExist(ePlayer))
+	{
+		float fNum;
+		for(fNum=0;fNum<16;fNum++)
+		{
+			if(fGive)
+			{
+				ePlayer.give("models/weapons/"+fNum+".tik");
+			}
+			else
+			{
+				ePlayer.take("models/weapons/"+fNum+".tik");
+			}
+		}
+	}
+}
+
+entity	mom_returnPlayerForTrigger(entity eTrigger)
+//returns the player last used the trigger
+{
+	entity ePlayer;
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+	}
+	return ePlayer;
+}
+
+void mom_exitMenuPlayer(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.give("models/weapons/worldmodel-Knife.tik");
+		globalCoop_main_waitAFrame();
+		ePlayer.use("Knife");
+		thread mom_removeMenuPlayer(ePlayer);	
+	}
+}
+
+void mom_removeMenuPlayer(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		float fMenu;
+		string 		sMenuName;
+		
+		sMenuName	= ePlayer.getStringVar("mom_menuName");
+		ePlayer.removeHud(sMenuName);
+		
+		for(fMenu=0;fMenu<10;fMenu++)
+		{
+			sMenuName = ePlayer.getStringVar("mom_menuName"+fMenu);
+			ePlayer.removeHud(sMenuName);
+			globalCoop_main_waitAFrame();
+		}
+		
+		if(doesEntityExist(ePlayer))
+		{
+			ePlayer.addhud("mom_gameFocus");
+		}
+	}
+}
+
+void mom_showMessagePlayer(entity ePlayer,string sMessage)
+{
+//if in multiplayer
+	if(getCvarInt("g_gametype") == 1)
+	{
+	//print message to player hud
+		if(doesEntityExist(ePlayer))
+		{
+			ePlayer.hudprint(sMessage+"\n");
+		}
+	}
+//otherwise this is a singleplayer game
+	else
+	{
+		centerprint(sMessage+"\n");
+	}
+}
+
+entity mom_returnPlayerForFunction(string sFunctionName)
+//returns the player that is using the current MOM with this function
+{
+	entity	ePlayer;
+	float	fEntity;
+
+//retrive the memorized entity number
+	fEntity	= $world.getFloatVar("player_"+sFunctionName);
+	
+//make sure the entity number is not negative
+	if(fEntity > -1)
+	{
+	//grab that entity
+		ePlayer=getEntity("*"+fEntity);
+	}
+	return ePlayer;
+}
+
+void mom_doActivate(entity eTrigger,entity ePlayer)
+//activates trigger only if both are valid
+{
+	if(doesEntityExist(eTrigger) && doesEntityExist(ePlayer))
+	{
+		eTrigger.doActivate(ePlayer);		
+	}
+}
+
+void mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon)
+//waits for delay the weapon needs to be drawn after USE command->player,weaponname
+{
+//create internal variable, can only be accessed inside this function
+	float fLimit;
+	
+//repeat this as long as the player does exist and is alive
+	while(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+	//count each time this variable plus one up
+		fLimit++;
+	//for test/debug purposes
+		// stuffcmd("echo fLimit: "+fLimit+"\n");
+	//when the limit is hit or the player has used the requested weapon
+		if(fLimit > 43 || ePlayer.getActiveWeaponName() == sWeapon)
+		{
+		//exit this function now
+			return;
+		}
+	//wait a server frame time
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void mom_exitMenu(string sFunctionName)
+{
+//create internal variables, used only inside this function
+	entity	ePlayer;
+	string	sMenuName;
+	
+//retrive player
+	ePlayer = mom_returnPlayerForFunction(sFunctionName);
+	
+	if(doesEntityExist(ePlayer))
+	{
+	//make player use the knife, sets the exit signal
+		ePlayer.use("Knife");
+	//remove the Menu off the Hud from the player
+		sMenuName = $world.getStringVar("menu_"+sFunctionName);
+		ePlayer.removeHud(sMenuName);
+	//remove the Menu off the Hud from the player
+		thread mom_removeMenuPlayer(ePlayer);
+	}
+}
+
+void mom_showMessage(string sFunctionName,string sMessage)
+{
+//create internal variables, used only inside this function
+	entity	ePlayer;
+//retrive player
+	ePlayer = mom_returnPlayerForFunction(sFunctionName);
+//display message
+	mom_showMessagePlayer(ePlayer,sMessage);
+}
+
+void mom_basic()
+//this tingy does all the stuff
+{
+//create internal variables, used only inside this function
+	float	fEntity;
+	entity	eTrigger,ePlayer,eSymbol,eRelay;
+	string	sWeapon,sThreadName,sMenuName,sWeaponName,sTargetname;
+	
+//grab the trigger that started this function and get player
+	eTrigger	= getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+	}
+	
+//EXIT IF PLAYER INVALID, THREAD MAY ALSO HAVE BEEN CALLED BY CONSOLE
+	if(!globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		return;
+	}
+	
+//GET TRIGGER NAME
+	sTargetname = eTrigger.getRawTargetName();
+	
+//GET PLAYER WEAPON,
+	sWeaponName = ePlayer.getActiveWeaponName();
+	
+//REMEMBER AND TAKE CURRENT WEAPON (makes the transition into menu faster)
+	ePlayer.take(sWeaponName);
+	sWeaponName = globalCoop_armory_returnTikiFromWeaponname(sWeaponName);
+	ePlayer.setStringVar("mom_previouseWeapon",sWeaponName);
+	
+//DISABLE TRIGGER
+	eTrigger.nottriggerable();
+	
+//mark player so we can verify him, wait a frame so the marking can take place	
+	string sVerifyString;
+	sVerifyString = sThreadName+sWeaponName+randomInt(99)+"MOM"+getLevelTime();
+	ePlayer.setStringVar("verifyString",sVerifyString);
+	
+//RELAY TRIGGER MANAGMENT
+	eRelay = spawn("trigger_relay");
+	globalCoop_main_waitAFrame();
+	eRelay.origin(eTrigger.getOrigin());
+	eRelay.bind(eTrigger);
+	eRelay.setStringVar("mom_originalTriggerName",sTargetname);
+
+//GRAB THE MENU NAME, IF NONE GIVEN USE DEFAULT
+	sMenuName = eTrigger.getStringVar("uservar1");
+	if(sMenuName == "")
+	{
+		sMenuName = "mom_default";
+	}
+//GRAB THE MASTER THREAD FOR THIS TRIGGER
+	sThreadName = eTrigger.getStringVar("uservar2");
+//GIVE ALL REQUIRED WEAPONS
+	ePlayer.give("models/weapons/worldmodel-Knife.tik");
+	mom_giveOrTakeWeapons(ePlayer,1);
+
+//REMOVE CURRENT MENU, JUST TO BE SAFE
+	ePlayer.removehud(sMenuName);
+	ePlayer.removehud("mom_gameFocus");
+		
+//WAIT A MOMENT FOR THE WEAPONS TO GO INTO THE PLAYER INVENTORY
+	globalCoop_main_waitAFrame();
+	
+//RETURN WEAPON TO PLAYER
+	ePlayer.give(sWeaponName);
+		
+//ADD THE CURRENT MENU (Modified hud to act as menu!) AND REMEMBER MENU NAME
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.addhud(sMenuName);
+		ePlayer.setStringVar("mom_menuName",sMenuName);	
+	}
+//CHECK FOR WEAPON CHANGE (menu makes player use knife)
+	mom_waitForWeaponDrawDelay(ePlayer,"Knife");
+	
+//PLAYER IS MISSING - TERMINATE THIS THREAD AND ENABLE TRIGGER AGAIN
+	if(!globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		eTrigger.triggerable();
+		eRelay.remove();
+		return;
+	}
+	
+//PLAYER SEAMS TO NOT HAVE THE MENU
+	//if the player does not use the knife after the given delay above
+	//then it is safe to assum the player does not have the menu!
+	if(ePlayer.getActiveWeaponName() != "Knife")
+	{
+	//remove menu
+		thread mom_removeMenuPlayer(ePlayer);
+		
+//START ALTERNATIVE THREAD (compatibility to non-coop users)
+		sThreadName = eTrigger.getStringVar("uservar3");
+		if(sThreadName != "")
+		{
+		//start alternative thread activated by the player
+			eRelay.thread(sThreadName);
+			mom_doActivate(eRelay,ePlayer);
+			globalCoop_main_waitAFrame();
+			eRelay.remove();
+		}
+//DISPLAY A MESSAGE IF NO ALTERNATIVE THREAD IS DECLARED
+		else
+		{
+			mom_showMessagePlayer(ePlayer,"It seems that you do not have the required Menu!");
+		}
+//RESTORE BASIC THREAD AND PLAYER WEAPON, EXIT THIS FUNCTION
+		eTrigger.triggerable();
+		ePlayer.use(sWeaponName);
+		return;
+	}
+	
+//this is to keep compatibility to MOM 1.0
+//this is to keep compatibility to MOM 1.0
+//this is to keep compatibility to MOM 1.0
+//reset the last entity Number
+	$world.setFloatVar(sThreadName,-1);
+	
+//register the player Entity Number, so we can refer later to him
+	float	fMaxclients;
+
+//find out how many entities we have to check
+	fMaxclients = getCvarInt("sv_maxclients");
+	
+//start with entity Zero and work upwards
+//players are using low entity numbers, starting with Zero
+	for(fEntity=0;fEntity<fMaxclients;fEntity++)
+	{
+	//get entity with that NUMBER, this has nothing to do with targetnames
+		eSymbol=getEntity("*"+fEntity);
+	//verify that this entity dos exist
+		if(doesEntityExist(eSymbol))
+		{
+		//compare the current origin
+			if(eSymbol.getStringVar("verifyString") == sVerifyString)
+			{
+			//remember the player entity number and menu to remove
+				$world.setFloatVar("player_"+sThreadName,fEntity);
+				$world.setStringVar("menu_"+sThreadName,sMenuName);
+				ePlayer = eSymbol;
+			}
+		}
+	}
+//END OF - this is to keep compatibility to MOM 1.0
+//END OF - this is to keep compatibility to MOM 1.0
+//END OF - this is to keep compatibility to MOM 1.0
+
+//PUT AWAY THE CURRENT WEAPON (take it since that is faster)
+	ePlayer.take("models/weapons/worldmodel-Knife.tik");
+	
+//START FUNCTION MASTER THEREAD ONCE
+	eRelay.thread(sThreadName);
+	mom_doActivate(eRelay,ePlayer);
+
+//WAIT FOR THE PLAYER TO PUT THE WEAPON AWAY
+	mom_waitForWeaponDrawDelay(ePlayer,"None");
+
+//RETURN WEAPON TO PLAYER
+	ePlayer.give("models/weapons/worldmodel-Knife.tik");
+	
+//HIDE USE SYMBOL IF EXIST
+	eSymbol=getEntity(sTargetname+"_symbol");
+	if(doesEntityExist(eSymbol))
+	{
+		eSymbol.hide();
+	}
+//THIS CHECKS CONTINUSLY IF THE PLAYER IS USING A DIFFRENT WEAPON
+//IF HE DOES, HE PRESSED A BUTTON IN THE MENU CALLING THE WEAPON
+//FROM THE PLAYER HIS INVENTORY
+	vector vPlayerOrigin, vTriggerOrigin;
+	while(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+	//get the current weapon and origins
+		sWeapon			= ePlayer.getActiveWeaponName();//grab active weapon data
+		vPlayerOrigin	= ePlayer.getOrigin();
+		vTriggerOrigin	= eTrigger.getOrigin();
+		
+	//set player Z axis to zaxis of the trigger
+	//this way we only check the X/Y distance
+		vPlayerOrigin_z = vTriggerOrigin_z;
+		
+	//distance between player and trigger is more than 110 units
+	//- switched to spectator
+	//- changed the team
+	//- died
+		if(vectorLength(vTriggerOrigin - vPlayerOrigin) > 110)
+		{		
+		//print a status message, so the player knows whats going on
+		//mom_showMessagePlayer(ePlayer,"You are now to far away!");
+			
+		//Take Weapons
+			ePlayer.take("models/weapons/worldmodel-Knife.tik");
+			mom_giveOrTakeWeapons(ePlayer,0);
+			
+		//remove the Menu
+			thread mom_removeMenuPlayer(ePlayer);
+			
+		//make player use his previouse weapon again
+			mom_playerUsePreviouseWeapon(ePlayer);
+		
+		//reactivate the trigger so it can be used again
+			eTrigger.triggerable();
+		
+		//remove relay trigger
+			eRelay.remove();
+			
+		//show symbol
+			if(doesEntityExist(eSymbol))
+			{
+				eSymbol.show();
+			}
+			
+		//Exit this function now
+			return;
+		}
+	//else the player is still within range
+	//check what weapon he is holding in his hand
+	//each option in the menu picks a different weapon
+	//this way we see what option he used the last time
+		else
+		{		
+//A BUTTON HAS BEEN PRESSED
+			if(sWeapon != "None")
+			{
+				//debug
+				//ePlayer.hudprint("WEAPON: "+sWeapon+"\n");
+//EXIT MOM MENU
+				if(sWeapon == "Knife")
+				{				
+				//remove the menu
+					thread mom_removeMenuPlayer(ePlayer);
+					
+				//take the knife, so player does not manually use it
+					ePlayer.take("models/weapons/worldmodel-Knife.tik");
+					thread mom_giveOrTakeWeapons(ePlayer,0);
+					
+				//make player use his previouse weapon again
+					mom_playerUsePreviouseWeapon(ePlayer);
+				
+				//reactivate the trigger
+					eTrigger.triggerable();
+					
+				//remove relay trigger
+					eRelay.remove();
+					
+				//show symbol
+					if(doesEntityExist(eSymbol))
+					{
+						eSymbol.show();
+					}
+					
+				//exit this function
+					return;
+				}
+//START SELECTION THREAD
+				if(doesEntityExist(eRelay))
+				{
+				//set selection thread
+					eRelay.thread(sThreadName+"_"+sWeapon);
+					mom_doActivate(eRelay,ePlayer);
+				}
+//REMOVE SIGNAL HUD (so it can be added again)
+				ePlayer.removehud("mom_processed");
+//WAIT FOR THE CURRENT WEAPON TO VANISH
+				ePlayer.putawayweapon("dual");
+				mom_waitForWeaponDrawDelay(ePlayer,"None");
+//SIGNAL THE MENU OF THIS PLAYER THAT MOM IS READY FOR MORE INPUT
+				ePlayer.addhud("mom_processed");
+			}
+			else
+			{
+			//pause one frame
+				globalCoop_main_waitAFrame();
+			}
+		}
+	}
+	eRelay.remove();
+//REMOVE MENU AND WEAPON
+	if(doesEntityExist(ePlayer))
+	{
+		thread mom_removeMenuPlayer(ePlayer);
+		ePlayer.take("models/weapons/worldmodel-Knife.tik");
+		mom_giveOrTakeWeapons(ePlayer,0);
+	}
+//ENABLE TRIGGER 
+	eTrigger.triggerable();
+//SHOW USE SYMBOL AGAIN
+	if(doesEntityExist(eSymbol))
+	{
+		eSymbol.show();
+	}
+}
+
+

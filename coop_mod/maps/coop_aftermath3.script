@@ -1,0 +1,618 @@
+//Declare, so we can call a fucntion which is on the bottom
+//wting a function that is on the top
+
+void main();
+void checkpoint();
+void setupLevel();
+void openDoorForTelsia();
+void telsiarescue();
+void unlockdoor1();
+void unlockdoor2();
+void telsia_scream();
+void telsia_thanks();
+void telsia_killed();
+void addWaterHud();
+void addWaterHudToMe(entity eTrigger,entity ePlayer);
+float isEntityInsideOfEntity2(entity e1,entity e2,float fPadding);
+float isBoundingBox2InsideOfBoundingBox1(vector vOrigin1,vector vBBoxMins1,vector vBBoxMaxs1,vector vOrigin2,vector vBBoxMins2,vector vBBoxMaxs2,float fPadding);
+float floatNotNegative(float fNotNegative);
+void makeSoldiersAttackPlayer();
+void spawnExoInsideTube();
+void exitTogether();
+void coop_endLevel();
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+//this is executed as soon as the server has finished loading this map
+{
+	//hzm coop mod chrissstrahl - get paramaters - load checkpoint if exist
+	if(getLevelParamaterValue("stage") == "2"){
+		thread checkpoint();
+	}
+	//eof hzm
+
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Daedalus";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Stop the Spy";
+	coop_string_objectiveItem2 = "Find a way out of the sewers";
+	coop_string_objectiveItem3 = "Unlock the door and rescue Telsia";
+	coop_string_objectiveItem4 = "Escort Telsia out of the sewers";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Stopen Sie den Spion";
+	coop_string_objectiveItem2_deu = "Finden Sie einen Weg aus der Kanalisation";
+	coop_string_objectiveItem3_deu = "Entriegeln Sie die Tür und retten Sie Telsia";
+	coop_string_objectiveItem4_deu = "Eskortieren Sie Telsia aus der Kanalisation";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
+	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+	
+//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
+	coop_string_weapon5 = "models/weapons/worldmodel-tetryon.tik";
+	coop_string_weapon6 = "models/weapons/worldmodel-rom-disruptor.tik";
+	
+//make level fogy
+/*
+	$world.entity_fade_dist( 3500 );//6000
+	$world.farplane_cull( 0 );//1
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane ( 2500 );//4000
+	*/
+//setup the level objects
+	thread setupLevel();
+//wait for the player to spawn
+	waitForPlayer();
+//clear/set viewmodes avialbe for Tricorder
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("tripwire");
+	$world.addAvailableViewMode("structuralintegrity");
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("incomplete" , 1 , 0 );//stop spy
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//find way out
+
+	wait(5);
+//Save Game
+	if(getCvarInt("g_gametype") != 1)
+	{
+		if($player.getHealth() < 1)
+			return;
+		stuffCMD("ui_savegamewithname \"City3 - Serwers\"");
+	}
+}
+
+void checkpoint()
+//hzm coop mod chrissstrahl - map is loaded with checkpoint
+//make sure player can not go back to the part of the level that is suppose to be already completed
+//spawn players at right position
+{
+	$spawnExoTrigger.remove();
+	$ceilingFallTrigger.remove();
+	$ceiling_fall.open($world);
+	$openDoorForTelsia.remove();
+	$openDoorBackToGeneratorSymbol2.remove();
+	$openDoorBackToGeneratorSymbol1.remove();
+	$openDoorBackToGeneratorTrigger.remove();
+	$gate1.lock();
+	
+	//player spawns
+	float f;
+	entity e;
+	for(f=1;f<9;f++){
+		e=getEntity("ipd"+f);
+		if(doesEntityExist(e)){
+			e.angle(0);
+		}
+	}
+	$ipd1.origin('11614 254 -1008');	
+	$ipd2.origin('11574 254 -1008');
+	$ipd3.origin('11614 302 -984');
+	$ipd4.origin('11614 206 -984');
+	$ipd5.origin('11574 302 -984');
+	$ipd6.origin('11574 206 -984');
+	$ipd7.origin('11534 206 -984');
+	$ipd8.origin('11534 302 -984');
+}
+
+
+void setupLevel()
+{
+//remove current used weapon
+	$telsia.killattach();
+}
+
+void openDoorForTelsia()
+{
+	entity eTrigger,eActor,eDoor;
+//get the entity that started this very instance of this function 
+	eTrigger = getCurrentEntity();
+//see that it exists, this function does not accept calls from console
+	if(doesEntityExist(eTrigger))
+	{
+	//grab the entity that activated the entity that called this thread
+	//in this case, due to the trigger setup it will be a player
+		eActor = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(eActor))
+		{
+		//grab door by reading a uservar of the trigger
+			eDoor = getEntity( eTrigger.getStringVar("uservar1") );
+		//open door if activator is not the player
+			if(eActor.getTargetname() != "$player" && doesEntityExist(eDoor) == 1)
+			{
+			//open the door - keeps it open if it is open already
+				eDoor.open(eActor);
+			}
+		}
+	}
+}
+
+
+void telsiarescue()
+//Munro enters the room where telsia is inside
+{
+//playDialog does not work with players, use: simpleplaydialog
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($telsia);
+	entityPlayerGlobal.simpleplaydialog("localization/sound/dialog/borg01/munro_telsia.mp3",2,128);
+	
+//hzm coop mod chrissstrahl - make her look at the closest player
+	$telsia.headWatch(entityPlayerGlobal);
+//eof hzm
+//make telsia run to the node, AI need to be off!!! (KEY=ai_off VALUE=1 -OR- $telsia.ai_off();)
+	$telsia.walkto("$telsiaFfrunTo","run");
+//wait for telsia to reach the node
+	waitFor($telsia);
+//make telsia asks munro to t6ake down the ff
+	$telsia.playDialog("localization/sound/dialog/borg01/telsia_takedown.mp3",2,128,0);
+	
+//hzm coop mod chrissstrahl - make her look at the button
+	$telsia.headWatch($telsiaLookAt);
+//eof hzm
+}
+
+void unlockdoor1()
+//make the door unlock after using console in pool room
+{
+//hzm coop mod chrissstrahl - remove the usable symbol
+	$unlockdoor1_symbol.remove();
+
+	$door1.unlock();
+//wait for the player to reach the location
+	wait(4);
+//spawn dust effect
+	triggerEntity($spawnRomulanRockEffect);
+//wait for the effect to visualize
+	wait(1);
+//spawn enemy
+	triggerEntity($spawnRomulanRockTrigger);
+}
+void unlockdoor2()
+//make the door unlock after using nearby console
+{
+//hzm coop mod chrissstrahl - move useable symbol from one trigger to another
+	$unlockdoor2_symbol.origin('13528.00 4424.00 -920.00');
+	
+	$door2.unlock();
+//open door
+	$door2.open($world);
+//remove the message from the trigger
+	$doo2_useTrigger.message("");
+//enable trigger that opens door for telsia if she is close
+	$autoOpenDoorForTelsia.triggerable();
+	
+//hzm coop mod chrissstrahl - move useable symbol from one trigger to another
+	$levelExit_symbol.origin('13792.00 7232.00 -1126.00');
+	$levelExit_symbol.missionobjective(1);
+}
+
+void exitTogether()
+{
+	$exitTogether.remove();
+	
+//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'400 400 100','13774 6982 -1200');
+}
+
+void telsia_scream()
+//make telsia scream
+{
+	//hzm coop mod chrissstrahl - make her missionobjective
+	$telsia.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - get closest player
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($telsia);
+	$telsia.headWatch(entityPlayerGlobal);
+	wait(0.2);
+	$telsia.playDialog("localization/sound/dialog/borg01/telsia_scream.mp3",2,128,0);
+
+	//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("incomplete" , 3 , 1 );//unlock telsia
+	
+	//player spawns
+	float f;
+	entity e;
+	for(f=1;f<9;f++){
+		e=getEntity("ipd"+f);
+		if(doesEntityExist(e)){
+			e.angle(0);
+		}
+	}
+	$ipd1.origin('11614 254 -1008');	
+	$ipd2.origin('11574 254 -1008');
+	$ipd3.origin('11614 302 -984');
+	$ipd4.origin('11614 206 -984');
+	$ipd5.origin('11574 302 -984');
+	$ipd6.origin('11574 206 -984');
+	$ipd7.origin('11534 206 -984');
+	$ipd8.origin('11534 302 -984');
+}
+
+void telsia_thanks()
+//make telsia thank munro
+{
+	//hzm coop mod chrissstrahl - set checkpoint, to load this level in stage 2 if the mission if failed from now on
+	globalCoop_mission_setCeckpoint("stage=2");
+	//eof hzm
+	
+	//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 3 , 0 );//unlock telsia
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//escort telsia
+	
+//unlock gate3 so the player can now proceed with telsia
+	$gate3.unlock();
+//telsia says thanks
+	$telsia.playDialog("localization/sound/dialog/borg01/telsia_goodjob.mp3",2,128,0);
+	wait(0.5);
+//hzm coop mod chrissstrahl - make her look at the player
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($telsia);
+	$telsia.headWatch(entityPlayerGlobal);
+//eof hzm
+	wait(1.5);
+//stop telsia looking at munro
+	$telsia.headwatchtarget("none",5);
+//enable the ai again, so telsia will follow the player
+	$telsia.ai_on();
+//set the tenceny to follow munro, default is 1 but make sure it works garanteed
+	$telsia.settendency("follow",1);
+//now telsia can die
+	$telsia.immortal(0);
+//make her show in the health indication bar, make her weak, so player must stay close
+	$telsia.health( 100 );
+	$telsia.maxbosshealth(100);
+	$telsia.updatebosshealth( 1 );
+	
+//hzm coop mod chrissstrahl - no damage by players
+	$telsia.damagemodifier("targetname","player",0);
+//eof hzm
+	
+//do not allow her to be killed by any event
+	$telsia.killthread("telsia_killed");
+	
+//do not display mission sucess hud
+	nointermission();
+}
+
+void telsia_killed()
+//this is started when teslia dies
+{
+//playDialog does not work with players, use: simpleplaydialog
+	//hzm coop mod chrissstrahl - get closest player
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($telsia);
+	entityPlayerGlobal.simpleplaydialog("localization/sound/dialog/borg01/munro_telsia.mp3",2,128);
+//fail the mission
+	//hzm coop mod chrissstrahl 
+	$telsia.failmission(2,"#You lost a Teammate");
+}
+
+void addWaterHud()
+{
+	entity eTrigger,ePlayer;
+//get the entity that started this very instance of this function 
+	eTrigger = getCurrentEntity();
+//see that it exists, this function does not accept calls from console
+	if(doesEntityExist(eTrigger))
+	{
+	//grab the entity that activated the entity that called this thread
+	//in this case, due to the trigger setup it will be a player
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+		//start a seperate function that will handle the effect hud
+		//while the player is inside the trigger
+			addWaterHudToMe(eTrigger,ePlayer);
+		}	
+	}
+}
+
+void addWaterHudToMe(entity eTrigger,entity ePlayer)
+{
+//if trigger and player do exist
+	if( doesEntityExist(eTrigger) == 1 && doesEntityExist(ePlayer) == 1 )
+	{
+		if(ePlayer.getFloatVar("waterHudAdded") != 1)
+		{
+		//add the hud just once, reset this entity varaibale when player leaves the trigger
+			ePlayer.setFloatVar("waterHudAdded",1);			
+		//add hud
+			ePlayer.addhud("city_effect_waterfall");
+		//as long as the player is inside the trigger loop here
+			while( isEntityInsideOfEntity2(ePlayer,eTrigger,-8) )
+			{
+				wait(0.1);
+			}
+		//make sure the player is still on the server
+			if(doesEntityExist(ePlayer))
+			{
+				ePlayer.removehud("city_effect_waterfall");
+				ePlayer.setFloatVar("waterHudAdded",0);
+			}
+		}
+
+	}
+}
+
+
+//taken from hzm co-op mod
+float isEntityInsideOfEntity2(entity e1,entity e2,float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ENTITY2 OR OTHERWISE
+//------------------------------------------------------------------------------
+{
+//USE PADDING FOR MOVING ENTITYS, DEPENDING ON VELOCITY THEY CAN HAVE MOVED AWAY FROM THE LAST ORIGIN
+	if(doesEntityExist(e1) == 1 && doesEntityExist(e2) == 1){
+//CREATE VARS
+		vector	vOrigin1,
+				vBBoxMins1,
+				vBBoxMaxs1,
+				vOrigin2,
+				vBBoxMins2,
+				vBBoxMaxs2;
+//GRAB DATA FROM BBOX, SAVES US TWO "else" statments
+		vBBoxMins1 = e1.getMins();
+		vBBoxMaxs1 = e1.getMaxs();
+		vBBoxMins2 = e2.getMins();
+		vBBoxMaxs2 = e2.getMaxs();
+//GET ORIGINS
+		vOrigin1 = e1.getOrigin();
+		vOrigin2 = e2.getOrigin();
+//DO THE BBOX CHECK, CHECK BOTHCONSTELLATIONS TO AVOID MISSCALCULATION, UPDATE isBoundingBox2InsideOfBoundingBox1 TO SOLVE ERROR
+		float fInside = 0;
+		if(	isBoundingBox2InsideOfBoundingBox1(vOrigin1,vBBoxMins1,vBBoxMaxs1,vOrigin2,vBBoxMins2,vBBoxMaxs2,fPadding) == 1 &&
+			isBoundingBox2InsideOfBoundingBox1(vOrigin2,vBBoxMins2,vBBoxMaxs2,vOrigin1,vBBoxMins1,vBBoxMaxs1,fPadding) == 1)
+		{
+			fInside = 1;
+		}
+		return fInside;
+	}
+//Return False Player by default
+	return 0;
+}
+
+
+//taken from hzm co-op mod
+float isBoundingBox2InsideOfBoundingBox1(	vector vOrigin1,//ORIGIN BBOX1
+															vector vBBoxMins1,//e.getMins()
+															vector vBBoxMaxs1,//e.getMaxs()
+															vector vOrigin2,//ORIGIN BBOX2
+															vector vBBoxMins2,//e.getMins()
+															vector vBBoxMaxs2,//e.getMaxs()
+															float fPadding)//ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+//------------------------------------------------------------------------------
+//CHECK IF THE GIVEN BOUNDINGBOXES ARE TOUCHING OR INSIDE OF EACH OTHER BOUNDINGBOX
+//------------------------------------------------------------------------------
+{
+//VECTOR LENGTH
+	float fCalcDist;
+//TEMP-VECTORS FOR CALCULATIONS
+ 	vector vCalc1,vCalc2;
+//IF ORIGIN IS NOT EXACTLY THE SAME
+	if(vOrigin1 != vOrigin2){
+//X-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_x = vOrigin1_x;//GET ONLY X
+		vCalc2_x = vOrigin2_x;//GET ONLY X
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_x >= vCalc2_x){
+			if(	fCalcDist > (floatNotNegative(vBBoxMins1_x) + vBBoxMaxs2_x)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_x + floatNotNegative(vBBoxMins2_x))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Y-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_y = vOrigin1_y;//GET ONLY Y
+		vCalc2_y = vOrigin2_y;//GET ONLY Y
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_y >= vCalc2_y){
+			if(	fCalcDist > (floatNotNegative(vBBoxMins1_y) + vBBoxMaxs2_y)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_y + floatNotNegative(vBBoxMins2_y))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Z-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_z = vOrigin1_z;//GET ONLY Z
+		vCalc2_z = vOrigin2_z;//GET ONLY Z
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_z <= vCalc2_z){
+			if(	fCalcDist > (vBBoxMaxs1_z + floatNotNegative(vBBoxMins2_z))){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (floatNotNegative(vBBoxMins1_z) + vBBoxMaxs2_z)){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+	}
+//IS STUCK
+	return 1;
+}
+
+//taken from hzm co-op mod
+float floatNotNegative(float fNotNegative)
+//----------------------------------------------------------------------
+// If negative value, convert to positive
+//----------------------------------------------------------------------
+{
+	if(fNotNegative < 0){
+		fNotNegative = (fNotNegative - (fNotNegative*2));
+	}
+	return fNotNegative;
+}
+
+
+void cinematic_shaftObserve()
+//player observes informant and commander
+{
+//fade screen black, this level starts with a cinematic
+	cam_fadeout(0.1,0,0,0,1);
+	
+//spawn camera entity, this level starts with a cinematic
+	spawn("camera","targetname","cam1");
+	
+//wait for the camera entity to spawn and the cam to fade black 
+	wait(0.1);
+
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	//make cam follow the given path entity
+	$cam1.follow($cinematicSceneA);
+	//transition to camera: cut, no transition
+	$cam1.cut();
+	//wait for the camera to get started moving along the path
+	wait(0.1);
+	//switch from player to given camera entity now
+	cuecamera($cam1);
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	
+//do not allow the player to hut/push eigther of them
+	$informant.nodamage();
+	$commander.nodamage();
+	$informant.mass(999999);
+	$commander.mass(999999);
+	$informant.pushable(0);
+	$commander.pushable(0);
+	
+//wait for the camera to get in position
+	wait(1.8);
+//trigger the spawnerf to spawn a effect
+	triggerEntity($cinematic_fallingDustEffect);
+//wait for the camera to get in position
+	wait(1.2);
+//talk, I'll look for him
+	$informant.playdialog("localization/sound/dialog/m10l1/info_notjob.mp3",1,256,0);
+	wait(4.5);
+//walk away - sewer smells, you know that
+	$informant.walkto("$informantGoAway","walk");
+	$commander.walkto("$commanderGoAway","walk");
+//wait until they started walking away
+	wait(1);
+//fade screen black, this level starts with a cinematic
+	cam_fadeout(0.9,0,0,0,1);
+//wait until the camera has blacked out
+	wait(1.1);
+
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+		
+//remove both actors
+	$informant.remove();
+	$commander.remove();
+//wait until the players sees from his own location again
+	wait(0.05);
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+}
+
+
+void makeSoldiersAttackPlayer()
+{
+//wait for soldier to spawn
+	wait(0.05);
+//make soldier attack player, in case if player is out of view
+//the other soldiers shoudl follow, or wake up once this one is dead
+	//hzm coop mod chrissstrahl - get closest player
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($soldier3);
+	$soldier3.attack(entityPlayerGlobal);
+}
+
+void spawnExoInsideTube()
+//spawns exomorph inside the tube
+//needs to modify the exomorph or it gets stuck,
+//since it is originally to big
+{
+	float fHowMany;
+	
+//repeat this a few times
+	for(fHowMany=6;fHowMany>0;fHowMany--)
+	{
+	//create entity variable
+		entity eExo;
+	//spawn the actor in the level, and put it into the entity variable in script
+		//models/char/alien-type1a-lurker-esrb.tik
+		eExo = spawn("actor","model","models/char/alien-type1a-lurker.tik","hide","1","ai_off","1","origin","10402.60 708.60 -828.00");
+	//wait for the exo to spawn
+		wait(0.05);
+	//modify actor
+		//change bounding box size, so it won't get stuck inside the tube
+		eExo.setSize('-12 -12 0','12 12 22');//was:12 12 32
+		//change visual size of the model
+		eExo.scale(0.6);
+		//change facing direction
+		eExo.angle(270);
+		//activate ai
+		eExo.ai_on();
+		//make visible again
+		eExo.show();
+		//make ai fall to teh ground
+		//since the original bounding box made it get stuck in the wall
+		//it needs a extrenal impulse to get it falling
+		eExo.droptofloor();
+		//in addition push it downwards once, so it hits the push trigger for sure
+		eExo.setVelocity('0 0 -100');
+		//wait a moment for the current exo to get pushed out of the tube
+		wait(2);
+	}
+}
+
+//hzm coop mod chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath4");
+}
+
+
+

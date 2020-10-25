@@ -1,0 +1,442 @@
+//geometry started in 200? by Luke Sutton
+//script by chrissstrahl 2017.12.08 ulm, germany
+
+//tree leafs
+//fx/fx-mapleleaf-yellow.tik
+//fx/fx-mapleleaf-orange.tik
+//fx-fallingleaves-yelloworange.tik //not working ?
+//fx/fx-idryllswirl-red.tik //red circle swirl
+//fx/fx-gooblob-orange.tik //scale up and it looks like raw gold
+//fx/fx-drull-ship-clouds.tik //clouds effect
+//fx-drull-ship-atmosphere.tik //cool effect
+//fx-drull-ship-atmosphere2.tik //cool effect
+//fx-blowingdust-rooftop-gray.tik //blowing dust effect
+//fx-blowingdust-rooftop-brown.tik//blowing dust effect
+//fx-blowingdust-large-gray.tik
+//fx-blowingdust-large-brown.tik //excellent for rescue chell
+//fx-lightcorona.tik //bled corona
+//fx-impactglow-borgsphere.tik //corona
+//fx-laserbeam-scan-red.tik //cool laser
+//fx-laserbeam-scan-green.tik
+//fx-laserbeam-electric.tik //cool electric beam
+
+//fixed bug in geometry, useing caulk instead of visual texture, causing mirrow effect
+//bug reported by ricardo(Admiral Abu)
+
+void main();
+void rocksDestroy();
+void sniperSniper();
+void surpriseSuprise();
+void basherBasher();
+void leavesFlyAway();
+void shuttleTakeOff();
+void shuttleTakeOff_skip();
+void enemyKilled();
+void secretEnter();
+void dynLightFlicker();
+
+float secretCollected;
+float fEnemyKilled;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+
+void main()
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1; //this has to stay, because chapter 1 of rotec is completed hereby
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Help the Attrexians and defeat the Romulan invaders.";
+	coop_string_objectiveItem2 = "Defend the Control Room, and its Personal.";
+	coop_string_objectiveItem3 = "Protect the wounded to allow for a evacuation.";
+	coop_string_objectiveItem4 = "Activate the Cart and drive it.";
+	coop_string_objectiveItem5 = "Modulate the thingy.";
+	coop_string_objectiveItem6 = "Return to your Shuttle.";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Helfen Sie den Attrexianern und besiegen Sie die romulanischen Eindringlinge.";
+	coop_string_objectiveItem2_deu = "Verteidigen Sie den Kontrollraum und sein Personal.";
+	coop_string_objectiveItem3_deu = "Besch$$u$$tzen Sie die verwundeten und erm$$o$$glichen Sie die Evakuation.";
+	coop_string_objectiveItem4_deu = "Aktivieren Sie Wagon und fahren Sie mit diesem.";
+	coop_string_objectiveItem5_deu = "Modulieren Sie das Dingens.";
+	coop_string_objectiveItem6_deu = "Kehren Sie zum Ihrem Shuttle zur$$u$$ck.";
+	coop_string_objectiveTacticalInfo1_deu = "";//N$$u$$tzen Sie die Verwirrung zu Ihrem Vorteil
+
+	coop_string_story = "Date: Jan 2388. USS Odyssey-A has been ordered to fight off an orbiting warbird, and liberate the planet. You and your teammates must battle through the streets of Attrexia and protect the population from Romulan invasion.";
+	coop_string_story_deu = "Datum: Jan 2388. Die USS Odyssey-A wurde entsannt um einen Warbird zu vertreiben und den Planeten zu befreien. Sie und Ihr Team m$$u$$ssen sich durch die Stra$$S$$en von Attrexia k$$a$$mpfen und die Bev$$o$$lkerung vor den romulanischen Invsoren sch$$u$$tzen.";
+	
+//update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//help attrax
+	globalCoop_objectives_update("complete" , 2 , 0 );//defend control
+	globalCoop_objectives_update("complete" , 3 , 0 );//protect
+	globalCoop_objectives_update("complete" , 4 , 0 );//avtivate cart
+	globalCoop_objectives_update("complete" , 5 , 0 );//modulate
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//shuttle
+	
+	//setup shuttle components
+	$shuttleType8_clip.bind($shuttleType8_origin);
+	$shuttleType8_model.bind($shuttleType8_origin);
+	
+	//setup surprise romulans
+	$romSurprise0.anim("crouch_idle");
+	$romSurprise1.anim("crouch_idle");
+	$romSurprise2.anim("crouch_idle");
+	
+	//setup world
+	$world.entity_fade_dist( 4000 );
+	$world.farplane_color( '0.0875 0.1 0.145' );
+	$world.farplane( 1000 );
+	$world.farplane_cull ( 0 );
+	$world.farplane_fog ( 1 );
+	$world.wind_intensity( .5 );
+	
+	//hzm coop mod chrissstrahl - register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Tricorder-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Phaser-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-BurstRifle.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-CompressionRifle.tik");
+
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	soundtrack( "music/dm_kw.mus" );
+  
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Luke^0_^8Sutton";
+	
+	//make clip now solid, was notsolid to allow pathnodes to connect
+	$rockClip.solid();
+	
+	//remove archetype
+	$conduit0.archetype("");
+	$conduit1.archetype("");
+	$t95.archetype("");
+	$t94.archetype("");
+	$t93.archetype("");
+	$t92.archetype("");
+	$t91.archetype("");
+	$t90.archetype("");
+	$t89.archetype("");
+	
+	//open big door
+	$bigDoor.open($world);
+	
+	waitForplayer();
+	$hazardTeam1.ai_on();
+}
+
+void rocksDestroy()
+{
+	$rockClip.remove();
+	$rock0.remove();
+	$rock1.remove();
+	$rock2.remove();
+	$normalWall0.remove();
+	
+	triggerEntity($waterAmbiente0);
+	triggerEntity($waterAmbiente1);
+}
+
+void sniperSniper()
+{
+	$sniper0.ai_on();
+	$sniper1.ai_on();
+}
+
+void surpriseSuprise()
+{
+	$romSurprise0.ai_on();
+	$romSurprise1.ai_on();
+	$romSurprise2.ai_on();
+	wait(3);
+	$romGranade.ai_on();
+}
+
+void basherBasher()
+{
+	entity e;
+	e=getCurrentEntity();
+	entity ePlayer;
+	ePlayer = e.getLastActivatingEntity();
+	
+
+	//i don't want the basher to be stoppable
+	$basher.mass(99999);
+	$basher.pushable(0);
+	//super health
+	$basher.health(($basher.getHealth() * 2.5));//chrissstrahl - made him stronger, as he is the only one of his kind here [b607]
+	$basher.playsound ( "sound/chars/basher/bash_charge.wav" , 3 , 1.3 ,684 );
+	
+	$basher.anim("crash");
+	waitForAnimation($basher,"crash");
+	
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getHealth() > 0){
+			$basher.turntowardsentity(ePlayer);
+		}
+	}
+	
+	$basher.anim("taunt");
+	waitForAnimation($basher,"taunt");
+	
+	$basher.ai_on();
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getHealth() > 0){
+			$basher.attack(ePlayer);
+		}
+	}
+}
+/* //chrissstrahl disabled, as it is no longer used [b607]
+void basherLampBashing()
+{
+	entity e;
+	e=getCurrentEntity();
+	entity eBasher;
+	eBasher = e.getLastActivatingEntity();
+	vector vVel;
+	vVel = eBasher.getVelocity();
+	vVel_z = 100;
+	$basherLamp.setvelocity(vVel);
+	$basherLamp.rotateX(60);
+	$basherLamp.rotateY(10);
+}
+*/
+
+void secretEnter()
+{
+	if(secretCollected==0){
+		$foundSecretSteam.remove();	
+		thread dynLightFlicker();
+	}
+	secretCollected=1;
+}
+
+void theLineMustBeDrawn_thisFarNoFurther()
+{
+	$theLineMustBeDrawn_thisFarNoFurther.show();
+	$theLineMustBeDrawn_thisFarNoFurtherUse.model("models/fx/fx-sparks-yellow-directional.tik");
+	$world.light_lightstyle( "theLineMustBeDrawnHere", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy", 0 );
+	wait(1);
+	$theLineMustBeDrawn_thisFarNoFurther.simplePlayDialog( "localization/sound/dialog/misc/picard_thisfarnofur_rev.mp3", 3, 999999 ); //[b607] chrissstrahl - changed volume from 7 to 3
+	wait(6);
+	
+	entity eBorsch;
+	float fBorsch;
+	for(fBorsch=0;fBorsch<8;fBorsch++){
+		eBorsch = getEntity("drone"+fBorsch);
+		if(doesEntityExist(eBorsch)){
+			eBorsch.forcealpha(2);
+			eBorsch.alpha(0.1);
+			eBorsch.show();
+			eBorsch.displayeffect("TransportIn","Borg");
+			thread globalCoop_player_makeSolidASAP(eBorsch);
+			eBorsch.ai_on();
+			eBorsch.allowFall(1);
+			eBorsch.aggressive(1);
+		}
+	}
+}
+
+void leavesFlyAway()
+{
+	float leavesIndex = 22;
+	float i;
+	entity e;
+	float fUp;
+	float fForward;
+	float fRoateX;
+	float fRoateY;
+	float fRoateZ;
+	vector vVelocity;
+	
+	for(i=leavesIndex;i>=0;i--){
+		e = getEntity("shuttleBlowLeave"+i);
+		if(doesEntityExist(e)){
+			fUp = randomint(20);
+			fUp += 40;
+			
+			fForward = randomInt(12);
+			fForward += 5;
+			
+			fRoateX = randomint(50);
+			fRoateX += 155;
+			
+			fRoateY = randomInt(50);
+			fRoateY += 155;
+			
+			fRoateZ = randomInt(400);
+			fRoateZ += 100;
+		
+			vVelocity_y = (fForward * -1);
+			vVelocity_z = fUp;
+			
+			e.setVelocity(vVelocity);
+			e.rotateX(fRoateX);
+			e.rotatey(fRoateY);
+			e.rotateZ(fRoateZ);
+		}
+	}
+	
+	wait(5);
+	float fScale = 1;
+	while(fScale > 0.02)
+	{
+		fScale -= 0.02;
+		for(i=leavesIndex;i>=0;i--){
+			e = getEntity("shuttleBlowLeave"+i);
+			if(doesEntityExist(e)){
+				e.scale(fScale);
+			}
+		}
+		wait(0.20);
+	}
+	
+	for(i=leavesIndex;i>=0;i--){
+		e = getEntity("shuttleBlowLeave"+i);
+		if(doesEntityExist(e)){
+			e.remove();
+		}
+	}
+}
+
+void enemyKilled()
+{
+	fEnemyKilled++;
+	if(fEnemyKilled == 7){
+		$levelEndTrigger.triggerable();
+	}
+}
+
+void dynLightFlicker()
+{
+	$world.light_lightstyle( "theLineMustBeDrawnHere", "aaaaaaaaaabbbbbbbbbbbbbbbbbb", 0 );
+}
+
+void shuttleTakeOff()
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+	cam_fadeout( 1 , 0, 0, 0, 1, 0 );
+	spawn("camera","targetname","cam1");
+	wait(1);
+
+	$hazardTeam1.remove();
+	
+	//start the actual cinematic
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );
+	$cam1.follow($shuttleEndCinCameraPath);
+	$cam1.fov(30);
+	$cam1.cut();
+	cuecamera($cam1);
+	cam_fadeIn( 0.25 , 0, 0, 0, 0, 0 );
+	skipthread("shuttleTakeOff_skip");
+	
+	$shuttleType8_origin.playsound("sound/vehicles/shuttlecraft/shuttle_takeoff.wav",0,2,1000000);
+	$shuttleType8_origin.followPath($shuttleEndCinPath0);
+	
+	wait(2);
+	
+	$cam1.interpolatefov(90,9);
+	
+	wait(12);
+	
+	thread shuttleTakeOff_skip();
+}
+void shuttleTakeOff_skip()
+{
+	cam_fadeout( 0.5 , 0, 0, 0, 1, 0 );
+	wait(0.5);
+	$shuttleType8_origin.stopsound(0);
+	//noncinematic();
+	//releaseplayer();
+	//clearletterbox();
+	//cam_fadeIn( 1 , 0, 0, 0, 0, 0 );
+	
+	//end level, as the map is not yet complete
+	thread coop_endLevel();
+}
+
+void waitForTeam()
+{
+	vector v;
+	entity e;
+	e = getCurrentEntity();
+	v = e.getorigin();
+	float fSomeoneInSecret = 0;
+	
+	
+	//[b608] chrissstrahl - remove newly added symbol
+	$levelEndTrigger_useSymbol.remove();
+
+	//check if any player is in the sewers
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player" + fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				if(vectorGetZ(ePlayer.getOrigin()) < 4 && ePlayer.getHealth() > 0){
+					centerprint("A Player has found a secret in the sewers - giving this player 60 sec extra\n");
+					//[b607] chrissstrahl - fixed this breaking the mission
+					fSomeoneInSecret=1;
+					fPlayerIdInUse=99999;
+				}
+			}
+		}
+	}
+	
+	//[b607] chrissstrahl - fixed this breaking the mission
+	if(fSomeoneInSecret){
+		float fTime;
+		fTime = getLevelTime();
+		while(fSomeoneInSecret == 1 && (fTime + 60) < getLevelTime()){
+			wait(2);
+			fSomeoneInSecret=0;
+			for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+				ePlayer = getentity("player" + fPlayerIdInUse);
+				if(doesEntityExist(ePlayer)){
+					if(!globalCoop_check_playerSpectator(ePlayer)){
+						if(vectorGetZ(ePlayer.getOrigin()) < 4 && ePlayer.getHealth() > 0){
+							fSomeoneInSecret=1;
+						}
+					}
+				}
+			}
+		}
+	}
+	else{
+		wait(4);
+	}
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	v_z = 0;
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","shuttleTakeOff",100,'1000 300 300',v);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_rotec7");
+}
+
+
+

@@ -1,0 +1,410 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck7c - Enterprise Deck 7c - Hazard Team Areas
+//  Script By:    Luke W, Kenny T
+//  Geometry By:  Adam B, Kenny T, Benson R
+//  Created on:   07/08/2002
+//  Last Edited:  09/22/2002 - Benson R
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+void checkMissionNumber();
+void justLoadedDeckThread();
+
+void killAllTalking();
+
+void lockCrewQuartersDoor( float doorNumber );
+void unlockCrewQuartersDoor( float doorNumber );
+
+void crewQuartersDoor4Go();
+void crewQuartersDoor5Go();
+void crewQuartersDoor6Go();
+void crewQuartersDoor7Go();
+void crewQuartersDoor8Go();
+void crewQuartersDoor9Go();
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float currentDeck = 73;
+float missionEnterprise = 0;
+float developerMode = 0; //--- Ship with 0
+
+float door1IsLocked;
+float door2IsLocked;
+float door3IsLocked;
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+string	coop_igm_mapToLoad;
+entity	ePlayerCinematic;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/igm_dialog.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+#include "coop_mod/maps/igm_common/igm_turbolift.script"
+
+#include "coop_mod/maps/igm_common/coop_parameter.script"
+#include "coop_mod/maps/igm1/ent-deck7c-mission1.script"
+#include "coop_mod/maps/igm2/ent-deck7c-mission2.script"
+#include "coop_mod/maps/igm3/ent-deck7c-mission3.script"
+#include "coop_mod/maps/igm4/ent-deck7c-mission4.script"
+#include "coop_mod/maps/igm5/ent-deck7c-mission5.script"
+#include "coop_mod/maps/igm6/ent-deck7c-mission6.script"
+#include "coop_mod/maps/igm7/ent-deck7c-mission7.script"
+#include "coop_mod/maps/igm8/ent-deck7c-mission8.script"
+
+//===================================================================================================================
+// Main Stuff 
+//===================================================================================================================
+//---------------------
+// main	
+// do start up stuff
+//---------------------
+void main()
+{
+	globalCoop_igm_parameter_main();
+//hzm coop mod Chrissstrahl, grab mission number, useing cvars as fallback
+	missionEnterprise = getfloatvar( "game.globalMissionEnterprise" );
+	if(missionEnterprise == 0){
+		missionEnterprise = 2;
+	}
+	
+	setfloatvar ( "game.globalMissionEnterprise", missionEnterprise );
+	
+	//hzm coop mod Chrissstrahl, grab mission status, useing cvars as fallback
+	float fMissionStatus;
+	fMissionStatus = getfloatvar( "game.checkEntMission4RoomsVisited" );
+	if(fMissionStatus == 0){
+		fMissionStatus = getFloatVar("game.igmRoomsVisited");
+		setfloatvar( "game.checkEntMission4RoomsVisited", fMissionStatus );
+	}
+
+
+	//hzm coop mod chrissstrahl, make sure we can't use the turbo until we really are suppose to
+	setfloatvar(  "level.deckToChangeToIGM", 73 );
+	
+	//hzm coop mod chrissstrahl, definie weapons
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	
+	//hzm coop mod chrissstrahl,set story
+	coop_string_story = "$$IGMLoadingText$$";
+	
+	//hzm coop mod chrissstrahl, Spawn Players on those locations, at map start	
+	coop_float_spawnAngle0		= 230;
+	coop_float_spawnAngle1		= 131;
+	coop_float_spawnAngle2		= 161;
+	coop_float_spawnAngle3		= 107;
+	coop_vector_spawnOrigin1	= '-9900 730 0';
+	coop_vector_spawnOrigin2	= '-9901 808 0';
+	coop_vector_spawnOrigin3	= '-9970 751 0';
+	coop_vector_spawnOrigin4	= '-9595 1299 0';
+	coop_vector_spawnOrigin5	= '-9557 1351 0';
+	coop_vector_spawnOrigin6	= '-9594 1415 0';
+	coop_vector_spawnOrigin7	= '-9684 1389 0';
+	coop_vector_spawnOrigin8	= '-9653 1431 0';	
+
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 800000 );
+	
+	dontSaveOrientation();
+	init();
+
+	waitforplayer();
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode( "none" );
+}
+
+//---------------------
+// init	
+// nonthread init stuff
+//---------------------
+void init()
+{
+	//Turn Exit Triggers Off
+	$triggerExit.nottriggerable();
+
+	thread entTurboLiftSetup();
+	//ent_turboliftInit();
+ 
+	checkMissionNumber();
+	
+	$triggerCrewQuartersDoor4.thread( "crewQuartersDoor4Go" );
+	$triggerCrewQuartersDoor5.thread( "crewQuartersDoor5Go" );
+	$triggerCrewQuartersDoor6.thread( "crewQuartersDoor6Go" );
+	$triggerCrewQuartersDoor7.thread( "crewQuartersDoor7Go" );
+	$triggerCrewQuartersDoor8.thread( "crewQuartersDoor8Go" );			
+	$triggerCrewQuartersDoor9.thread( "crewQuartersDoor9Go" );
+	
+	lockCrewQuartersDoor( 1 );
+	lockCrewQuartersDoor( 2 );
+	lockCrewQuartersDoor( 3 );
+	
+	//Archetypes
+	globalArchetype_Setup ( $elevatorButtonArchetype, "TurboLiftControls" );
+	
+	globalArchetype_Setup ( $crewQuartersDoorArchetype1, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype2, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype3, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype4, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype5, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype6, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype7, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype8, "DoorPanel" );
+	globalArchetype_Setup ( $crewQuartersDoorArchetype9, "DoorPanel" );
+}
+
+void checkMissionNumber()
+{
+	missionEnterprise = getfloatvar ( "game.globalMissionEnterprise" );
+	if( missionEnterprise == 0 )
+	{
+		setfloatvar ( "game.globalMissionEnterprise", 1 );
+		missionEnterprise = 1;
+	}
+	
+	if( missionEnterprise == 1 )
+	{
+		thread setupMission1Deck7c();
+	}
+	if( missionEnterprise == 2 )
+	{
+		thread setupMission2Deck7c();
+	}
+	if( missionEnterprise == 3 )
+	{
+		thread setupMission3Deck7c();
+	}
+	if( missionEnterprise == 4 )
+	{
+		thread setupMission4Deck7c();
+	}
+	if( missionEnterprise == 5 )
+	{
+		thread setupMission5Deck7c();
+	}
+	if( missionEnterprise == 6 )
+	{
+		thread setupMission6Deck7c();
+	}
+	if( missionEnterprise == 7 )
+	{
+		thread setupMission7Deck7c();
+	}
+	if( missionEnterprise == 8 )
+	{
+		thread setupMission8Deck7c();
+	}
+	
+	string stringSoundTrack;
+	
+	stringSoundTrack = "music/igm" + missionEnterprise + ".mus";
+	//--- set the soundtrack
+ 	soundtrack( stringSoundTrack );
+}
+
+//---------------------
+// justLoadedDeckThread	
+// creats a trigger to call the approiate deckJustLoadedThreadIGMx thread
+//---------------------
+void justLoadedDeckThread()
+{
+	string deckJustLoadedThread;
+	deckJustLoadedThread = ( "justLoadedDeckThreadIGM" + missionEnterprise );
+	thread entTurboLiftCheck();
+	waitforplayer();
+	
+/*
+	
+	if( missionEnterprise == 4 )
+	{
+	
+		if( getfloatvar( "game.IGM4GoToTelsia" ) >= 1 )
+		{
+			$player.loadobjectives("IGM4alt");		
+		}
+		else
+		{
+			$player.loadobjectives("IGM4");
+		}
+	}
+	else if( missionEnterprise == 6 )
+	{
+		if( getfloatvar( "game.IGM6MeetTelsia" ) >= 1 )
+		{
+			$player.loadobjectives("IGM6alt");
+		}
+		else
+		{
+			$player.loadobjectives("IGM6");
+		}
+	}
+	else $player.loadobjectives( "IGM" + missionEnterprise );
+*/
+	
+	//if( missionEnterprise == 1 ) thread justLoadedDeckThreadIGM1();
+	//if( missionEnterprise == 2 ) thread justLoadedDeckThreadIGM2();
+	//if( missionEnterprise == 3 ) thread justLoadedDeckThreadIGM3();
+	if( missionEnterprise == 4 ) thread justLoadedDeckThreadIGM4();
+	//if( missionEnterprise == 5 ) thread justLoadedDeckThreadIGM5();
+	if( missionEnterprise == 6 ) thread justLoadedDeckThreadIGM6();
+	//if( missionEnterprise == 7 ) thread justLoadedDeckThreadIGM7();
+	if( missionEnterprise == 8 ) thread justLoadedDeckThreadIGM8();
+}
+
+//---------------------
+// killAllTalking
+// This stops all talking on the level
+//------------------------
+void killAllTalking()
+{
+	//hzm coop mod chrissstrahl - make all dialog sounds stop for all the players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.killalldialog();
+		}
+	}
+}
+
+//---------------------
+// Locks / Unlocks HoloDoor
+//------------------------
+void lockCrewQuartersDoor( float doorNumber )
+{
+	if( doorNumber == 1 ){ door1IsLocked = 1; }
+	if( doorNumber == 2 ){ door2IsLocked = 1; }
+	if( doorNumber == 3 ){ door3IsLocked = 1; }
+
+	entity entityDoorToLock;
+	entity entityDoorPanelRed;
+	entity entityDoorPanelGreen;
+	
+	entityDoorToLock = getentity( "crewQuartersDoor" + doorNumber );
+	entityDoorPanelRed = getentity( "crewQuartersDoorPanelRed" + doorNumber );
+	entityDoorPanelGreen = getentity( "crewQuartersDoorPanelGreen" + doorNumber );
+	
+	entityDoorToLock.lock();
+	entityDoorPanelRed.show();
+	entityDoorPanelGreen.hide();
+}
+void unlockCrewQuartersDoor( float doorNumber )
+{
+	if( doorNumber == 1 ){ door1IsLocked = 0; }
+	if( doorNumber == 2 ){ door2IsLocked = 0; }
+	if( doorNumber == 3 ){ door3IsLocked = 0; }
+	
+	entity entityDoorToLock;
+	entity entityDoorPanelRed;
+	entity entityDoorPanelGreen;
+	
+	entityDoorToLock = getentity( "crewQuartersDoor" + doorNumber );
+	entityDoorPanelRed = getentity( "crewQuartersDoorPanelRed" + doorNumber );
+	entityDoorPanelGreen = getentity( "crewQuartersDoorPanelGreen" + doorNumber );
+	
+	entityDoorToLock.unlock();
+	entityDoorPanelRed.hide();
+	entityDoorPanelGreen.show();
+}
+
+void crewQuartersDoor4Go()
+{
+	$triggerCrewQuartersDoor4.thread( "" );
+		
+	$triggerCrewQuartersDoor4.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor4.thread( "crewQuartersDoor4Go" );
+}
+
+void crewQuartersDoor5Go()
+{
+	$triggerCrewQuartersDoor5.thread( "" );
+		
+	$triggerCrewQuartersDoor5.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor5.thread( "crewQuartersDoor5Go" );
+}
+
+void crewQuartersDoor6Go()
+{
+	$triggerCrewQuartersDoor6.thread( "" );
+		
+	$triggerCrewQuartersDoor6.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor6.thread( "crewQuartersDoor6Go" );
+}
+
+void crewQuartersDoor7Go()
+{
+	$triggerCrewQuartersDoor7.thread( "" );
+		
+	$triggerCrewQuartersDoor7.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor7.thread( "crewQuartersDoor7Go" );
+}
+
+void crewQuartersDoor8Go()
+{
+	$triggerCrewQuartersDoor8.thread( "" );
+		
+	$triggerCrewQuartersDoor8.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor8.thread( "crewQuartersDoor8Go" );
+}
+
+void crewQuartersDoor9Go()
+{
+	$triggerCrewQuartersDoor9.thread( "" );
+		
+	$triggerCrewQuartersDoor9.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+		
+	$triggerCrewQuartersDoor9.thread( "crewQuartersDoor9Go" );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("ent-deck11");
+			return;
+		}
+	}
+	//eof hzm
+	
+	thread globalCoop_mission_completed(coop_igm_mapToLoad);
+}
+
+
+

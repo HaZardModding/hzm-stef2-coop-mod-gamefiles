@@ -1,0 +1,150 @@
+float	fallschirmspringer_checkExistingLiving(entity ePlayer);
+void	fallschirmspringer_enableByTrigger();
+void	fallschirmspringer_enable(entity ePlayer);
+void	fallschirmspringer_disable(entity ePlayer, entity eFallschirm);
+
+
+float fallschirmspringer_checkExistingLiving(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		if(ePlayer.getHealth() > 0)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void fallschirmspringer_enableByTrigger()
+{
+	//centerprint("You gonna jump or not? chicken !\n");
+	
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+		thread fallschirmspringer_enable(ePlayer);
+	}
+}
+
+
+void fallschirmspringer_enable(entity ePlayer)
+{
+//waitForState("");
+//waitforplayer();
+	entity eFallschirm = $fallschirm0;
+	$fallschirmschirm0.bind($fallschirm0);
+	
+	if(doesEntityExist(ePlayer))
+	{
+		if(ePlayer.getFloatVar("fallschirmspringer_enabled"))
+		{
+			return;
+		}
+		ePlayer.setFloatVar("fallschirmspringer_enabled",1);
+		ePlayer.give("models/weapons/worldmodel-sniperrifle.tik");
+		ePlayer.give("models/weapons/worldmodel-rom-disruptor.tik");
+		ePlayer.give("models/weapons/worldmodel-attrex-rifle.tik");
+		ePlayer.give("models/weapons/worldmodel-photon.tik");
+		ePlayer.give("models/weapons/worldmodel-CompressionRifle.tik");
+		ePlayer.use("models/weapons/worldmodel-photon.tik");
+		
+		string	sTargetname;
+		float	fFallingSpeedCurrent,
+				fFrameTime,
+				fFrameTimeHalf,
+				//fFallingSpeedLimit = -250, //550
+				fFallingSpeedLimit = -50, //400 //550
+				fFallingSpeedCritical = -700, //1125=700->768units
+				fOpen,
+				fFalling;
+		//entity	eChecker;
+		vector	vOrigin,vVelocity,vCalc1,vCalc2;
+		
+		fFrameTime		= ( 1 / getCvarInt("sv_fps") );
+		fFrameTimeHalf	= ( fFrameTime / 2);
+		
+		sTargetname = "fallschirmspringer_1"; //+getLeveltime();
+		
+		//eChecker = spawn("trigger_relay","origin","0 0 0");
+		
+		while(fallschirmspringer_checkExistingLiving(ePlayer))
+		{
+		//get current falling speed
+			vVelocity				= ePlayer.getVelocity();
+			vOrigin					= ePlayer.getOrigin();	
+			fFallingSpeedCurrent	= vVelocity_z;
+			
+		//status
+			//if(fFallingSpeedCurrent != 0)
+				//stuffcmd("echo "+fFallingSpeedCurrent+"\n");
+			
+			if(fFalling)
+			{
+			//do not fall to fast, or you get damaged
+				if((fFallingSpeedCurrent + -10) < fFallingSpeedLimit)
+				{
+					vVelocity_z	= fFallingSpeedLimit;
+					ePlayer.setVelocity(vVelocity);
+				}
+				
+				if(fFallingSpeedCurrent > -1)
+				{
+					fallschirmspringer_disable(ePlayer, eFallschirm);
+					return;
+				}
+				
+				if( eFallschirm.getFloatVar("fallschirmspringer_inuse") != 1 ){
+					eFallschirm.setFloatVar("fallschirmspringer_inuse",1);
+					eFallschirm.show();
+				}
+				eFallschirm.origin(vOrigin);
+				eFallschirm.setvelocity(vVelocity);
+			}
+			else if(fFallingSpeedCurrent < fFallingSpeedCritical)
+			{
+				fFalling=1;
+				//vOrigin_z -= 4;
+				//eChecker.origin(vOrigin);
+				//eChecker.dropToFloor(99999);
+				
+				wait(fFrameTime);
+				
+				if(doesEntityExist(ePlayer))
+				{
+					ePlayer.mass(99999);//0.18
+					ePlayer.gravity(0.03);//0.18
+					vVelocity	= ePlayer.getVelocity();
+					vVelocity_z	= fFallingSpeedLimit;//-25
+					ePlayer.setVelocity(vVelocity);
+				}
+			}
+			wait(fFrameTimeHalf);
+		}
+		fallschirmspringer_disable(ePlayer,eFallschirm);
+	}
+}
+
+
+void fallschirmspringer_disable(entity ePlayer, entity eFallschirm)
+{
+	//ePlayer.removeAttachedModelByTargetname(sTargetname);
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("fallschirmspringer_enabled",0);
+		ePlayer.droptofloor(99999);	
+		ePlayer.gravity(1);	
+		ePlayer.mass(250);	
+	}
+	if( eFallschirm.getFloatVar("fallschirmspringer_inuse") == 1 ){
+		eFallschirm.setFloatVar("fallschirmspringer_inuse",0);
+		eFallschirm.setvelocity('0 0 350');//250
+	}
+	wait(3);
+	if(eFallschirm.getFloatVar("fallschirmspringer_inuse") == 0 ){
+		eFallschirm.hide();
+	}
+}
+
+

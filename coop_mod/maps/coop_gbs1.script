@@ -1,0 +1,472 @@
+//--------------------------------------------------------------------------------------
+//
+//  A Gate Two Birds And The Beautiful Sky Level Script File
+//	
+//  Level:				map1
+//  Script By:			Argyle
+//  Geometry By:		Flix
+//  Created on:			???
+//  Last Edited on:		2007.06.13
+//  Last Edited by:		lars,avenger,chrissstrahl
+//
+//-------------------------------------------------------------------------------------
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/m11/m11l1a_dialog.scr"
+#include "maps/m11/m11_groupSpawn.scr"
+
+void main();
+void spawn_disrupter_klingon( entity entity_to_spawn);
+void spawn_melee_klingon( entity entity_to_spawn);
+void inc_death_toll();
+void change_map();
+void finish_holocin();
+void start_holocin();
+void finish_introcin();
+void start_introcin();
+void show_camera(entity cameraToUse, entity cameraPath, float durationToWait);
+void switch_off_ai();
+
+float killed_klingons = 0;
+
+void main()
+{
+	//hzm coop mod chrissstrahl - start with a black screen
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+
+	//hzm coop mod chrissstrahl - we use info_player_deathmatch to spawn players
+	//hzm coop mod chrissstrahl - we use info_player_deathmatch to spawn players
+	//hzm coop mod chrissstrahl - we use info_player_deathmatch to spawn players
+	
+	//hzm coop mod chrissstrahl - set background story
+	coop_string_story = "";
+	coop_string_story_deu = "";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+   soundtrack( "music/m9l1a-klingon_base.mus" );
+   $world.light_intensity( "lightning", 0 );
+
+   
+   $illia.notsolid();
+   $illia.hide();
+   $death_klingon.notsolid();
+   $death_klingon.hide();
+   
+
+   switch_off_ai();
+   
+   waitForPlayer();
+   
+	//hzm coop mod chrissstrahl - start cinematic here
+	cinematic();
+	letterbox(.1);
+   
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" ); 
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Batleth.tik" ); 
+   
+   float thread_number;
+   thread_number = thread start_introcin();
+   waitforthread(thread_number);
+   
+   wait(2);
+   //finish_introcin();
+
+   wait(1);
+
+   while ( killed_klingons < 5 ) { wait(.5); }
+
+
+   killed_klingons = 0;
+   thread spawn_melee_klingon($wave1klingon1);
+   thread spawn_melee_klingon($wave1klingon3);
+   thread spawn_disrupter_klingon($wave1klingon2);
+
+   while ( killed_klingons < 2 ) { wait(.5); }
+
+   thread spawn_melee_klingon($wave2klingon1);
+   thread spawn_melee_klingon($wave2klingon3);
+   thread spawn_disrupter_klingon($wave2klingon2);
+
+   while ( killed_klingons < 6 ) { wait(.5); }
+
+   killed_klingons = 0;
+   thread spawn_disrupter_klingon($wave3klingon1);
+   thread spawn_melee_klingon($wave3klingon3);
+   thread spawn_disrupter_klingon($wave3klingon2);
+
+
+   while ( killed_klingons < 2 ) { wait(.5); }
+   thread spawn_disrupter_klingon($wave4klingon1);
+   thread spawn_disrupter_klingon($wave4klingon2);
+
+   while ( killed_klingons < 5 ) { wait(.5); }
+
+   forcemusic( "success" );
+
+   wait(2);
+
+   thread_number = thread start_holocin();
+   waitforthread(thread_number);
+
+   killed_klingons = 0;
+   thread spawn_melee_klingon($newKlingon1);
+   thread spawn_melee_klingon($newKlingon3);
+   thread spawn_disrupter_klingon($newKlingon2);
+   thread spawn_disrupter_klingon($newKlingon4);
+
+   while ( killed_klingons < 4 ) { wait(.5); }
+   thread spawn_melee_klingon($wave5klingon1);
+   thread spawn_melee_klingon($wave5klingon2);
+   thread spawn_melee_klingon($wave5klingon3);
+   while ( killed_klingons < 7 ) { wait(.5); }
+
+   wait(2);
+   change_map();
+}
+
+void switch_off_ai()
+{
+   $illia_prisoner.ai_off();
+
+   $illia_prisoner.removeactorweapon ( "CompressionRifle" );
+   $illia_prisoner.anim("cin-m8_situp");
+   $illia.ai_off();
+   $illia.removeactorweapon ( "CompressionRifle" );
+   $illia.useactorweapon( "Batleth" );
+   $illia.ai_off();
+   $moya.ai_off();
+   $moya.nodamage ();
+   $moya.notsolid ();
+   $moya2.ai_off();
+   $death_klingon.ai_off();
+   $klingon1.ai_off();
+   $klingon3.ai_off();
+   $klingon4.ai_off();
+   $klingon5.ai_off();
+   $klingon6.ai_off();
+
+   $klingon1.killthread("inc_death_toll");
+   $klingon3.killthread("inc_death_toll");
+   $klingon4.killthread("inc_death_toll");
+   $klingon5.killthread("inc_death_toll");
+   $klingon6.killthread("inc_death_toll");
+}
+
+void show_camera(entity cameraToUse, entity cameraPath, float durationToWait)
+{
+   cameraToUse.follow( cameraPath );
+   cuecamera( cameraToUse );
+   wait(.2);
+   cam_fadein( 1, 0, 0, 0, 1, 0 );
+   wait(durationToWait);
+   cam_fadeout( 1, 0, 0, 0, 1, 0 );
+   wait(1);
+
+}
+
+
+void start_introcin()
+{
+   spawn ( "Camera" , "targetname" , "cam1" );
+   spawn ( "Camera" , "targetname" , "cam2" );
+   spawn ( "Camera" , "targetname" , "cam3" );
+   spawn ( "Camera" , "targetname" , "cam4" );
+   spawn ( "Camera" , "targetname" , "cam5" );
+   spawn ( "Camera" , "targetname" , "cam6" );
+   spawn ( "Camera" , "targetname" , "cam7" );
+   wait (1);
+   freezeplayer();
+
+   switch_off_ai();
+
+   wait(2);
+   $cam7.follow($cell_cam);
+   cuecamera($cam7);
+   wait(0.5);
+
+   cam_fadein( 3, 0, 0, 0, 1, 0 );
+   wait(3);
+   $illia_prisoner.headwatch( $illia_look_here);
+   wait(1.5);
+   $illia_prisoner.playdialog("localization/sound/dialog/map01/Illia/everythingbegan.mp3", 1, 10000, 0);
+   waitfordialog( $illia_prisoner );
+   wait( 1 );
+   $illia_prisoner.playdialog("localization/sound/dialog/map01/Illia/itwasabout.mp3", 1, 10000, 0);
+   waitfordialog( $illia_prisoner );
+   cam_fadeout( 3, 0, 0, 0, 1, 0 );
+   wait(4);
+   
+	//hzm coop mod chrissstrahl - show mod title - but before get the player out of all menus he currently has showing
+	globalCoop_player_transmittToAll("popmenu 1;popmenu 0");//close 2 layers of menu
+	wait(0.1);
+	globalCoop_player_transmittToAll("popmenu 0");//close 1 layer of menu
+	wait(0.1);
+	globalCoop_player_transmittToAll("showmenu gbs\n");
+	wait(4);
+	globalCoop_player_transmittToAll("popmenu 1;popmenu 0\n");
+	
+	//hzm coop mod chrissstrahl - allow skipping now or players might get stuck with menus
+	skipthread ( "finish_introcin" );
+
+   $illia.show();
+   
+   show_camera($cam1, $holo2_gate_cam, 3);
+   wait(.5);
+   $world.light_lightstyle( "lightning", "azaz", 1 );
+   $world.playsound( "sound/environment/nature/thunder2.wav", 0, 3, 1000000 );
+   show_camera($cam2, $holo2_illia_cam, 3);
+   wait(.5);
+
+   show_camera($cam3, $holo2_klingon_cam, 3);
+   wait(.5);
+   show_camera($cam6, $holo2_illia_cam2, 3);
+   wait(.5);
+   thread show_camera($cam5, $holo2_klingon_close_cam, 3);
+   wait(.5);
+
+   //Klingon talk
+   $klingon4.playdialog( "localization/sound/dialog/map01/Klingon/death.mp3", 1, 10000, 0);
+   
+   wait(3);
+   thread show_camera($cam4, $holo2_illia_close_cam, 3);
+   wait(.5);
+   $illia.playdialog("localization/sound/dialog/map01/Illia/youwillnotice.mp3", 1, 10000, 0);
+   waitfordialog( $illia );
+   
+   wait(.5);
+   //wait(5);
+   thread finish_introcin();
+}
+
+void finish_introcin()
+{
+   cam_fadeout( .5, 0, 0, 0, 1, 0 );
+   killthread ( "start_introcin" );
+   wait ( .5 );
+   noncinematic();
+   cueplayer ();
+   clearletterbox(.1);
+   cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$illia.hide();
+	$illia.notsolid();
+	$illia.notarget(); //chrissstrahl - fix illia getting attacked [b607]
+	wait(1);
+	releaseplayer();
+
+	wait(1.5);//Give the Klingons some time to think
+	$klingon1.ai_on();
+	$klingon3.ai_on();
+	$klingon4.ai_on();
+	$klingon5.ai_on();
+	$klingon6.ai_on();
+	wait(1);
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+	$klingon1.aggressive(1);
+	$klingon3.aggressive(1);
+	$klingon4.aggressive(1);
+	$klingon5.aggressive(1);
+	$klingon6.aggressive(1);
+}
+
+void start_holocin()
+{
+  $illia.useactorweapon( "none" );
+  // $illia.useactorweapon( "CompressionRifle" );
+
+   cinematic();
+   cam_fadeout( 1, 0, 0, 0, 1, 0 );
+   spawn ( "Camera" , "targetname" , "holo_cam1" );
+   spawn ( "Camera" , "targetname" , "holo_cam2" );
+   spawn ( "Camera" , "targetname" , "holo_cam3" );
+   spawn ( "Camera" , "targetname" , "holo_cam4" );
+   wait(1.1);
+   letterbox(.1);
+   $holodeck_terminal.origin($terminal_new_origin.getOrigin());
+
+   skipthread ( "finish_holocin" );
+   freezeplayer();
+   
+   $illia.origin('380.00 -1312.00 -584.00');
+   $moya.origin($moya_new_origin.getOrigin());   
+   $holo_cam2.follow($holo2_illia2_cam);
+   $death_klingon.show();
+   $illia.show();
+   $illia.headwatch( $death_klingon );
+   $death_klingon.immortal(1);
+   $death_klingon.ai_off();
+   $death_klingon.animateonce("long_death");
+   wait(0.05);
+   forcemusic( "none" );
+   
+   cuecamera( $holo_cam2 );
+   cam_fadein( 1, 0, 0, 0, 1, 0 );
+   
+   wait(5.5);
+    $moya.playsound("sound/ships/enterprise/holo_door_open.wav",1,2,500);
+   wait(1);
+   $illia.headwatch( $moya );
+
+   wait(2.5);
+ 
+   $holo_cam1.follow($holo2_moya_cam2);
+   wait(.1);
+   cuecamera( $holo_cam1 );
+   
+   $death_klingon.setframe(180,"long_death");
+   
+   wait(1);
+   
+   $moya2.walkto("$holodeck_nav1", "walk");
+   wait(3);
+   cuecamera( $holo_cam2 );
+   $moya.playsound("sound/ships/enterprise/holo_door_open.wav",1,2,500);
+   $illia.lookat( $moya);
+   
+   wait(3);
+   thread finish_holocin();
+}
+
+
+
+void finish_holocin()
+{
+   cam_fadeout( .5, 0, 0, 0, 1, 0 );
+   killthread ( "start_holocin" );
+   wait ( .5 );
+   $death_klingon.remove();
+   noncinematic();
+   releaseplayer();
+   cueplayer ();
+   clearletterbox(.1);
+   if(getcvarint("g_gametype") == 0){
+	   $player.origin($illia.getOrigin());
+	   $player.playerviewangles('0 180 0');
+	}
+   $illia.hide();
+   $illia.notsolid();
+   //hzm coop mod chrissstrahl - make sure illia does not get the attention of the surrounding ai
+   $illia.notarget();
+   //eof hzm
+   globalCommon_Autosave();
+   cam_fadein( 1, 0, 0, 0, 1, 0 );
+}
+
+void change_map()
+{
+   	$illia.playdialog("localization/sound/dialog/map01/illia/endprogram.mp3",3,10000,0);
+   	waitfordialog($illia);
+   	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+   	wait( 1 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+	
+	/*stuffcmd("map map2\n");*/
+}
+void inc_death_toll()
+{
+   killed_klingons++;
+}
+
+
+
+void spawn_melee_klingon( entity entity_to_spawn)
+{
+	entity e;
+	string tiki_to_use;
+	float random_number;
+	random_number = randomint(5);
+
+
+	if (random_number == 0) tiki_to_use = "char/klingon-m9-merc-batleth-m2.tik";
+	if (random_number == 1) tiki_to_use = "char/klingon-m9-merc-knife-m2.tik";
+	if (random_number == 2) tiki_to_use = "char/klingon-m9-merc-knife-m1.tik";
+	if (random_number == 3) tiki_to_use = "char/klingon-m9-merc-knife-f3.tik";
+	if (random_number == 4) tiki_to_use = "char/klingon-m9-merc-batleth-m1.tik";
+	entity_to_spawn.modelname(tiki_to_use);
+	entity_to_spawn.spawneffectname( "TransportIn", "Idryll" );
+	
+	
+	entity_to_spawn.checkforspace();
+	e = entity_to_spawn.spawnnow();
+	wait( 0.05 );
+	e.ai_off();
+
+	if (!doesEntityExist( e)) { inc_death_toll(); }
+	e.killthread("inc_death_toll");
+
+	wait(1);
+	e.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+	e.aggressive(1);
+}
+
+
+void spawn_disrupter_klingon( entity entity_to_spawn)
+{
+	entity e;
+	string tiki_to_use;
+	float random_number;
+
+	random_number = randomint(5);
+
+	if (random_number == 0) tiki_to_use = "char/klingon-m9-merc-disruptor-m1.tik";
+	if (random_number == 1) tiki_to_use = "char/klingon-m9-merc-disruptor-m2.tik";
+	if (random_number == 1) tiki_to_use = "char/klingon-m9-merc-disruptor-m1.tik";
+	if (random_number == 2) tiki_to_use = "char/klingon-m9-merc-disruptor-f1.tik";
+	if (random_number == 3) tiki_to_use = "char/klingon-m9-merc-disruptor-f2.tik";
+	if (random_number == 4) tiki_to_use = "char/klingon-m9-merc-disruptor-f3.tik";
+	entity_to_spawn.modelname(tiki_to_use);
+
+
+	entity_to_spawn.spawneffectname( "TransportIn", "Idryll" );
+	
+	
+	entity_to_spawn.checkforspace();
+	e = entity_to_spawn.spawnnow();
+	wait( 0.05 );
+	e.ai_off();
+	e.killthread("inc_death_toll");
+	if (!doesEntityExist( e)) { inc_death_toll(); }
+	//e.attackplayer();
+	wait(1);
+	e.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+	e.aggressive(1);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs2");
+}
+
+

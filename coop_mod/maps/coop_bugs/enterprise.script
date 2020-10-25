@@ -1,0 +1,1334 @@
+//coop_bugs
+//scripts related to what happens at the enterprise e map-part
+//this map-part was created by GSIO (rpg_enterprise_e)
+
+//ent-sickbed-sitting-gesture
+//ent-sickbed-scan
+//ent-sickbed-idle-look
+//ent-sickbed-idle
+//ent-sickbed-gesture
+//ent-sickbed-gesture1
+//ent-seta_sit-up
+//ent-seta_sit-scan
+//ent-table-gesture
+//ent-table-gesture1
+//ent-table-idle
+//ent-table-gesture2
+//ent-table-laptop-scan
+//ent-table-laptop-idle-look
+//ent-table-laptop-idle
+//ent-table-idle-look
+//ent-table-idle
+//ent-table-laptop-gesture
+//ent-table-laptop-gesture1
+//ent-table-laptop-idle
+//tap_comm
+//conv-scratchingchin-thinking
+//talk-handsweep
+
+
+void enterprise_handleDeadPlayer(entity ePlayer)
+{
+//scale player down, and atempt to hide him
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.scale(0.005);
+	}
+}
+
+
+
+void enterprise_sickbayMediKitUse()
+//pickup a medikit from the sickbay
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			$enterprise_sickbayMediKitSymbol.hide();
+			$enterprise_sickbayMediKit1.hide();
+			eTrigger = spawn("HoldableItem","model","models/item/holdable_medkit.tik","origin",""+ePlayer.getOrigin(),"scale","0");
+			globalCoop_main_waitAFrame();
+			if(doesEntityExist(eTrigger))
+			{
+				eTrigger.remove();
+			}
+			wait(0.9);
+			$enterprise_sickbayMediKit1.show();
+			wait(0.05);
+			$enterprise_sickbayMediKitSymbol.show();
+		}
+	}
+}
+
+void enterprise_sickbaySteam()
+//fade the steam slowly on the coffe cup in sickbay
+// a detail probably nobody will actively notice
+{
+	float fScale;
+	for(fScale=200;fScale>0;fScale--)
+	{
+		wait(1);
+		$enterprise_sickbaySteam.scale( (fScale / 1000) );
+	}
+}
+
+void enterprise_transporterDisable(entity ePlayer,entity eTrigger)
+//disable the trigger as long as the player is on it
+{
+	eTrigger.nottriggerable();
+	while(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		wait(1);
+		if(!globalCoop_check_isEntityInsideOfEntity(ePlayer,eTrigger,10))
+		{
+			eTrigger.triggerable();
+			return;
+		}
+	}
+	eTrigger.triggerable();
+}
+
+void enterprise_transporterEntred()
+//triggred when a player enters a transporter pad
+{
+	if(enterprise_transporterActive)
+	{
+		return;
+	}
+	enterprise_transporterActive=1;
+	
+	entity eTrigger,ePlayer,eTriggerTemp;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		eTrigger.notTriggerable();
+		float fPlayer,fTrigger;
+//animate actor
+		enterprise_transporterAiAnim=0;
+		enterprise_transporterActor();
+		
+		if(!cvar_bool_multiplayer)
+		{
+		//Singleplayer
+			thread enterprise_beamPlayer($player);
+		}
+		else{
+		//then beam playerZ
+			for(fPlayer=0;fPlayer<cvar_integer_sv_maxClients;fPlayer++)
+			{
+				ePlayer = getEntity("player"+fPlayer);
+				if(doesEntityExist(ePlayer))
+				{
+					for(fTrigger=0;fTrigger<6;fTrigger++)
+					{
+						eTriggerTemp = getEntity("enterprise_beamTrigger"+fTrigger);
+						if(doesEntityExist(eTriggerTemp))
+						{
+							if(ePlayer.isWithinDistanceOf(eTriggerTemp,55))
+							{
+								entity eObjMark;
+								eObjMark = getEntity("enterprise_beamTrigger"+fTrigger);
+								eObjMark.missionobjective(0);
+								thread enterprise_beamPlayer(ePlayer);
+							}
+						}
+					}			
+				}
+			}
+		}
+	}
+	thread enterprise_transporterActorAnimRandom();
+	wait(4);
+	enterprise_transporterActive=0;
+	eTrigger.triggerable();
+}
+
+void enterprise_beamPlayer(entity ePlayer)
+//handels the transport sequence of a player that entered the transporter pad
+{
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.nodamage();
+		ePlayer.displayEffect("TransportOut","Federation");
+		//globalCoop_playSound_c3v1r60(ePlayer,"sound/environment/transporter/transport_fast.wav");
+		wait(2.7);
+		if(globalCoop_check_existingLivingEntity(ePlayer))
+		{
+			thread globalCoop_level_warpEntityToVectorSafty(ePlayer,enterprise_beamPlayerReturnVector(ePlayer));
+			ePlayer.immobilize(0);
+			ePlayer.dropToFloor(50);
+			globalCoop_main_waitAFrame();
+			if(globalCoop_check_existingLivingEntity(ePlayer))
+			{
+				ePlayer.displayEffect("TransportIn","Federation");
+				wait(2);
+				if(globalCoop_check_existingLivingEntity(ePlayer))
+				{
+					ePlayer.takedamage();
+					ePlayer.resetState();
+				}
+			}
+			
+			if(!float_objective_beamDown)
+			{
+				float_objective_beamDown = 1;
+			}
+			if(	float_objective_beamDown == 1 && float_objective_gearUp == 1 )
+			{
+				float_objective_beamDown	= 2;
+				float_objective_gearUp		= 2;
+				
+				wait(3);
+				thread objective_gearUpComplete();
+			}
+		}
+	}
+}
+
+
+vector enterprise_beamPlayerReturnVector(entity ePlayer)
+{
+//if new area is active, beam there
+//uservar2 = active / notActive
+	float	fNumber;
+	entity	eAreaTrigger;
+	vector	vOrigin;
+	
+	for(fNumber=0;fNumber<4;fNumber++)
+	{
+		eAreaTrigger = getEntity( "patternenhancer"+fNumber+"Trigger" );
+		if(doesEntityExist(eAreaTrigger))
+		{
+			if(eAreaTrigger.getStringVar("uservar2") == "active")
+			{
+				vOrigin		= eAreaTrigger.getOrigin();
+			}
+		}
+	}
+	float fPlayerId;
+	entity eChecker;
+	if(doesEntityExist(ePlayer))
+	{
+		fPlayerId	= globalCoop_return_integerPlayerId(ePlayer);
+		eChecker	= getEntity("beamToPlanetChecker"+fPlayerId);
+		
+		if(!doesEntityExist(eChecker))
+		{
+			eChecker = spawn("trigger_relay","targetname","beamToPlanetChecker"+fPlayerId);
+			globalCoop_main_waitAFrame();
+		}
+		
+		if(fPlayerId == 1)
+		{
+			vOrigin_x -= 30;
+			vOrigin_y -= 70;
+		}
+		else if(fPlayerId == 2)
+		{
+			vOrigin_x += 30;
+			vOrigin_y -= 70;
+		}
+		else if(fPlayerId == 3)
+		{
+			vOrigin_x += 80;
+			vOrigin_y -= 70;
+		}
+		else if(fPlayerId == 4)
+		{
+			vOrigin_x -= 80;
+			vOrigin_y -= 70;
+		}
+		else if(fPlayerId == 5)
+		{
+			vOrigin_x -= 30;
+			vOrigin_y += 70;
+		}
+		else if(fPlayerId == 6)
+		{
+			vOrigin_x += 30;
+			vOrigin_y += 70;
+		}
+		else if(fPlayerId == 7)
+		{
+			vOrigin_x += 80;
+			vOrigin_y += 70;
+		}
+		else if(fPlayerId == 8)
+		{
+			vOrigin_x -= 80;
+			vOrigin_y += 70;
+		}
+		
+	//make sure it can be droped to the ground
+		vOrigin_z	+= 50;
+		eChecker.origin(vOrigin);
+		eChecker.droptofloor();
+		globalCoop_main_waitAFrame();
+		
+		vOrigin = eChecker.getOrigin();
+	}
+	return vOrigin;
+}
+
+
+void enterprise_transporterActor()
+//animates the actors that beams the player down to the surface
+{
+	while(enterprise_transporterAiAnimDone)
+	{
+		globalCoop_main_waitAFrame();
+	}
+	$enterprise_transporterAi.ai_off();//required to allow animations controlled by script, instead of the ai it self
+	//ent-curvedconsole-gesture2
+	//ent-curvedconsole-idle-look
+	$enterprise_transporterAi.animateOnce("ent-island-gesture1");
+	waitForAnimation($enterprise_transporterAi,"ent-island-gesture1");
+	$enterprise_transporterAi.anim("idle");
+	thread globalCoop_level_onUse($enterprise_transporterAi,"enterprise_transporterActorTalk");
+}
+
+void enterprise_transporterActorTalk()
+//make the transporter ai talk when used
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		$enterprise_transporterAi.nouse();
+		ePlayer=globalCoop_return_playerClosestPreferActive($enterprise_transporterAi);
+		$enterprise_transporterAi.headwatch( ePlayer, 10 );		
+	//talk with me
+		
+		$enterprise_transporterAi.playDialog( "localization/sound/dialog/ent_m3/dorchev_later.mp3",1,128,0 );
+		waitfordialog($enterprise_transporterAi);
+		
+	//only allow talking again when not in transport sequence
+		if(enterprise_transporterAiAnim)
+		{
+			thread globalCoop_level_onUse($enterprise_transporterAi,"enterprise_transporterActorTalk");
+		}
+		$enterprise_transporterAi.headwatchtarget( "none", 10 );
+	}
+}
+
+
+
+void enterprise_transporterActorAnimRandom()
+{
+	enterprise_transporterAiAnim=1;
+	enterprise_transporterAiAnimDone=0;
+	
+	float fRandom,fRandomAnim;	
+	string sAnimName;
+	
+	while(enterprise_transporterAiAnim)
+	{
+		fRandomAnim	= randomint(5);
+		fRandom		= randomint(3);
+	
+		if(fRandomAnim == 1)
+			sAnimName = "ent-guard-idle";
+		else if(fRandomAnim == 2)
+			sAnimName = "ent-guard-idle-look";
+		else if(fRandomAnim == 3)
+			sAnimName = "conv-crossarms";
+		else if(fRandomAnim == 4)
+			sAnimName = "idle_adjust";
+		else
+			sAnimName = "idle";
+		
+		$enterprise_transporterAi.anim(sAnimName);
+		waitForAnimation($enterprise_transporterAi,sAnimName);
+		
+		$enterprise_transporterAi.anim("ent-guard-idle");
+		wait(fRandom + 1);
+	}
+	enterprise_transporterAiAnimDone=1;
+}
+
+void hideWeapon( string sName )
+{
+	entity eWeapon;
+	float i;
+	for(i=0;i<5;i++){
+		eWeapon = getEntity(sName + i);
+		if(eWeapon.getFloatVar("isHidden") != 1){
+			eWeapon.setFloatVar("isHidden",1);
+			eWeapon.hide();
+			wait(1);
+			//eWeapon.fadein(2,1);
+			eWeapon.displayEffect("TransportIn","FederationWeapons");
+			wait(0.05);
+			eWeapon.show();
+			wait(1.2);
+			eWeapon.setFloatVar("isHidden",0);
+			return;
+		}
+	}
+}
+
+void enterprise_amory()
+//gives specific weapon to player
+{
+	entity eTrigger,ePlayer,eSpawn;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+	//pickup the weapons only once in singleplayer
+		if(!cvar_bool_multiplayer)
+		{
+			eTrigger.thread("");
+		}
+	//give weapon
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			if(!float_objective_gearUp)
+			{
+				float_objective_gearUp = 1;
+			}
+			if(	float_objective_beamDown == 1 && float_objective_gearUp == 1 )
+			{
+				float_objective_beamDown	= 2;
+				float_objective_gearUp		= 2;
+				thread objective_gearUpComplete();
+			}
+			
+			string sTiki,sUservar1;
+			sUservar1 = eTrigger.getStringVar("uservar1");
+			if(sUservar1 == "comprifle")
+			{
+				sTiki = "models/weapons/worldmodel-compressionrifle.tik";
+				
+			//unmark on radar	
+			if(!float_armoryCompUsed){
+				float_armoryCompUsed = 1;
+				$enterprise_amory_symbol1.missionobjective(0);
+			}
+				
+			//delete symbol
+				if(!cvar_bool_multiplayer)
+					globalCoop_level_remove($enterprise_amory_symbol1);
+					
+				thread hideWeapon( "enterprise_amory_comprifle" );
+			}
+			else if(sUservar1 == "burstrifle")
+			{
+				sTiki = "models/weapons/worldmodel-burstrifle.tik";
+				
+			//unmark on radar
+			if(!float_armoryBurstUsed){
+				float_armoryBurstUsed = 1;
+				$enterprise_amory_symbol2.missionobjective(0);
+			}
+				
+			//delete symbol
+				if(!cvar_bool_multiplayer)
+					globalCoop_level_remove($enterprise_amory_symbol2);
+					
+				thread hideWeapon( "enterprise_amory_burstrifle" );
+			}
+		//print error
+			else
+			{
+				centerprint("Error: Unknown Weapon to give...");
+			}
+		//remove a weapon from the locker in singleplayer
+			if(!cvar_bool_multiplayer)
+			{
+				eSpawn = getEntity("enterprise_amory_"+sUservar1+"2");
+				globalCoop_level_remove(eSpawn);
+				wait(0.1);
+			}
+		//spawn a weapon right at the player
+			eSpawn = spawn("weapon","model",sTiki,"origin",""+ePlayer.getOrigin(),"set_respawn","0","scale","0");
+		//let the game process, takes 1 frame
+			globalCoop_main_waitAFrame();
+		//remove the weapon if it has not been picked up
+			globalCoop_level_remove(eSpawn);
+		//let the game process, takes 1 frame
+			globalCoop_main_waitAFrame();
+		//player can now use the weapon, make him use it
+			ePlayer.use(sTiki);
+		}
+		
+		if(float_armoryCompUsed == 1 && float_armoryBurstUsed == 1 && float_objective_beamDown < 2){
+			$enterprise_beamTrigger0.missionobjective(1);
+			$enterprise_beamTrigger1.missionobjective(1);
+			$enterprise_beamTrigger2.missionobjective(1);
+			$enterprise_beamTrigger3.missionobjective(1);
+			$enterprise_beamTrigger4.missionobjective(1);
+			$enterprise_beamTrigger5.missionobjective(1);
+		}
+	}
+}
+
+
+void enterprise_amoryToggle()
+//open/closes amory
+{
+	//update 2015.11.08 - open the armory and keep it open, makes it easier for the players
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	//eTrigger.notTriggerable();
+	
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	if(!float_armoryFirstUse){
+		float_armoryFirstUse=1;
+		$enterprise_amory_symbol0.missionobjective(0);
+		$enterprise_amory_symbol1.missionobjective(1);
+		$enterprise_amory_symbol2.missionobjective(1);
+	}
+	
+	
+	$enterprise_amory_symbol0.hide();
+	$enterprise_amory_symbol0.playsound("sound/environment/computer/lcars_yes.wav",3,2,128);
+	if(enterprise_ArmoryOpen)
+	{
+		//show info to player
+		if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+			ePlayer.hudprint("^5INFO:^8 Waffenschrank wurde geschlossen.\n");
+		}else{
+			ePlayer.hudprint("^5INFO:^8 Armory closed.\n");
+		}		
+		
+		if(doesEntityExist($enterprise_amory_symbol1))
+			$enterprise_amory_symbol1.hide();
+		if(doesEntityExist($enterprise_amory_symbol2))
+			$enterprise_amory_symbol2.hide();
+			
+		$enterprise_amory_weaponGive1.nottriggerable();
+		$enterprise_amory_weaponGive2.nottriggerable();
+		$doorWeapon1a_origin.time(.5);
+		$doorWeapon1b_origin.time(.5);
+		$doorWeapon2a_origin.time(.5);
+		$doorWeapon2b_origin.time(.5);
+		
+		$doorWeapon1a_origin.rotateYup(90);
+		$doorWeapon2a_origin.rotateYup(90);
+		$doorWeapon1b_origin.rotateYdown(90);
+		$doorWeapon2b_origin.rotateYdown(90);
+		
+		$doorWeapon1a_origin.playsound("sound/doors/sfa_regdoor.wav",3,1,64);
+		$doorWeapon2b_origin.playsound("sound/doors/sfa_regdoor.wav",3,1,64);
+
+		wait(.5);
+		if(cvar_bool_multiplayer)
+		{
+			$doorWeapon1a.solid();
+			$doorWeapon2a.solid();
+			$doorWeapon1b.solid();
+			$doorWeapon2b.solid();
+		}			
+		enterprise_ArmoryOpen=0;
+	}
+	else
+	{
+		//show info to player
+		if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+			ePlayer.hudprint("^5INFO:^8 Waffenschrank wurde geöffnet.\n");
+		}else{
+			ePlayer.hudprint("^5INFO:^8 Armory opened.\n");
+		}
+	
+		if(cvar_bool_multiplayer)
+		{
+			$doorWeapon1a.notsolid();
+			$doorWeapon2a.notsolid();
+			$doorWeapon1b.notsolid();
+			$doorWeapon2b.notsolid();
+		}
+		
+		if(doesEntityExist($enterprise_amory_symbol1))
+			$enterprise_amory_symbol1.show();
+		if(doesEntityExist($enterprise_amory_symbol2))
+			$enterprise_amory_symbol2.show();
+			
+		$doorWeapon1a_origin.time(.5);
+		$doorWeapon1b_origin.time(.5);
+		$doorWeapon2a_origin.time(.5);
+		$doorWeapon2b_origin.time(.5);
+		
+		$doorWeapon1a_origin.rotateYdown(90);
+		$doorWeapon2a_origin.rotateYdown(90);
+		$doorWeapon1b_origin.rotateYup(90);
+		$doorWeapon2b_origin.rotateYup(90);
+		
+		$doorWeapon1a_origin.playsound("sound/doors/sfa_regdoor.wav",3,1,64);
+		$doorWeapon2b_origin.playsound("sound/doors/sfa_regdoor.wav",3,1,64);
+		
+		wait(.5);
+		enterprise_ArmoryOpen=1;
+		$enterprise_amory_weaponGive1.triggerable();
+		$enterprise_amory_weaponGive2.triggerable();
+	}
+	$enterprise_amory_symbol0.show();
+}
+
+
+
+
+void enterprise_amoryActorAlternate()
+{
+	wait(20);
+	$korban.nouse();//do not allow to be used by player
+	wait(3);
+	
+	$korban.walkto("$holodeck_work","walk");
+	waitFor($korban);
+	$korban.anim("ent-curvedconsole-gesture2");
+	waitforanimation($korban,"ent-curvedconsole-gesture2");
+	$korban.anim("idle");
+	
+	$korban.playDialog( "localization/sound/dialog/m7l1/korban_grr.mp3",1,128,0 );
+	waitfordialog($korban);
+	
+	$korban.walkto("$armory_work","walk");
+	waitFor($korban);
+	
+	$korban.anim("ent-curvedconsole-gesture2");
+	thread globalCoop_level_onUse($korban,"enterprise_amoryActorTalk");
+}
+
+void enterprise_amoryActorTalk()
+{
+//$armory_work
+//angle 90
+//-324.00 -12128.00  0.00
+//ent-curvedconsole-idle-look
+//ent-curvedconsole-idle
+//ent-curvedconsole-gesture
+//ent-curvedconsole-gesture1
+//ent-curvedconsole-gesture2
+
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		$korban.nouse();
+		ePlayer=globalCoop_return_playerClosestPreferActive($korban);
+		$korban.headwatch( ePlayer, 10 );
+		
+		float	fDialog;
+		string	sDialog;
+		
+		fDialog = $korban.getFloatVar("nextDialog");
+		sDialog	= "m8l1/korban_daydie.mp3";
+		
+		if(fDialog == 1)
+		{
+			sDialog = "ent_m1/korban_truemeans.mp3";
+		}
+		else if(fDialog == 2)
+		{
+			sDialog = "combat/korban_kindabus3.mp3";
+		}
+		else if(fDialog == 3)
+		{
+			sDialog = "combat/korban_cantsee1.mp3";
+		}
+		else
+		{
+			fDialog=0;
+		}
+		$korban.anim("idle");
+		
+		$korban.playDialog( "localization/sound/dialog/"+sDialog,1,128,0 );
+		waitfordialog($korban);
+		
+		$korban.anim("ent-curvedconsole-gesture2");
+		
+		fDialog++;
+		$korban.setFloatVar("nextDialog",fDialog);
+		
+		$korban.headwatchtarget( "none", 10 );
+		
+		thread globalCoop_level_onUse($korban,"enterprise_amoryActorTalk");
+	}
+}
+
+void enterprise_sickbayPickupMedkit()
+{
+	entity eTrigger,ePlayer,eSpawn;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+		//spawn a medpit right at the player
+			eSpawn = spawn("weapon","model","models/item/holdable_medkit.tik","origin",""+ePlayer.getOrigin(),"set_respawn","0","scale","0");
+		//let the game process, takes 1 frame
+			globalCoop_main_waitAFrame();
+		//remove the weapon if it has not been picked up
+			globalCoop_level_remove(eSpawn);
+		}
+		
+		//show info to player
+		if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+			ePlayer.hudprint("^5INFO:^8 Verbandskasten aufgenommen, benützen drücken zum heilen.");
+		}else{
+			ePlayer.hudprint("^5INFO:^8 Medipack picked up, press use to heal.");
+		}
+	}	
+}
+
+void enterprise_sickbayResurectPlayerCheck(entity ePlayer,float fSickbed)
+{
+	vector vOrigin;
+	if(fSickbed==1)
+	{
+		vOrigin = '1125 -12062 0';
+	}
+	else if(fSickbed==2)
+	{
+		vOrigin = '842 -11834 0';
+	}
+	else if(fSickbed==3)
+	{
+		vOrigin = '665 -11834 0';
+	}
+	else if(fSickbed==4)
+	{
+		vOrigin = '841 -12293 0';
+	}
+	else if(fSickbed==5)
+	{
+		vOrigin = '667 -12293 0';
+	}
+	else if(fSickbed==6)
+	{
+		vOrigin = '490 -12293  0';
+	}
+	
+	entity eModel;
+	eModel = getEntity( "sickFakePlayer"+fSickbed );
+
+	while(	enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin) == 1 &&
+			enterprise_sickbayResurecting == 1
+		)
+	{
+		globalCoop_main_waitZeroDot2();
+	}
+//stop her
+	if(enterprise_sickbaySitting != 1 && enterprise_sickbayResurecting == 1)
+	{
+		$stevenson.walkto("$stevenson");
+	}
+}
+
+void enterprise_sickbayResurectPlayer(entity ePlayer,float fSickbed)
+//animates the doctor to walk to the player and heal him
+{
+//make sure the part below is started only once
+	if(enterprise_sickbayResurecting)
+	{
+	//exit here now
+		return;
+	}
+	enterprise_sickbayResurecting=1;
+	
+	vector vOrigin;
+	if(fSickbed==1)
+	{
+		vOrigin = '1125 -12062 0';
+	}
+	else if(fSickbed==2)
+	{
+		vOrigin = '842 -11834 0';
+	}
+	else if(fSickbed==3)
+	{
+		vOrigin = '665 -11834 0';
+	}
+	else if(fSickbed==4)
+	{
+		vOrigin = '841 -12293 0';
+	}
+	else if(fSickbed==5)
+	{
+		vOrigin = '667 -12293 0';
+	}
+	else if(fSickbed==6)
+	{
+		vOrigin = '490 -12293  0';
+	}
+	
+	
+	
+//makes ai walk to the given sickbed and resurect the player
+	if(enterprise_sickbaySitting==1)
+	{
+		enterprise_sickbaySitting=0;
+		$stevenson.anim("ent-seta_sit-up");
+		wait(1.45);	
+		$stevenson.anim("idle");
+	}
+	
+	$stevenson.walkto("$sickbay_bed"+fSickbed,"walk");
+	
+	thread enterprise_sickbayResurectPlayerCheck(ePlayer,fSickbed);
+	
+	
+	entity eModel;
+	eModel = getEntity( "sickFakePlayer"+fSickbed );
+	if( doesEntityExist(eModel) )
+	{	
+		waitFor($stevenson);
+		if(enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin))
+		{
+			$stevenson.warpto("$sickbay_bed"+fSickbed);//failsafe, when blocked
+			thread globalCoop_level_warpEntityToVectorSafty($stevenson,$stevenson.getOrigin());//if player is blocking, make sure ai and player do not get stuck
+			
+			if( doesEntityExist(eModel) )
+			{
+				$stevenson.anim("ent-sickbed-gesture");
+				waitForAnimation($stevenson,"ent-sickbed-gesture");
+				
+				if( doesEntityExist(eModel) )
+				{
+					$stevenson.anim("ent-sickbed-idle-look");
+					waitForAnimation($stevenson,"ent-sickbed-idle-look");
+				}
+			}
+		}
+	}
+	
+//reset sickbed in use var, and allow the player to gear up again
+	$world.setFloatVar("enterprise_sickbedActive"+fSickbed,0);
+	
+//get player ready again
+	thread enterprise_gearUp(ePlayer,fSickbed);
+	
+	$stevenson.anim("idle");
+	
+//...write a comment here
+	enterprise_sickbayResurecting=0;
+	
+//return to seat if there is no else player that needs help
+	thread enterprise_sickbayResurectPlayerReturnToSeat();
+}
+
+
+entity enterprise_sickbayReturnPlayer(float fSickbed)
+{
+	vector vOrigin;
+	if(fSickbed==1)
+	{
+		vOrigin = '1125 -12062 0';
+	}
+	else if(fSickbed==2)
+	{
+		vOrigin = '842 -11834 0';
+	}
+	else if(fSickbed==3)
+	{
+		vOrigin = '665 -11834 0';
+	}
+	else if(fSickbed==4)
+	{
+		vOrigin = '841 -12293 0';
+	}
+	else if(fSickbed==5)
+	{
+		vOrigin = '667 -12293 0';
+	}
+	else if(fSickbed==6)
+	{
+		vOrigin = '490 -12293  0';
+	}
+	
+	float fPlayer=0;
+	entity ePlayer;
+	
+	while(fPlayer < coop_integer_maxPlayers)
+	{
+		ePlayer = getEntity("player"+fPlayer);
+		if(doesEntityExist(ePlayer))
+		{
+			if(ePlayer.getOrigin() == vOrigin)
+			{
+				fPlayer = coop_integer_maxPlayers;
+			}
+		}
+		fPlayer++;
+	}
+	return ePlayer;
+}
+
+void enterprise_sickbayResurectPlayerReturnToSeat()
+//animates the doctor to walk to the player and heal him
+{
+
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+//add test here spawn each model and remember last, check all 5 beds
+
+//check is there somone else that needs help ?
+	float	fSickbed = 1;	
+	entity	eModel,
+			ePlayer;
+	
+	while(fSickbed < 7)
+	{
+		eModel = getEntity( "sickFakePlayer"+fSickbed );
+		if(doesEntityExist(eModel))
+		{
+			ePlayer = enterprise_sickbayReturnPlayer(fSickbed);
+			if(globalCoop_check_existingLivingEntity(ePlayer))
+			{
+				thread enterprise_sickbayResurectPlayer(ePlayer,fSickbed);
+				return;			
+			}
+		}
+		fSickbed++;
+	}
+//return to seat
+	$stevenson.walkto("$sickbay_seat","walk");
+	waitFor($stevenson);
+	enterprise_sickbayResurectPlayerReturnToSeatSitdown();
+}
+
+void enterprise_sickbayResurectPlayerReturnToSeatSitdown()
+//animates the doctor to walk to the player and heal him
+{
+	if(!enterprise_sickbayResurecting)
+	{
+		$stevenson.warpto("$sickbay_seat");//failsafe, when blocked
+		$stevenson.origin('435 -11721 0');
+		thread globalCoop_level_warpEntityToVectorSafty($stevenson,$stevenson.getOrigin());//if player is blocking, make sure ai and player do not get stuck
+		//$stevenson.anim("ent-seta_sit-scan");
+		$stevenson.anim("ent-seta_sit-down");
+		wait(1.45);
+		enterprise_sickbaySitting = 1;
+		$stevenson.anim("ent-seta_sit-idle");
+	}
+}
+
+void enterprise_sickbayActorTalk()
+//make the transporter ai talk when used
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		$stevenson.nouse();
+		ePlayer=globalCoop_return_playerClosestPreferActive($stevenson);
+		$stevenson.headwatch( ePlayer, 10 );
+		
+		float	fDialog;
+		string	sDialog;
+		
+		fDialog = $stevenson.getFloatVar("nextDialog");
+		sDialog	= "ent_m1/doctor_heada.mp3";
+		
+		if(fDialog == 1)
+		{
+			sDialog = "ent_m1/doc_temp.mp3";
+		}
+		else if(fDialog == 2)
+		{
+			sDialog = "ent_m6/doctor_miracle.mp3";
+		}
+		else
+		{
+			fDialog=0;
+		}
+		
+		$stevenson.playDialog( "localization/sound/dialog/"+sDialog,1,128,0 );
+		
+		fDialog++;
+		$stevenson.setFloatVar("nextDialog",fDialog);
+		
+		$stevenson.headwatchtarget( "none", 10 );
+		
+		thread globalCoop_level_onUse($stevenson,"enterprise_sickbayActorTalk");
+	}
+}
+
+
+float enterprise_sickbedReturnFreeBed()
+//return a free bed
+{
+	float fBed;
+	for(fBed=1;fBed<7;fBed++)
+	{
+		if( $world.getFloatVar("enterprise_sickbedActive"+fBed) != 1 )
+		{
+			return fBed;
+		}
+	}
+	return 6;
+}
+
+float enterprise_sickbedCheckPlayerOnBed(entity ePlayer,entity eModel,vector vOrigin)
+{
+	if(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		if(ePlayer.getOrigin() == vOrigin)
+		{
+			if(doesEntityExist(eModel))
+			{
+				thread enterprise_sickbedAnimateFakePlayerSetModel(ePlayer,eModel);
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+void enterprise_sickbedAnimateFakePlayerSetModel(entity ePlayer,entity eModel)
+{
+	string	sModel;
+	sModel = ePlayer.getModelName();
+	
+	if(ePlayer.getStringVar("prevModel") == sModel)
+	{
+		return;
+	}
+	
+	ePlayer.setStringVar("prevModel",sModel);
+	
+	float 	fScale	= 1;
+	vector	vOrigin;
+	
+	sModel = ePlayer.getModelName();
+	
+	if(doesEntityExist(ePlayer) == 1 && doesEntityExist(eModel) == 1)	
+	{
+	//male
+		if(sModel == "models/char/dm_munro.tik")
+		{
+			sModel = "models/coop_bugs/munro.tik";
+		}
+		else if(sModel == "models/char/dm_kourban.tik")
+		{
+			sModel = "models/coop_bugs/korban.tik";
+			fScale = 0.9;
+		}
+		else if(sModel == "models/char/dm_chell.tik")
+		{
+			sModel = "models/coop_bugs/chell.tik";
+		}
+		else if(sModel == "models/char/dm_chang.tik")
+		{
+			sModel = "models/coop_bugs/chang.tik";
+		}
+	//female
+		else if(sModel == "models/char/dm_telsia.tik")
+		{
+			sModel = "models/coop_bugs/telsia.tik";
+		}
+		else if(sModel == "models/char/dm_jurot.tik")
+		{
+			sModel = "models/coop_bugs/jurot.tik";
+		}
+		else
+		{
+			thread enterprise_sickbedAnimateFakePlayerSetModel(ePlayer,eModel);
+			return;
+		}
+		
+		// = "models/char/hazardteam_munro.tik";
+		eModel.hide();
+		globalCoop_main_waitAFrame();
+		
+		eModel.model(sModel);
+		globalCoop_main_waitAFrame();
+		
+		eModel.notsolid();
+		eModel.scale(fScale);
+		eModel.anim("ent-sickbed-laying-idle");
+		
+		if(eModel.getVectorVar("originalOrigin") == '0 0 0')
+		{
+			vOrigin	= eModel.getOrigin();
+			eModel.setVectorVar("originalOrigin",vOrigin);	
+		}
+		
+		vOrigin = eModel.getVectorVar("originalOrigin");
+		//vOrigin_z += fOffset;
+		eModel.origin(vOrigin);
+		
+		globalCoop_main_waitAFrame();
+		eModel.show();
+	}
+}
+
+void enterprise_sickbedAnimateFakePlayer(entity ePlayer, float fSickbed)
+{
+return; //dissabled, not compatiblw with new coop mod version 6.0
+//exit if player has left the game or is dead again
+	if(!globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		return;
+	}
+//create vars
+	float fRounds;
+	float fAngle=180;
+	vector vOrigin,vAngels;
+	
+	if(fSickbed==1)
+	{
+		vOrigin = '1125 -12062 0';
+	}
+	else if(fSickbed==2)
+	{
+		fAngle=270;
+		vOrigin = '842 -11834 0';
+	}
+	else if(fSickbed==3)
+	{
+		fAngle=270;
+		vOrigin = '665 -11834 0';
+	}
+	else if(fSickbed==4)
+	{
+		fAngle=90;
+		vOrigin = '841 -12293 0';
+	}
+	else if(fSickbed==5)
+	{
+		fAngle=90;
+		vOrigin = '667 -12293 0';
+	}
+	else if(fSickbed==6)
+	{
+		fAngle=90;
+		vOrigin = '490 -12293  0';
+	}
+	
+//set view direction
+	vAngels_y = fAngle;
+	ePlayer.playerviewangles(vAngels);
+//move player
+	ePlayer.warp(vOrigin);
+//hide
+	ePlayer.hide();
+//switch to 3rd person view
+	ePlayer.forceMoveType("3rdPerson");
+	ePlayer.immobilize(1);
+	
+//remove any previouse models, this is a failsafe rutine
+	entity eModel;
+	eModel = getEntity("sickFakePlayer"+fSickbed);
+	
+	if(doesEntityExist(eModel))
+	{
+		eModel.remove();
+	}
+	
+//reset previouse model
+	ePlayer.setStringVar("prevModel","");
+	
+//sopawn script model
+	eModel = spawn("script_model","model","models/coop_bugs/munro.tik","origin","0 0 -1111111","targetname","sickFakePlayer"+fSickbed);	
+	globalCoop_main_waitAFrame();
+	eModel.anim("ent-sickbed-laying-idle");
+	eModel.notsolid();
+	eModel.angle(fAngle);
+	eModel.origin(vOrigin);
+
+//set model of the fakeplayer on the bed
+	enterprise_sickbedAnimateFakePlayerSetModel(ePlayer,eModel);
+	while(	globalCoop_check_existingLivingEntity(ePlayer)	)
+	{
+		if(!enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin))
+		{
+		//remove fake player model
+			globalCoop_level_remove(eModel);
+		//exit
+			return;
+		}
+		eModel.anim("ent-sickbed-laying-idle");
+		waitForAnimation(eModel,"ent-sickbed-laying-idle");
+		
+		if(!enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin))
+		{
+		//remove fake player model
+			globalCoop_level_remove(eModel);
+		//exit
+			return;
+		}
+		
+		eModel.anim("ent-sickbed-laying-idle-look");
+		waitForAnimation(eModel,"ent-sickbed-laying-idle-look");
+		eModel.anim("ent-sickbed-laying-idle");
+		
+		if(randomint(10) > 5)
+		{
+			waitForAnimation(eModel,"ent-sickbed-laying-idle");			
+			
+			if(!enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin))
+			{
+			//remove fake player model
+				globalCoop_level_remove(eModel);
+			//exit
+				return;
+			}
+			
+			if(randomint(10) > 5)
+			{
+				eModel.anim("ent-sickbed-laying-gesture1");
+				waitForAnimation(eModel,"ent-sickbed-laying-gesture1");
+			}
+			else
+			{
+				eModel.anim("ent-sickbed-laying-gesture");
+				waitForAnimation(eModel,"ent-sickbed-laying-gesture");
+			}
+			
+			if(!enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin))
+			{
+			//remove fake player model
+				globalCoop_level_remove(eModel);
+			//exit
+				return;
+			}
+			
+			eModel.anim("ent-sickbed-laying-idle");
+		}
+	//wait before animating again, but react quickly if fake player should be removed
+		fRounds=0;
+		while(	enterprise_sickbedCheckPlayerOnBed(ePlayer,eModel,vOrigin) == 1 &&
+				fRounds < 20 )
+		{
+			wait(.1);
+		}
+	}
+//remove fake player model
+	globalCoop_level_remove(eModel);
+}
+
+void enterprise_gearUp(entity ePlayer,float fSickbed)
+//Player has recovered
+{
+	if(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		float fAngle=180;
+		vector vOrigin,vOriginOld,vAngels;
+		if(fSickbed==1)
+		{
+			fAngle		= 180;
+			vOriginOld	= '1125 -12062 0';
+			vOrigin		= '1126 -12010 0';
+		}
+		else if(fSickbed==2)
+		{
+			fAngle		= 270;
+			vOriginOld	= '842 -11834 0';
+			vOrigin		= '895 -11849 0';
+		}
+		else if(fSickbed==3)
+		{
+			fAngle		= 90;
+			vOriginOld	= '665 -11834 0';
+			vOrigin		= '719 -11849 0';
+		}
+		else if(fSickbed==4)
+		{
+			fAngle		= 90;
+			vOriginOld	= '841 -12293 0';
+			vOrigin		= '895 -12281 0';
+		}
+		else if(fSickbed==5)
+		{
+			fAngle		= 90;
+			vOriginOld	= '667 -12293 0';
+			vOrigin		= '719 -12281 0';
+		}
+		else if(fSickbed==6)
+		{
+			fAngle		= 90;
+			vOriginOld	= '490 -12293 0';
+			vOrigin		= '544 -12281 0';
+		}
+	
+		globalCoop_level_remove( getEntity("sickFakePlayer"+fSickbed) );
+		
+		ePlayer.forceMoveType("none");
+		if( vectorLength( vOriginOld - ePlayer.getOrigin() ) < 30 )
+		{
+		//set view direction
+			vAngels_y = fAngle;
+			ePlayer.playerviewangles(vAngels);
+			
+		//move to new location, next to the bed
+			ePlayer.origin(vOrigin);
+			thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vOrigin);
+		}
+		ePlayer.immobilize(0);
+		globalCoop_main_waitAFrame();
+		ePlayer.show();
+		ePlayer.scale(1);
+		ePlayer.give(coop_string_weapon1);
+		ePlayer.give(coop_string_weapon2);
+		globalCoop_main_waitAFrame();
+		ePlayer.use(coop_string_weapon1);
+	}
+}
+
+void enterprise_handleRespawn(entity ePlayer)
+{
+	if(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		ePlayer.immobilize(1);
+	//player did respawn
+		if( vectorLength( coop_vector_respawnOrigin1 - ePlayer.getOrigin() ) < 100 )
+		{
+		//get free sickbed number
+			float fSickbed;
+			fSickbed = enterprise_sickbedReturnFreeBed();
+			
+		//animate fake player of the sickbed
+		// --- this will also resurect the player
+			thread enterprise_sickbedAnimateFakePlayer(ePlayer,fSickbed);			
+			
+		//make the ai come to this player next
+			thread enterprise_sickbayResurectPlayer(ePlayer,fSickbed);
+			
+		//wait a moment for the co-op mod to process the player equipment
+			wait(.2);
+			
+		//take weapons from player
+			ePlayer.take("models/weapons/worldmodel-phaser-stx.tik");
+			ePlayer.take("models/weapons/worldmodel-tricorder-stx.tik");
+		}
+	//if player switched team while he was on the sickbed
+		else
+		{
+			ePlayer.scale(1);
+			ePlayer.forceMoveType("none");
+			ePlayer.immobilize(0);
+		}
+		//moved code to: void handleStuffWhenDieing(entioty ePlayer) [b607]
+	}
+}
+
+

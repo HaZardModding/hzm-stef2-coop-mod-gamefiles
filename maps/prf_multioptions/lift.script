@@ -1,0 +1,459 @@
+//lift_level0
+//This script contains the code for the lift, use as you please
+//This script contains the code for the lift, use as you please
+//This script contains the code for the lift, use as you please
+
+
+//Global Variables, can be accessed by all Functions/scriptfiles
+//if definied outside a function, just like this
+////////////////////////////////////////////////////////////////////////////////
+entity	entity_liftOrigin;
+float 	fTravelTimePerLevel;
+
+//declaration
+////////////////////////////////////////////////////////////////////////////////
+void	lift();
+void	lift_moveToLevel(float fLevelToGo);
+void	lift_callTo();
+void	lift_allTriggers(float fDiableOrEnable);
+void	lift_One();
+void	lift_Two();
+void	lift_Three();
+void	lift_Four();
+void	lift_Five();
+void	lift_Six();
+void	lift_Seven();
+void	lift_Eight();
+void	lift_Nine();
+void	lift_Zero();
+void	lift_Ten();
+void	lift_Eleven();
+void	lift_Twelve();
+void	lift_Thirteen();
+void	lift_Fourteen();
+void	lift_Fifteen();
+
+void lift()
+//this function is started once the trigger is used
+//it does all the setup stuff
+{
+//create internal variables, used by this function only
+	float	fCurrentDistance,fClosestDistance,fMarkerId;
+	entity	eMarker1;
+	vector	vOriginLift,vOriginMarker;
+	
+//set travel time per level in secounds
+	fTravelTimePerLevel = 2;
+	
+//grab the LIFT origin for calcualtions
+	entity_liftOrigin = getEntity("lift_origin");
+
+//check if the lift origin does exist
+	if(!doesEntityExist(entity_liftOrigin))
+	{	
+	//show eroor message
+		centerprint("ERROR: No proper targetnamed lift script_origin entity could be found!!!\n");
+	//exit this fucntion now
+		return;
+	}
+	
+//calculate travel distance if it is not calculated allready
+	if($world.getFloatVar("lift_singleTravelDistance") == 0)
+	{
+	//grab the current origin of the lift
+		vOriginLift = entity_liftOrigin.getOrigin();
+		
+	//check for the closest location marker
+		float fLocationMarker,fLocationMarkerFailed;
+		for(fLocationMarker=0;fLocationMarker<10;fLocationMarker++)
+		{
+		//grab a marker by id
+			eMarker1=getEntity("lift_level"+fLocationMarker);//lift_level0,lift_level1,lift_level2,lift_level3,...
+			
+		//marker (script_origin) with that targetname exists
+			if(doesEntityExist(eMarker1))
+			{
+			//grab coordinates
+				vOriginMarker		= eMarker1.getOrigin();
+				
+			//calculate distance to the current lift location
+				fCurrentDistance	= (vectorLength(vOriginMarker - vOriginLift));
+				
+			//select closest marker to masure the default travel distance per level
+				if(fCurrentDistance < fClosestDistance || fClosestDistance == 0)
+				{
+					fClosestDistance = fCurrentDistance;
+				}
+			}
+		//Marker not found with that targetname
+			else
+			{
+				fLocationMarkerFailed++;
+			}
+		
+		//remember the closest distance, used for calculations later
+			$world.setFloatVar("lift_singleTravelDistance",fClosestDistance);
+		}
+		
+	//check if any location marker was avialable
+		if(fLocationMarkerFailed >= 9)
+		{
+		//show error message
+			centerprint("ERROR: No proper target named script_origin to mark a lift stop location could be found!!!\n");
+		//Exit this function now
+			return;
+		}
+	}
+}
+
+void lift_callTo()
+{
+//create internal variables, used in this function only
+	entity	eTrigger,ePlayer;
+	float	fLevelToGo;
+	
+//grab the trigger that started this function
+	eTrigger		= getCurrentEntity();
+	
+//exit if trigger is missing
+	if(!doesEntityExist(eTrigger))
+	{
+	//exit this funtion
+		return;
+	}
+	
+//grab the level teh lift is supposed to go
+	fLevelToGo = eTrigger.getfloatvar("uservar1");
+	
+//see if a player has activated that trigger
+	ePlayer = eTrigger.getLastActivatingEntity();
+		
+//exit if player is missing
+	if(!doesEntityExist(ePlayer))
+	{
+	//exit this funtion
+		return;
+	}
+//disable that trigger now
+	eTrigger.nottriggerable();
+	
+//tell the player what's going on	
+	ePlayer.hudprint("Calling Lift, please stand by...\n");
+	
+//run setup function first
+	lift();
+	
+//move lift to that level
+	lift_moveToLevel(fLevelToGo);	
+}
+
+
+
+void lift_allTriggers(float fDiableOrEnable)
+//diable = 0, enable = 1
+{
+//create internal variables, for this function only
+	entity	eTrigger,eSymbol;
+	float	fTriggerIndex;
+	
+//enable the trigger on the lift
+	if(fDiableOrEnable)
+	{
+		$lift_trigger.thread("mom_basic");
+	}
+//disable the trigger on the lift
+	else
+	{
+		$lift_trigger.thread("");
+	}
+	
+//get every trigger, and enable/disable it
+	for(fTriggerIndex=0;fTriggerIndex<10;fTriggerIndex++)
+	{
+	//get entity with the given targetname
+		eTrigger	= getEntity("lift_trigger"+fTriggerIndex);
+		
+	//if the trigger does indeed exist
+		if(doesEntityExist(eTrigger))
+		{
+		//enable it
+			if(fDiableOrEnable)
+			{
+				eTrigger.triggerable();
+			}
+		//disable it
+			else
+			{
+				eTrigger.nottriggerable();
+			}
+		
+		//assum where there is a trigger there is a symbol
+		//grab that symbol and hide/show it
+			eSymbol		= getEntity("lift_symbol"+fTriggerIndex);
+		
+		//if the symbol does exist
+			if(doesEntityExist(eSymbol))
+			{
+				eSymbol.scale(fDiableOrEnable);
+			}
+		}
+	}
+}
+
+void lift_moveToLevel(float fLevelToGo)
+{
+//check if the lift origin does exist
+	if(!doesEntityExist(entity_liftOrigin))
+	{
+	//show error message
+		centerprint("ERROR: Could not find lift script_origin entity could be found!!!\n");
+	//exit this function now
+		return;
+	}
+	
+	if(entity_liftOrigin.getFloatVar("onTheMove") == 1)
+	{
+	//tell the player that the lift is moving...
+		mom_showMessage("lift","Lift is on the move\n");
+	//exit this function now
+		return;
+	}
+	entity_liftOrigin.setFloatVar("onTheMove",1);
+	
+//disable all the triggers
+	thread lift_allTriggers(0);
+	
+//hide the use symbol
+	$lift_symbol.scale(0);
+	
+//create internal variables, used by this function only
+	entity	eMarker,ePlayer;
+	vector	vOriginLift,vOriginMarker;
+	float	fLocationMarker,fClosestDistance,fCurrentDistance,fCurrentLevel;
+	
+//set variable to a special value
+//that way we know it has not been set yet
+	fClosestDistance = 99999;
+	
+//check in what level the lift is currently
+//grab the current origin of the lift
+	vOriginLift = entity_liftOrigin.getOrigin();
+	
+//terminate the parent thread, disable input
+	killthread("lift");
+	
+//check for the closest location marker
+	for(fLocationMarker=0;fLocationMarker<10;fLocationMarker++)
+	{
+	//grab a marker by id
+		eMarker=getEntity("lift_level"+fLocationMarker);//lift_level0,lift_level1,lift_level2,lift_level3,...
+		
+	//marker (script_origin) with that targetname exists
+		if(doesEntityExist(eMarker))
+		{
+		//grab coordinates
+			vOriginMarker		= eMarker.getOrigin();
+			
+		//calculate distance to the current lift location
+			fCurrentDistance	= (vectorLength(vOriginMarker - vOriginLift));
+			
+		//select closest marker to masure the default travel distance per level
+			if(fCurrentDistance < fClosestDistance || fClosestDistance == 99999)
+			{
+				fClosestDistance	= fCurrentDistance;
+				fCurrentLevel		= fLocationMarker;
+			}
+		}
+	}
+	
+//lift seams to be at the same level
+	if(fCurrentLevel == fLevelToGo)
+	{
+	//make sure it is, print a message if the lift is allready in range
+		if(fClosestDistance < 10)
+		{
+		//let the player know what is going on
+			mom_showMessage("lift","Lift is allready at this Level!\n");
+			
+		//show the use symbol again
+			$lift_symbol.scale(1);
+			
+		//unmark as moving
+			entity_liftOrigin.setFloatVar("onTheMove",0);
+			
+		//allow triggers to be used again
+			thread lift_allTriggers(1);
+			
+		//exit this function now
+			return;
+		}
+	}
+
+//grab coordinates marker of the level we intent to travel to
+	eMarker=getEntity("lift_level"+fLevelToGo);
+	
+//check wether the level(marker) exists or not
+	if(!doesEntityExist(eMarker))
+	{
+	//let the player know what is going on
+		mom_showMessage("lift","Invalid Level!\n");
+	
+	//show the use symbol again
+		$lift_symbol.scale(1);
+		
+	//unmark as moving
+		entity_liftOrigin.setFloatVar("onTheMove",0);
+		
+	//allow triggers to be used again
+		thread lift_allTriggers(1);
+	
+	//exit this function now
+		return;
+	}
+//grab coordinates of the location we intend to travel to
+	vOriginMarker	= eMarker.getOrigin();
+	
+//create internal variables, used by this function only
+	float fTravelFactor,fTimeToTravel,fDistanceToTravel,fDefaultTravelDistance;
+	
+//Calculate distace from the current position to the new one
+	fDistanceToTravel = vectorLength( vOriginLift - vOriginMarker );	
+
+//grab the travel distance between each level from the calculation done before
+	fDefaultTravelDistance = $world.getFloatVar("lift_singleTravelDistance");
+	
+//calculate the travel time, based on the shortest route in this lift marker grid
+	fTravelFactor = (fTravelTimePerLevel / fDefaultTravelDistance);
+	fTimeToTravel = (fTravelFactor * fDistanceToTravel );
+
+//remove the menu now
+	thread mom_exitMenu("lift");
+	
+//stop previouse played sound, avoid bugs
+	entity_liftOrigin.stopSound(0);
+
+//play the lift travel sound
+	entity_liftOrigin.loopsound("sound/ships/enterprise/ent_turbolift_runloop.wav",3,160);
+	
+//travel, move the lift to the selected level marker coordinates...
+	entity_liftOrigin.moveToPos(vOriginMarker);
+	entity_liftOrigin.time(fTimeToTravel);
+	
+//wait for the lift to react the destination
+	waitFor(entity_liftOrigin);
+	
+//stop the loop sound
+	entity_liftOrigin.stopLoopSound();
+	
+//play a stop sound 
+	entity_liftOrigin.playSound("sound/ships/enterprise/ent_turbolift_stop.wav",0,1,128);
+	
+//wait a moment, before we allow travel again
+	wait(1);
+	
+//show the use symbol again
+	$lift_symbol.scale(1);
+	
+//unmark as moving
+	entity_liftOrigin.setFloatVar("onTheMove",0);
+	
+//allow triggers to be used again
+	thread lift_allTriggers(1);
+}
+
+void lift_One()
+//this function is called when option 1 is used
+{
+	lift_moveToLevel(1);
+	//centerprint("used one\n");
+}
+void lift_Two()
+//this function is called when option 2 is used
+{
+	lift_moveToLevel(2);
+	//centerprint("used two\n");
+}
+void lift_Three()
+//this function is called when option 3 is used
+{
+	lift_moveToLevel(3);
+	//centerprint("used three\n");
+}
+void lift_Four()
+//this function is called when option 4 is used
+{
+	lift_moveToLevel(4);
+	//centerprint("used four\n");
+}
+void lift_Five()
+//this function is called when option 5 is used
+{
+	lift_moveToLevel(5);
+	//centerprint("used five\n");
+}
+void lift_Six()
+//this function is called when option 6 is used
+{
+	lift_moveToLevel(6);
+	//centerprint("used six\n");
+}
+void lift_Seven()
+//this function is called when option 7 is used
+{
+	lift_moveToLevel(7);
+	//centerprint("used seven\n");
+}
+void lift_Eight()
+//this function is called when option 8 is used
+{
+	lift_moveToLevel(8);
+	//centerprint("used eight\n");
+}
+void lift_Nine()
+//this function is called when option 9 is used
+{
+	lift_moveToLevel(9);
+	//centerprint("used nine\n");
+}
+//this function is called when option 10 is used
+void lift_Zero()
+{
+	lift_moveToLevel(0);
+	//centerprint("used zero\n");
+}
+void lift_Ten()
+{
+	lift_moveToLevel(10);
+	//centerprint("used Ten\n");
+}
+
+void lift_Eleven()
+{
+	lift_moveToLevel(11);
+	//centerprint("used Eleven\n");
+}
+
+void lift_Twelve()
+{
+	lift_moveToLevel(12);
+	//centerprint("used Twelve\n");
+}
+
+void lift_Thirteen()
+{
+	lift_moveToLevel(13);
+	//centerprint("used Thirteen\n");
+}
+
+void lift_Fourteen()
+{
+	lift_moveToLevel(14);
+	//centerprint("used Fourteen\n");
+}
+
+void lift_Fifteen()
+{
+	lift_moveToLevel(15);
+	//centerprint("used Fifteen\n");
+}
+

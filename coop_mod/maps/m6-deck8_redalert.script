@@ -1,0 +1,2127 @@
+//--------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m6-deck8	  
+//  Script By:    Gary B, Josh M
+//  Geometry By:  Kenny T, Benson R, Josh M, Gary B
+//  Created on:   9/3/2002
+//
+//  Last Edited By:  Josh M
+//
+//--------------------------------------------------------------
+
+//
+// Includes
+//
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_waitForTeam();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderMod.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/m6/m6-idrylldialog.scr"
+
+//
+// Prototypes
+//
+void main();
+void setupWorld();
+void setupAI();
+void setupStartingObjectives();
+void setupExplosions();
+//void seqTransporter_Cinematic();
+void ambientDamageLoop();
+//void ambientSparksLoop( entity spawner );
+//void ambientSparks();
+void seqJurotHelp1();
+void blinkyplasma();
+void lightloop();
+void effects_remove();
+
+void catwalk_atPanel();
+
+void korbanContextDialogBS();
+
+void seqSickbay_wave2();
+void seqSickbay_wave3();
+void seqSickbay_wave4();
+void seqSickbayDone();
+
+
+void cinematicAttack_Start();
+void cinematicAttack_Action_HazardteamToDuty();
+void cinematicAttack_Action_TransporterTechsToDuty();
+
+//-----------------------
+// level variables
+
+float numSnipersLeft_west;
+float numSnipersLeft_east;
+float g_pastLadder = 0;
+
+float flooridryllspawncount = 0;
+float NUM_TO_SPAWN					= 3;
+float NUM_SPAWNERS 					= 4;
+float NUM_SPAWN_ATTEMPTS 			= 10;
+float TIME_BETWEEN_SPAWN_ATTEMPTS 	= 0.5; // seconds
+
+
+//==========================================================================================
+// Josh's cinematic helper functions
+//==========================================================================================
+void _cinePlayerBegin()
+{
+	freezeplayer();
+}
+
+void _cinePlayerEnd()
+{
+	releaseplayer();
+}
+
+void _cineScreenBegin()
+{
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	cinematic ();
+	letterbox( 0.05 );
+	wait( 0.1 );
+}
+
+void _cineScreenEnd()
+{
+	cueplayer();
+	clearletterbox( 0.05 );
+	noncinematic();
+	wait( 0.1 );
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+}
+
+//----------------------------------------------------------------------------------------------
+// Main
+//----------------------------------------------------------------------------------------------
+void main()
+{
+	//hzm coop mod chrissstrahl, make sure this is reset
+	setfloatvar ( "game.statusM5L2CUnlocked", 0 );
+	
+	//hzm coop mod chrissstrahl - make this trigger work with coop mod
+	$deathtrigger.setStringVar("uservar1","killmessage  was ^2sucked into Space");
+	$deathtrigger.setStringVar("uservar2","killmessage_de  wurde ^2in den Weltraum gesaugt");
+	
+	//hzm coop mod chrissstrahl, set story
+	coop_string_story = "$$EnterpriseLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set spawnangles for this level
+	coop_float_spawnAngle0 				= 270;
+	coop_vector_spawnOrigin1 			= '-9582 -1205 36';
+	coop_vector_spawnOrigin2 			= '-9580 -1140 36';
+	coop_vector_spawnOrigin3 			= '-9650 -1070 36';
+	coop_vector_spawnOrigin4 			= '-9650 -1140 36';
+	coop_vector_spawnOrigin5 			= '-9720 -1070 36';
+	coop_vector_spawnOrigin6 			= '-9720 -1140 36';
+	coop_vector_spawnOrigin7 			= '-9790 -1070 36';
+	coop_vector_spawnOrigin8 			= '-9790 -1140 36';
+	
+	//if(getCvarInt("coop_dev") == 1){
+		//coop_vector_spawnOrigin1 			= '-13022 -809 18';
+	//}
+
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+	// fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	
+	soundtrack( "music/m6l1_decks.mus" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m6_deck8_redalert" );
+
+	// run setup functions
+	setupAI();
+	setupWorld();
+	setupExplosions();
+	
+	// wait for player to spawn
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - immobilize all players
+	thread globalCoop_player_imobilizeAll(1);
+
+	wait( 1 );
+	
+	// start the opening cinematic
+	thread cinematicAttack_Start();
+}
+
+//----------------------------------------------------------------------------------------------
+
+/*
+void ambientSparksLoop( entity spawner )
+{
+	float randnum;
+	string soundname;
+	
+	// pick random model
+	randnum = randomint( 3 );
+	if( randnum == 0 )		spawner.modelname( "fx/fx-explosion-sparks-blue.tik" );
+	else if( randnum == 1 )	spawner.modelname( "fx/fx-explosion-sparks-green.tik" );
+	else if( randnum == 2 )	spawner.modelname( "fx/fx-explosion-sparks-yellow.tik" );
+	else					spawner.modelname( "fx/fx-explosion-sparks-red.tik" );
+	
+	// pick random sound
+	randnum = randomint( 4 );
+	if( randnum == 0 ) soundname = "sound/environment/electric/fritz3.wav";
+	else if( randnum == 1 ) soundname = "sound/environment/electric/fritz6.wav";
+	else if( randnum == 2 ) soundname = "sound/impact/explosion/explo_console1.wav";
+	else 					soundname = "sound/impact/explosion/explo_disruptor.wav";
+		
+	// do it
+	while( 1 )
+	{
+		wait( 6 + randomfloat( 3 ) );
+		spawner.playsound( soundname, 1, 0.5, 200 );
+		triggerentity( spawner );
+	}
+}
+
+
+void ambientSparks()
+{
+	thread ambientSparksLoop( $ambient_sparks1 );
+}
+*/
+
+//=====================================================================================
+//		SETUP
+//=====================================================================================
+
+//----------------------------------------------------------------------------------------------
+void setupExplosions()
+{
+	//----------------------------------------------------------------------------------------------
+	$explosion1_panel2_smoke1.hide();
+	$explosion2_forcefield.hide();
+	
+	$shuttbay_jtube_entrance.lock();
+}
+
+//----------------------------------------------------------------------------------------------
+// setupWorld
+// setup world objects
+//----------------------------------------------------------------------------------------------
+void setupWorld()
+{
+	thread ambientDamageLoop();
+	//thread ambientSparks();
+	
+	// set the sky box
+	$sky.rendereffects( "+skyorigin" );
+
+	$world.light_lightstyle( "jtube_blowout_lights", "z", 0 );
+	$world.light_lightstyle( "jtube_explosions_redlight", "a", 0);
+	$world.light_lightstyle( "explosion2_light", "z" );
+	$world.light_lightstyle( "sickbay_panellight", "a", 0 );
+
+	// make the forcefields hum
+	$forcefieldTransporterRoom.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$forcefieldCargoBay.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$forcefieldSickbay.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+
+	// viewscreen
+	$viewscreenImage_Starfield_BlueNebula.hide();
+	$viewscreenImage_Starfield_WhiteNebula.hide();
+	$viewscreenPortal.hide();
+	
+	//-- cargobay
+	$forcefield_cargobay1.hide();
+	$forcefield_cargobay2.hide();
+	$forcefield_cargobay3.hide();
+	$forcefield_cargobay4.hide();
+	disconnectPathnodes( "catwalkpathnode1", "catwalkpathnode2" );
+	disconnectPathnodes( "catwalkpathnode2", "catwalkpathnode3" );
+
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	//-- hallway torpedo hit
+	$hallsucker.deactivate();
+	$deathsucker.deactivate();
+	$broken_hull.hide();
+	$broken_hull_effects.hide();
+	
+	//-- jefferys tube ramp stuff
+	$explosion3_ramp.hide();
+	$busted_panel2.hide();
+	$explosion3_ramp.rotatezup(90);
+	
+	// sickbay hall
+	$sickbayHall_panel1_busted.hide();
+	
+	$forcefieldSickbay.hide();
+	
+	//-- jefferys tube photon hit
+	$jtube_blowout_after.hide();
+	$jtube_explosion_effects.hide();
+	
+	//-- level secrets
+	$secret_star1.hide();
+	$secret2_starshipshow.hide();
+	
+	$catwalk_room_hurt_east.nottriggerable();
+	$catwalk_room_hurt_west.nottriggerable();
+}
+
+//----------------------------------------------------------------------------------------------
+// setupAI
+// setup AI
+//----------------------------------------------------------------------------------------------
+void setupAI()
+{
+	//hzm coop mod chrissstrahl - dissable AIs first, or the guys will talk, or get messed up
+
+	// setup first hallway
+	$brigbadguy1.ai_off();
+	$firsthallidryll1.ai_off();
+	$firsthallidryll2.ai_off();
+	$firsthallidryll1.hide();
+	$firsthallidryll2.hide();
+	$firsthallidryllshield.hide();
+	
+	// setup tuvok sequence	
+	$tuvok.ai_off();
+	$tuvok.immortal( 1 );
+	$tuvok_redshirt1.ai_off();
+	$tuvok_redshirt1.immortal( 1 );
+	$tuvokHallCover1.ai_off();
+	$tuvokHallCover2.ai_off();
+	
+	// cargobay
+	$floor_idryll1.hide();
+	$floor_idryll1.ai_off();
+	$doomedIdryll1.ai_off();
+	$doomedIdryll2.ai_off();
+	
+	// sickbay
+	$sickbayHallGuard1.ai_off();
+	$sickbayHallGuard1.setgroupid( 800 );
+	
+	// armory
+	$idryll_armory1.ai_off();
+	$idryll_armory2.ai_off();
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	$transporterDude.alias( "dorchevusedlg1", "localization/sound/dialog/ent_m4/jacobs_notime2.mp3" ); // No time to talk.
+	$transporterDude.alias( "dorchevusedlg2", "localization/sound/dialog/ent_m4/jacobs_notime2.mp3" ); // No time to talk.
+	$transporterDude.dialog( "dorchevusedlg", "randompick" );
+	
+	$transporterChick.alias( "chickusedlg1", "localization/sound/dialog/ent_m1/alison_kindaBusy.mp3" );
+	$transporterChick.alias( "chickusedlg2", "localization/sound/dialog/ent_m1/alison_kindaBusy.mp3" );
+	$transporterChick.dialog( "chickusedlg", "randompick" );
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	globalCommon_AiDummy( $brcrew1, "" );
+	globalCommon_AiDummy( $brcrew2, "" );
+	globalCommon_AiDummy( $brcrew3, "" );
+	
+
+	// chell
+	globalCommon_AiDummy( $chell, "" );
+
+	//hzm coop mod chrissstrahl - he is not needed on this map, have him removed
+	// krindo
+	$krindo.remove();
+
+	// transporter AI
+	globalCommon_AiDummy( $transporterDude, "" );
+	globalCommon_AiDummy( $transporterChick, "" );
+	globalCommon_AiDummy( $chang, "" );
+	globalCommon_AiDummy( $jurot, "" );
+	globalCommon_AiDummy( $munro, "" );
+	globalCommon_AiDummy( $korban, "" );
+	
+	// set context sensitive dialog
+	korbanContextDialogBS();
+	globalCommon_SetupContextDialog( $jurot, "jurot" );
+	globalCommon_SetupContextDialog( $tuvok, "tuvok" );
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	// set follow distance on korban and redshirts so they don't try to follow
+	// and turn off their AI so they don't attack until player gets there
+	$korban.followrange( 50000 );
+	$korban.followcombatrange( 50000 );
+	$korban.settendency( "follow", 0 );
+	
+	$jurot.followrange( 50000 );
+	$jurot.followcombatrange( 50000 );
+	$jurot.settendency( "follow", 0 );
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+}
+
+//----------------------------------------------------------------------------------------------
+// setupStartingObjectives
+// setup the starting objectives for the player
+//----------------------------------------------------------------------------------------------
+void setupStartingObjectives()
+{
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepelInvaders$$","incomplete",1,1);
+	
+	$munro.playdialog("localization/sound/dialog/m6l1/munro_emdeploy.mp3", 1, 11111, 1); //To all hazard team members, emergency deploy!!!  Fight off the idryll invaders!
+	waitForDialog( $munro );
+	wait( 1 );
+
+	// korban asks for assistance
+	$korban.playdialog("localization/sound/dialog/m6l1/korban_maincarg.mp3", 1, 11111, 1); //Arrrgh, I am requesting assistance in the main cargo bay on deck 8!
+	waitForDialog( $korban );
+
+	// set objective
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$AssistKorban$$","incomplete",2,1);
+
+	$korban.missionobjective( 1 );
+}
+
+
+//=====================================================================================
+//		TUVOK HALLWAY
+//=====================================================================================
+
+void tuvokIntro()
+{
+	$tuvokDoor.lock();
+
+	$tuvok_redshirt1.ai_on();
+	$tuvok_redshirt1.alias( "plususeA", "localization/sound/dialog/m6l1/engf_sudd.mp3" );
+	$tuvok_redshirt1.alias( "plususeB", "localization/sound/dialog/m6l1/engf_sudd.mp3" );
+	$tuvok_redshirt1.dialog( "plususe", "randompick" );
+
+	$tuvok.alias( "PlusUseNormalA", "localization/sound/dialog/ent_m3/tuvok_10forw.mp3" );
+	$tuvok.alias( "PlusUseNormalB", "localization/sound/dialog/ent_m3/tuvok_10forw.mp3" );
+	$tuvok.dialog( "PlusUseNormal", "randompick" );
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	$tuvokHallCover1.ai_on();
+	$tuvokHallCover1.killthread( "tuvokIdryllDeath1" );
+		
+	$tuvokHallCover2.ai_on();
+	$tuvokHallCover2.killthread( "tuvokIdryllDeath2" );
+	
+	$tuvok.anim( "crouch_idle" );
+	$tuvok.resethead();
+	$tuvok.playdialog( "localization/sound/dialog/m6l1/tuvok_assistus.mp3", 1, 11111, 1 ); // Lieutenant Munro, assist with the defense of this corridor.
+	waitfordialog( $tuvok );
+	$tuvok.ai_on();
+	
+}
+
+//----------------------------------------------------------------------------------------------
+void tuvokSeqDone();
+void tuvokIdryllDeath1()
+{
+	entity e;
+	
+	wait( 5 );
+	$tuvokHallSpawner1.modelname( "char/idryll-m6-rebel-rifle-noshield-m1.tik" );
+	$tuvokHallSpawner1.spawntargetname( "tuvokIdryllDeath1B" );
+	$tuvokHallSpawner1.spawneffectname( "TransportIn", "Idryll" );
+	$tuvokHallSpawner1.checkforspace();
+	e = $tuvokHallSpawner1.spawnnow();
+	wait( 0.05 );
+	if( !doesEntityExist( e ) )
+	{
+		thread tuvokSeqDone();
+		return;
+	}
+	$tuvokIdryllDeath1B.killthread( "tuvokSeqDone" );
+	$tuvokIdryllDeath1B.attackplayer();
+	$tuvokIdryllDeath1B.setnodeid( 444 );
+}
+
+//----------------------------------------------------------------------------------------------
+void tuvokIdryllDeath2()
+{
+	entity e;
+	
+	wait( 5 );
+	$tuvokHallSpawner2.modelname( "char/idryll-m6-rebel-rifle-noshield-m3.tik" );
+	$tuvokHallSpawner2.spawntargetname( "tuvokIdryllDeath2B" );
+	$tuvokHallSpawner2.spawneffectname( "TransportIn", "Idryll" );
+	$tuvokHallSpawner2.checkforspace();
+	e = $tuvokHallSpawner2.spawnnow();
+	wait( 0.05 );
+	if( !doesEntityExist( e ) )
+	{
+		thread tuvokSeqDone();
+		return;
+	}
+	$tuvokIdryllDeath2B.killthread( "tuvokSeqDone" );
+	$tuvokIdryllDeath2B.attackplayer();
+	$tuvokIdryllDeath2B.setnodeid( 445 );
+}
+
+//----------------------------------------------------------------------------------------------
+float numTuvokIdryllDead = 0;
+void tuvokSeqDone()
+{
+	float tuvokCloseEnough, tuvokDistance;
+	tuvokCloseEnough = 0;
+	
+	// only do all this once both of the second-wave guys die
+	numTuvokIdryllDead++;
+	if( numTuvokIdryllDead == 1 )
+	{
+		return;
+	}
+	
+	// holster that weapon
+	$tuvok.ai_off();
+	globalCommon_AiActorUseWeapon( $tuvok, "none" );
+	
+	$tuvok.pushable( 0 );
+	$tuvok.mass( 999999 );
+	
+	// run over to the door
+	while( ! tuvokCloseEnough )
+	{
+		$tuvok.walkto( "$tuvokOpenDoorNode" , "run" );
+		wait( 2 );
+		tuvokCloseEnough = $tuvok.iswithindistanceof( $tuvokOpenDoorPoint, 48.0 ); //[b607] chrissstrahl - changed to make sure he is really close
+	}
+	//[b607] chrissstrahl - we have issues with tuvok blocking,
+	//now we place him exactly on the spot and make him then solid
+	$tuvok.origin($tuvokOpenDoorNode.getorigin());
+	thread globalCoop_player_makeSolidASAP($tuvok);
+	
+	//solidasap
+	
+	
+	wait( 0.5 );
+	
+	//after hall is secure Tuvok delivers line
+	$tuvok.playdialog( "localization/sound/dialog/m6l1/tuvok_fightthanks.mp3", 1, 11111, 1 ); // Well done, Lieutenant. Reinforce Jurot’s team in sickbay.
+	$tuvok.lookat( $tuvokOpenDoorPoint );
+
+	// push the button
+	$tuvok_jtube_doorup.time(.5);
+	$tuvok_jtube_doordown.time(.5);
+	$tuvok_jtube_doorup.movesouth( 1 );
+	$tuvok_jtube_doordown.movesouth( 1 );
+	waitfor( $tuvok_jtube_doordown );
+	$tuvok_jtube_doorup.moveup( 9 );
+	$tuvok_jtube_doordown.movedown( 9 );
+	waitfor( $tuvok_jtube_doordown );
+	wait( 0.5 );
+	$tuvok.anim( "conv-overthere" );
+	waitforanimation( $tuvok, "conv-overthere" );
+	$tuvok.anim( "idle" );
+	
+	$tuvokDoor.unlock();
+	$tuvokDoor.open( $world );
+	
+	//hzm coop mod chrissstrahl - servers need more pause cycles
+	wait(0.05);
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($tuvok);
+	
+	//chrissstrahl - fixed in 6.07
+	$tuvok.headwatch( ePlayer );
+	$tuvok.lookat( ePlayer );
+	
+}
+
+//=====================================================================================
+//		KORBAN CARGO BAY
+//=====================================================================================
+
+float g_noMoreCargobaySpawns;
+
+
+//----------------------------------------------------------------------------------------------
+// spawnCatwalkSniper - functionality for spawning a catwalk idryll, see:
+//	catwalkSniperDeath_west and catwalkSniperDeath_east
+//----------------------------------------------------------------------------------------------
+entity spawnCatwalkSniper( entity spawner, string direction )
+{
+	entity e, d;
+	string runToNodeName;
+	
+	if( g_noMoreCargobaySpawns )
+		return e;
+	
+	if( ! doesEntityExist( spawner ) )
+		return e;
+	
+	spawner.setspawngroupid( 600 );
+	e = spawner.spawnnow();
+	wait( 0.05 );
+	if( ! doesEntityExist( e ) )
+		return e;
+		
+	e.ai_off();
+	
+	runToNodeName = "catwalksniper_" + direction + "_node";
+	e.walkto( runToNodeName, "run" );
+	
+	d = getentity( "catwalkdoor_" + direction );
+	triggerentity( d );
+	d.open( $world );
+	
+	if( direction == "west" )
+		e.setnodeid( 500 );
+	else
+		e.setnodeid( 501 );
+	
+	waitfor( e );
+	e.ai_on();
+	
+	e.attackplayer();
+	e.targetname( "catwalksniper_" + direction );
+	return e;
+}
+
+//--------------------------------------------------------------------------------
+void seqMainCargoBay_Start()
+{
+	$world.playsound("localization/sound/dialog/m6l1/comp_secfields7.mp3", 1, 1, 1111111); //Security fields initiated on deck 7.
+
+	//$korbanPanelLookat.missionobjective( 1 );
+	
+	$korban.ai_on();
+	$korban.show();
+	$korban.solid();
+	
+	$korban.attack( $doomedIdryll1 );
+	$doomedIdryll1.ai_on();
+	$doomedIdryll1.attack( $korban );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($doomedIdryll1);
+	
+	$doomedIdryll1.lookat( ePlayer );
+	$doomedIdryll1.health( 6 );
+	$doomedIdryll1.killthread( "seqMainCargoBay_RealStart" );
+
+	$doomedIdryll2.ai_on();
+	$doomedIdryll2.suicide();
+	
+}
+
+void seqMainCargoBay_RealStart()
+{	
+	
+	wait( 0.75 );
+	$korban.ai_off();
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	$korban.lookat( ePlayer );
+	
+	wait( 0.25 );
+	$korban.anim( "conv-comehere" );
+	$korban.playdialog( "localization/sound/dialog/m2l2/korban_gethere.mp3", 1, 11111, 1 ); // get over here, munro
+	wait( 1.4 );
+	$korban.ai_on();
+
+	thread spawnCatwalkSniper( $catwalksniperspawner_west, "west" );
+
+	$floor_idryll1.show();
+	$floor_idryll1.displayeffect( "TransportIn", "Idryll" );
+	wait( 0.05 );
+	$floor_idryll1.ai_on();
+	$floor_idryll1.setgroupid( 600 );
+	$floor_idryll1.killthread( "spawnflooridryll" );
+
+	wait( 3 );
+	thread spawnCatwalkSniper( $catwalksniperspawner_east, "east" );
+
+}
+
+void seqMainCargoBay_Enter()
+{
+}
+
+//--------------------------------------------------------------------------------
+void catwalk_korbanFollow()
+{
+	$catwalkdoor_west.close();
+	$catwalkdoor_west.lock();
+	$catwalkdoor_east.close();
+	$catwalkdoor_east.lock();
+	$catwalk_room_hurt_east.triggerable(); // kill any guys who are stuck in the rooms
+	$catwalk_room_hurt_west.triggerable();
+	
+	//hzm coop mod chrissstrahl - don't do this, will lock players out
+	/*
+	$door5.sound_locked( " " );
+	$door5.close();
+	$door5.lock();
+	$forcefield_cargobay4.solid();
+	*/
+	
+	$catwalkdoor_west.sound_locked( " " );
+	$catwalkdoor_east.sound_locked( " " );
+	
+	
+	
+	// make these solid now so the player can't stand in it when they turn on later
+	$forcefield_cargobay1.solid();
+	$forcefield_cargobay2.solid();
+	$forcefield_cargobay3.solid();
+	
+
+	connectPathnodes( "catwalkpathnode1", "catwalkpathnode2" );
+	connectPathnodes( "catwalkpathnode2", "catwalkpathnode3" );
+
+	$korban.followrange( 256 );
+	$korban.followrangemin( 200 );
+	$korban.followcombatrange( 256 );
+	$korban.followcombatrangemin( 200 );
+	$korban.settendency( "follow", 1 );
+	
+	$world.playsound("localization/sound/dialog/m6l1/comp_powersecsys.mp3", 1, 1, 1111111); //Re-routing power to security systems.
+	
+}
+
+//--------------------------------------------------------------------------------
+void catwalk_spawn1()
+{
+	entity e;
+	
+	while( !g_noMoreCargobaySpawns &&
+		( ( doesEntityExist( $catwalksniper_west ) && $catwalksniper_west.gethealth() > 0 )
+		|| 	( doesEntityExist( $catwalksniper_east ) && $catwalksniper_east.gethealth() > 0 )	) )
+	{
+		wait( 1 );
+	}
+		
+	if( g_noMoreCargobaySpawns )
+		return;
+	
+	$catwalkLadderSpawner1.checkforspace();
+	$catwalkLadderSpawner2.checkforspace();
+	$catwalkLadderSpawner3.checkforspace();
+	
+	$catwalkLadderSpawner1.modelname( "char/idryll-m6-rebel-pistol-shield-m1.tik" );
+	$catwalkLadderSpawner2.modelname( "char/idryll-m6-rebel-pistol-shield-m2.tik" );
+	$catwalkLadderSpawner3.modelname( "char/idryll-m6-rebel-pistol-shield-m3.tik" );
+
+	$catwalkLadderSpawner1.setspawngroupid( 600 );
+	$catwalkLadderSpawner2.setspawngroupid( 600 );
+	$catwalkLadderSpawner3.setspawngroupid( 600 );
+	
+	$catwalkLadderSpawner1.spawntargetname( "catwalksniper" );
+	$catwalkLadderSpawner2.spawntargetname( "catwalksniper" );
+	$catwalkLadderSpawner3.spawntargetname( "catwalksniper" );
+		
+	$catwalkLadderSpawner1.spawneffectname( "TransportIn", "Idryll" );
+	$catwalkLadderSpawner2.spawneffectname( "TransportIn", "Idryll" );
+	$catwalkLadderSpawner3.spawneffectname( "TransportIn", "Idryll" );
+	
+	$catwalkLadderSpawner1.setspawngroupdeaththread( "catwalk_atPanel" );
+	$catwalkLadderSpawner2.setspawngroupdeaththread( "catwalk_atPanel" );
+	$catwalkLadderSpawner3.setspawngroupdeaththread( "catwalk_atPanel" );
+	
+	g_pastLadder = 1;
+
+	e = $catwalkLadderSpawner1.spawnnow();
+	e.attack( $korban );
+	$korban.attack( e );
+	e = $catwalkLadderSpawner2.spawnnow();
+	e.attack( $korban );
+	e = $catwalkLadderSpawner3.spawnnow();
+	e.attackplayer();
+
+	$korban.followrange( 50000 );
+	$korban.followrangemin( 50000  );
+	$korban.followcombatrange( 50000  );
+	$korban.followcombatrangemin( 50000  );
+	$korban.settendency( "follow", 0 );
+}
+
+//--------------------------------------------------------------------------------
+void catwalk_ladderTop()
+{
+	if( g_noMoreCargobaySpawns )
+		return;
+		
+	flooridryllspawncount = NUM_TO_SPAWN; //don't spawn any more guys on the floor
+	
+	// spawn some more dudes
+	if( ! doesEntityExist( $catwalksniper_east ) || $catwalksniper_east.gethealth() <= 0 )
+		spawnCatwalkSniper( $catwalksniperspawner_east, "east" );	
+	if( ! doesEntityExist( $catwalksniper_west ) || $catwalksniper_west.gethealth() <= 0 )
+		spawnCatwalkSniper( $catwalksniperspawner_west, "west" );
+		
+	//hzm coop mod chrissstrahl - set new spawnloactions
+	coop_float_spawnAngle1 				= 180;
+	coop_float_spawnAngle2 				= 180;
+	coop_float_spawnAngle3 				= 180;
+	coop_float_spawnAngle4 				= 180;
+	coop_float_spawnAngle5 				= 180;
+	coop_float_spawnAngle6 				= 180;
+	coop_float_spawnAngle7 				= 180;
+	coop_float_spawnAngle8 				= 180;
+	coop_vector_spawnOrigin8 			= '-10723 1249 400';
+	coop_vector_spawnOrigin7 			= '-10800 1249 400';
+	coop_vector_spawnOrigin6 			= '-10870 1249 400';
+	coop_vector_spawnOrigin5 			= '-10940 1249 400';
+	coop_vector_spawnOrigin4 			= '-11010 1249 400';
+	coop_vector_spawnOrigin3 			= '-11080 1249 400';
+	coop_vector_spawnOrigin2 			= '-11150 1249 400';
+	coop_vector_spawnOrigin1 			= '-11220 1249 400';
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+}
+
+//--------------------------------------------------------------------------------
+void panelModulationSpawner()
+{
+	entity e;
+
+	if( g_noMoreCargobaySpawns )
+		return;
+
+	wait( 10 );
+	if( doesEntityExist( $catwalksniperspawner_east ) )
+	{
+		e = spawnCatwalkSniper( $catwalksniperspawner_east, "east" );
+		if( doesEntityExist( e ) )
+			e.killthread( "panelModulationSpawner" );
+	}
+}
+
+void cargobayPanelGo()
+{
+	globalTricorderMod_SetNumWaves ( 1 );
+	globalTricorderMod_SetAllRandomParms();
+	globalTricorderMod_Run( $cargobayPanelPuzzle, 20 );
+}
+
+void cargobayPanelSolved()
+{
+	$catwalkdoor_east.close();
+	$catwalkdoor_east.lock();
+
+	$catwalksniper_west.suicide();
+	$catwalksniper_east.suicide();
+	$forcefield_cargobay1.show();
+	$forcefield_cargobay2.show();
+	$forcefield_cargobay3.show();
+	
+	$forcefield_cargobay1.solid();
+	$forcefield_cargobay2.solid();
+	$forcefield_cargobay3.solid();
+	
+	//hzm coop mod chrissstrahl - don't do this, will lock players out
+	/*
+	$forcefield_cargobay4.show();
+	$forcefield_cargobay4.solid();
+	*/
+	
+	// forcefield sound; don't play it for all of them 
+	$korban.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_lockdownini.mp3", 1, 1, 1111111); //System lockdown initialized.
+
+	$catwalksniperspawner_east.remove();
+	$catwalksniperspawner_west.remove();
+	wait( 1.7 );
+	
+	$forcefield_cargobay1.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$forcefield_cargobay2.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$forcefield_cargobay3.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	
+	//hzm coop mod chrissstrahl - don't do this, will lock players out - don't play loop sound here
+	/*
+	$forcefield_cargobay4.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	*/
+
+	globalCommon_AiActorUseWeapon( $korban, "CompressionRifle" );
+	$korban.ai_off();
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	$korban.lookat( ePlayer );
+	
+	
+	$korban.playdialog( "localization/sound/dialog/m6l1/korban_thankass.mp3", 1, 11111, 1 ); // thanks for the assistance
+	wait( 1 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$AssistKorban$$","complete",2,1);
+
+	$korban.missionobjective( 0 );
+	
+	waitfordialog( $korban );
+	
+	wait( 1 );
+	seqJurotHelp1();
+	
+	wait( 2 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_unauthturbo8.mp3", 1, 1, 111111); //Unauthorized access in turbolift 8a.
+
+}
+
+void openCargobayJtube()
+{
+	$korban_jtubedoor.time( 0.5 );
+	$korban_jtubedoor.movesouth( 1 );
+	waitfor( $korban_jtubedoor );
+	$korban_jtubedoor.moveup( 70 );
+	waitfor( $korban_jtubedoor );
+}
+
+//--------------------------------------------------------------------------------
+void spawnflooridryll();
+
+void catwalk_atPanel()
+{
+	float korbanCloseEnough;
+	
+	//print( "***** catwalk_atPanel\n" );
+	if( g_noMoreCargobaySpawns )
+	{
+		print( "***** RETURNED BECAUSE NO MORE CARGOBAY SPAWNS ALLOWED\n" );
+		return;
+	}
+
+	// these variables are named VERY poorly.  sorry.
+	if( (flooridryllspawncount < NUM_TO_SPAWN) 
+		|| (doesEntityExist( $catwalksniper_west ) && ( $catwalksniper_west.gethealth() > 0 ) ) 
+		|| (doesEntityExist( $catwalksniper_east ) && ( $catwalksniper_east.gethealth() > 0 ) )	)
+	{
+		if( flooridryllspawncount < NUM_TO_SPAWN )
+			spawnflooridryll();
+		print( "***** RETURNED, " + (NUM_TO_SPAWN - flooridryllspawncount) + " and " + doesEntityExist( $catwalksniper) + "\n" );
+		return;
+	}
+	
+	if( !g_pastLadder )
+	{
+		return;
+	}
+	
+	//print( "***** RUNNING\n" );
+	g_noMoreCargobaySpawns = TRUE;
+	
+	korbanCloseEnough = 0;
+
+	//$korbanPanelLookat.missionobjective( 0 );
+	$korban.ai_off();
+		
+	// run over to the panel
+	while( ! korbanCloseEnough )
+	{
+		$korban.walkto( "$korbanPanelNode" , "swat_run" );
+		wait( 2 );
+		korbanCloseEnough = $korban.iswithindistanceof( $korbanPanelLookat, 90.0 );
+	}
+
+	wait( 0.5 );
+	$korban.lookat( $korbanPanelLookat );
+	globalCommon_AiActorUseWeapon( $korban, "none" );
+	$korban.anim( "ent-curvedconsole-gesture" );
+	wait( 2 );
+	$korban.anim( "idle" );
+
+	thread cargobayPanelSolved();
+	thread openCargobayJtube();
+}
+
+//--------------------------------------------------------------------------------
+// spawnflooridryll - beams in a couple guys when two specific guys are dead in the cargo bay
+// 	This is careful about spawning on top of stuff, which is why it's so big. :(  sigh
+//--------------------------------------------------------------------------------
+float _randomFloorSpawnerOffset;
+void spawnflooridryll()
+{
+	entity spawnPos, newIdryll;
+	float i, numTries, randomModelSuffix, selectedSpawner;
+	
+	if( flooridryllspawncount >= NUM_TO_SPAWN )
+	{
+		catwalk_atPanel();
+		return;
+	}
+	
+	if( g_noMoreCargobaySpawns )
+		return;
+	
+	_randomFloorSpawnerOffset += 1 + randomint( 2 );
+	
+	// don't keep trying to spawn guys forever; if you can't get it 
+	// after 10 seconds, something is wrong and just forget about it
+	for( numTries = 0; numTries < NUM_SPAWN_ATTEMPTS; numTries++ )
+	{
+		// loop through all possible spawn points until there is
+		// one available and not occupied
+		for( i = 0; i < NUM_SPAWNERS; i++ )
+		{
+			selectedSpawner = i + _randomFloorSpawnerOffset;
+			selectedSpawner = mod( selectedSpawner, NUM_SPAWNERS );
+			selectedSpawner++;
+			
+			spawnPos = getentity( "floor_idryll_spawner" + selectedSpawner );
+			if( doesEntityExist( spawnPos ) )
+			{
+				// tell the spawner not to spawn if there is something in the way
+				spawnPos.checkforspace();
+				
+				// setup the spawner to spawn what we want
+				randomModelSuffix = (1 + randomint( 4 ));
+
+				// first replacement guy is cover combat
+				if( flooridryllspawncount == 0 )
+					spawnPos.modelName( "char/idryll-m6-rebel-rifle-noshield-f" + randomModelSuffix + ".tik" );
+				else
+					spawnPos.modelName( "char/idryll-m6-rebel-pistol-shield-m" + randomModelSuffix + ".tik" );
+
+				spawnPos.spawnEffectName( "TransportIn", "Idryll" );
+				spawnPos.setspawngroupid( 600 );
+				
+				// try to spawn; if this returns an invalid entity, nothing was spawned
+				if( g_noMoreCargobaySpawns )
+					return;
+				newIdryll = spawnPos.spawnnow();
+				if( doesEntityExist( newIdryll ) )
+				{
+					flooridryllspawncount++;
+					
+					// tell the new idryll to attack the player.
+					// this will hopefully avoid guys looking dumb
+					newIdryll.attackplayer();
+					
+					// set this guy up to spawn more if necessary
+					if( flooridryllspawncount < NUM_TO_SPAWN )
+					{
+						newIdryll.killthread( "spawnflooridryll" );
+					}
+					else
+					{
+						newIdryll.killthread( "catwalk_atPanel" );
+						
+						// all guys have been spawned, so remove all the spawners and bail out; we're done
+						$floor_idryll_spawner1.remove();
+						$floor_idryll_spawner2.remove();
+						$floor_idryll_spawner3.remove();
+						$floor_idryll_spawner4.remove();
+					}
+					return;
+				}
+			}
+		}
+		
+		// wait a second before trying again
+		wait( TIME_BETWEEN_SPAWN_ATTEMPTS );
+	}
+}
+
+//=====================================================================================
+//		FIRST MAIN HALLWAY
+//=====================================================================================
+
+//--------------------------------------------------------------------------------
+void activateBrigEnemies()
+{
+	$brigbadguy1.ai_on();
+	$brigbadguy1.show();
+	$brigbadguy1.settendency( "seekenemyfromposition", 1 );
+	$brigbadguy1.attackplayer();//hzm coop mod chrissstrahl - needs to be attack player or he will not come out of the brig
+}
+
+void lightloop()
+{
+	while( 1 )
+
+	{
+		$world.light_lightstyle( "first_hall_blinky" , "z" , 1 );
+		$explosion1_panel4.playsound( "sound/environment/machine/light_startloop.wav", 10, .5, 256 );
+		$explosion1_panel4.anim( "on" );
+		wait( .5 );
+		$world.light_lightstyle( "first_hall_blinky" , "a" , 1 );
+		$explosion1_panel4.playsound( "sound/environment/machine/light_stop.wav", 10, .5, 256 );
+		$explosion1_panel4.anim( "off" );
+		wait( .5 );
+	}
+
+}
+
+
+//=====================================================================================
+//		SICKBAY
+//=====================================================================================
+
+void seqJurotHelp1()
+{
+	wait( 2 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_secbmaineng.mp3", 1, 1, 1111111); //Security breach in main engineering.
+
+	wait( 3 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_secbsickb.mp3", 1, 1, 1111111); //Security breach in main sickbay.
+	wait( 2 );
+	
+	$jurot.playdialog( "localization/sound/dialog/m6l1/jurot_help8.mp3", 1, 1111111, 1 ); //Munro!!!  If you're still on deck 8, I need help in sickbay, we're getting over run!
+	waitfordialog( $jurot );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$AssistJurot$$","incomplete",3,1);
+
+	$jurot.missionobjective( 1 );
+}
+
+void jurotTimer()
+{
+//hzm coop mod chrissstrahl - update spawn loacations
+	coop_float_spawnAngle1 				= 270;
+	coop_float_spawnAngle2 				= 270;
+	coop_float_spawnAngle3 				= 270;
+	coop_float_spawnAngle4 				= 270;
+	coop_float_spawnAngle5 				= 270;
+	coop_float_spawnAngle6 				= 270;
+	coop_float_spawnAngle7 				= 270;
+	coop_float_spawnAngle8 				= 270;
+	coop_vector_spawnOrigin8 			= '-12630 -768 0';
+	coop_vector_spawnOrigin7 			= '-12550 -768 0';
+	coop_vector_spawnOrigin6 			= '-12480 -768 0';
+	coop_vector_spawnOrigin5 			= '-12410 -768 0';
+	coop_vector_spawnOrigin4 			= '-12340 -768 0';
+	coop_vector_spawnOrigin3 			= '-12480 -840 0';
+	coop_vector_spawnOrigin2 			= '-12410 -840 0';
+	coop_vector_spawnOrigin1 			= '-12340 -840 0';
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+		
+	float totaltime, timeleft;
+	
+	totaltime = 3 * 60;
+	timeleft = 3 * 60;
+	
+	//hzm coop mod chrissstrahl
+	entity ePlayer;
+	float fPlayerIdInUse;
+	float fStat;
+	//hzm eof
+	
+	while( timeleft > 0 )
+	{
+		//hzm coop mod chrissstrahl - send statistic to all players
+		fStat = ((100/totaltime) * timeleft);
+		
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setstat("generic",fStat);
+			}
+		}
+		//hzm eof
+		
+		timeleft--;
+		wait( 1 );
+	}
+	
+	//hzm coop mod chrissstrahl, fail current mission
+	globalCoop_mission_failWithReason("JurotKilled");
+}
+
+void seqJurotHelp2()
+{
+	$jurot.playdialog( "localization/sound/dialog/m6l1/jurot_hurryover.mp3", 1, 11111, 1 ); // Hurry Munro!  I don't know how long we can hold out.
+	
+	//hzm coop mod chrissstrahl - display timmer hud for all players
+	thread globalCoop_huds_manageAll("m6-jurot-timer",1,1);
+	
+	thread jurotTimer();
+}
+
+void sickbayHallExplode()
+{
+	// there's a trigger that will cause the explosion if you get too close before killing the idryll guy
+	// remove it so it doesn't explode twice
+	thread globalCoop_player_earthquake( 2, 1.5, 512 );
+	$sickbayHallExploder.playsound( "sound/impact/explosion/explo_console1.wav", 1, 1, 8000 );
+	if( doesEntityExist( $sickbayHallExplode_proximity ) )
+	{
+		$sickbayHallExplode_proximity.remove();
+	}
+	$sickbayHall_panel1.remove();
+	$sickbayHall_panel1_busted.show();
+	$forcefieldSickbay.show();
+	triggerentity( $sickbayHallExploder );
+}
+
+void sickbayHallEnter()
+{
+	$world.playsound("localization/sound/dialog/m6l1/comp_secbbridge.mp3", 1, 1, 1111111); //Security breach on bridge deck.
+
+	
+	$sickbayHallGuard1.ai_on();
+
+	wait( 2 );
+	
+	$sickbayHallGuy1.immortal( 0 );
+	$sickbayHallGuy2.immortal( 0 );
+	$jurot.setnodeid( 300 );
+	
+	wait( 1 );
+	thread globalCoop_player_earthquake( 1, 1.5, 512 );
+	$sickbayHallSpawner1.playsound( "sound/environment/earthquake/earthquake01.wav", 1, 0.6, 11111 );
+	wait( 2 );
+	thread globalCoop_player_earthquake( 1, 1.5, 512 );
+	$sickbayHallSpawner1.playsound( "sound/impact/airstrike/strike_explo.wav", 2, 0.6, 11111 );
+	wait( 0.8 );
+	$sickbayHallSpawner1.playsound( "sound/impact/explosion/big_2b.wav", 3, 0.6, 11111 );
+	wait( 0.5 );
+	sickbayHallExplode();
+	wait( 2 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_securityprot.mp3", 1, 1, 1111111); //Initializing security protocol Picard-Alpha-Three.
+	wait( 5 );
+	$world.playsound("localization/sound/dialog/m6l1/comp_encryprim.mp3", 1, 1, 1111111); //Encrypting primary and secondary security codes.
+	
+}
+
+//=====================================================================================
+//		TRANSPORTER ROOM
+//=====================================================================================
+
+void seqSickbay_wave2()
+{
+	entity e;
+	
+	killthread( "jurotTimer" );
+	wait( 0.05 );
+	
+	
+	
+	//hzm coop mod chrissstrahl - display timmer hud for all players
+	thread globalCoop_huds_manageAll("m6-jurot-timer",0,0);
+
+	$sickbayspawner2.modelname( "char/idryll-m6-rebel-pistol-shield-m1.tik" );
+	$sickbayspawner2.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayspawner2.checkforspace();
+	e = $sickbayspawner2.spawnnow();
+	if( !doesEntityExist( e ) )
+	{
+		thread seqSickbay_wave3();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbay_wave3" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+	
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+
+	$sickbayspawner3.modelname( "char/idryll-m6-rebel-pistol-shield-f1.tik" );
+	$sickbayspawner3.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayspawner3.checkforspace();
+	e = $sickbayspawner3.spawnnow();
+	if( !doesEntityExist( e ) )
+	{
+		thread seqSickbay_wave3();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbay_wave3" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+		
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+}
+
+float sick_wave2_dead_count = 0;
+void seqSickbay_wave3()
+{
+	entity e;
+	
+	sick_wave2_dead_count++;
+	if( sick_wave2_dead_count != 2 )
+		return;
+	
+	$sickbayspawner4.modelname( "char/idryll-m6-rebel-pistol-shield-m3.tik" );
+	$sickbayspawner4.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayspawner4.checkforspace();
+	e = $sickbayspawner4.spawnnow();
+	if( !doesEntityExist( e ) )
+	{
+		thread seqSickbay_wave4();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbay_wave4" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+		
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+
+	$sickbayspawner5.modelname( "char/idryll-m6-rebel-pistol-shield-f3.tik" );
+	$sickbayspawner5.spawneffectname( "TransportIn", "Idryll" );
+	e = $sickbayspawner5.spawnnow();
+	if( !doesEntityExist( e ) )
+	{
+		thread seqSickbay_wave4();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbay_wave4" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+		
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+}
+
+float sick_wave3_dead_count = 0;
+void seqSickbay_wave4()
+{
+	entity e;
+	
+	sick_wave3_dead_count++;
+	if( sick_wave3_dead_count != 2 )
+		return;
+	
+	$sickbayspawner4.modelname( "char/idryll-m6-rebel-pistol-shield-m3.tik" );
+	$sickbayspawner4.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayspawner4.checkforspace();
+	e = $sickbayspawner4.spawnnow();
+	if( !doesEntityExist( e ) )
+	{
+		thread seqSickbayDone();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbayDone" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+		
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+
+	$sickbayspawner5.modelname( "char/idryll-m6-rebel-pistol-shield-f3.tik" );
+	$sickbayspawner5.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayspawner5.checkforspace();
+	e = $sickbayspawner5.spawnnow();
+	if( !doesEntityExist( e ) ) 
+	{
+		thread seqSickbayDone();
+	}
+	else
+	{
+		$jurot.attack( e, 1 );
+		e.killthread( "seqSickbayDone" );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive(e);
+		
+		e.lookat( ePlayer );
+		e.attackplayer();
+	}
+}
+
+//----------------------------------------------------------------------------------------------
+// seqSickbayDone
+// when all the AI in sickbay are dead
+//----------------------------------------------------------------------------------------------
+float sick_wave4_dead_count = 0;
+void seqSickbayDone()
+{ 
+	sick_wave4_dead_count++;
+	if( sick_wave4_dead_count != 2 )
+		return;
+		
+	// check out munro!
+	$jurot.ai_off();
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($jurot);
+	
+	$jurot.lookat( ePlayer );
+	$jurot.headwatch( ePlayer );
+	
+	// set objective
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$AssistJurot$$","complete",3,1);
+
+	// holster the weapon
+	globalCommon_AiActorUseWeapon( $jurot, "none" );
+	$jurot.anim( "idle" );
+	
+	$jurot.playdialog("localization/sound/dialog/m6l1/jurot_close.mp3", 1, 11111, 1); //Thanks Munro..that was close!
+	waitForDialog( $jurot );
+	
+    $chell.playdialog("localization/sound/dialog/m6l1/chell_muneng.mp3", 1, 11111, 1); //Munro! They're in engineering!
+    waitForDialog( $chell );
+
+    $munro.playdialog("localization/sound/dialog/m6l1/munro_onmyway2.mp3", 1, 11111, 1); //On my way!
+    waitForDialog( $munro );
+    
+	// set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$GetToEngineering$$","incomplete",4,1);
+	
+	// start the dialog to play while she runs over there
+	$jurot.playdialog("localization/sound/dialog/m6l1/jurot_jeffgo.mp3", 1, 11111, 1); //You can get to engineering via this jeffries tube access!  GO!
+
+	// run over to the button
+	$jurot.resethead();
+	$jurot.walkto( "jurotTubeNode", "run", 0, -1 );
+	waitfor( $jurot );
+	// push the button
+	$sickbay_panelup.time(.5);
+	$sickbay_paneldown.time(.5);
+	$sickbay_panelup.movesouth( 1 );
+	$sickbay_paneldown.movesouth( 1 );
+	waitfor( $sickbay_paneldown );
+	$sickbay_panelup.moveup( 9 );
+	$sickbay_paneldown.movedown( 9 );
+	waitfor( $sickbay_paneldown );
+	wait( 0.5);
+	$world.light_lightstyle( "sickbay_panellight", "z", 0 );
+	$sickbay_panelforward.time(1);
+	$sickbay_panelforward.movenorth( 2 );
+	wait( 0.5 );
+	$jurot.lookat( $jurotTubeNode_lookat );
+	wait( 0.5 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	ePlayer = globalCoop_return_playerClosestPreferActive($jurot);
+
+	$jurot.headwatch( ePlayer );
+	$jurot.anim( "conv-overthere" );
+	waitforanimation( $jurot, "conv-overthere" );
+
+	// open the door that leads to the jtubes
+	$doorSickbayJTube.time( 0.5 );
+	$doorSickbayJTube.moveeast( 2 );
+	waitfor( $doorSickbayJTube );
+	$doorSickbayJTube.moveup( 64 );
+	waitfor( $doorSickbayJTube );
+
+	$jurot.anim( "idle" );
+	wait( 0.5 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	ePlayer = globalCoop_return_playerClosestPreferActive($doorSickbayJTube);
+	
+	$jurot.lookat( ePlayer );
+
+}
+
+//----------------------------------------------------------------------------------------------
+// seqSickbay_EndLevel
+// end the level in the jtubes
+//----------------------------------------------------------------------------------------------
+void seqSickbay_EndLevel()
+{
+	//hzm coop mod chrissstrahl - have the players gather at this place, then allow level ending
+	coop_waitForTeam();
+
+	/*
+	// level transition to m6-deck11
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m6-deck16_engineering" );
+	wait( 0.05 );
+	triggerentity ( $trigger_endlevel );
+	*/
+}
+
+//----------------------------------------------------------------------------------------------
+void ambientDamageLoop()
+{
+	string basesoundname1;
+	string basesoundname2;
+	string fullsoundname;
+	float mag;
+	basesoundname1 = "sound/ships/enterprise/ent_impact";
+	basesoundname2 = "sound/impact/explosion/expl_muffle";
+	
+	spawn( "func_earthquake", "targetname", "atmosphereQuake");
+	wait( 0.05 );
+	while( 1 )
+	{
+		mag = randomfloat( 0.6 ) + 0.4;
+		$atmosphereQuake.duration( randomfloat( 1.0 ) + 0.5 );
+		$atmosphereQuake.magnitude( mag );
+	
+		if( randomint( 2 ) == 0 )
+			fullsoundname = basesoundname1;
+		else
+			fullsoundname = basesoundname2;
+		fullsoundname = fullsoundname + (1 + randomint( 3 )) + ".wav";
+		
+
+		wait( randomint( 15 ) + 1 );
+		$atmosphereQuake.playsound( fullsoundname, 1, 1, 10000 );
+		trigger( "$atmosphereQuake" );
+		wait( 0.05 );
+	}
+}
+
+//----------------------------------------------------------------------------------------------
+void explosion1_go() // panels explode exiting transporter room
+{
+	$firsthallidryll1.displayeffect( "TransportIn", "Idryll" );
+	$firsthallidryll2.displayeffect( "TransportIn", "Idryll" );
+	$firsthallidryllshield.displayeffect( "TransportIn", "Idryll" );
+	wait( 0.5 );
+	$firsthallidryll1.ai_on();
+	$firsthallidryll2.ai_on();
+
+	$firsthallidryll1.show();
+	$firsthallidryll2.show();
+	$firsthallidryllshield.show();
+
+	//thread ambientSparksLoop( $explosion1_light_fx2 );
+	//thread ambientSparksLoop( $explosion1_light_fx1 );
+	thread lightloop();
+	
+	$world.light_lightstyle( "explosion1_light", "aahistzzzzzzzzzzpodaaaaaaaaaacdoptszzzzzzoaaozzoaaaaaaahistzzzoaaaozzoaozzzzzohistxxyzzzzzyxxxvvtooooaaaaaaaaaaa", 0 );
+
+	$explosion1_panel1.playsound( "sound/ships/enterprise/ent_impact1.wav", 1, 1, 10000 );
+	$explosion1_panel2.earthquake( 2, 1, 512 );
+	wait( 0.5 );
+	$explosion1_panel1.playsound( "sound/impact/explosion/explo_console1.wav", 1, 1, 10000 );
+	$explosion1_panel1.earthquake( 4, 0.25, 512 );
+	wait( 0.05 );
+	$explosion1_panel1.remove();
+	
+	wait( 0.2 ); // make sure this matches delay on the func_explodeobject
+	
+	$explosion1_panel2.playsound( "sound/impact/explosion/explo_console1.wav", 1, 1, 10000 );
+	$explosion1_panel2.earthquake( 4, 0.25, 512 );
+	wait( 0.05 );
+	$explosion1_panel2.remove();
+	$explosion1_panel2_smoke1.show();
+	
+	wait( 0.2 );
+	$explosion1_panel3_fx1.modelname( "fx/fx-explosion-console-blue-directional.tik" );
+	trigger( "$explosion1_panel3_fx1" );
+
+	$explosion1_panel3.anim( "move" );
+	waitforanimation( $explosion1_panel3, "move" );
+	$explosion1_panel3.anim( "open" );
+}
+
+//----------------------------------------------------------------------------------------------
+void startdeathsucker()
+{	
+	//hzm coop mod chrissstrahl - fix bad sucking
+	//$hallsucker.origin($deathsucker.getOrigin());
+	//$deathsucker.activate();
+	//$hallsucker.remove();
+}
+
+//----------------------------------------------------------------------------------------------
+void hallsuckerEarthquakeLoop()
+{
+	while( 1 )
+	{
+		$hallsucker.earthquake( 0.5, 0.5, 512 );
+		wait( 0.5 );
+	}
+}
+
+//----------------------------------------------------------------------------------------------
+void explosion2_go() // door blows out into space or something, forcefield blocks damage
+{	
+	thread globalCoop_player_earthquake( 4, 0.5, 512 );
+	$hallsucker.playsound( "sound/impact/explosion/expl_lowfreq.wav", 1, 1, 11111);
+	$world.light_lightstyle( "explosion2_light", "a" ); // light off
+
+	wait( 0.7 );
+	
+	// kill any idryll trapped behind the forcefield
+	if( $firsthallidryll1.gethealth() > 0 )	$firsthallidryll1.suicide();
+	if( $firsthallidryll2.gethealth() > 0 )	$firsthallidryll2.suicide();
+	if( $brigbadguy1.gethealth() > 0 )	$brigbadguy1.suicide();
+	if( $brigbadguy2.gethealth() > 0 )	$brigbadguy2.suicide();
+	
+	//hzm coop mod chrissstrahl - fix bad kill trigger
+	//we can not activate deathsucker , it has a bad origin getting players stuck, besides it is toi strong
+	vector vSuck;
+	vSuck = $hallsucker.getorigin();
+	vSuck_x += 50;
+	vSuck_y += 50;
+	$deathtrigger.origin(vSuck);
+	//hzm eof
+
+	$explosion_panel.remove();
+	$broken_hull.show();
+	$broken_hull_effects.show();
+	$hallsucker.activate();
+	$explosion2_fx1.scale( 3 );
+	$explosion2_fx1.modelname( "models/fx/fx-explosion-fire-directional-metaldebris.tik" );
+	triggerentity( $explosion2_fx1 );
+	$hallsucker.playsound( "sound/impact/explosion/explo_console1.wav", 1, 1, 10000 );
+	wait( 0.05 );
+	$broken_hull.loopsound( "sound/environment/wind/wind_vacuum2.wav", 1, 11111 );
+	thread hallsuckerEarthquakeLoop();
+
+	wait( 1 );
+
+	$world.playsound("localization/sound/dialog/m6l1/comp_unauthjunc34.mp3", 1, 1, 1111111); //Unauthorized access in junction 34.
+}
+
+void explosion2_forcefieldOn()
+{
+	killthread( "hallsuckerEarthquakeLoop" );
+	$broken_hull.stoploopsound();
+	$hallsucker.remove();
+	$deathsucker.remove();
+	$deathtrigger.remove();
+	$explosion2_fx1.remove();
+	
+	//hzm coop mod chrissstrahl - possition the forcefield so that it does not block the players
+	$explosion2_forcefield.origin('-10180 10 77');
+	$explosion2_forcefield.angles('0 90 0');
+	
+	$explosion2_forcefield.show();
+	$explosion2_forcefield.solid();
+	$explosion2_forcefield.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 512 );
+	wait( 0.3 );
+	$explosion2_forcefield.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+
+//----------------------------------------------------------------------------------------------
+void startBlinkyPlasma()
+{
+	$jtube_blinkyplasma.show();
+	$blinkyplasma_trigger.triggerable();
+	wait( 2 );
+	thread blinkyplasma();
+}
+
+//----------------------------------------------------------------------------------------------
+void stopBlinkyPlasma()
+{
+	killthread( "blinkyplasma" );
+	$jtube_blinkyplasma.show();
+	$jtube_blinkyplasma.loopsound( "sound/environment/plasma/plasma_loop.wav", 1, 512 );
+	$blinkyplasma_trigger.triggerable();
+}
+
+//----------------------------------------------------------------------------------------------
+void blinkyplasma() // dodge the plasma jets
+{
+	while ( 1 )
+		{
+	
+		$jtube_blinkyplasma.hide();
+		$jtube_blinkyplasma.stoploopsound();
+		$blinkyplasma_trigger.nottriggerable();
+		wait( 1 );
+		
+		$jtube_blinkyplasma.show();
+		$jtube_blinkyplasma.loopsound( "sound/environment/plasma/plasma_loop.wav", 1, 512 );
+		$blinkyplasma_trigger.triggerable();
+		wait( 2 );
+		
+		$jtube_blinkyplasma.hide();
+		$jtube_blinkyplasma.stoploopsound();
+		$blinkyplasma_trigger.nottriggerable();
+		wait( 2 );
+		
+		$jtube_blinkyplasma.show();
+		$jtube_blinkyplasma.loopsound( "sound/environment/plasma/plasma_loop.wav", 1, 512 );
+		$blinkyplasma_trigger.triggerable();
+		wait( 1 );
+		
+		$jtube_blinkyplasma.hide();
+		$jtube_blinkyplasma.stoploopsound();
+		$blinkyplasma_trigger.nottriggerable();
+		wait( 4 );
+	
+		$jtube_blinkyplasma.show();
+		$jtube_blinkyplasma.loopsound( "sound/environment/plasma/plasma_loop.wav", 1, 512 );
+		$blinkyplasma_trigger.triggerable();
+		wait( 1 );	
+		}
+}
+
+//----------------------------------------------------------------------------------------------
+void explosion3_go() // find a way over the jtube death pit if weapon is fired to trigger
+{
+	
+	trigger( "$explosion3_exploder" );
+	$trigger_explosion3_go.remove();
+	
+	$busted_panel1.remove();
+	$effects_remove1.remove();
+	$busted_panel2.show();
+	$explosion3_ramp.show();
+	$explosion3_ramp.notsolid();
+	wait( 0.05 );	
+	$explosion3_ramp.time(.75);
+	$explosion3_ramp.rotatezdown(90);
+	$explosion3_ramp.earthquake( 2, 1, 512 );
+	$explosion3_ramp.playsound( "sound/impact/explosion/explo_console1.wav", 1, 1, 10000 );
+	waitfor( $explosion3_ramp );
+	wait(0.5);
+	$explosion3_ramp.solid();
+}
+
+void jtube_blowout() // enterprise is hit once again, rips through a few decks 
+{
+	wait( 0.5 );
+	
+	thread globalCoop_player_earthquake( 2, 1.5, 512 );
+	$jtube_explosion_effects.playsound( "sound/environment/earthquake/earthquake01.wav", 1, 0.6, 11111 );
+	wait( 0.5 );
+	thread globalCoop_player_earthquake( 2, 1.5, 512 );
+	$jtube_explosion_effects.playsound( "sound/impact/airstrike/strike_explo.wav", 2, 0.6, 11111 );
+	wait( 0.8 );
+	$jtube_explosion_effects.playsound( "sound/impact/explosion/big_2b.wav", 3, 0.6, 11111 );
+	wait( 0.5 );
+	$world.light_lightstyle( "jtube_blowout_lights", "a", 0 );
+	$world.light_lightstyle( "jtube_explosions_redlight", "z", 0 );
+	$jtube_explosion_effects.playsound( "sound/impact/explosion/explo_neonsign.wav", 4, 1, 512 );
+	thread globalCoop_player_earthquake( 0.6, 5, 10000 );
+	$jtube_blowout_before.remove();
+	$jtube_blowout_after.show();
+	$jtube_explosion_effects.show();
+	$jtube_explosion_debris.scale( 3 );
+	$jtube_explosion_debris.modelname( "models/fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$jtube_explosion_debris.loopsound( "sound/environment/plasma/plasma_loop.wav", 1, 256 );
+	triggerentity( $jtube_explosion_debris );
+	wait( 0.05 );
+	thread globalCoop_player_earthquake( 4, 0.7, 512 );
+
+	$jtube_explosion_effects.playsound( "sound/impact/explosion/explo_shuttleint.wav", 1, 0.8, 512 );
+	wait( 0.1 );
+	$jtube_explosion_effects.playsound( "sound/impact/explosion/explo_debl.wav", 2, 1, 11111 );
+	
+	//hzm coop mod chrissstrahl - set new spawn positions
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin1 			= '-12233 -100 0';
+	coop_vector_spawnOrigin2 			= '-12233 -50 0';
+	coop_vector_spawnOrigin3 			= '-12233 0 0';
+	coop_vector_spawnOrigin4 			= '-12233 -150 0';
+	coop_vector_spawnOrigin5 			= '-12233 50 0';
+	coop_vector_spawnOrigin6 			= '-12233 100 0';
+	coop_vector_spawnOrigin7 			= '-12233 150 0';
+	coop_vector_spawnOrigin8 			= '-12233 200 0';
+	//eof hzm
+}
+
+void effects_remove()
+{
+	$jtube_explosion_effects.remove();
+}
+
+//------------------------------------------------------------------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+//------------------------------------------------------------------------------------------
+void armorySpawnWave2()
+{
+	while( doesEntityExist( $idryll_armory1 ) || doesEntityExist( $idryll_armory2 ) )
+	{
+		wait( 0.1 );
+	}
+	
+	wait( 0.5 );
+	$armoryspawner1.modelname( "char/idryll-m6-rebel-pistol-shield-m4.tik" );
+	$armoryspawner2.modelname( "char/idryll-m6-rebel-pistol-shield-f3.tik" );
+	$armoryspawner1.checkforspace();
+	$armoryspawner2.checkforspace();
+	$armoryspawner1.spawneffectname( "TransportIn", "Idryll" );
+	$armoryspawner2.spawneffectname( "TransportIn", "Idryll" );
+	wait( 0.05 );
+	triggerentity( $armoryspawner1 );
+	triggerentity( $armoryspawner2 );
+}
+
+void armoryEntry()
+{
+	$idryll_armory1.ai_on();
+	$idryll_armory2.ai_on();
+	$idryll_armory1.setgroupid( 660 );
+	$idryll_armory2.setgroupid( 660 );
+	
+	$idryll_armory1.groupdeaththread( "armorySpawnWave2" );
+	$idryll_armory2.groupdeaththread( "armorySpawnWave2" );
+	
+	// jurot calls for help again
+	thread seqJurotHelp2();
+
+	$jurot.show();
+	$jurot.solid();
+	$jurot.ai_on();
+
+	// spawn guys in the hallway
+	$sickbayHallSpawner1.modelname( "char/idryll-m6-rebel-pistol-shield-m1.tik" );
+	$sickbayHallSpawner1.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayHallSpawner1.spawntargetname( "sickbayHallGuy1" );
+	
+	$sickbayHallSpawner2.modelname( "char/idryll-m6-rebel-pistol-shield-m1.tik" );
+	$sickbayHallSpawner2.spawneffectname( "TransportIn", "Idryll" );
+	$sickbayHallSpawner2.spawntargetname( "sickbayHallGuy2" );
+	
+	triggerentity( $sickbayHallSpawner1 );
+	triggerentity( $sickbayHallSpawner2 );
+	
+	$sickbaydoor.open( $world );
+	triggerentity( $sickbaydoor );
+	
+	wait( 0.05 );
+	
+	$sickbayHallGuy1.attack( $jurot );
+	$sickbayHallGuy1.setgroupid( 800 );
+	
+	$sickbayHallGuy2.attack( $jurot );
+	$sickbayHallGuy2.setgroupid( 800 );
+
+	// make them immortal until player gets close
+	$sickbayHallGuy1.immortal( 1 );
+	$sickbayHallGuy2.immortal( 1 );
+}
+
+//--------------------------------------------------------------------------------------------
+// Level Secrets
+//--------------------------------------------------------------------------------------------
+
+void seqsecret1()
+{
+	$secret_star1.show();
+}
+
+void seqsecret2()
+{
+	$secret2_crateremove.displayeffect( "TransportOut", "Federation" );
+	$secret2_clipremove.remove();
+	$secret2_crateremove.remove();
+	$secret2_starshipshow.displayeffect( "TransportOut", "Federation" );
+	wait(4);
+	$secret2_starshipshow.show();
+	$secret2_starshipshow.displayeffect( "TransportIn", "Federation" );
+	$trigger_use_secret2.remove();
+	$trigger_secret2.remove();
+	
+}
+	
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+// CINEMATIC ATTACK FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//------------------
+// cinematicAttack_Start
+// attack on enterprise cinematic
+//------------------
+void cinematicAttack_Start()
+{	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//letterbox( 0.5 );
+
+	// fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+
+	// run the hazard team off of the pad
+	thread cinematicAttack_Action_HazardteamToDuty();
+	
+	thread cinematicAttack_Action_TransporterTechsToDuty();
+
+	// transporter guy dialog while people run out of the room
+	$transporterDude.playdialog( "localization/sound/dialog/m6l1/dorchev_transdown.mp3", 1, 11111, 1 ); //The transporters are down, along with the Turbolifts!
+	waitForDialog( $transporterDude );
+
+	$transporterDude.playdialog( "localization/sound/dialog/m6l1/dorchev_beamin.mp3", 1, 11111, 1 ); //I've got Idryll beam-in signatures appearing all over the ship!
+	waitForDialog( $transporterDude );
+	
+	//clearletterbox( 1 );
+	//hzm coop mod chrissstrahl - immobilize all players
+	thread globalCoop_player_imobilizeAll(0);
+	
+	thread setupStartingObjectives();
+}
+
+//------------------
+// cinematicAttack_Action_HazardteamToDuty
+// run the hazard team out of the transporter room
+//------------------
+void cinematicAttack_Action_HazardteamToDuty()
+{
+	$korban.walkto( "$nodeHazardTeamRemove1", "swat_run" );
+	wait( .5 );
+	
+	$jurot.walkto( "$nodeHazardTeamRemove2", "swat_run" );
+	wait( .3 );
+	
+	$chang.walkto( "$nodeHazardTeamRemove1", "swat_run" );
+	wait( 5 );
+	
+	$korban.warp( $nodeKorban_Cargobay.getOrigin() );
+	$jurot.warp( $nodeJurot_Sickbay.getOrigin() );
+	$chang.remove();
+	
+	globalCommon_AiDummyHide( $korban );
+	globalCommon_AiDummyHide( $jurot );
+}
+
+void cinematicAttack_Action_TransporterTechsToDuty()
+{
+	$transporterDude.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$transporterDude.useactorweapon( "CompressionRifle" );
+	$transporterDude.walkto( "$transporterDudeNode", "swat_walk" );
+
+	$transporterChick.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$transporterChick.useactorweapon( "CompressionRifle" );
+	$transporterChick.walkto( "$transporterChickNode", "swat_walk" );
+	
+	waitfor( $transporterChick );
+	
+	$transporterDude.anim( "crouch_idle" );
+	$transporterChick.anim( "crouch_idle" );
+	
+	$transporterDude.settalkwatchmode( "headwatchonly", 0 );	
+	$transporterChick.settalkwatchmode( "headwatchonly", 0 );	
+}
+
+//---------------------
+void korbanContextDialogBS()
+{
+	string path, theActorName;
+	entity currentActor;
+	
+	currentActor = $korban;
+	theActorName = "korban";
+
+	//-------------------------------------------------------------------------
+	// Context "enteredcombat"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtEnteredCombatA" , path + theActorName + "_anotone.mp3" ); 		//There's another one!
+	currentActor.alias( theActorName + "CtxtEnteredCombatB" , path + theActorName + "_lookout.mp3" ); 		//Look out!!
+	currentActor.alias( theActorName + "CtxtEnteredCombatC" , path + theActorName + "_overthere.mp3" ); 	//Over there!
+	currentActor.alias( theActorName + "CtxtEnteredCombatD" , path + theActorName + "_wevegot.mp3" );		//We've Got Contacts!
+	currentActor.alias( theActorName + "CtxtEnteredCombatE" , path + theActorName + "_incoming.mp3" );		//Incoming!
+	currentActor.alias( theActorName + "CtxtEnteredCombatF" , path + theActorName + "_espotted.mp3" );		//Enemy Spotted!
+	currentActor.alias( theActorName + "CtxtEnteredCombatG" , path + theActorName + "_herecome.mp3" );		//Here They Come
+	currentActor.alias( theActorName + "CtxtEnteredCombatH" , path + theActorName + "_headsup.mp3" );		//Heads up
+	currentActor.alias( theActorName + "CtxtEnteredCombatI" , path + theActorName + "_herewego.mp3" );		//Here we go
+	currentActor.alias( theActorName + "CtxtEnteredCombatJ" , path + theActorName + "_contacts.mp3" );		//Contacts
+	currentActor.alias( theActorName + "CtxtEnteredCombatK" , path + theActorName + "_enemies.mp3" );		//Enemies
+	currentActor.alias( theActorName + "CtxtEnteredCombatL" , path + theActorName + "_getem.mp3" );		//Get'em
+	currentActor.alias( theActorName + "CtxtEnteredCombatM" , path + theActorName + "_hostiles.mp3" );		//Hostiles
+	currentActor.alias( theActorName + "CtxtEnteredCombatN" , path + theActorName + "_hostspot.mp3" );		//Hostiles Spotted
+	currentActor.alias( theActorName + "CtxtEnteredCombatO" , path + theActorName + "_etargets.mp3" );		//Enemy Targets
+
+	currentActor.dialog( theActorName + "CtxtEnteredCombat" , "contextinitiator" , "enteredcombat" );
+
+	//-------------------------------------------------------------------------
+	// Context "playerattacked"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtPlayerAttackedA" , path + theActorName + "_munwhat.mp3" ); 		//Munro, what are you doing?
+	currentActor.alias( theActorName + "CtxtPlayerAttackedB" , path + theActorName + "_heywat.mp3" ); 		//Hey! Watch it!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedC" , path + theActorName + "_holdfire.mp3" ); 	//Hold your fire
+	currentActor.alias( theActorName + "CtxtPlayerAttackedD" , path + theActorName + "_whoses.mp3" ); 		//Who's side are you on
+	currentActor.alias( theActorName + "CtxtPlayerAttackedE" , path + theActorName + "_watchfire.mp3" ); 	//Watch your fire
+	currentActor.alias( theActorName + "CtxtPlayerAttackedF" , path + theActorName + "_whatyoudo.mp3" ); 	//What are you doing
+	currentActor.alias( theActorName + "CtxtPlayerAttackedG" , path + theActorName + "_checktarg.mp3" ); 	//Munro! Check your targets
+	currentActor.alias( theActorName + "CtxtPlayerAttackedH" , path + theActorName + "_stopthat.mp3" ); 	//Stop that!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedI" , path + theActorName + "_quitthat.mp3" ); 	//What's wrong with you? Quit that!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedJ" , path + theActorName + "_enough.mp3" ); 		//Enough!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedK" , path + theActorName + "_whatthe.mp3" ); 	//What the!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedL" , path + theActorName + "_stopshoot.mp3" ); 	//Stop shootin me!
+	currentActor.alias( theActorName + "CtxtPlayerAttackedM" , path + theActorName + "_heywatch.mp3" ); 	//Stop shootin me!
+	currentActor.dialog ( theActorName + "CtxtPlayerAttacked" , "contextinitiator" , "playerattacked" );
+
+	//-------------------------------------------------------------------------
+	// Context "turnonplayer"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtTurnOnPlayerA" , path + theActorName + "_committr.mp3" ); 	//You're committing treason!
+	currentActor.alias( theActorName + "CtxtTurnOnPlayerB" , path + theActorName + "_ltcomm.mp3" );		//Lieutenant, you are committing treason!
+	currentActor.alias( theActorName + "CtxtTurnOnPlayerC" , path + theActorName + "_thatsit.mp3" );	//That's it!
+	currentActor.alias( theActorName + "CtxtTurnOnPlayerD" , path + theActorName + "_okyouplay.mp3" );	//OK, You wnat to play Murno?
+	currentActor.alias( theActorName + "CtxtTurnOnPlayerE" , path + theActorName + "_nohonor.mp3" );	//OK, You have no honor!
+	currentActor.dialog ( theActorName + "CtxtTurnOnPlayer" , "contextinitiator" , "turnonplayer" );
+
+	//-------------------------------------------------------------------------
+	// Context "incombat" -- General
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtInCombatA" , path + theActorName + "_coverme.mp3" ); 		//Cover me!
+	currentActor.alias( theActorName + "CtxtInCombatB" , path + theActorName + "_getdown.mp3" );		//Get Down!	
+	currentActor.alias( theActorName + "CtxtInCombatC" , path + theActorName + "_lookout.mp3" );		//Look out!
+	currentActor.alias( theActorName + "CtxtInCombatD" , path + theActorName + "_toomany.mp3" );		//There are too many of them!
+	currentActor.alias( theActorName + "CtxtInCombatE" , path + theActorName + "_anotherone.mp3" );		//There's another one.
+	currentActor.alias( theActorName + "CtxtInCombatF" , path + theActorName + "_howmany.mp3" );		//How many are there?
+	currentActor.alias( theActorName + "CtxtInCombatG" , path + theActorName + "_watchout.mp3" );		//Watch out!
+	currentActor.alias( theActorName + "CtxtInCombatH" , path + theActorName + "_wantsome.mp3" );		//Want some more?
+	currentActor.alias( theActorName + "CtxtInCombatI" , path + theActorName + "_brinon.mp3" );		//Bring it on!
+	currentActor.alias( theActorName + "CtxtInCombatJ" , path + theActorName + "_howanot.mp3" );		//How about another one
+	currentActor.alias( theActorName + "CtxtInCombatK" , path + theActorName + "_allyougot.mp3" );		//Is that all you've got?
+	currentActor.dialog ( theActorName + "CtxtInCombat" , "contextinitiator" , "incombat" );
+
+	//-------------------------------------------------------------------------
+	// Context "inpain"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtInPainA" , path + theActorName + "_takingdam.mp3" ); 	//I'm taking damage!
+	currentActor.alias( theActorName + "CtxtInPainB" , path + theActorName + "_needsomeh.mp3" );	//I need some help over here!
+	currentActor.alias( theActorName + "CtxtInPainC" , path + theActorName + "_pain1.mp3" );		//Arrrghh!
+	currentActor.alias( theActorName + "CtxtInPainD" , path + theActorName + "_pain2.mp3" );		//Arrrghh!
+	currentActor.alias( theActorName + "CtxtInPainE" , path + theActorName + "_pain3.mp3" );		//Arrrghh!
+	currentActor.alias( theActorName + "CtxtInPainF" , path + theActorName + "_pain4.mp3" );		//Arrrghh!
+	currentActor.dialog ( theActorName + "CtxtInPain" , "contextinitiator" , "inpain" );
+
+	//-------------------------------------------------------------------------
+	// Context "postcombat"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtPostCombatA" , path + theActorName + "_holdfire.mp3" ); 	//Hold your fire
+	currentActor.alias( theActorName + "CtxtPostCombatB" , path + theActorName + "_checkweap.mp3" );	//Check your weapons and equipment for damage
+	currentActor.alias( theActorName + "CtxtPostCombatC" , path + theActorName + "_knowwehere.mp3" );			//Well, they know we're here now
+	currentActor.alias( theActorName + "CtxtPostCombatD" , path + theActorName + "_closeone.mp3" );		//That was a close one!
+	currentActor.alias( theActorName + "CtxtPostCombatE" , path + theActorName + "_goodjobmun.mp3" );	//Good job, Munro.
+	currentActor.alias( theActorName + "CtxtPostCombatF" , path + theActorName + "_youdidit.mp3" );		//You did it!
+	currentActor.alias( theActorName + "CtxtPostCombatG" , path + theActorName + "_nicely.mp3" );		//Nicely done Munro
+	currentActor.alias( theActorName + "CtxtPostCombatH" , path + theActorName + "_goodalex.mp3" );		//Good job Alex!
+	currentActor.dialog ( theActorName + "CtxtPostCombat" , "contextinitiator" , "postcombat" );
+
+	//-------------------------------------------------------------------------
+	// Context "killedenemy"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtKilledEnemyA" , path + theActorName + "_takethat.mp3" ); 	//Take that!
+	currentActor.alias( theActorName + "CtxtKilledEnemyB" , path + theActorName + "_gotone.mp3" ); 	//Got One!
+	currentActor.dialog ( theActorName + "CtxtKilledEnemy" , "contextinitiator" , "killedenemy" );
+
+
+	//-------------------------------------------------------------------------
+	// Context "enemyadapted"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtEnemyAdaptedA" , path + theActorName + "_adapted.mp3" ); 		//They've adapted
+	currentActor.alias( theActorName + "CtxtEnemyAdaptedB" , path + theActorName + "_adaswitch.mp3" ); 	//They've Switch to I-Mods
+	currentActor.dialog ( theActorName + "CtxtEnemyAdapted" , "contextinitiator" , "enemyadapted" );
+
+
+	//-------------------------------------------------------------------------
+	// Context "blockedbyplayer"
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "CtxtBlockedByPlayerA" , path + theActorName + "_exme.mp3" ); 		//Excuse me
+	currentActor.alias( theActorName + "CtxtBlockedByPlayerB" , path + theActorName + "_outmyway.mp3" ); 	//Get Out of my way!
+	currentActor.alias( theActorName + "CtxtBlockedByPlayerC" , path + theActorName + "_alexmove.mp3" ); 	//Alex, move!
+	currentActor.dialog ( theActorName + "CtxtBlockedByPlayer" , "contextinitiator" , "blockedbyplayer" );
+
+
+	//-------------------------------------------------------------------------
+	// Combat +use dialog
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/combat/";
+	currentActor.alias( theActorName + "PlusUseCombatA" , path + theActorName + "_muntalklater.mp3" ); 		//Munro, talk to me later
+	currentActor.alias( theActorName + "PlusUseCombatB" , path + theActorName + "_injured.mp3" );			//Are you injured
+	currentActor.alias( theActorName + "PlusUseCombatC" , path + theActorName + "_compr.mp3" ); 			//You're compromising our combat situation ensign
+	currentActor.alias( theActorName + "PlusUseCombatD" , path + theActorName + "_cantwait.mp3" ); 			//Can't this wait, Alex?
+	currentActor.alias( theActorName + "PlusUseCombatE" , path + theActorName + "_sorrynotime.mp3" ); 		//Sorry, no time to talk
+	currentActor.dialog ( theActorName + "PlusUseCombat" , "combatdialog" , "randompick" );
+
+	//-------------------------------------------------------------------------
+	// Normal +use dialog
+	//-------------------------------------------------------------------------
+	path = "localization/sound/dialog/m6l1/";
+	currentActor.alias( theActorName + "PlusUseNormalA" , path + theActorName + "_rebels.mp3" );
+	currentActor.alias( theActorName + "PlusUseNormalB" , path + theActorName + "_mmm.mp3" );
+	currentActor.alias( theActorName + "PlusUseNormalC" , path + theActorName + "_error.mp3" );
+	currentActor.dialog ( theActorName + "PlusUseNormal" , "randompick" );
+
+}
+
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	entity eLadder;
+	eLadder = spawn("trigger_ladder","origin","-10788 -1486 -424","angle","90");
+	wait(.1);
+	eLadder.setSize('16 16 -100','16 16 1000');
+	//globalCoop_main_waitForTeam('-10788 -1486 -424','-50 -50 -2000','50 50 2000');
+	globalCoop_level_gatheringArea("coopgather","coop_endLevel",75,'150 150 450','-10788 -1486 -512');
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m6-deck16_engineering");
+}
+
+
+
+
+

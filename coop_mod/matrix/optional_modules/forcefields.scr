@@ -1,0 +1,233 @@
+//-----------------------------------------------------------------------------------
+// Script By:		Christian Sebastian Strahl (Chrissstrahl)
+// Created on:		2008.01.11
+// E-Mail:			chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// INTERACTIVE FORCEFIELDS - INCLUDE IF YOU NEED IT'S FEATURES; INCLUDE ONLY TO THE CURRENT LEVEL SCRIPT!!
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2015 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+
+
+////////////////////////////////////////////////////////////////////////////////
+//DECLARATIONS
+////////////////////////////////////////////////////////////////////////////////
+void globalCoop_forcefield_makeInteractive( entity eMakeInteractiveFF );
+void globalCoop_forcefield_onDamage();
+void globalCoop_forcefield_onTouch();
+void globalCoop_forcefield_playSound(entity eForceField);
+void globalCoop_forcefield_disable(entity eForceField);
+void globalCoop_forcefield_setOnTouch(entity eOnTouch,string sThread);
+void globalCoop_forcefield_setOnDamage(entity eOnDamage,string sThread);
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//FUNCTIONS
+////////////////////////////////////////////////////////////////////////////////
+void globalCoop_forcefield_setOnTouch(entity eOnTouch,string sThread)
+//----------------------------------------------------------------------
+// Set thread to start if this entity gets Touchd
+//----------------------------------------------------------------------
+{
+//CHECK IF ENTITY EXISTS, DO NOTHING IF NOT
+	if(doesEntityExist(eOnTouch)){
+		eOnTouch.noTouch();
+		globalCoop_main_waitAFrame();
+		eOnTouch.onTouch(sThread);
+		pause();
+	}
+}
+
+void globalCoop_forcefield_setOnDamage(entity eOnDamage,string sThread)
+//----------------------------------------------------------------------
+// Set thread to start if this entity gets Damaged
+//----------------------------------------------------------------------
+{
+//CHECK IF ENTITY EXISTS, DO NOTHING IF NOT
+	if(doesEntityExist(eOnDamage)){
+		eOnDamage.noDamage();
+		globalCoop_main_waitAFrame();
+		eOnDamage.onDamage(sThread);
+		pause();
+	}
+}
+
+void globalCoop_forcefield_enable( entity eFF )
+//----------------------------------------------------------------------
+// Make this entity to a interactive forcefield (save type work :P )
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eFF)){
+		float fWait;
+		eFF.setFloatVar("coop_ffIsOffline",-1);		
+		do{
+			fWait=0;
+			if(globalCoop_check_isEntityInsideOfPlayer(eFF,10)){
+				fWait=1;
+				globalCoop_main_waitAFrame();
+			}
+		}while(fWait);
+		if(doesEntityExist(eFF)){
+			if(eFF.getFloatVar("coop_ffIsOffline") != 1){
+				eFF.setFloatVar("coop_ffIsOffline",0);
+				globalCoop_level_showAndSolid(eFF);
+				if(eFF.getFloatvar("coop_doloopsound")){
+					eFF.loopSound("sound/ships/enterprise/ent_forcefield.wav",1,64);
+				}
+				globalCoop_forcefield_makeInteractive(eFF);
+			}
+		}
+	}
+}
+
+void globalCoop_forcefield_makeInteractive( entity eMakeInteractiveFF )
+//----------------------------------------------------------------------
+// Make this entity to a interactive forcefield (save type work :P )
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eMakeInteractiveFF)){
+		if(eMakeInteractiveFF.getFloatVar("coop_ffIsOffline") != 1){
+			eMakeInteractiveFF.setFloatVar("coop_ffIsOffline",0);
+			thread globalCoop_forcefield_setOnTouch(eMakeInteractiveFF,"globalCoop_forcefield_onTouch");
+			thread globalCoop_forcefield_setOnDamage(eMakeInteractiveFF,"globalCoop_forcefield_onDamage");
+		}
+	}
+}
+
+
+void globalCoop_forcefield_onDamage()
+//----------------------------------------------------------------------
+// On Damage the InterActive FF Calls This Thread
+//----------------------------------------------------------------------
+{
+entity eForceField;
+
+	//Get the Force Field
+	eForceField = getCurrentEntity();
+
+//Exit If entity is missing
+	if(doesEntityExist(eForceField)){
+		eForceField.noDamage();	
+		
+	//Exit if ff is about to shutdown
+		if(eForceField.getFloatVar("coop_ffIsOffline") == 1){
+			globalCoop_forcefield_disable(eForceField);
+			return;
+		}
+		
+		globalCoop_level_hide(eForceField);
+		globalCoop_main_waitAFrame();
+		if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+			globalCoop_level_show(eForceField);
+			globalCoop_forcefield_playSound( eForceField );
+		}
+		globalCoop_main_waitZeroDotZero5();
+		if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+			thread globalCoop_forcefield_setOnDamage( eForceField ,"globalCoop_forcefield_onDamage");
+		}
+	}
+}
+
+
+void globalCoop_forcefield_onTouch()
+//----------------------------------------------------------------------
+// On Touch the InterActive FF Calls This Thread
+//----------------------------------------------------------------------
+{
+	entity eForceField;
+	entity ePlayer;
+	float fInteract=1;
+	float fDamage=5;
+	eForceField = getCurrentEntity();
+//Check if f exists
+	if(doesEntityExist(eForceField)){
+		eForceField.noTouch();
+//DO NOT CONTINUE IF FF IS SHUT DOWN
+		if(eForceField.getFloatVar("coop_ffIsOffline") == 1){
+			return;
+		}
+//GRAB ACTIVATOR
+		ePlayer	= eForceField.getLastActivatingEntity();
+//CHECK IF IT IS A PLAYER
+		if(globalCoop_return_integerPlayerId(ePlayer) > -1){
+//IF PLAYER IS ACTIVE
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				if(!cvar_bool_multiplayer){
+					fDamage = 0.5;
+				}
+				
+				fix me, make me work like the one in hatoria in legacy file
+				
+				ePlayer.pain( fDamage , eForceField , 12 );//MOD_ELECTRIC
+				//ePlayer.hurt(5); 
+				//pain( Integer damage, Entity attacker, Integer meansofdeath )
+//MAKE PLAYER SEAM TO ACT ON THE EVENT
+				ePlayer.jump(20);
+			}
+//PLAYER IS SPECTATOR
+			else{
+				fInteract=0;
+			}
+		}
+//BLINK WHEN ACTIVATOR IS NOT A PLAYER OR A ACTIVE PLAYER
+		if(fInteract){
+			globalCoop_forcefield_playSound(eForceField);
+			globalCoop_level_hide(eForceField);
+		}
+		globalCoop_main_waitAFrame();
+//SHOW FF AGAIN IF IT IS NOT DISABLED
+		if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+			globalCoop_level_show(eForceField);
+			wait(.2);
+//SET TOUCH THREAD AGAIN; TO MAKE IT RESPONDE AGAIN IF IT IS NOT DISABLED
+			if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+				thread globalCoop_forcefield_setOnTouch(eForceField,"globalCoop_forcefield_onTouch");
+			}
+		}
+	}
+}
+
+
+void globalCoop_forcefield_playSound(entity eForceField)
+//----------------------------------------------------------------------
+// Force Field Interactions thread
+//----------------------------------------------------------------------
+{
+//Exit if entity is missing
+	if(doesEntityExist(eForceField)){
+		eForceField.playsound( "sound/ships/enterprise/ent_forcefield_down.wav",50,1.5,256);
+	}
+}
+
+
+void globalCoop_forcefield_disable(entity eForceField)
+//----------------------------------------------------------------------
+// Disable this force Field
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eForceField)){
+	//Make sure this ff will not be triggerd again
+		eForceField.setFloatVar("coop_ffIsOffline",1);
+		globalCoop_main_waitAFrame();//wait for onuse/ontouch/ondamage threads
+		if(doesEntityExist(eForceField)){
+			globalCoop_level_hideAndNotSolid(eForceField);
+			eForceField.noTouch();
+			eForceField.noDamage();
+			eForceField.stoploopsound();
+		}
+	}
+}
+

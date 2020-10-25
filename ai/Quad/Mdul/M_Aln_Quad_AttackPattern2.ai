@@ -1,0 +1,200 @@
+$define ATTACK_PATTERN2_RANGE_CHARGEATTACK 212
+$define ATTACK_PATTERN2_RANGE_BACKPEDAL 512
+$define ATTACK_PATTERN2_CHANCE_STUMBLE	1.0
+$define SMALL_PAIN_CHANCE 		.85
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2
+//---------------------------------------------------------
+{
+	//hzm chrissstrahl - print status
+	entrycommands
+	{
+		printmessage ( "ATTACK_PATTERN2" )
+	}
+	//hzm eof
+	states
+		{
+		ATTACK_PATTERN2_SHOULDERCANNON_START : default
+		}
+}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_TAUNT
+//---------------------------------------------------------
+{
+	behavior WatchEntity  ( 100 , 20 , "base_to_attackpattern02" , 1 , "base_to_attackpattern02" )
+	
+	//hzm chrissstrahl - print status
+	entrycommands
+	{
+		printmessage ( "ATTACK_PATTERN2_TAUNT" )
+	}
+	//hzm eof
+	
+	states
+		{
+		ATTACK_PATTERN2_SHOULDERCANNON_START : BEHAVIOR_DONE
+		}
+}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_SHOULDERCANNON_START
+//---------------------------------------------------------
+{
+	behavior WatchEntity  ( 100 , 20 , "base_to_shoulderattack" , 1 , "base_to_shoulderattack" )
+
+	states
+		{	
+		PAIN  : SHOW_PAIN CHANCE ( $SMALL_PAIN_CHANCE$ )	
+		ATTACK_PATTERN2_SHOULDERCANNON_FIRE : BEHAVIOR_DONE
+		}
+}
+
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_SHOULDERCANNON_FIRE
+//---------------------------------------------------------
+	{
+	behavior WatchEntity  ( 100 , 20 , "shoulderattack_fire" , 1 , "shoulderattack_fire" )
+	states
+		{
+		ATTACK_PATTERN2_SHOULDERCANNON_END : BEHAVIOR_DONE
+		}
+	}
+
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_SHOULDERCANNON_END
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		takedamage
+		}
+
+	behavior WatchEntity  ( 100 , 20 , "shoulderattack_to_base" , 1 , "shoulderattack_to_base" )
+	states
+		{		
+		PAIN  : SHOW_PAIN CHANCE ( $SMALL_PAIN_CHANCE$ ) !SHOULD_DO_ACTION ( "multiplayer" )
+		ATTACK_PATTERN2_CHARGE_WARN : BEHAVIOR_DONE //hzm chrissstrahl - better without //HAVE_PATH_TO_ENEMY
+		NO_PATH_SHOULDERCANNON_START : BEHAVIOR_DONE !HAVE_PATH_TO_ENEMY
+		}
+	}
+
+state ATTACK_PATTERN2_CHARGE_WARN
+{
+	Behavior WatchEntity ( 100 , 20 , "charge_warning" , 1 , "charge_warning" )
+
+	states
+		{
+		ATTACK_PATTERN2_CHARGE_START : BEHAVIOR_DONE
+		}
+}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_START
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		takedamage
+		}
+
+	behavior WatchEntity  ( 100 , 20 , "base_to_charge" , 1 , "base_to_charge" )
+
+	states
+		{
+		//NO_PATH_SHOULDERCANNON_START : !HAVE_PATH_TO_ENEMY
+		ATTACK_PATTERN2_CHARGE_STUMBLE 		  : ATTACKED !SHOULD_DO_ACTION ( "multiplayer" ) //hzm chrissstrahl - do not be so meryful in multiplayer
+		ATTACK_PATTERN2_CHARGE_ATTACK		  : BEHAVIOR_DONE RANGE ( $ATTACK_PATTERN2_RANGE_CHARGEATTACK$ )
+		ATTACK_PATTERN2_CHARGE_RUN : BEHAVIOR_DONE
+		}
+	}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_RUN
+//---------------------------------------------------------
+	{
+	Behavior CloseInOnEnemy ( "charge_run" , 100 )
+	//Behavior CloseInOnPlayer ( "charge_run" , 100 ) //hzm gameupdate chrissstrahl, does not work right at all, maybe in 2020 we fix this fuck
+
+
+	states
+		{
+		//NO_PATH_SHOULDERCANNON_START : !HAVE_PATH_TO_ENEMY
+		ATTACK_PATTERN2_CHARGE_STUMBLE 		  : ATTACKED !SHOULD_DO_ACTION ( "multiplayer" ) //hzm chrissstrahl - do not be so meryful in multiplayer
+		ATTACK_PATTERN2_CHARGE_ATTACK		  : RANGE ( $ATTACK_PATTERN2_RANGE_CHARGEATTACK$ )
+		ATTACK_PATTERN2_CHARGE_ATTACK 		  : BEHAVIOR_FAILED
+		ATTACK_PATTERN2_CHARGE_ATTACK 		  : BEHAVIOR_SUCCESS
+		}
+	}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_ATTACK
+//---------------------------------------------------------
+	{
+	ignoreglobalstate
+	//behavior doAttack ( "charge_gore" )
+	legs
+		{
+		charge_gore : default
+		}
+
+
+	states
+		{
+		//NO_PATH_SHOULDERCANNON_START : !HAVE_PATH_TO_ENEMY
+		//ATTACK_PATTERN2_CHARGE_STUMBLE 		  : ATTACKED 
+		ATTACK_PATTERN2_CHARGE_END 		  : ANIM_DONE
+		//ATTACK_PATTERN2_CHARGE_END 		  : BEHAVIOR_SUCCESS
+		//ATTACK_PATTERN2_CHARGE_END 		  : BEHAVIOR_FAILED
+		}
+	}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_END
+//---------------------------------------------------------
+	{
+	states
+		{
+		ATTACK_PATTERN2_CHARGE_BACKPEDAL	: default
+		}
+	}
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_STUMBLE
+//---------------------------------------------------------
+	{	
+	
+	behavior WatchEntity  ( 100 , 20 , "charge_to_base" , 1 , "charge_to_base" )
+	
+	states
+		{		
+		ATTACK_PATTERN2_CHARGE_BACKPEDAL : BEHAVIOR_DONE
+		}
+	}			
+
+//---------------------------------------------------------
+state ATTACK_PATTERN2_CHARGE_BACKPEDAL
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		turntowardsenemy
+		}
+
+	legs
+		{
+		idle : default
+		}
+
+	//Behavior MoveRandomDirection ( "backpedal" , 100 , 64 , 2 , 1 , 1 )
+	time ( .5 , .75 )
+
+	states
+		{
+		END_ATTACK_PATTERN : !RANGE ( $ATTACK_PATTERN2_RANGE_BACKPEDAL$ )
+		END_ATTACK_PATTERN : TIME_DONE
+		}
+	}

@@ -1,0 +1,933 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:
+//	 Implements a few different ways to have monsters fly in along a spline path and land in a
+//	 specific place.  Will work with any tiki that has the "inflight", "land", and in some cases
+//	 "crash" animations.
+//
+//	 The different types are:
+//		1. Spawn a model, fly it in, make it land (each individual spawner/path can be reused as much as you want)
+//		2. Take a model from the map, fly it in, make it land (can only be used once per monster)
+//		3. Take a model form the map, fly it in, make it crash into the world and show damage to the world (only one use)
+//
+//	How To Use:
+//
+//	 For the types 2 and 3, there is too much to list here -- see the "creature flyin documentation.txt".
+//
+//   For type 1:
+//		Create a func_spawn with a good targetname, then make the spline path you want the flying
+//		creature to follow.  Connect the func_spawn to the first node of the splinepath, link
+//		the splinepath together, and wherever it ends is where the entity will "go live" and start
+//		doing its AI routines.  Here are the parameters for reference:
+//
+//			spawner 		- the func_spawn that will create entities; is targeted to the first node of the splinepath
+//			spawnModeLName	- what to spawn
+//			spawnGroup		- group to put the spawned entity in
+//			spawnMasterState- masterstate to initialize the new entity with
+//			touchThread		- thread to ontouch for the flying entity
+//			setTouchTriggers- should the flying script_model touch triggers?
+//
+//		Flying monsters will explode when shot by default, but you can set a custom "ontouch" thread if you want.
+//
+//
+//	External Functions (parameters are listed one per line for clarity):
+//
+//	 void globalFlyin_setup(
+//		string strMasterName,
+//		string strFlyinType );
+//
+//	 void globalFlyin_launch(
+//		string strMasterName );
+//
+// 	 entity globalFlyin_spawnLaunch(
+//		entity spawner,
+//		string spawnModelName,
+//		float spawnGroup,
+//		string spawnMasterState,
+//		string touchThread,
+//		float setTouchTriggers );
+//
+//	Script By:    Josh Martel / Benson Russell / Jared Hefty
+//  Created on:   n/a
+//
+//  Last Edited:  Jared Hefty, Oct 24 2002
+//
+//--------------------------------------------------------------------------------------
+
+//
+// Interface Functions -- These are called from the main level script
+//
+void globalFlyin_Setup( string strMasterName, string strFlyinType );
+void globalFlyin_Launch( string strMasterName );
+entity globalFlyin_SpawnLaunch( entity spawner, string spawnModelName, float spawnGroup, string spawnMasterState, string touchThread, float setTouchTriggers );
+//entity globalFlyin_SpawnLaunchWalkTo( entity spawner, string spawnModelName, float spawnGroup, string spawnMasterState, string touchThread, float setTouchTriggers );
+
+//
+// Set up Entity Functions -- Should NOT be called from the primary level script...
+//
+void _globalFlyin_setupLandingFlyIn ( entity entMasterTrigger );
+void _globalFlyin_setupCrashingFlyIn ( entity entMasterTrigger );
+void _globalFlyin_setupTrigger ( entity entTrigger, entity entScriptModel , entity entSplinePath , string strThreadName , string strCrater );
+void _globalFlyin_setupScriptModel ( entity entScriptModel , entity entSplinePath );
+void _globalFlyin_setupFX( entity entScriptModel , entity entMasterTrigger );
+
+//
+// Trigger handlers
+//
+void _globalFlyin_crashTrigger();
+void _globalFlyin_landTrigger();
+
+//
+// Damage handlers
+//
+void _globalFlyin_onDamage( entity entScriptModel );
+void _globalFlyin_onDamageThread();
+void _globalFlyin_onDamageBlow( entity entScriptModel, entity entInAirDamagedFx );
+
+//
+// Debugging functions
+//
+void _globalFlyin_printVar( string strMasterName );
+
+//----------------------------------------------------
+// Function:	globalFlyin_spawnLaunch
+// Desc:		Does a simplified fly-in-and-land sequence using a func_spawn and splinepath.  To set it up,
+//				create a func_spawn with a good targetname, then make the spline path you want the flying
+//				creature to follow.  Connect the func_spawn to the first node of the splinepath, then link
+//				the splinepath together and wherever it ends is where the entity will "go live" and start
+//				doing its AI routines.
+// Parameters:
+//		spawner 		- the func_spawn that will create entities; is targeted to the first node of the splinepath
+//		spawnModeLName	- what to spawn
+//		spawnGroup		- group to put the spawned entity in
+//		spawnMasterState- masterstate to initialize the new entity with
+//		touchThread		- thread to ontouch for the flying entity
+//		setTouchTriggers- should the flying script_model touch triggers?
+//----------------------------------------------------
+entity globalFlyin_SpawnLaunch( entity spawner, string spawnModelName, float spawnGroup, string spawnMasterState, string touchThread, float setTouchTriggers )
+{
+	entity startNode,newent,fakeent,explosion;
+	vector copyVel,copyAngles;
+	string namestr;
+
+	// make sure there is a model name
+	if( spawnModelName == ""){
+		globalCoop_main_printTimeAndString("globalFlyin_SpawnLaunch::Modelname was empty, spawn request rejected!");
+		return $world;
+	}
+
+	// find the actual spawner and set it up with parameters that must be set before actual spawning occurs
+	if( spawnGroup )				spawner.setspawngroupID( spawnGroup );
+	if( spawnMasterState != "" )	spawner.setspawnmasterstatemap( spawnMasterState );
+	spawner.modelname( spawnModelName );
+
+	// keep track of how many this spawner has spawned
+	if( spawner.getfloatvar( "spawnCount" ) )
+		spawner.setfloatvar( "spawnCount", spawner.getfloatvar( "spawnCount" ) + 1 );
+	else
+		spawner.setfloatvar( "spawnCount", 1 );
+
+	// create the script model
+
+
+	if ( spawner.gettarget () != "" ) //handle the case of an untargeted spawner
+	{
+		startNode = spawner.gettargetentity();
+		namestr = spawner.getrawtargetname();
+		namestr = namestr + "_" + spawner.getfloatvar( "spawnCount" );
+		fakeent = spawn( "script_model", "model", spawnModelName, "targetname", namestr );
+		fakeent.origin( startNode.getorigin() );
+
+		wait( 0.05 ); // let the engine digest all that for a frame
+
+		// don't let the player shoot this ent down
+		if ( spawner.getfloatvar ( "dontAllowDeathInTransit" ) == 0)
+		{
+			fakeent.handlesDamage ( 1 );
+			fakeent.health ( 1 );
+			fakeent.ondamage ( "flyingModelDamageThread" );
+			fakeent.onblock( "flyingModelDamageThread" );
+		}
+
+		// set the touch thread if there is one to be set, and set solid or notsolid as necessary
+		if( touchThread != "" )
+		{
+			fakeent.notsolid();
+			fakeent.ontouch( touchThread );
+		}
+		else
+		{
+			fakeent.solid();
+		}
+
+		// send it on the path
+		fakeent.touchtriggers( setTouchTriggers );
+		fakeent.anim( "inflight" );
+		fakeent.followpath( startNode, "normalangles" );
+
+		// wait until it hits the end of the path
+		waitfor( fakeent );
+		wait ( .07 );
+		// Was it killed while in-transit?
+		if ( fakeent.getfloatvar ( "killed" ) == 1.0 )
+		{
+			fakeent.remove(); //don't remove or it can crash, removed due to statement saveing
+			return $world;
+		}
+
+
+		// extract the script model's velocity so it can be passed onto the spawning entity
+		copyVel = fakeent.getvectorvar ( "myVelocity" );
+		copyVel_z -= 500; // make it go DOWN!
+		copyVel = vectorscale( copyVel , .5 ); // make it go SLOW!
+
+		// extract the script model's yaw so it can be passed onto the spawning entity
+		copyAngles = fakeent.getangles();
+		copyAngles_x = 0;
+		copyAngles_z = 0;
+
+		// make the script model appear to land, and don't be solid and don't take damage while doing it
+		fakeent.notsolid();
+		fakeent.handlesdamage(0);
+		fakeent.nodamage();
+		fakeent.anim("land");
+
+		// wait for the anim to play out
+		waitforanimation( fakeent , "land");
+
+		// place the spawner where the script model is
+		spawner.origin( fakeent.getorigin() );
+
+		// remove script model and spawn real entity
+		globalCoop_level_remove(fakeent);
+
+		spawner.checkforspace();
+		newent = spawner.spawnnow();
+		if( doesEntityExist( newent ) )
+		{
+			globalCoop_main_waitZeroDotZero5();
+			newent.angles ( copyAngles );
+			newent.setvelocity ( copyVel );
+		}
+		else
+		{
+			// there was somebody standing right where he wanted to spawn;
+			// play an explosion and bail out
+			explosion = spawn( "script_model" , "model", "models/fx/fx-explosion-alienflying-shotdown-nosmoke.tik" );
+			explosion.origin( spawner.getorigin() );
+			wait ( .1 );
+			explosion.doradiusdamage ( 25 , "explosion" , 192 , 100 , 1 );
+			return newent;
+		}
+	}
+	else	//no path? no problem
+	{
+		newent = spawner.spawnnow();
+		globalCoop_main_waitZeroDotZero5();
+	}
+
+	if ( spawner.getfloatvar ( "walkToPlayer" ) == 1)
+	{
+		if(!cvar_bool_multiplayer){
+			newent.ai_off();
+			newent.walkto("$player","run");
+			wait ( .5 );
+			newent.ai_on();
+		}
+		else{
+			newent.health(globalCoop_return_floatMultiplicatedPlayerQuantity(newent.getHealth()));
+		}
+	}
+	
+	newent.setFloatVar("transitSucessful",1);
+	if(doesEntityExist(newent)){
+		newent.attack(globalCoop_return_playerClosestPreferActive(newent));
+		newent.aggressive( 1 );
+	}
+	return newent;
+}
+
+
+/* //----------------------------------------------------
+// Function:	globalFlyin_spawnLaunchWalkTo
+// Desc:		Does a simplified fly-in-and-land sequence using a func_spawn and splinepath.  To set it up,
+//				create a func_spawn with a good targetname, then make the spline path you want the flying
+//				creature to follow.  Connect the func_spawn to the first node of the splinepath, then link
+//				the splinepath together and wherever it ends is where the entity will "go live" and start
+//				doing its AI routines after attempting to walk towards the player for .5 seconds.
+// Parameters:
+//		spawner 		- the func_spawn that will create entities; is targeted to the first node of the splinepath
+//		spawnModeLName	- what to spawn
+//		spawnGroup		- group to put the spawned entity in
+//		spawnMasterState- masterstate to initialize the new entity with
+//		touchThread		- thread to ontouch for the flying entity
+//		setTouchTriggers- should the flying script_model touch triggers?
+//----------------------------------------------------
+entity globalFlyin_SpawnLaunchWalkTo ( entity spawner, string spawnModelName, float spawnGroup, string spawnMasterState, string touchThread, float setTouchTriggers )
+{
+	entity	startNode,
+			newent,
+			fakeOrigin;
+	string	namestr;
+	
+	// find the actual spawner and set it up with parameters that must be set before actual spawning occurs
+	if( spawnGroup )				spawner.setspawngroupID( spawnGroup );
+	if( spawnMasterState != "" )	spawner.setspawnmasterstatemap( spawnMasterState );
+	spawner.modelname( spawnModelName );
+
+	// keep track of how many this spawner has spawned
+	if( spawner.getfloatvar( "spawnCount" ) )
+		spawner.setfloatvar( "spawnCount", spawner.getfloatvar( "spawnCount" ) + 1 );
+	else
+		spawner.setfloatvar( "spawnCount", 1 );
+
+	fakeOrigin = spawn ( "script_origin" , "targetname" , namestr + "_origin" );
+
+	startNode = spawner.gettargetentity();
+	namestr = spawner.getrawtargetname();
+	namestr = namestr + "_" + spawner.getfloatvar( "spawnCount" );
+	spawner.spawntargetname ( namestr );
+	globalCoop_level_triggerEntity ( spawner );
+	wait ( .2 );
+
+	newent = getentity ( namestr );
+	wait( 0.09 ); // let the engine digest all that for a frame
+	
+	//newent.health(globalCoop_return_floatMultiplicatedPlayerQuantity(newent.getHealth()));
+	newent.ai_off ();
+	
+	//print ( "^6" + newent.getrawtargetname () );
+	
+	newent.bind ( fakeOrigin );
+	//newent.origin( startNode.getorigin());
+	fakeOrigin.origin ( startNode.getorigin ());
+	wait ( .1 );
+
+
+	// send it on the path
+	newent.touchtriggers( setTouchTriggers );
+	newent.anim( "inflight" );
+//	fakeOrigin.followpath( startNode, "normalangles" );
+
+	// wait until it hits the end of the path
+	waitfor( fakeOrigin );
+	wait ( .1 );
+
+	newent.anim ( "land" );
+	// wait for the anim to play out
+	waitforanimation( newent , "land");
+
+	wait ( .05 );
+
+//	newent.walkto ( "$player" , "run" );
+//	wait ( .5 );
+
+//	newent.ai_on ();
+//	newent.attack ( $player );
+	fakeOrigin.remove ();
+
+	return newent;
+} */
+
+//-------------------------------------------------------------------------------------------------
+void flyingModelDamageThread ()
+{
+	entity explosion,caller;
+
+	caller = getCurrentEntity();
+	caller.notouch();	
+	caller.nodamage();
+		explosion = spawn( "script_model" , "model", "models/fx/fx-explosion-alienflying-shotdown-nosmoke.tik" );
+		explosion.origin( caller.getorigin() );
+		caller.setfloatvar ( "killed" , 1.0 );
+		caller.endpath();
+		caller.doradiusdamage ( 25 , "explosion" , 192 , 100 , 1 );
+}
+
+/**
+ * not used but kept for reference
+ *
+ ...actually they are used :)
+*/
+void setModelVelocity ()
+{
+	entity caller;
+	vector vel;
+
+	caller = getCurrentEntity ();
+
+	vel = caller.getVelocity();
+	caller.setvectorvar ( "myVelocity" , vel );
+	caller.animonce ( "landing" );
+	caller.moveup ( 1 );
+	wait ( 1.25 );
+}
+
+void creatureTouched ( )
+{
+
+	entity explosion,caller;
+
+	caller = getCurrentEntity ();
+	caller.notouch();	
+	caller.nodamage();
+	explosion = spawn ( "script_model" ,
+					    "model"        ,"models/fx/fx-explosion-alienflying-shotdown-nosmoke.tik");
+	explosion.origin ( caller.getorigin());
+
+	caller.doradiusdamage ( 25 , "explosion" , 192 , 100 , 1 );
+	caller.hide();
+	caller.setfloatvar ( "killed" , 1.0 );
+	caller.endpath();
+}
+
+
+//---------------------
+// creatureFlyinCrash_Setup
+// sets up a flying creature that crashes into the ground, spawns, and attacks
+// strMasterName - string, the string targetname of the master trigger
+// strFlyingType - string, the type of variation this is, default is 'crash'
+//---------------------
+void globalFlyin_Setup( string strMasterName, string strFlyinType )
+{
+	entity entTrigger;
+
+	entTrigger = getentity( strMasterName );
+	if( !doesEntityExist( entTrigger ) )
+	{
+		globalCoop_main_printTimeAndString("globalFlyin_setup: can't find trigger named " + strMasterName );
+		return;
+	}
+
+	if( strFlyinType == "land" )
+	{
+		_globalFlyin_setupLandingFlyIn( entTrigger );
+	}
+	else
+	{
+		_globalFlyin_setupCrashingFlyIn( entTrigger );
+	}
+
+}
+
+//-------------------------------------------------------------------------------------------------
+void _globalFlyin_setupLandingFlyIn( entity entMasterTrigger )
+{
+	entity entScriptModel;		//script model to fly along the path
+	entity entSplinePath;		//spline path to fly on, the lead node
+
+	entMasterTrigger.thread( "_globalFlyin_landTrigger" );
+
+	entScriptModel = entMasterTrigger.gettargetentity();
+	if(!doesEntityExist(entScriptModel)){
+		globalCoop_main_printTimeAndString("_globalFlyin_setupLandingFlyIn::entScriptModel");
+		return;
+	}
+	entSplinePath = entScriptModel.gettargetentity();
+	if(!doesEntityExist(entSplinePath)){
+		globalCoop_main_printTimeAndString("_globalFlyin_setupLandingFlyIn::entSplinePath");
+		return;
+	}
+	_globalFlyin_setupTrigger( entMasterTrigger , entScriptModel , entSplinePath , "_globalFlyin_landTrigger" , "" );
+	_globalFlyin_setupScriptModel( entScriptModel , entSplinePath );
+	_globalFlyin_setupFX ( entScriptModel , entMasterTrigger  );
+
+}
+
+//-------------------------------------------------------------------------------------------------
+void _globalFlyin_setupCrashingFlyIn( entity entMasterTrigger )
+{
+	entity entScriptModel;		//script model to fly along the path
+	entity entSplinePath;		//spline path to fly on, the lead node
+	entity entCrater;
+
+	entCrater = entMasterTrigger.gettargetentity();	
+	entScriptModel = entCrater.gettargetentity();
+	entSplinePath = entScriptModel.gettargetentity();
+	_globalFlyin_setupTrigger( entMasterTrigger , entScriptModel , entSplinePath , "_globalFlyin_crashTrigger" , entCrater.getrawtargetname() );
+  	_globalFlyin_setupScriptModel( entScriptModel , entSplinePath );
+	_globalFlyin_setupFX ( entScriptModel , entMasterTrigger  );
+   	//--- hide and not solid the crater
+	globalCoop_level_hideAndNotSolid(entCrater);
+}
+
+//-------------------------------------------------------------------------------------------------
+void _globalFlyin_setupTrigger( entity entTrigger, entity entScriptModel , entity entSplinePath , string strThreadName , string strCrater )
+{
+	string strCrashFx;
+
+	//--- set the thread to call
+    entTrigger.thread( strThreadName );
+
+	if ( strCrater != "" )
+		{
+		entTrigger.setstringvar( "strCrater", strCrater );
+		}
+
+	//--- see if a crash fx was specified, else default it
+    strCrashFx = entTrigger.getstringvar( "uservar1" );
+
+    if( strCrashFx == "" )
+    	{
+    	//--- default the value
+    	strCrashFx = "fx/fx-explosion-alienlanding-directional.tik";
+		entTrigger.setstringvar( "strCrashFx", strCrashFx );
+    	}
+
+	entTrigger.setstringvar( "strScriptModel", entScriptModel.getrawtargetname() );
+	entTrigger.setstringvar( "strSplinePath", entSplinePath.getrawtargetname() );
+}
+
+//-------------------------------------------------------------------------------------------------
+void _globalFlyin_setupScriptModel ( entity entScriptModel , entity entSplinePath  )
+{
+	entScriptModel.touchtriggers( 1 );
+	globalCoop_main_waitZeroDotZero5();
+
+	//--- pose the script model
+	entScriptModel.anim( "inflight" );
+
+	//--- move the script model to the first spline point, hide it, and not solid it
+	globalCoop_level_hideAndNotSolid(entScriptModel);
+	entScriptModel.origin( entSplinePath.getorigin() );
+
+	//--- set the in-air damaged variables
+	entScriptModel.setfloatvar( "intInAirDamaged", 0 );
+	entScriptModel.setfloatvar( "intInProcess", 0 );
+}
+
+//-------------------------------------------------------------------------------------------------
+void _globalFlyin_setupFX ( entity entScriptModel , entity entMasterTrigger  )
+{
+  	//----------------------------------------------
+	//----------------------------------------------
+	//--- spawn the in air damage effect and bind it, and setup the script model
+	entity entInAirDamagedFx;	//in air damaged fx to bind to script model
+	string	strTempAssemble,strInAirBlowFx;
+
+	//--- create the targetname for the effect
+	strTempAssemble = entScriptModel.getrawtargetname() + "_InAirDamagedFx";
+
+	//--- spawn the effect
+	spawn( "fx/fx-smoke-alien-midair.tik", "targetname", strTempAssemble );
+	globalCoop_main_waitZeroDotZero5();
+
+	//--- grab the entity and put the raw targetname into the master trigger
+	entInAirDamagedFx = getentity( strTempAssemble );
+	entScriptModel.setstringvar( "strInAirDamagedFx", entInAirDamagedFx.getrawtargetname() );
+
+	//--- hide the fx
+	entInAirDamagedFx.hide();
+
+	//--- relocate it to the script model and bind it
+	entInAirDamagedFx.origin( entScriptModel.getorigin() );
+
+	globalCoop_main_waitZeroDotZero5();
+	entInAirDamagedFx.bind( entScriptModel );
+
+
+	//--- see if an in air blow fx was specified, else default it
+	strInAirBlowFx = entMasterTrigger.getstringvar( "uservar2" );
+
+	if( strInAirBlowFx == "" )
+	{
+		//--- defautl the value
+		strInAirBlowFx = "fx/fx-explosion-alienflying-shotdown.tik";
+	}
+
+	//--- setup the in air damaged fx
+	entScriptModel.setstringvar( "strInAirBlowFx", strInAirBlowFx );
+}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  GAME LOGIC FUNCTIONS FOR CRASH VARIATIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+// _globalFlyin_crashTrigger
+// thread called when the script object flies through the trigger brush to say it's hit
+//---------------------
+void _globalFlyin_crashTrigger()
+{
+	//--- declare temp holder variables
+	entity entTrigger;
+	entity entScriptModel;
+	entity entSplinePath;
+	entity entInAirDamagedFx;
+	entity entCrashSpawner;
+	entity entSpawnedCreature;
+	entity entCrater;
+	entity entBlowSpawner;
+
+	string strModelName;
+	string strCrashFx;
+	string strTriggerTargetname;
+	string strTempAssemble;
+	string strInAirBlowFx;
+	string strGroupThread;
+
+	float intInAirDamaged;
+	float intGroupNumber;
+
+	vector vecModelAngles;
+	vector vecTriggerOrigin;
+
+	//--- grab the trigger that fired the thread
+	entTrigger = getcurrententity();
+
+	//--- grab all the values out of the trigger
+	entCrater = getentity( entTrigger.getstringvar( "strCrater" ) );
+	entScriptModel = getentity( entTrigger.getstringvar( "strScriptModel" ) );
+	entSplinePath = getentity( entTrigger.getstringvar( "strSplinePath" ) );
+	entInAirDamagedFx = getentity( entScriptModel.getstringvar( "strInAirDamagedFx" ) );
+	intInAirDamaged = entScriptModel.getfloatvar( "intInAirDamaged" );
+	strCrashFx = entTrigger.getstringvar( "strCrashFx" );
+	strTriggerTargetname = entTrigger.getrawtargetname();
+	vecTriggerOrigin = entTrigger.getorigin();
+	strGroupThread = entTrigger.getstringvar( "uservar3" );
+	intGroupNumber = entTrigger.getfloatvar( "uservar4" );
+
+	//--- get the modelname from the script model
+	strModelName = entScriptModel.getmodelname();
+
+	//--- get the angles from the script model
+	vecModelAngles = entScriptModel.getangles();
+
+	//--- normalize the pitch to 0
+	vecModelAngles = vectorsetx( vecModelAngles, 0 );
+	vecModelAngles = vectorsetz( vecModelAngles, 0 );
+
+	//--- spawn the impact explosion
+	strTempAssemble = strTriggerTargetname + "_CrashFx";
+	spawn( "func_spawn", "targetname", strTempAssemble );
+
+	globalCoop_main_waitZeroDotZero5();
+	entCrashSpawner = getentity( strTempAssemble );
+	entCrashSpawner.modelname( strCrashFx );
+	entCrashSpawner.angles( vecModelAngles );
+	entCrashSpawner.origin( vecTriggerOrigin );
+
+	//--- if damaged in the air, then blow him up on impact
+	if( intInAirDamaged == 1 )
+	{
+    	//--- blow up the creature
+    	_globalFlyin_onDamageBlow( entScriptModel, entInAirDamagedFx );
+	}
+
+	//--- remove the script model, trigger the explosion, make an earthquake, and show the crater
+	globalCoop_level_remove(entScriptModel);
+
+	globalCoop_main_waitZeroDotZero5();
+	globalCoop_level_triggerEntity( entCrashSpawner );
+	entCrater.show();
+	entCrashSpawner.earthquake( 1.5, .75, 2048 );
+
+	wait( .5 );
+
+	//--- if the creature wasn't damaged in the air, spawn the real creature
+	if( intInAirDamaged == 0 )
+	{
+    	//--- set the spawned spawners model value to the creature, along with angles and such
+    	entCrashSpawner.modelname( strModelName );
+    	entCrashSpawner.angles( vecModelAngles );
+
+    	strTempAssemble = strTriggerTargetname + "_SpawnedCreature";
+    	entCrashSpawner.spawntargetname( strTempAssemble );
+
+    	//--- spawn the creature and make him play the proper animation
+    	globalCoop_level_triggerEntity( entCrashSpawner );
+
+    	globalCoop_main_waitZeroDotZero5();
+    	entSpawnedCreature = getentity( strTempAssemble );
+
+    	entSpawnedCreature.ai_off();
+
+		//--- if there's a group thread and number, set it up
+		if( strGroupThread != "" )
+		{
+			entSpawnedCreature.setgroupid( intGroupNumber );
+			entSpawnedCreature.groupdeaththread( strGroupThread );
+		}
+
+    	entSpawnedCreature.anim( "crash" );
+    	waitforanimation( entSpawnedCreature, "crash" );
+
+    	entSpawnedCreature.ai_on();
+	}
+
+	//--- remove the spawner
+	globalCoop_level_remove(entCrashSpawner);
+}
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  GAME LOGIC FUNCTIONS FOR LAND VARIATIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+// _globalFlyin_landTrigger
+// thread called when the script object flies through the trigger brush to say it's landing
+//---------------------
+void _globalFlyin_landTrigger()
+{
+	//--- declare temp holder variables
+	entity entTrigger;
+	entity entScriptModel;
+	entity entSplinePath;
+	entity entInAirDamagedFx;
+	entity entCreatureSpawner;
+	entity entSpawnedCreature;
+	entity entBlowSpawner;
+
+	string strModelName;
+	string strTriggerTargetname;
+	string strTempAssemble;
+	string strInAirBlowFx;
+	string strGroupThread;
+
+	float intInAirDamaged;
+	float intGroupNumber;
+
+	vector vecModelAngles;
+	vector vecTriggerOrigin;
+	vector vecScriptModelVelocity;
+
+	float vecX;
+	float vecY;
+	float vecZ;
+
+
+	//--- grab the trigger that fired the thread
+	entTrigger = getcurrententity();
+
+	//--- grab all the values out of the trigger
+	entScriptModel = getentity( entTrigger.getstringvar( "strScriptModel" ) );
+	entSplinePath = getentity( entTrigger.getstringvar( "strSplinePath" ) );
+	entInAirDamagedFx = getentity( entScriptModel.getstringvar( "strInAirDamagedFx" ) );
+	intInAirDamaged = entScriptModel.getfloatvar( "intInAirDamaged" );
+	strTriggerTargetname = entTrigger.getrawtargetname();
+	vecTriggerOrigin = entTrigger.getorigin();
+	strGroupThread = entTrigger.getstringvar( "uservar3" );
+	intGroupNumber = entTrigger.getfloatvar( "uservar4" );
+
+	//--- get the modelname from the script model
+	strModelName = entScriptModel.getmodelname();
+
+	//--- get the angles from the script model
+	vecModelAngles = entScriptModel.getangles();
+
+	//--- normalize the pitch and roll to 0
+	vecModelAngles = vectorsetx( vecModelAngles, 0 );
+	vecModelAngles = vectorsetz( vecModelAngles, 0 );
+
+	//--- spawn the creature spawner
+	strTempAssemble = strTriggerTargetname + "_CreatureSpawner";
+	spawn( "func_spawn", "targetname", strTempAssemble );
+
+	globalCoop_main_waitZeroDotZero5();
+
+	vecScriptModelVelocity = entScriptModel.getvelocity();
+
+	entCreatureSpawner = getentity( strTempAssemble );
+	entCreatureSpawner.modelname( strModelName );
+	entCreatureSpawner.angles( vecModelAngles );
+	entCreatureSpawner.origin( entScriptModel.getorigin() );
+	entCreatureSpawner.setspawnvelocity( vecScriptModelVelocity );
+
+	//--- create the creatures targetname
+	strTempAssemble = strTriggerTargetname + "_SpawnedCreature";
+
+	//--- assigne the creatures targetname to the spawner
+	entCreatureSpawner.spawntargetname( strTempAssemble );
+
+   	globalCoop_main_waitZeroDotZero5();
+
+	//--- if damaged in the air, then just let him blowup
+	if( intInAirDamaged == 0 )
+	{
+    	//--- remove the script model, spawn the new creature
+    	entScriptModel.notsolid();
+    	globalCoop_level_remove(entScriptModel);
+    	globalCoop_level_remove(entInAirDamagedFx);
+
+    	//--- spawn the creature
+    	globalCoop_level_triggerEntity( entCreatureSpawner );
+
+    	globalCoop_main_waitZeroDotZero5();
+    	entSpawnedCreature = getentity( strTempAssemble );
+
+		//--- if there's a group thread and number, set it up
+		if( strGroupThread != "" )
+		{
+			entSpawnedCreature.setgroupid( intGroupNumber );
+			entSpawnedCreature.groupdeaththread( strGroupThread );
+		}
+	}
+
+	//--- remove the spawner
+	globalCoop_level_remove(entCreatureSpawner);
+}
+
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  GENERIC FUNCTIONS USED FOR BOTH VERSIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+// creatureFlyin_launch
+// launches the creature to fly down the path
+// strMasterName - string, the string targetname of the master trigger
+//---------------------
+void globalFlyin_Launch( string strMasterName )
+{
+	//--- temp variables
+	entity entTrigger;
+	entity entScriptModel;
+	entity entSplinePath;
+
+	//--- grab the trigger, script model, and spline path
+	entTrigger = getentity( strMasterName );
+	entScriptModel = getentity( entTrigger.getstringvar( "strScriptModel" ) );
+	entSplinePath = getentity( entTrigger.getstringvar( "strSplinePath" ) );
+
+	//--- activate the take damage thread
+	thread _globalFlyin_onDamage( entScriptModel );
+
+	//--- make the script model follow the path
+	entScriptModel.followpath ( entSplinePath, "normalangles" );
+
+	//--- show the creature and make him solid
+	globalCoop_level_showAndSolid(entScriptModel);
+}
+
+
+
+
+//---------------------
+// _globalFlyin_onDamage
+// detects when damage is taken in flight of the script model
+// entScriptModel - entity, the script model to detect damage on
+//---------------------
+void _globalFlyin_onDamage( entity entScriptModel )
+{
+	entScriptModel.ondamage( "_globalFlyin_onDamageThread" );
+	pause();
+}
+
+
+
+
+//---------------------
+// _globalFlyin_onDamageThread
+// detects when damage is taken in flight of the script model
+// entScriptModel - entity, the script model to detect damage on
+//---------------------
+void _globalFlyin_onDamageThread()
+{
+	//--- temp variables
+	entity entScriptModel;
+	entity entInAirDamagedFx;
+	entity entBlowSpawner;
+
+	string strTempAssemble;
+	string strInAirBlowFx;
+
+	//--- grab the current entity
+	entScriptModel = getcurrententity();
+
+	//--- set the nodamage flag
+	entScriptModel.nodamage();
+
+	//--- set the damaged in air variable
+	entScriptModel.setfloatvar( "intInAirDamaged", 1 );
+
+	//--- get the in air damaged fx
+	entInAirDamagedFx = getentity( entScriptModel.getstringvar( "strInAirDamagedFx" ) );
+
+	//--- turn on the damaged fx
+	entInAirDamagedFx.show();
+
+	wait( 1.25 );
+
+	//--- blow up the creature
+	_globalFlyin_onDamageBlow( entScriptModel, entInAirDamagedFx );
+
+	//--- remove the script model
+	globalCoop_level_remove(entScriptModel);
+}
+
+
+
+
+//---------------------
+// _globalFlyin_onDamageBlow
+// blows up the creature
+// entScriptModel - entity, the script model to blow up
+//---------------------
+void _globalFlyin_onDamageBlow( entity entScriptModel, entity entInAirDamagedFx )
+{
+	//--- temp variable
+	entity entBlowSpawner;
+
+	string strInAirBlowFx;
+	string strTempAssemble;
+
+	if( entScriptModel.getfloatvar( "intInProcess" ) == 0 )
+	{
+		entScriptModel.setfloatvar( "intInProcess", 1 );
+
+    	//--- blow 'em up....scatter 'em......he fall down go BOOM!!!
+    	strTempAssemble = entScriptModel.getrawtargetname() + "_BlowFx";
+    	spawn( "func_spawn", "targetname", strTempAssemble );
+
+    	globalCoop_main_waitZeroDotZero5();
+    	entBlowSpawner = getentity( strTempAssemble );
+    	strInAirBlowFx = entScriptModel.getstringvar( "strInAirBlowFx" );
+    	entBlowSpawner.modelname( strInAirBlowFx );
+    	entBlowSpawner.origin( entScriptModel.getorigin() );
+
+    	globalCoop_main_waitZeroDotZero5();
+    	globalCoop_level_triggerEntity( entBlowSpawner );
+    	globalCoop_level_remove(entBlowSpawner);
+    	globalCoop_level_remove(entInAirDamagedFx);
+    }
+}
+
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEBUGGING SPECIFIC FUNCTIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void _globalFlyin_printVar( string strMasterName )
+{
+	//--- grab the master trigger brush
+	entity entTrigger;
+	entity entScriptModel;
+	entTrigger = getentity( strMasterName );
+	entScriptModel = getentity( entTrigger.getstringvar( "strScriptModel" ) );
+/* 
+	//--- print out all the stored values on it
+	print( "---------------" + strMasterName + "----------------\n" );
+	print( "Crater: " + entTrigger.getstringvar( "strCrater" ) + "\n" );
+	print( "Script Model: " + entTrigger.getstringvar( "strScriptModel" ) + "\n" );
+	print( "Spline Path: " + entTrigger.getstringvar( "strSplinePath" ) + "\n" );
+	print( "In Air Damaged Fx: " + entScriptModel.getstringvar( "strInAirDamagedFx" ) + "\n" );
+	print( "In Air Damaged Variable: " + entScriptModel.getfloatvar( "intInAirDamaged" ) + "\n" );
+	print( "Crash Fx: " + entTrigger.getstringvar( "strCrashFx" ) + "\n" );
+*/
+}
+

@@ -1,0 +1,1309 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m2l0-sfa
+//  Script By:    Benson R
+//  Geometry By:  Benson R. Thearrel M.
+//  Created on:   9/12/2002
+//
+//  Last Edited By:  Benson R
+//
+//-----------------------------------------------------------------
+
+//==========================================================================================
+//==========================================================================================
+//  DEFINE SCRIPT
+//==========================================================================================
+//==========================================================================================
+
+void main();
+
+//--- setup routines
+void setupWorld();
+void setupFleet();
+void setupSpawners();
+void setupArmatureCinematics();
+
+//--- tunnel scene functions
+void scannerBlow();
+void scannerBlow_Sequence();
+void scannerBlow_Sequence_InnerBodyLoop();
+void scannerBlow_Sequence_OutterBodyLoop();
+void scannerBlow_Arm( float fltArmNumber );
+void voyagerTunnelFollowPath();
+
+//--- portal opening scene functions
+void conduitPortal_Open();
+
+//--- fleet arrival scene functions
+void fleetFollowPaths();
+
+//--- borg sphere flyin scene functions
+void starshipBorg_FlyIn();
+void starshipBorg_ScaleUp();
+void starshipBorg_StarfleetAdjust();
+
+//--- photon voyager tunnel scene functions
+void photonVoyagerTunnel_MoveVoyager();
+void photonVoyagerTunnel_Fire();
+
+//--- photon pull out scene functions
+void photonPullOut_Fire();
+void photonPullOut_Explosion();
+
+//--- blow borg sphere scene functions
+void blowBorgSphere_MoveBorg();
+void blowBorgSphere_FlyVoyager();
+
+//--- cinematics
+void cinematicMain();
+void cinematicMain_Skipthread();
+void cinematicArm_Functionary_Start();
+void cinematicArm_Functionary_Skipthread();
+void cinematicArm_Functionary1_ArmEnd();
+void cinematicArm_Functionary2_ArmEnd();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- PARAMETER CONSTANTS
+
+float SCANNER_BLOW_ARM_WAIT = .2;		//The amount to wait between blowing scanner arm segments
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CALCULATED CONSTANTS
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CONSTANTS
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- ENUMERATED LISTS CONSTANTS
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+//--- armature cinematics
+entity cinematicArm_Functionary1;
+entity cinematicArm_Functionary2;
+
+//==========================================================================================
+//==========================================================================================
+//  INCLUDES
+//==========================================================================================
+//==========================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  MAIN FUNCTION
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+void main()
+//---------------------
+{
+	//hzm coop mod chrissstrahl, set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$SFALoadingText$$";
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+	
+	//hzm coop mod chrissstrahl - move soudtrack further down, to fix unsync issue
+
+	//--- run setup functions
+	setupWorld();
+	setupFleet();
+	setupSpawners();
+	setupArmatureCinematics();
+
+	//--- allow camera shakes
+	$world.canShakeCamera( 1 );
+
+	//--- wait for player to spawn
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	freezeplayer ();
+	//hzm coop mod chrissstrahl - removed wait time, black screen is to long on
+
+
+	//--- start the cinematic
+	thread cinematicMain();
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  SETUP FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// setupWorld
+// setup world objects
+//---------------------
+void setupWorld()
+{
+	//--- set the sky box
+	$sky.rendereffects( "+skyorigin" );
+
+	//--- hide the sfa sky
+	$skySFA.hide();
+	$skySFA.surface( "material2", "+nodraw" );
+	$skySFA.surface( "material3", "+nodraw" );
+
+	//--- set the light values
+	//stuffcmd ( "r_light_emphasizePercent 100 " );
+	//stuffcmd ( "r_light_emphasize 100" );
+
+	//--- the conduit portal
+	$conduitPortal.anim( "idle" );
+
+	//--- the borg sphere
+	$starshipBorg_Front.scale( .3 );
+	$starshipBorg_Front.hide();
+	$starshipBorg_Front.notsolid();
+	$starshipBorg_Collision.notsolid();
+
+	//--- the borg sphere explode
+	$starshipBorg_Explode.hide();
+	$starshipBorg_Explode.notsolid();
+
+	//--- the photon on the tunnel voyager
+	$photonVoyagerTunnel.hide();
+	$photonVoyagerTunnel.notsolid();
+	$photonVoyagerTunnel.scale( .8 );
+
+	//--- the photon for the pull out shot
+	$photonPullOut.touchtriggers( 1 );
+
+	//--- fleet 2
+	$fleet2.hide();
+	$fleet2.notsolid();
+
+	//--- voyager borg
+	$starshipVoyagerBorg_Front.hide();
+	$starshipVoyagerBorg_Front.notsolid();
+
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- load camera paths
+	cam.load( "m2l0_tunnelScannerBlow1" );
+	cam.load( "m2l0_tunnelScannerBlow2" );
+	cam.load( "m2l0_tunnelScannerBlow3" );
+	cam.load( "m2l0_tunnelScannerBlow4" );
+	cam.load( "m2l0_tunnelScannerPhaser1" );
+	cam.load( "m2l0_tunnelVoyagerDepart1" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	cam.load( "m2l0_tunnelVoyagerDepart2" );
+	cam.load( "m2l0_tunnelVoyagerDepart3" );
+	cam.load( "m2l0_tunnelVoyagerDepart4" );
+	cam.load( "m2l0_tunnelVoyagerEstablish1" );
+	cam.load( "m2l0_portalOpen1" );
+	cam.load( "m2l0_torpedoPullOut1" );
+	cam.load( "m2l0_fleetArrival1" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	cam.load( "m2l0_borgFlyIn1" );
+	cam.load( "m2l0_borgSphereExplode1" );
+	cam.load( "m2l0_borgSphereExplode2" );
+	cam.load( "m2l0_borgSphereExplode3" );
+
+	//--- watch objects
+	//$camWatch_Fleet.notsolid();
+	//$camWatch_Fleet.hide();
+}
+
+
+//---------------------
+// setupFleet
+// setup the fleet of ships
+//---------------------
+void setupFleet()
+{
+	//--- starfleet ships together
+	$starshipAkira_Front.bind( $starshipAkira_Origin );
+
+	$starshipGalaxy_Front.bind( $starshipGalaxy_Origin );
+
+	$starshipExcelsior_Front.bind( $starshipExcelsior_Origin );
+	$starshipExcelsior_Back.bind( $starshipExcelsior_Origin );
+
+	$starshipNebula_Front.bind( $starshipNebula_Origin );
+
+	$starshipPrometheus_Front.bind( $starshipPrometheus_Origin );
+
+	$starshipCentaur_Front.bind( $starshipCentaur_Origin );
+
+	$starshipMiranda_Front.bind( $starshipMiranda_Origin );
+
+	$starshipUnknown1_Front.bind( $starshipUnknown1_Origin );
+
+	$starshipUnknown2_Front.bind( $starshipUnknown2_Origin );
+
+	//--- borg sphere
+	$starshipBorg_Front.bind( $starshipBorg_Origin );
+	$starshipBorg_Collision.bind( $starshipBorg_Origin );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- voyager tunnel
+	$starshipVoyagerTunnel_Front.bind( $starshipVoyagerTunnel_Origin );
+	$photonVoyagerTunnel.bind( $starshipVoyagerTunnel_Front );
+	$photonFlashVoyagerTunnel.bind( $starshipVoyagerTunnel_Front );
+	$m2l0_photonVoyagerTunnel1.bind( $starshipVoyagerTunnel_Front );
+	$t2070.bind( $starshipVoyagerTunnel_Front );
+
+	//--- voyager borg
+	$starshipVoyagerBorg_Front.bind( $starshipVoyagerBorg_Origin );
+}
+
+
+//---------------------
+// setupSpawners
+// setup the func spawners
+//---------------------
+void setupSpawners()
+{
+	//--- setup the scanner arm spawners
+	$spawnScanner_Arm1_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm1_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm1_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+
+	$spawnScanner_Arm2_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm2_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm2_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+
+	$spawnScanner_Arm3_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm3_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm3_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$spawnScanner_Arm4_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm4_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm4_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+
+	$spawnScanner_Arm5_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm5_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm5_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+
+	$spawnScanner_Arm6_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm6_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm6_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$spawnScanner_Arm7_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm7_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm7_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+
+	$spawnScanner_Arm8_Base.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm8_Mid.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Arm8_End.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup the scanner base spawners
+	$spawnScanner_Base1.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base2.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base3.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base4.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base5.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base6.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base7.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base8.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnScanner_Base1.scale( 3 );
+	$spawnScanner_Base2.scale( 3 );
+	$spawnScanner_Base3.scale( 3 );
+	$spawnScanner_Base4.scale( 3 );
+	$spawnScanner_Base5.scale( 3 );
+	$spawnScanner_Base6.scale( 3 );
+	$spawnScanner_Base7.scale( 3 );
+	$spawnScanner_Base8.scale( 3 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- the central main explosion for the scanner
+	$spawnScanner_Center.modelname( "fx/fx-explosion-voyager-scanner.tik" );
+	$spawnScanner_Center.scale( 1 );
+
+	//--- tunnel voyager phasers
+	$spawnTunnelVoyager_Phaser1.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnTunnelVoyager_Phaser2.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnTunnelVoyager_Phaser1.spawntargetname( "beamTunnelVoyager_Phaser1" );
+	$spawnTunnelVoyager_Phaser2.spawntargetname( "beamTunnelVoyager_Phaser2" );
+	$spawnTunnelVoyager_Phaser1.scale( 2 );
+	$spawnTunnelVoyager_Phaser2.scale( 2 );
+
+	//--- photon pull out spawner
+	$spawnPhotonPullOut.modelname( "fx/fx-explosion-fire-medium-noquake.tik" );
+	$spawnPhotonPullOut.scale( 5 );
+
+	//--- voyager photon launcher flash
+	$photonFlashVoyagerTunnel.modelName( "fx/fx-explosion-photonflash-idryll.tik" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- borg flyin phasers
+	$spawnBorgFlyIn_Phaser1.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnBorgFlyIn_Phaser2.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnBorgFlyIn_Phaser3.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnBorgFlyIn_Phaser4.modelname( "fx/fx-laserbeam-federation.tik" );
+	$spawnBorgFlyIn_Phaser1.spawntargetname( "beamBorgFlyIn_Phaser1" );
+	$spawnBorgFlyIn_Phaser2.spawntargetname( "beamBorgFlyIn_Phaser2" );
+	$spawnBorgFlyIn_Phaser3.spawntargetname( "beamBorgFlyIn_Phaser3" );
+	$spawnBorgFlyIn_Phaser4.spawntargetname( "beamBorgFlyIn_Phaser4" );
+	$spawnBorgFlyIn_Phaser1.scale( 3 );
+	$spawnBorgFlyIn_Phaser2.scale( 3 );
+	$spawnBorgFlyIn_Phaser3.scale( 3 );
+	$spawnBorgFlyIn_Phaser4.scale( 3 );
+
+}
+
+
+//---------------------
+// setupArmatureCinematics
+// setup the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--- setup both parts of the functionary cinematic
+	cinematicArm_Functionary1 = createCinematic( "m2l1-sf_acadamy" );
+	cinematicArm_Functionary1.setendthread( "cinematicArm_Functionary1_ArmEnd" );
+	cinematicArm_Functionary2 = createCinematic( "m2l1-sf_acadamy2" );
+	cinematicArm_Functionary2.setendthread( "cinematicArm_Functionary2_ArmEnd" );
+}
+
+
+//==========================================================================================
+//==========================================================================================
+//  FlEET ARRIVAL SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// fleetFollowPaths
+// tell the starships to follow their paths
+//---------------------
+void fleetFollowPaths()
+{
+	//--- tell the watch object to follow it's path
+	$camWatch_Fleet.followpath( $pathWatch_Fleet );
+
+	//--- tell the ships to follow their paths
+	$starshipPrometheus_Origin.followpath( $pathPrometheus );
+	$starshipAkira_Origin.followpath( $pathAkira );
+	$starshipGalaxy_Origin.followpath( $pathGalaxy );
+	$starshipExcelsior_Origin.followpath( $pathExcelsior );
+	$starshipNebula_Origin.followpath( $pathNebula );
+	$starshipMiranda_Origin.followpath( $pathMiranda );
+	$starshipCentaur_Origin.followpath( $pathCentaur );
+	$starshipUnknown1_Origin.followpath( $pathUnknown1 );
+	$starshipUnknown2_Origin.followpath( $pathUnknown2 );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  TUNNEL SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// voyagerTunnelFollowPath
+// make the voyager in the tunnel follow it's path
+//---------------------
+void voyagerTunnelFollowPath()
+{
+	$starshipVoyagerTunnel_Origin.followpath( $pathVoyagerTunnel );
+}
+
+
+//---------------------
+// scannerBlow
+// voyager shoots and blows the scanner
+//---------------------
+void scannerBlow()
+{
+	//--- spawn the beam emmiters
+	triggerentity( $spawnTunnelVoyager_Phaser1 );
+	triggerentity( $spawnTunnelVoyager_Phaser2 );
+	wait( .1 );
+
+	//--- activate the beams
+	$beamTunnelVoyager_Phaser1.anim( "beam" );
+	wait( .5 );
+
+	//--- start the scanner exploding
+	thread scannerBlow_Sequence();
+	wait( .5 );
+
+	//--- earthquake
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	
+	//hzm coop mod chrissstrahl - give all the spawn weapons the players, otherwhise they would need to respawn to have these weapons
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.earthquake( .25, 4.5 );
+			}
+		}
+	}
+
+	//--- turn off the first beam
+	$beamTunnelVoyager_Phaser1.anim( "idle" );
+	wait( .5 );
+
+	//--- fire the second beam
+	$beamTunnelVoyager_Phaser2.anim( "beam" );
+	wait( 1 );
+
+	//--- turn off the second beam
+	$beamTunnelVoyager_Phaser2.anim( "idle" );
+}
+
+
+//---------------------
+// scannerBlow_Sequence
+// trigger all the explosions to blow the scanner in sequence
+//---------------------
+void scannerBlow_Sequence()
+{
+	thread scannerBlow_Sequence_InnerBodyLoop();
+	wait( 2 );
+
+	//--- blow the arms
+	thread scannerBlow_Arm( 4 );
+	wait( .2 );
+
+	thread scannerBlow_Arm( 6 );
+	wait( .2 );
+
+	thread scannerBlow_Arm( 1 );
+	wait( .1 );
+
+	thread scannerBlow_Arm( 7 );
+	wait( .2 );
+
+	thread scannerBlow_Arm( 5 );
+	wait( .15 );
+
+	thread scannerBlow_Arm( 3 );
+	wait( .25 );
+
+	thread scannerBlow_Arm( 8 );
+	wait( .1 );
+
+	thread scannerBlow_Arm( 2 );
+	wait( .25 );
+
+	//--- blow the center
+	triggerEntity( $spawnScanner_Center );
+	wait( .1 );
+
+	$brushScanner_Base.remove();
+}
+
+
+//---------------------
+// scannerBlow_Sequence_InnerBodyLoop
+// loop the explosion sequence around the main scanner body
+//---------------------
+void scannerBlow_Sequence_InnerBodyLoop()
+{
+	float i;
+
+	for( i = 1 ; i <= 2 ; i++ )
+	{
+        triggerEntity( $spawnScanner_Base1 );
+        wait( .4 );
+
+        triggerEntity( $spawnScanner_Base3 );
+        wait( .4 );
+
+        triggerEntity( $spawnScanner_Base2 );
+        wait( .1 );
+
+        triggerEntity( $spawnScanner_Base1 );
+        wait( .4 );
+
+        triggerEntity( $spawnScanner_Base4 );
+        wait( .2 );
+
+        triggerEntity( $spawnScanner_Base3 );
+        wait( .4 );
+    }
+}
+
+
+//---------------------
+// scannerBlow_Sequence_OutterBodyLoop
+// loop the explosion sequence around the main scanner body
+//---------------------
+void scannerBlow_Sequence_OutterBodyLoop()
+{
+	float i;
+
+	for( i = 1 ; i <= 2 ; i++ )
+	{
+        triggerEntity( $spawnScanner_Base6 );
+        wait( .65 );
+
+        triggerEntity( $spawnScanner_Base8 );
+        wait( .4 );
+
+        triggerEntity( $spawnScanner_Base7 );
+        wait( .65 );
+
+        triggerEntity( $spawnScanner_Base5 );
+        wait( .15 );
+    }
+}
+
+
+//---------------------
+// scannerBlow_Arm
+// take the passed in number and blow the respective arm
+//---------------------
+void scannerBlow_Arm( float fltArmNumber )
+{
+	entity entArm_Base;
+	entity entArm_Mid;
+	entity entArm_End;
+	entity entSpawn_Base;
+	entity entSpawn_Mid;
+	entity entSpawn_End;
+
+	string strTargetname;
+
+	//--- grab the arm pieces
+	strTargetname = "brushScanner_Arm" + fltArmNumber + "_Base";
+	entArm_Base = getEntity( strTargetname );
+
+	strTargetname = "brushScanner_Arm" + fltArmNumber + "_Mid";
+	entArm_Mid = getEntity( strTargetname );
+
+	strTargetname = "brushScanner_Arm" + fltArmNumber + "_End";
+	entArm_End = getEntity( strTargetname );
+
+	//--- grab the spawners
+	strTargetname = "spawnScanner_Arm" + fltArmNumber + "_Base";
+	entSpawn_Base = getEntity( strTargetname );
+
+	strTargetname = "spawnScanner_Arm" + fltArmNumber + "_Mid";
+	entSpawn_Mid = getEntity( strTargetname );
+
+	strTargetname = "spawnScanner_Arm" + fltArmNumber + "_End";
+	entSpawn_End = getEntity( strTargetname );
+
+	//--- blow the end piece
+	triggerentity( entSpawn_End );
+	wait( .2 );
+
+	entArm_End.remove();
+	wait( SCANNER_BLOW_ARM_WAIT );
+
+	//--- blow the mid piece
+	triggerentity( entSpawn_Mid );
+	wait( .2 );
+
+	entArm_Mid.remove();
+	wait( SCANNER_BLOW_ARM_WAIT );
+
+	//--- blow the base piece
+	triggerentity( entSpawn_Base );
+	wait( .2 );
+
+	entArm_Base.remove();
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  PORTAL OPENING SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// conduitPortal_Open
+// open the conduit portal
+//---------------------
+void conduitPortal_Open()
+{
+	$conduitPortal.anim( "open" );
+	waitForAnimation( $conduitPortal, "open" );
+
+	$conduitPortal.anim( "idle_open" );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  BORG SPHERE FLYIN SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// starshipBorg_FlyIn
+// fly the borg sphere in
+//---------------------
+void starshipBorg_FlyIn()
+{
+	//--- remove the old fleet show the new
+	thread starshipBorg_StarfleetAdjust();
+
+	//--- show the borg sphere
+	$starshipBorg_Front.show();
+	wait( .2 );
+
+	//--- scale him up
+	thread starshipBorg_ScaleUp();
+
+	//--- make the borg sphere solid
+	$starshipBorg_Collision.solid();
+
+	//--- start the sphere moving
+	$starshipBorg_Origin.followpath( $pathBorg );
+	wait( 1.2 );
+
+	$camWatch_Borg.followpath( $t2066 );
+
+	//--- fire phasers at it
+	triggerentity( $spawnBorgFlyIn_Phaser1 );
+	triggerentity( $spawnBorgFlyIn_Phaser2 );
+	triggerentity( $spawnBorgFlyIn_Phaser3 );
+	triggerentity( $spawnBorgFlyIn_Phaser4 );
+	wait( .5 );
+
+	//--- first two beams
+	$beamBorgFlyIn_Phaser1.anim( "beam" );
+	wait( .5 );
+
+	$beamBorgFlyIn_Phaser4.anim( "beam" );
+	wait( .25 );
+
+	$beamBorgFlyIn_Phaser1.anim( "idle" );
+	wait( .5 );
+
+	$beamBorgFlyIn_Phaser4.anim( "idle" );
+	wait( .75 );
+
+	//--- fire the second two beams
+	$beamBorgFlyIn_Phaser3.anim( "beam" );
+	wait( .5 );
+
+	$beamBorgFlyIn_Phaser2.anim( "beam" );
+	wait( .25 );
+
+	$beamBorgFlyIn_Phaser3.anim( "idle" );
+	wait( .3 );
+
+	$beamBorgFlyIn_Phaser2.anim( "idle" );
+}
+
+
+//---------------------
+// starshipBorg_ScaleUp
+// scale the borg ship back to 1
+//---------------------
+void starshipBorg_ScaleUp()
+{
+	float i;
+
+	for( i = .3 ; i <= 1 ; i = i + .015 )
+	{
+		$starshipBorg_Front.scale( i );
+		wait( .05 );
+	}
+}
+
+
+//---------------------
+// starshipBorg_StarfleetAdjust
+// remove the first starfleet and show the new one
+//---------------------
+void starshipBorg_StarfleetAdjust()
+{
+	//--- remove the first fleet
+	$starshipAkira_Front.unbind();
+	$starshipAkira_Front.remove();
+	$starshipAkira_Origin.remove();
+
+	$starshipGalaxy_Front.unbind();
+	$starshipGalaxy_Front.remove();
+	$starshipGalaxy_Origin.remove();
+
+	$starshipExcelsior_Front.unbind();
+	$starshipExcelsior_Front.remove();
+	$starshipExcelsior_Back.unbind();
+	$starshipExcelsior_Back.remove();
+	$starshipExcelsior_Origin.remove();
+
+	$starshipNebula_Front.unbind();
+	$starshipNebula_Front.remove();
+	$starshipNebula_Origin.remove();
+
+	$starshipPrometheus_Front.unbind();
+	$starshipPrometheus_Front.remove();
+	$starshipPrometheus_Origin.remove();
+
+	$starshipCentaur_Front.unbind();
+	$starshipCentaur_Front.remove();
+	$starshipCentaur_Origin.remove();
+
+	$starshipMiranda_Front.unbind();
+	$starshipMiranda_Front.remove();
+	$starshipMiranda_Origin.remove();
+
+	$starshipUnknown1_Front.unbind();
+	$starshipUnknown1_Front.remove();
+	$starshipUnknown1_Origin.remove();
+
+	$starshipUnknown2_Front.unbind();
+	$starshipUnknown2_Front.remove();
+	$starshipUnknown2_Origin.remove();
+
+	//--- show fleet2
+	$fleet2.show();
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  PHOTON VOYAGER TUNNEL SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// photonVoyagerTunnel_MoveVoyager
+// move voyager to the center of the tunnel
+//---------------------
+void photonVoyagerTunnel_MoveVoyager()
+{
+	$starshipVoyagerTunnel_Origin.endpath();
+	$starshipVoyagerTunnel_Origin.origin( $pathVoyagerTunnel_Torpedo.getorigin() );
+	wait( .1 );
+}
+
+
+//---------------------
+// photonVoyagerTunnel_Fire
+// fire the torpedo from voyager in the tunnel
+//---------------------
+void photonVoyagerTunnel_Fire()
+{
+	//--- flash the tube
+	triggerEntity( $photonFlashVoyagerTunnel );
+	wait( .1 );
+
+	//--- show the photon
+	$photonVoyagerTunnel.Show();
+
+	//--- launch the photon while moving voyager
+	//$starshipVoyagerTunnel_Origin.time( 5 );
+	//$starshipVoyagerTunnel_Origin.moveWest( 1024 );
+	$photonVoyagerTunnel.time( 1.3 );
+	$photonVoyagerTunnel.moveWest( 512 );
+	waitFor( $photonVoyagerTunnel );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  PHOTON PULL OUT SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// photonPullOut_Fire
+// move the photon up
+//---------------------
+void photonPullOut_Fire()
+{
+	$photonPullOut.time( 6 );
+	$photonPullOut.moveUp( 4200 );
+	//jhefty - add a white flash to the whole thing
+	wait ( 5 );
+	cam_fadeout( 2.5, 1, 1, 1, 1, 0 );
+	waitFor( $photonPullOut );
+
+}
+
+
+//---------------------
+// photonPullOut_Explosion
+// explosion in front of the camera
+//---------------------
+void photonPullOut_Explosion()
+{
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+
+	triggerEntity( $spawnPhotonPullOut );
+	wait( .75 );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  BLOW BORG SPHERE SCENE FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// blowBorgSphere_MoveBorg
+// move the the borg sphere
+//---------------------
+void blowBorgSphere_MoveBorg()
+{
+	//--- remove the portal
+	$conduitPortal.remove();
+
+	//--- remove the first sphere
+	$starshipBorg_Front.unbind();
+	$starshipBorg_Front.remove();
+	$starshipBorg_Origin.remove();
+
+	//--- show the explode sphere
+	$starshipBorg_Explode.show();
+}
+
+
+//---------------------
+// blowBorgSphere_FlyVoyager
+// have voyager fly through the explosion
+//---------------------
+void blowBorgSphere_FlyVoyager()
+{
+	//--- show voyager
+	$starshipVoyagerBorg_Front.show();
+
+	//--- follow the path
+	$starshipVoyagerBorg_Origin.followpath( $pathVoyagerBorg );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  CINEMATIC FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// cinematicMain
+// the main cinematic of the level
+//---------------------
+void cinematicMain()
+{
+	//hzm coop mod chrissstrahl - fix music unsync
+	//--- set the soundtrack
+	soundtrack( "music/m2l0-sfa.mus" );
+	wait(1.25);
+	
+	//--- music stuff
+	allowMusicDucking( 0 );
+	wait( .5 );
+
+	//--------------------------------------------------------
+	//shot1 the conduit portal opening
+
+	//--- next paths
+	$cam3.fov( 80 );
+	$cam3.cut();
+	$cam3.follow( $m2l0_portalOpen1 );
+	wait( .2 );
+
+	cuecamera( $cam3 );
+	wait( .5 );
+
+	//--- set skipthread
+	skipthread( "cinematicMain_Skipthread" );
+
+	//--- fade in
+	cam_fadein( .75, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	thread conduitPortal_Open();
+	wait( 5.5 );
+
+	//--------------------------------------------------------
+	//shot2 establishing shot of voyager
+
+	//--- next paths
+	$cam1.fov( 70 );
+	$cam1.cut();
+	$cam1.follow( $m2l0_tunnelVoyagerEstablish1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( 7 );
+
+	//--------------------------------------------------------
+	//shot3 voyager shoots the borg scanner arm
+
+	//--- next paths
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m2l0_tunnelScannerPhaser1 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( .5 );
+
+	thread scannerBlow();
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//shot4 the scanner blowing up
+
+	//--- next paths
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $m2l0_tunnelScannerBlow1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( 2 );
+
+	//--- the fleet moves in on the conduit
+	thread fleetFollowPaths();
+	wait( 1.5 );
+
+	//--------------------------------------------------------
+	//shot5 the fleet arrives
+
+	//--- next paths
+	$cam4.fov( 60 );
+	$cam4.cut();
+	$cam4.follow( $nodeFleet, $camWatch_Fleet );
+	wait( .3 );
+
+	cuecamera( $cam4 );
+	wait( 9 );
+
+
+	//----------------------------------------------------
+	//--- voyager starts to depart
+
+	thread voyagerTunnelFollowPath();
+	wait( .3 );
+
+	//--- cue depart1 shot
+	$cam1.fov( 80 );
+	$cam1.follow( $m2l0_tunnelVoyagerDepart1 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( 2.5 );
+
+	//--- cue depart2 shot
+	$cam2.fov( 80 );
+	$cam2.follow( $m2l0_tunnelVoyagerDepart2 );
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( 2.75 );
+
+	//jhefty - remove this shot to tighten things up a bit, change the camera below from 2 to 1 to avoid lerping
+	//--- cue depart3 shot
+	$cam1.follow( $m2l0_tunnelVoyagerDepart3 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( 2.5 );
+
+	//--- cue depart4 shot
+	$cam2.follow( $m2l0_tunnelVoyagerDepart4 );
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( 5 );
+
+
+	//----------------------------------------------------
+	//--- borg sphere fly's in
+
+	thread starshipBorg_FlyIn();
+
+	//--- cue static follow shot
+	$cam3.follow( $m2l0_borgFlyIn1, $camWatch_Borg );
+	$cam3.cut();
+	wait( .2 );
+
+	cuecamera( $cam3 );
+	wait( 5.3 );
+
+
+	//----------------------------------------------------
+	//--- tunnel voyager launches torpedo
+
+	//--- move voyager
+	photonVoyagerTunnel_MoveVoyager();
+
+	//--- cue pull back shot
+	$cam1.fov( 50 );
+	$cam1.follow( $m2l0_photonVoyagerTunnel1 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--- fire the torpedo
+	thread photonVoyagerTunnel_Fire();
+
+	wait( 1 );
+
+
+	//----------------------------------------------------
+	//--- photon pullout
+
+	//--- cue the pull out shot
+	$cam2.follow( $m2l0_torpedoPullOut1 );
+	wait( .4 );
+	$cam2.cut();
+	cuecamera( $cam2 );
+
+	//--- move the torpedo
+	thread photonPullOut_Fire();
+	wait( 6.5 );
+
+
+	//----------------------------------------------------
+	//--- blow the borg sphere
+
+	//--- show the explode sphere
+	blowBorgSphere_MoveBorg();
+
+	//--- cue close in shot
+	$cam3.fov( 40 );
+	$cam3.follow( $m2l0_borgSphereExplode1 );
+	wait( .75 );
+	cam_fadein( .05, 0, 0, 0, 1, 0 );
+
+	//--- blow up the sphere
+	$starshipBorg_Explode.anim( "boom" );
+
+	$cam3.cut();
+	cuecamera( $cam3 );
+	wait( 3 );
+
+	//--- cue far back pan shot
+	$cam4.follow( $m2l0_borgSphereExplode2 );
+	wait( .2 );
+	$cam4.cut();
+	cuecamera( $cam4 );
+	wait( 4 );
+
+	//--- cue pull back and follow voyager shot
+	$cam1.fov( 65 );
+	$cam1.follow( $m2l0_borgSphereExplode3, $starshipVoyagerBorg_Origin );
+	wait( .5 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( 3 );
+
+	thread blowBorgSphere_FlyVoyager();
+	wait( 6 );
+
+	cam_fadeout( .05, 0, 0, 0, 1 );
+	wait( .05 );
+
+	//--- end the cinematic and transition to the next level
+	thread cinematicArm_Functionary_Start();
+}
+
+
+//---------------------
+// cinematicMain_Skipthread
+// the main cinematic skipthread
+//---------------------
+void cinematicMain_Skipthread()
+{
+	skipthread( "Null" );
+	killthread( "cinematicMain" );
+
+	//--- fade out the camera
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- start the functionary cinematic
+	thread cinematicArm_Functionary_Start();
+	wait( .2 );
+
+	//--- fade in the camera
+	//cam_fadein( .2, 0, 0, 0, 1, 0 );
+}
+
+
+//---------------------
+// cinematicArm_Functionary_Start
+// setup for and call the functionary armature cinematic
+//---------------------
+void cinematicArm_Functionary_Start()
+{
+	//--- starting cinematic commands
+	//freezeplayer();
+	//cinematic();
+	//letterbox( .1 );
+
+	//--- set the new music
+	//--- set the skipthread
+	skipthread( "cinematicArm_Functionary_Skipthread" );
+
+	//--- start the first piece of the cinematic
+	cinematicArm_Functionary1.beginCinematic( "m2l1-opening" );
+
+	//--- show the sfa sky
+	$skySFA.show();
+	$skyStarDome.hide();
+
+	wait ( 1 );
+	allowMusicDucking( 1 );
+	music( "action" );
+}
+
+
+//---------------------
+// cinematicArm_Functionary1_ArmEnd
+// calls when the first armature cinematic ends
+//---------------------
+void cinematicArm_Functionary1_ArmEnd()
+{
+	//--- start the next piece of the cinematic
+	cinematicArm_Functionary2.beginCinematic( "m2l1-opening" );
+}
+
+
+//---------------------
+// cinematicArm_Functionary2_ArmEnd
+// calls when the first armature cinematic ends
+//---------------------
+void cinematicArm_Functionary2_ArmEnd()
+{
+	//--- run the ending routines for the cinematic
+	thread cinematicArm_Functionary_Skipthread();
+}
+
+
+//---------------------
+// cinematicArm_Functionary_Skipthread
+// skip thread that wraps up the whole cinematic
+//---------------------
+void cinematicArm_Functionary_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1.1 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_Functionary1.endCinematic();
+	cinematicArm_Functionary2.endCinematic( FALSE );
+
+	killthread( "cinematicArm_Functionary_Start" );
+	killthread( "cinematicArm_Functionary1_ArmEnd" );
+	killthread( "cinematicArm_Functionary2_ArmEnd" );
+
+	//--- release the cinematic
+	//noncinematic();
+	//clearletterbox( .1 );
+
+	//--- tell the game to not translate the player's orientation
+	dontSaveOrientation();
+
+	noIntermission();
+
+	coop_endLevel();
+	
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m2l1-sfa" );
+	//wait ( 1 );
+	//triggerentity ( $trigger_endlevel );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m2l1-sfa");
+}
+
+

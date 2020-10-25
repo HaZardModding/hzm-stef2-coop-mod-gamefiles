@@ -1,0 +1,114 @@
+//hallway features - The purpose of this file is to keep the map-script easy to read
+
+
+void hallwayEncounter1Spawner()
+{
+//SPAN A ENEMY, will be pushed down and triggers the explosion
+	//$spawn2.modelName("char/alien-type1a-lurker.tik");
+	$spawn2.modelName("char/alien-type1b-chewer.tik");
+	$spawn2.setspawngroupID(01);
+	$spawn2.setspawngroupdeaththread("hallwayEncounter1Spawner");
+	$spawn2.spawnnow();
+}
+
+void hallwayEncounter1()//triggred by player
+{//make attacker come trought the ceiling and block this way with downfalling rocks
+//DO NOW ALLOW ANYONE WALKTING INTO THIS DIRECTION "Take the long road home"
+	$hallwayEncounter1MoveClip.solid();
+	hallwayEncounter1Spawner();
+	if(doesEntityExist($triggerTriggerHallwayEncounter1)){
+		$triggerTriggerHallwayEncounter1.remove();
+	}
+}
+
+void hallwayEncounter1CeilingExplosionSetup()
+{//setup, hide damaged parts and move objects into start position
+	$world.light_intensity("hallwayEncounter1CeilingLight",300);
+	$hallwayEncounter1MoveClip.hide();
+	$hallwayEncounter1CeilingBroken.hide();
+	$hallwayEncounter1PipeBroken.hide();
+	$hallwayEncounterPipeBrokenSteam.hide();
+	$hallwayEncounter1Rock1.hide();
+	$hallwayEncounter1Rock2.hide();
+	$hallwayEncounter1Rock1.time(1);
+	$hallwayEncounter1Rock1.moveup(270);
+	$hallwayEncounter1Rock1.moveeast(150);
+	$hallwayEncounter1Rock2.time(1);
+	$hallwayEncounter1Rock2.moveup(270);
+	$hallwayEncounter1Rock2.moveeast(150);
+}
+
+
+void hallwayEncounter1CeilingExplosion()//triggred by the attacker which has been spawned and dropen into a trigger
+{//make attacker come trought the ceiling and block this way with downfalling rocks
+//SHOW DAMAGED OBJECTS/HIDE NORMAL
+//remove objects in multiplayer, this way they are no longer calculated = more slots for other interactives
+	$hallwayEncounter1CeilingNormal.remove();
+//TURN OFF DYNAMIC LIGHT
+	wait(.01);
+	$hallwayEncounter1CeilingNormal.selfdetonate();//do explosion
+	$world.light_intensity("hallwayEncounter1CeilingLight",0);
+	wait(.03);
+	$hallwayEncounter1Rock1.show();
+	$hallwayEncounter1Rock2.show();
+	$hallwayEncounter1Rock1.selfdetonate();//do explosion
+	$hallwayEncounter1Rock2.selfdetonate();//do explosion
+	$hallwayEncounter1Rock1.solid();
+	$hallwayEncounter1Rock2.solid();
+	$hallwayEncounter1CeilingBroken.solid();
+	$hallwayEncounter1CeilingBroken.show();
+	$hallwayEncounter1Rock1.time(.3);
+	$hallwayEncounter1Rock1.moveup(-270);
+	$hallwayEncounter1Rock1.moveeast(-150);
+	$hallwayEncounter1Rock2.time(.25);
+	$hallwayEncounter1Rock2.moveup(-270);
+	$hallwayEncounter1Rock2.moveeast(-150);
+//wait for attacker to fall down
+	wait(.1);
+	$hallwayEncounter1GrateNormal.remove();
+	$hallwayEncounterPipeBrokenSteam.show();
+	$hallwayEncounter1PipeNormal.remove();
+	$hallwayEncounter1PipeBroken.show();
+}
+
+void hallwayFFOff()
+{
+	legacy_forcefield_disable($hallwayForceField);
+	$hallwayForceField.playsound("sound/ships/klingon/kling_ffstart.wav",0,1,128);
+	wait(.2);
+	$hallwayForceField.remove(); //not needed anymore, so delete it
+	$hallwayForceField_trigger.remove(); //remove as well
+}
+
+void hallwayFFOn()
+{
+//make the klingon ff solid, needs to be notsolid on map load so the pathnodes can connect proper
+	//$hallwayForceField.show();
+	$hallwayForceField.solid();
+	thread legacy_forcefield_makeInteractive($hallwayForceField);//autch on touch, zap on fire
+	$hallwayForceField.loopsound("sound/ships/klingon/kling_scan.wav",1,128);
+}
+
+
+void hallwayEncounter1MonsterHelper()
+//Help the Monster to decide where to jump
+{
+	entity e,eAi;
+	float fNode;
+	e=getCurrentEntity();
+	if(doesEntityExist(e)){
+		e.notTriggerable();
+		eAi = e.getLastActivatingEntity();
+		vector vVelocity;
+		vVelocity = eAi.getVelocity();
+		if(vVelocity_x > 0 && vVelocity_y > -1){
+			fNode=1;
+		}
+		if(doesEntityExist(eAi)){
+			eAi.jumpto("hallwayEncounter1MonsterHelper"+fNode);
+			cprint("jump"+fNode);
+		}
+	}
+	wait(1);
+	e.triggerable();
+}

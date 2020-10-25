@@ -1,0 +1,2298 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m3l1a-forever - USS Dallas
+//  Script By:    Richard H., Josh M., Adam 'Senn' Bellefeuil
+//  Geometry By:  Adam 'Senn' Bellefeuil
+//  Created on:   06/28/2002
+//
+//  Last Edited:  04/11/2003 - Adam B.
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+//--- setup functions
+void setupFlickeringLights();
+void setup_gravityunit();
+void setup_cameras();
+void setup_archetypes();
+void setup_sounds();
+
+void floatingObject( entity object );
+
+void gravity_objects();
+void gravity_objects_barrel1();
+void gravity_objects_barrel2();
+void gravity_objects_barrel3();
+void cinematicGravity_barrel1_move();
+void cinematicGravity_barrel2_move();
+void cinematicGravity_crewDead1_move();
+
+//--- gravity unit area functions
+void gravityUnit_Expose();
+void gravityUnit_ExposeFunction();
+void gravityUnit_ActivateFunction();
+void gravityUnit_ActivateFunction_SkipThread();
+
+//--- elevator functions
+void elevatorFall_MiddlePosition();
+void elevatorFall_EndingPosition();
+void elevatorFall_Shake();
+void turboliftShaft_lightdie1();
+
+// Cargo Bay Stuff
+void CargoBayExit();
+void CargoBayDoor1Button_Used();
+void sequenceCargoBayDoorLocked();
+
+// Duct/TurboLift/AirLock Area Stuff
+void AirLockDoorButton_Used();
+void EnterJTubesSequence();
+void catwalk_teammatedialog1();
+
+// Cinematics
+void cinematicIntro();
+void cinematicIntro_SkipThread();
+void cinematicIntro_End();
+void cinematicIntro_MoveBody();
+
+//Misc
+void AirLockClose();
+void ChangeLevel();
+
+//Secrets
+void shuttle_secret();
+
+//--- variables
+float CargoBayDoorLocked = 1;
+float gravity_on = 0;
+float gravity_objects_onground = 0;
+float cinematicGravity_objectshavefallen = 0;
+
+//==========================================================================================
+// Includes
+//==========================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+void coop_gathered();
+void coop_openAirlock();
+void coop_openAirlockWait();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_soundPan.scr"
+#include "coop_mod/matrix/global/global_tubeDoor.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_transporter.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedmovement.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+
+#include "coop_mod/maps/igm_common/ent_cin_igm247.script"
+
+//==========================================================================================
+// Josh's cinematic helper functions
+//==========================================================================================
+
+void _cinePlayerBegin()
+{
+	freezeplayer();
+}
+
+void _cinePlayerEnd()
+{
+	releaseplayer();
+}
+
+void _cineScreenBegin()
+{
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	cinematic ();
+	letterbox( .1 );
+	wait( 0.1 );
+}
+
+void _cineScreenEnd()
+{
+	cueplayer();
+	clearletterbox( .1 );
+	noncinematic();
+	wait( 0.1 );
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+}
+
+//==========================================================================================
+// Main Stuff
+//==========================================================================================
+
+void main()
+{
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$DallasLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "UseNightVision";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl, position players upon spawn (mapstart)
+	coop_float_spawnAngle0 				= 180;
+	coop_float_spawnAngle1 				= 286;
+	coop_vector_spawnOrigin1 			= '682 -88 0';//1131 0 10
+	coop_vector_spawnOrigin2 			= '1145 -10 0';
+	coop_vector_spawnOrigin3 			= '1145 40 0';
+	coop_vector_spawnOrigin4 			= '1145 90 0';
+	coop_vector_spawnOrigin5 			= '1145 140 0';
+	coop_vector_spawnOrigin6 			= '1145 190 0';
+	coop_vector_spawnOrigin7 			= '1145 240 0';
+	coop_vector_spawnOrigin8 			= '1145 290 0';
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+
+	//$world.entity_fade_dist( 8000 );
+	$world.physicsvar ( "gravity" , 200 );
+
+	//--- set the soundtrack
+	soundtrack( "music/m3l1a-forever.mus" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m3l1a_forever" );
+
+	//--- setup the world
+	thread init();
+
+	//--- start the AI
+	thread setup_cameras();
+	thread setup_archetypes();
+	thread gravity_objects();
+	thread setup_sounds();
+
+	$scare_lurker1.flags( "+notarget" );
+	$scare_lurker1.ai_off();
+	$scare_lurker1.anim( "twitch1" );
+
+	waitForPlayer();
+	freezePlayer();
+
+	//--- set the players model
+	/*$player.model( "models/char/munro_evosuit.tik" );*/
+
+	//--- teammate roster
+	addRosterTeammate1 ( $Jurot );
+	addRosterTeammate2 ( $Chell );
+	addRosterTeammate3 ( $Franklin );
+	$Jurot.immortal( 1 );
+	$Chell.immortal( 1 );
+	$Franklin.immortal( 1 );
+
+	globalCommon_SetupContextDialogForM3( $Chell , "chell" );
+	globalCommon_SetupContextDialogForM3( $Jurot , "jurot" );
+	globalCommon_SetupContextDialogForM3( $Franklin , "franklin" );
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	// Enterprise pulls up to wrecked up USS DALLAS, stardate and location are displayed
+	Intro2();
+
+	$entSkyOrigin.rendereffects( "-skyorigin" );	wait(.25);
+	$sky.rendereffects( "+skyorigin" );
+	$stardome.rotateX( 0.2 );
+	$stardome.rotateY( 0.7 );
+	
+	thread cinematicIntro();
+
+}
+
+//==========================================================================================
+// SETUP FUNCTIONS
+//==========================================================================================
+
+//---------------------
+// init
+// more start stuff
+//---------------------
+void init()
+{
+	//--- cargobay door setup
+	$airlockDeadBody.ai_off();
+	$airlockDeadBody2.ai_off();
+	$CargoBayDoor1Trigger.nottriggerable();
+	$CargoBayDoor1Button_offline.show();
+	$CargoBayDoor1Button_online.hide();
+	$AirLockDoorButton_online.hide();
+	$CargoBayDoor1Button_panel.moveto ( $CargoBayDoor1Button_panel_closepoint1 );
+	$AirLockDoorButton_panel.moveto ( $AirLockDoorButton_panel_closepoint1 );
+
+	//--- cargobaybutton setup
+	$CargoBayDoor1Button.puzzleobject_itemtouse( "Tricorder" );
+	$CargoBayDoor1Button.puzzleobject_itemusedthread( "CargoBayDoor1Button_Used" );
+	$CargoBayDoor1Button.puzzleobject_solvedthread( "CargoBayDoor1Button_Solved" );
+	$CargoBayDoor1Button.puzzleobject_failedthread( "CargoBayDoor1Button_Failed" );
+	$CargoBayDoor1Button.puzzleobject_canceledthread( "CargoBayDoor1Button_Canceled" );
+
+	// cargobay 1 secret setup
+	$CargoBay1Secret_busted.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup the gravity unit
+	thread setup_gravityunit();
+	thread gravityUnit_Expose();
+
+	//--- setup the flickering lights throughout the world
+	thread setupFlickeringLights();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup teammates
+	thread globalCommon_AiDummy( $Jurot, "" );
+	thread globalCommon_AiDummy( $Chell, "" );
+	thread globalCommon_AiDummy( $Franklin, "" );
+	thread globalCommon_AiDummy( $Munro, "" );
+	
+	$Jurot.immortal( 1 );
+	$Chell.immortal( 1 );
+	$Franklin.immortal( 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//Franklin does not have the phaser
+	//$Franklin.useactorweapon( "Phaser" );
+
+	//--- setup the jtube doors
+	thread globalTubeDoor_Setup ( "doorJTubeEntry_East", "manual", 36, "north_south", 0 );
+	thread globalTubeDoor_AddComponent ( "switchdoor", "switchdoorJTubeEntry_East" , "doorJTubeEntry_East" );
+	thread globalTubeDoor_AddComponent ( "switch", "switchJTubeEntry_East" , "doorJTubeEntry_East" );
+
+	thread globalTubeDoor_Setup ( "doorJTubeElevatorShaftLevel1_South", "normal", 36, "east_west", 0 );
+	thread globalTubeDoor_AddComponent ( "button", "button1JTubeElevatorShaftLevel1_South" , "doorJTubeElevatorShaftLevel1_South" );
+	thread globalTubeDoor_AddComponent ( "button", "button2JTubeElevatorShaftLevel1_South" , "doorJTubeElevatorShaftLevel1_South" );
+	thread globalTubeDoor_AddComponent ( "lockedlight", "lockedlightJTubeElevatorShaftLevel1_South" , "doorJTubeElevatorShaftLevel1_South" );
+	thread globalTubeDoor_AddComponent ( "unlockedlight", "unlockedlightJTubeElevatorShaftLevel1_South" , "doorJTubeElevatorShaftLevel1_South" );
+
+	thread globalTubeDoor_Setup ( "doorJTubeElevatorShaftLevel1_North", "manual", 36, "east_west", 0 );
+	thread globalTubeDoor_AddComponent ( "switchdoor", "switchdoorJTubeElevatorShaftLevel1_North" , "doorJTubeElevatorShaftLevel1_North" );
+	thread globalTubeDoor_AddComponent ( "switch", "switchJTubeElevatorShaftLevel1_North" , "doorJTubeElevatorShaftLevel1_North" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	thread globalTubeDoor_Setup ( "doorJTubeElevatorShaftLevel2_East", "normal", 36, "north_south", 1 );
+	thread globalTubeDoor_AddComponent ( "button", "button1JTubeElevatorShaftLevel2_East" , "doorJTubeElevatorShaftLevel2_East" );
+	thread globalTubeDoor_AddComponent ( "button", "button2JTubeElevatorShaftLevel2_East" , "doorJTubeElevatorShaftLevel2_East" );
+	thread globalTubeDoor_AddComponent ( "lockedlight", "lockedlightJTubeElevatorShaftLevel2_East" , "doorJTubeElevatorShaftLevel2_East" );
+	thread globalTubeDoor_AddComponent ( "unlockedlight", "unlockedlightJTubeElevatorShaftLevel2_East" , "doorJTubeElevatorShaftLevel2_East" );
+
+	thread globalTubeDoor_Setup ( "doorJTubeGravityChamberLevel1_West", "normal", 36, "north_south", 0 );
+	thread globalTubeDoor_AddComponent ( "button", "button1JTubeGravityChamberLevel1_West" , "doorJTubeGravityChamberLevel1_West" );
+	thread globalTubeDoor_AddComponent ( "button", "button2JTubeGravityChamberLevel1_West" , "doorJTubeGravityChamberLevel1_West" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//thread globalTubeDoor_Setup ( "doorJTubeCatwalk_West", "normal", 36, "north_south", 0 );
+	//thread globalTubeDoor_AddComponent ( "button", "button1JTubeCatwalk_West" , "doorJTubeCatwalk_West" );
+	//thread globalTubeDoor_AddComponent ( "button", "button2JTubeCatwalk_West" , "doorJTubeCatwalk_West" );
+
+	thread globalTubeDoor_Setup ( "doorJTubeCatwalk_East", "normal", 36, "north_south", 0 );
+	thread globalTubeDoor_AddComponent ( "button", "button1JTubeCatwalk_East" , "doorJTubeCatwalk_East" );
+	thread globalTubeDoor_AddComponent ( "button", "button2JTubeCatwalk_East" , "doorJTubeCatwalk_East" );
+
+	thread globalTubeDoor_Setup ( "doorJTubeLadderArea_East", "normal", 36, "north_south", 0 );
+	thread globalTubeDoor_AddComponent ( "button", "button1JTubeLadderArea_East" , "doorJTubeLadderArea_East" );
+	thread globalTubeDoor_AddComponent ( "button", "button2JTubeLadderArea_East" , "doorJTubeLadderArea_East" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- bind the elevator
+	$BrokenTurboLift.bind ( $BrokenTurboLiftOrigin );
+	//$BrokenTurboLiftLights.bind ( $BrokenTurboLift );
+	$BrokenTurboLiftSparks.bind ( $BrokenTurboLift );
+	$BrokenTurboLiftOrigin.time (.1);
+	$BrokenTurboLiftOrigin.moveto ( $BrokenTurboLiftUp );
+	//$BrokenTurboLift.movedown ( 700 );
+	$BrokenTurboLiftSparks.hide();
+
+	//--- setup the end call volume
+	//$AirLockDoor.lock();
+	$AirLockCallVolume.nottriggerable();
+	$AirLockCallVolume.requiredentity ( "Chell" );
+	$AirLockCallVolume.requiredentity ( "Jurot" );
+	$AirLockCallVolume.requiredentity ( "Franklin" );
+
+	// gravity panels that switch when gravity is turned back on
+	$statuspanel1_on.hide();
+	$statuspanel2_on.hide();
+	$statuspanel3_on.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+//	$ShuttleBaySecret_mark.viewmode( "structuralintegrity" );
+	thread globalCommon_OnDamage( $ShuttleBaySecret_trigger, "ShuttleBaySecret_go" );
+
+	$GravityUnitButton.puzzleobject_deactivate();
+	$armor.anim( "idle_off" );
+}
+
+//-----------------------------------
+void setup_sounds()
+{
+	globalSoundPan_Init();
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low5.wav", 5, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_rattle.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	thread globalSoundPan_Start();
+}
+
+//---------------------
+// CargoBay1Secret_explode
+// Shot the wall for the secret in cargobay 1
+//---------------------
+void CargoBay1Secret_explode()
+{
+	$CargoBay1Secret_normal.scriptSlave_explode( 1 );
+	trigger( "$CargoBay1Secret_fx" );
+	$CargoBay1Secret_busted.show();
+	wait( 0.05 );
+	$CargoBay1Secret_normal.remove();
+	$CargoBay1Secret_view_cue.remove();
+	$CargoBay1Secret_fx.remove();
+	$CargoBay1Secret_fx.remove();
+	$CargoBay1Secret_fx.remove();
+	$CargoBay1Secret_fx.remove();
+	$CargoBay1Secret_fx.remove();
+}
+
+//---------------------
+// setupFlickeringLights
+// setups up the flickering lights in the world
+//---------------------
+void setupFlickeringLights()
+{
+	//--- lights
+	$world.light_lightstyle( "lightCargoBay1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle( "lightCargoBay2", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle( "lightCargoBay3", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle( "lightCargoBay4", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle( "lightShuttleBay1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle ( "lightAreaFlicker1", "aazzaazzjjaaazzaajaajzzzazazazajjzaazzkahjszwufkjaz" );
+	$world.light_lightstyle ( "lightAreaFlicker2", "aazzaazzjjaaazzaajaajzzzazazazajjzaazzkahjszwufkjaz" );
+	$world.light_lightstyle ( "lightCargoBay1PanelRed", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "lightCargoBay1PanelGreen", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle( "lightJTubeHallway", "aahistzzzzzzzzzzpodaaaaaaaaaacdoptszzzzzzoaaozzoaaaaaaahistzzzoaaaozzoaozzzzzohistxxyzzzzzyxxxvvtooooaaaaaaaaaaa", 0 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel2_East_Red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel2_East_Green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel1_South_Red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel1_South_Green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "airlockdoor1_red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "airlockdoor1_green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbb" );
+	$world.light_lightstyle ( "airlockdoor2_red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "airlockdoor2_green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+}
+
+//---------------------
+// setup_gravityunit
+// setsup the gravity unit
+//---------------------
+void setup_gravityunit()
+{
+	//--- recess the gravity unit
+	$gravityUnit.time( .1 );
+	$gravityUnit.movesouth( 36 );
+	waitfor( $gravityUnit );
+
+	$gravityUnit_online.hide();
+	$gravityUnit_online.notsolid();
+	$cinematicGravity_barrel1_fall.hide();
+	$cinematicGravity_barrel2_fall.hide();
+}
+
+//---------------------
+// setup_cameras
+// setting up cameras
+//---------------------
+void setup_cameras()
+{
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");
+	spawn( "Camera", "targetname", "cam5");
+
+	//load camera paths
+	cam.load( "m3l1a_intro_adam1" );
+	cam.load( "m3l1a_intro_adam2" );
+	cam.load( "m3l1a_intro_adam3" );
+	cam.load( "m3l1a_intro_adam4" );
+	cam.load( "m3l1a_intro_adam5" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	cam.load( "m3l1a_gravity_adam1" );
+	cam.load( "m3l1a_Intro_Shot1" );
+	cam.load( "m3l1a_Intro_Shot2" );
+	cam.load( "m3l1a_Intro_Shot3" );
+	cam.load( "m3l1a_Intro_Shot4" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	cam.load( "m3l1a_Intro_Shot5" );
+	cam.load( "m3l1a_Intro_Shot6" );
+}
+
+void setupArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "targetable" );
+	e.archetype( theArchetype );
+}
+
+//---------------------
+// setup_archetypes
+// setting up the archetypes ManualDoorRelease DoorPanel
+//---------------------
+void setup_archetypes()
+{
+	globalArchetype_Setup( $gravityUnit_ExposeSwitch_archetype, "GravityPanel" );
+
+	// stupid jtube doors
+	globalArchetype_Setup( $jdoor1_m_archetype,	"ManualDoorRelease" );
+	//globalArchetype_Setup( $jdoor1_p_archetype1,"DoorPanel" );
+	//globalArchetype_Setup( $jdoor1_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $jdoor2_p_archetype1,"DoorPanel" );
+	globalArchetype_Setup( $jdoor2_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $jdoor3_m_archetype,	"ManualDoorRelease" );
+	//globalArchetype_Setup( $jdoor3_p_archetype1,"DoorPanel" );
+	//globalArchetype_Setup( $jdoor3_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $jdoor4_p_archetype1,"DoorPanel" );
+	globalArchetype_Setup( $jdoor4_p_archetype2,"DoorPanel" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalArchetype_Setup( $jdoor5_p_archetype1,"DoorPanel" );
+	globalArchetype_Setup( $jdoor5_p_archetype2,"DoorPanel" );
+
+	//globalArchetype_Setup( $jdoor6_p_archetype1,"DoorPanel" );
+	//globalArchetype_Setup( $jdoor6_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $jdoor7_p_archetype1,"DoorPanel" );
+	globalArchetype_Setup( $jdoor7_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $jdoor8_p_archetype1,"DoorPanel" );
+	globalArchetype_Setup( $jdoor8_p_archetype2,"DoorPanel" );
+
+	globalArchetype_Setup( $doorpanelarch,"DoorPanel" );
+
+	globalArchetype_Setup( $gravity_waypoint,"Waypoint" );
+
+	globalArchetype_Setup( $CargoBayDoor1Button_archetype,"CargoDoorControl" );
+	globalArchetype_Setup( $AirLockDoorButton_archetype,"ShuttleDoorControl" );
+
+	//setupArchetypeObject( $CargoBayDoor1ButtonUsed_archetype,"CargoDoorControlUsed" );
+	//setupArchetypeObject( $AirLockDoorButtonUsed_archetype,"ShuttleDoorControlUsed" );
+}
+
+//---------------------
+// gravity_objects
+// thread that calls all objects that are to be affected by gravity when the gravity is turned back on
+//---------------------
+void gravity_objects()
+{
+	thread gravity_objects_barrel1();
+	thread gravity_objects_barrel2();
+	thread gravity_objects_barrel3();
+	thread cinematicGravity_barrel1_move();
+	thread cinematicGravity_barrel2_move();
+
+	while( gravity_objects_onground == 0 )
+	{
+		wait( .1 );
+		if( gravity_on == 1 )
+		{
+			wait(15);
+			gravity_objects_onground = 1;
+		}
+	}
+}
+
+//-------------------------------------
+void floatingObject( entity object )
+{
+	float randombase;
+	randombase = randomfloat( 100 );
+
+	// move that thing
+	object.time( 1 );
+	while( !gravity_on ) {
+		object.moveup( sindegrees( randombase + (getleveltime() * 100 )) );
+		wait( 0.1 );
+	}
+}
+
+//---------------------
+// gravity_objects_barrel1
+// causes the barrel1 objects to fall when gravity is turned back on
+//---------------------
+void gravity_objects_barrel1()
+{
+	floatingObject( $lowgravity_barrel1 );
+
+	$lowgravity_barrel1.moveDown( 16 );
+	$lowgravity_barrel1_clip.moveDown( 16 );
+	waitfor( $lowgravity_barrel1 );
+	$lowgravity_barrel1.playsound ( "sound/environment/metal/bigcreak_impact.wav", 5, 1, 5000 );
+	wait( 20 );
+}
+
+//---------------------
+// gravity_objects_barrel2
+// causes the barrel2 objects to fall when gravity is turned back on
+//---------------------
+void gravity_objects_barrel2()
+{
+	floatingObject( $lowgravity_barrel2 );
+
+	$lowgravity_barrel2.moveDown( 32 );
+	$lowgravity_barrel2_clip.moveDown( 32 );
+	waitfor( $lowgravity_barrel2 );
+	$lowgravity_barrel2.playsound ( "sound/environment/metal/bigcreak_impact.wav", 5, 1, 5000 );
+	wait( 20 );
+}
+
+//---------------------
+// gravity_objects_barrel3
+// causes the barrel3 objects to fall when gravity is turned back on
+//---------------------
+void gravity_objects_barrel3()
+{
+	floatingObject( $lowgravity_barrel3 );
+
+	$lowgravity_barrel3.moveDown( 64 );
+	$lowgravity_barrel3_clip.moveDown( 64 );
+	waitfor( $lowgravity_barrel3 );
+	$lowgravity_barrel3.playsound ( "sound/environment/metal/bigcreak_impact.wav", 5, 1, 5000 );
+	wait( 20 );
+}
+
+//---------------------
+// cinematicGravity_barrel1_move
+// makes the cinematicGravity_barrel1 object float while gravity is low
+//---------------------
+void cinematicGravity_barrel1_move()
+{
+	floatingObject( $cinematicGravity_barrel1 );
+}
+
+//---------------------
+// cinematicGravity_barrel2_move
+// makes the cinematicGravity_barrel2 object float while gravity is low
+//---------------------
+void cinematicGravity_barrel2_move()
+{
+	floatingObject( $cinematicGravity_barrel2 );
+}
+
+//---------------------
+// cinematicGravity_crewDead1_move
+// makes the cinematicGravity_crewDead1 object float while gravity is low
+//---------------------
+void cinematicGravity_crewDead1_move()
+{
+	$cinematicGravity_crewDead1.anim( "hunched_dead_falling1" );
+	waitforanimation( $cinematicGravity_crewDead1, "hunched_dead_falling1" );
+	$cinematicGravity_crewDead1.anim( "hunched_dead1" );
+	waitforanimation( $cinematicGravity_crewDead1, "hunched_dead1" );
+
+	$cinematicGravity_crewDead1.remove();
+}
+
+//==========================================================================================
+// Cargo Bay Stuff
+//==========================================================================================
+
+//---------------------
+// sequenceCargoBayDoorLocked
+// cooper walks over to door and him and munro talk
+//---------------------
+void sequenceCargoBayDoorLocked()
+{
+	$Franklin.ai_off();
+	wait( 0.05 );
+	$Franklin.walkto( "intro_franklinNode3" );
+
+	$FakeMunro.playdialog("localization/sound/dialog/dallas01/frank_engag.mp3", 1, 11111, 0); //We need to restore the main ship systems. Franklin, where are the gravity controls?
+	waitfordialog( $FakeMunro );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_bypass.mp3", 1, 11111, 1); //I'll send the location to your tricorder.
+	waitfordialog( $Franklin );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestoreGravity$$","incomplete",2,1);
+
+	$gravity_waypoint.missionobjective( 1 );
+
+	$Franklin.walkto( "intro_franklinNode4" );
+	waitfor( $Franklin );
+
+
+	//Franklin does not have the phaser
+	//$Franklin.anim( "phaser_putaway" );
+	//waitforanimation( $Franklin, "phaser_putaway" );
+
+	$Franklin.anim( "compressionrifle_putaway" );
+	waitforanimation( $Franklin, "compressionrifle_putaway" );
+	$Franklin.anim( "tricorder_draw" );
+	waitforanimation( $Franklin, "tricorder_draw" );
+	$Franklin.anim( "tricorder_fire" );
+	waitforanimation( $Franklin, "tricorder_fire" );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_nopower.mp3", 1, 11111, 1); //No power. I can't disengage the lock.  Can you locate it's power console?
+	waitForDialog( $Franklin );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReroutePowerToCargoBayDoor$$","incomplete",3,1);
+
+	$CargoBayDoor1Button_archetype.missionobjective( 1 );
+
+	$Franklin.anim( "tricorder_putaway" );
+	waitforanimation( $Franklin, "tricorder_putaway" );
+
+	$Franklin.ai_on();
+	$Franklin.useactorweapon( "CompressionRifle" );
+
+}
+
+//---------------------
+// GravityUnitButton_Used
+// button is used, turns on lights, unlocks door
+//---------------------
+void GravityUnit_Failed()
+{
+	$GravityUnitButton.puzzleobject_reset();
+}
+
+
+void GravityUnit_Canceled()
+{
+	$GravityUnitButton.puzzleobject_reset();
+}
+
+void GravityUnit_Used()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 10 );
+	globalTricorderRoute_SetSource2Row( 8 );
+	globalTricorderRoute_SetDestination1( 3, 10 );
+    globalTricorderRoute_SetDestination2( 2, 8 );
+    
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 19, 16, 20, 22, 16, 16 );
+ 	globalTricorderRoute_SetNextRow( 19, 16, 20, 17, 32, 17, 17, 11,  8 );
+ 	globalTricorderRoute_SetNextRow( 17, 32, 25, 25, 32, 18, 21, 32, 17 );
+ 	globalTricorderRoute_SetNextRow( 23, 19, 24, 17, 32, 11,  3, 16,  8 );
+ 	globalTricorderRoute_SetNextRow( 25, 17, 25, 21, 25,  7,  9, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 17, 18, 21,  6,  4, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 21, 32, 32,  0, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  2, 16,  2, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 16,  7,  6, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 11, 32, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+ }
+
+//---------------------
+// ShuttleBayDoor1Button_Used
+// button is used, turns on lights, unlocks door
+//---------------------
+void shuttleBayDoor1Button_Failed()
+{
+	$ShuttleBayDoor1Button.puzzleobject_reset();
+}
+
+
+void shuttleBayDoor1Button_Canceled()
+{
+	$ShuttleBayDoor1Button.puzzleobject_reset();
+}
+
+void shuttleBayDoor1Button_Used()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 3 );
+	globalTricorderRoute_SetDestination1( 6, 3 );
+
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 11, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow(  1, 20, 32, 32, 32,  7, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  8, 32, 32, 32, 23, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 18,  6, 16,  6,  1, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32,  9, 32,  4, 22,  0,  3,  7 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 17, 32, 32, 32, 32,  2,  6 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 11, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+ }
+
+//---------------------
+// CargoBayDoor1Button_Used
+// button is used, turns on lights, unlocks door
+//---------------------
+void CargoBayDoor1Button_Failed()
+{
+	$CargoBayDoor1Button.puzzleobject_reset();
+}
+
+
+void CargoBayDoor1Button_Canceled()
+{
+	$CargoBayDoor1Button.puzzleobject_reset();
+}
+
+void CargoBayDoor1Button_Used()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+    globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 5 );
+	globalTricorderRoute_SetSource2Row( 11 );
+	globalTricorderRoute_SetDestination1( 5, 5 );
+    globalTricorderRoute_SetDestination2( 7, 11 );
+
+	//--- begin row definitions
+    globalTricorderRoute_BeginDef();
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 16,  1, 16,  5, 11,  6, 16,  1, 16 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32,  3, 16, 21, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 25, 16, 16, 22 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 19, 21, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 19, 24, 16, 23, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 17, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 16, 21, 32, 32, 32, 32, 32, 32, 32 );
+
+    //--- run the puzzle
+    globalTricorderRoute_Run( puzzle, 0 );
+}
+
+void CargoBayDoor1Button_Solved()
+{
+	music( "success" );
+
+	killthread( "sequenceCargoBayDoorLocked" );
+	$Franklin.stopdialog();
+
+	//globalArchetype_Setup( $CargoBayDoor1Button_archetype,"CargoDoorControlUsed" );
+	$CargoBayDoor1Button_archetype.remove();
+	//$CargoBayDoor1ButtonUsed_archetype.show();
+
+	$CargoBayDoor1Button_archetype.missionobjective( 0 );
+	wait( 0.05 );
+
+	CargoBayDoorLocked = 0;
+
+	$cargoBay_lockedTrigger.remove();
+
+	$Jurot.ai_off();
+	$Chell.ai_off();
+	$Franklin.ai_off();
+
+	$Jurot.walkto( "introcin_jurot_node3" );
+	$Chell.walkto( "introcin_chell_node3" );
+	$Franklin.walkto( "introcin_franklin_node3" );
+
+	$CargoBayDoor1.playsound ( "sound/environment/machine/bigswitch.wav", 3, .7, 1000);
+	$CargoBayDoor1Button.remove();
+	$world.light_lightstyle ( "lightCargoBay1PanelRed","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab" );
+	$world.light_lightstyle ( "lightCargoBay1PanelGreen", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_intensity( "cargobay_door1_lights", 1 );
+	$world.light_intensity( "lightCargoBay1PanelRed", 0 );
+	$CargoBayDoor1Trigger.triggerable();
+	$CargoBayDoor1Button_offline.hide();
+	$CargoBayDoor1Button_online.show();
+	//$CargoBayDoor1Button_archetype.archetype( "NonInteractive" );
+	wait (.5);
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReroutePowerToCargoBayDoor$$","complete",3,1);
+	
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_thatdid.mp3", 1, 11111, 1); //That did it. The door's unlocked.
+	waitfordialog ( $Franklin );
+	wait( 5 );
+	$Chell.ai_on();
+	$Franklin.ai_on();
+	$Jurot.ai_on();
+}
+
+//---------------------
+// CargoBayDecompressionSequence
+// Does a little thing with effects and dead bodies flying out of the shuttle bay into the player's face
+// when the airlock door is opened.
+//---------------------
+void CargoBayDecompressionSequence()
+{
+	$CargoBayDoor1.playsound( "sound/ships/forever/for_doorbeep.wav", 1, .7, 256 );
+	$airlockDeadBody.followpath( $airlockDeadBodyPath, "ignoreangles" ); // primed for door open
+	$airlockDeadBody.notsolid();
+	wait( 0.5 );
+	$CargoBayDoor1.playsound( "sound/environment/machine/lift3stop.wav", 2, 1, 256 );
+	$CargoBayDoor1.playsound( "sound/environment/wind/wind_vacuum.wav", 6, .6, 2512 );
+	$airlockDeadBody.rotatez( 3 );
+	$airlockDeadBody.rotatex( 1 );
+	$CargoBayDoor1.open( $world );
+	triggerentity( $airlockFx1 );
+	wait( 3 );
+	$airlockFx1.remove();
+}
+
+
+//---------------------
+// CargoBayExit
+// When you exit the cargo bay team follows play dialog if needed
+//---------------------
+void CargoBayExit()
+{
+	$world.light_lightstyle( "hangerFlicker2", "aahistzzzzzzzzzzpodaaaaaaaaaacdoptszzzzzzoaaozzoaaaaaaahistzzzoaaaozzoaozzzzzohistxxyzzzzzyxxxvvtooooaaaaaaaaaaa" );
+
+	// open the door and play the little dead body sequence with airlock decompression
+	thread CargoBayDecompressionSequence();
+
+	wait( 3 );
+
+	$Jurot.ai_on();
+	$Chell.ai_on();
+	$Franklin.ai_on();
+
+	$Jurot.settendency ( "follow" , 1.0 );
+	$Chell.settendency ( "follow" , 1.0 );
+	$Franklin.settendency ( "follow" , 1.0 );
+}
+
+//---------------------
+// AirLockDoorLockedSequence
+// played when you walk up to the airlock door, player is told to go crawling through ducts
+//---------------------
+void AirLockDoorLockedSequence()
+{
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_cantby.mp3", 1, 11111, 1); //Locked. We can't bypass these doors.
+	waitfordialog ( $Chell );
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_notside.mp3", 1, 11111, 1); //At least, not from this side. But there should be some ducts and repair tubing that goes out.
+	waitfordialog ( $Franklin );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$UnlockShuttleBayDoors$$","incomplete",4,1);
+	
+	$AirLockDoorButton_archetype.missionobjective( 1 );
+}
+
+//==========================================================================================
+// AirLock/Jtube area
+//==========================================================================================
+
+//---------------------
+// EnterJTubesSequence
+// plays when munro goes into ducts, ai wanders around waiting
+//---------------------
+void EnterJTubesSequence()
+{
+	music( "mystery", "normal" );
+
+	// get rid of the lurker on the bridge, in case you didn't trigger him
+	$scare_lurker1.remove();
+
+	$FakeMunro.playdialog ( "localization/sound/dialog/dallas01/munro_waitduct.mp3", 1, 11111, 0); //Wait here. I want to see where this duct leads.
+	waitfordialog ( $Munro );
+
+	//spawn trigger here to open the door
+	entity eTrigger;
+	eTrigger = spawn("trigger_multiple","thread","coop_openAirlock","origin","265 151 0","wait","5");
+	wait(0.25);
+	eTrigger.setSize('-100 -100 0','100 100 100');
+	
+	$CargoBayDoor1.wait(10);
+	$CargoBayDoor1.close();
+	//$CargoBayDoor1.lock();
+
+	$Chell.ai_off();
+	$Jurot.ai_off();
+	$Franklin.ai_off();
+
+	wait( 5 );
+	
+	$Chell.walkto( "gravity_chellNode1" );
+	$Jurot.walkto( "gravity_jurotNode1" );
+	$Franklin.walkto( "gravity_franklinNode1" );
+}
+
+void coop_openAirlock()
+{
+	killthread("coop_openAirlockWait");
+	$CargoBayDoor1.open($world);
+	wait(0.05);
+	thread coop_openAirlockWait();
+}
+
+void coop_openAirlockWait()
+{
+	while($CargoBayDoor1.isWithinDistanceOf(globalCoop_return_playerClosestActive($CargoBayDoor1),384))
+	{
+		wait(3);
+	}
+	$CargoBayDoor1.close();
+}
+
+//---------------------
+// AirLockDoorButton_Used
+// AirLockDoor Unlocks and Opens
+//---------------------
+void AirLockDoorButton_Used()
+{
+	//globalArchetype_Setup( $AirLockDoorButton_archetype,"ShuttleDoorControlUsed" );
+	$AirLockDoorButton_archetype.remove();
+	//$AirLockDoorButtonUsed_archetype.show();
+
+	$AirLockDoorButton_archetype.missionobjective( 0 );
+	//$AirLockDoorButton_archetype.archetype( "NonInteractive" );
+	$AirLockDoorButton_offline.remove();
+	$AirLockDoorButton_online.show();
+	$AirLockDoorButton_online.playsound ( "sound/ships/forever/for_doorbeep.wav", 3, .9, 10000);
+
+	music( "success" );
+	$triggerAirLockDoorLocked.remove();
+	$Chell.warpto ( "$AirLockWarpChell" );
+	$Jurot.warpto ( "$AirLockWarpJurot" );
+	$Franklin.warpto ( "$AirLockWarpFranklin" );
+
+	$shuttleBay_lockedTrigger.remove();
+
+	$airlockdoor1_green.show();
+	$airlockdoor1_red.hide();
+
+	$airlockdoor1_green.playsound ( "sound/ships/forever/for_doorbeep.wav" , 30 , .35 , 100 );
+
+	$world.light_lightstyle ( "airlockdoor1_red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb" );
+	$world.light_lightstyle ( "airlockdoor1_green", "aaaaaaaaaazzzzzzzzzz" );
+
+	$AirLockDoor.open( $world );
+
+	wait( 1.5 );
+	$world.light_lightstyle ( "airlockdoor1_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	$Chell.ai_on();
+
+	$Franklin.ai_on();
+	$Jurot.ai_on();
+	wait (1);
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_welcome.mp3", 1, 11111, 1); //Welcome back.
+	waitfordialog( $Jurot );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_engclose.mp3", 1, 11111, 1); //Enigneering is close by.  We should be able to restore the ship's power from there.
+	waitfordialog( $Franklin );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$UnlockShuttleBayDoors$$","complete",4,1);
+
+	$AirLockCallVolume.triggerable();
+}
+
+//---------------------
+// catwalk_teammatedialog1
+// teammates exchangedialog below player on the catwalk
+//---------------------
+void catwalk_teammatedialog1()
+{
+//hzm coop mod chrissstrahl - Applay values on the respawn origins as well
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_occurs.mp3", 1, 700, 0); //It occurs to me that if these invaders can chew through an outer hull, we're not safe anywhere on the ship.
+	waitfordialog( $Chell );
+
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_lack.mp3", 1, 700, 0); //Our lack of safety is only now occurring to you?
+	waitfordialog( $Jurot );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_phaser.mp3", 1, 700, 0); //Phaser fire I understand. Having a deck chewed out from under me, though...
+	waitfordialog( $Chell );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_saliva.mp3", 1, 700, 0); //OK, that saliva does not prove they chewed their way in.
+	waitfordialog( $Franklin );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_drool.mp3", 1, 700, 0); //No. Maybe the invaders just like to drool on blast edges!
+	waitfordialog( $Chell );
+
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_futile.mp3", 1, 700, 0); //Speculation without facts is futile.
+	waitfordialog( $Jurot );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_leader.mp3", 1, 700, 0); //Why does your team leader go off on scouting missions? Isn't he too valuable to risk?
+	waitfordialog( $Franklin );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_dontask.mp3", 1, 700, 0); //Dont' ask.
+	waitfordialog( $Chell );
+}
+
+void catwalk_stop_teammatedialog1()
+{
+	//hzm coop mod chrissstrahl - don't do this in coop
+	//killthread( "catwalk_teammatedialog1" );
+}
+
+//==========================================================================================
+// GRAVITY PUZZLE FUNCTIONS
+//==========================================================================================
+
+//---------------------
+// gravityUnit_Expose
+// calls the function to expose the gravity unit from it's chamber
+//---------------------
+void gravityUnit_Expose()
+{
+	$gravityUnit_ExposeSwitch.onuse( "gravityUnit_ExposeFunction" );
+	pause();
+}
+
+//---------------------
+// gravityUnit_ExposeFunction
+// opens the door and exposes the gravity unit
+//---------------------
+void gravityUnit_ExposeFunction()
+{
+	//--- make the switch unusable
+	$gravityUnit_ExposeSwitch.nouse();
+	$gravityUnit_ExposeSwitch.playsound ( "sound/ships/forever/for_doorbeep.wav", 3, .9, 10000);
+
+	//--- set the times on the objects
+	$gravityUnit.time( 1.25 );
+	$gravityUnit_Door1.time( .75 );
+	$gravityUnit_Door2.time( .75 );
+	//$gravityUnit_Door1.playsound ( "sound/ships/forever/for_doorbeep.wav", 3, .9, 10000);
+	$gravityUnit_Door1.playsound ( "sound/ships/enterprise/enterprise_jefftube.wav", 2, .8, 10000);
+
+	//--- slide the door aside
+	$gravityUnit_Door1.moveEast( 24 );
+	$gravityUnit_Door2.moveWest( 24 );
+	waitfor( $gravityUnit_Door1 );
+
+	wait( .5 );
+	$gravityUnit_Door.playsound ( "sound/ships/forever/for_gravpanel.wav", 3, .9, 10000);
+	//--- slide the unit forward
+	$gravityUnit.movenorth( 36 );
+	waitfor( $gravityUnit );
+	$gravityUnit_Door.playsound ( "sound/ships/forever/for_gravpanelstop.wav", 3, .9, 10000);
+	//--- make it so the unit can be used
+	//thread gravityUnit_Activate();
+	//NEED TO TURN ON ROUTING PUZZLE OBJECT HERE INSTEAD
+	$GravityUnitButton.puzzleobject_activate();
+
+	globalArchetype_Setup( $gravityUnit_archetype, "GravityControls" );
+
+	wait( .25 );
+	$gravityUnit_archetype.missionobjective( 1 );
+}
+
+//---------------------
+// gravityUnit_ActivateFunction
+// calls the functions that restore gravity
+//---------------------
+void gravityUnit_ActivateFunction()
+{
+	//COMPUTER VOICE DIALOG FOR RESTORING GRAVITY SYSTEMS HERE
+	$Chell.playdialog( "localization/sound/dialog/dallas01/comp_gravsyson.mp3", 1, 11111, 0);
+
+	//--- hide the "off" gravity panel and show the "on" gravity panel
+	$gravityUnit.hide();
+	$gravityUnit.notsolid();
+	$gravityUnit_online.show();
+	$gravityUnit_online.solid();
+
+	//globalArchetype_Setup( $gravityUnit_archetype, "GravityControlsUsed" );
+	$gravityUnit_archetype.remove();
+
+	_cineScreenBegin();
+	_cinePlayerBegin();
+
+	//music( "aux3", "normal" );
+	$gravityUnit_online.playsound ( "sound/ships/forever/for_poweron.wav", 3, .9, 10000);
+	$gravityUnit_online.loopsound ( "sound/ships/forever/for_rumble3.wav",.4, 400);
+
+	// swap panels
+	$statuspanel1_on.show(); $statuspanel1_off.remove();
+	$statuspanel2_on.show(); $statuspanel2_off.remove();
+	$statuspanel3_on.show(); $statuspanel3_off.remove();
+
+	//--- activate gravity
+	$world.physicsvar ( "gravity" , 800 );
+	gravity_on = 1;
+
+	//--- elevator triggers activate
+	$triggerElevator_Call.triggerable();
+
+	//hzm coop mod chrissstrahl - we don't want this door to lock - makes players get stuck
+	//
+	//--- lock the lower jtube door to prevent the player from returning to the team
+	//globalTubeDoor_Lock( "doorJTubeElevatorShaftLevel1_South" );
+	
+	//$world.light_lightstyle ( "lightJTubeElevatorShaftLevel1_South_Red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	//$world.light_lightstyle ( "lightJTubeElevatorShaftLevel1_South_Green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	//
+	//eof hzm
+	
+	//thread globalTubeDoor_Setup ( "doorJTubeElevatorShaftLevel1_South", "normal", 36, "east_west", 1 );
+
+	//--- unlock the upper jtube door to allow the player to continue
+	globalTubeDoor_Unlock( "doorJTubeElevatorShaftLevel2_East" );
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel2_East_Red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle ( "lightJTubeElevatorShaftLevel2_East_Green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	$unlockedlightJTubeElevatorShaftLevel1_South.hide();
+	$lockedlightJTubeElevatorShaftLevel1_South.show();
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestoreGravity$$","complete",2,1);
+
+	//start the cinematic stuff
+	$cinematicGravity_barrel1.hide();
+	$cinematicGravity_barrel2.hide();
+	$cinematicGravity_barrel1_fall.show();
+	$cinematicGravity_barrel2_fall.show();
+	wait( .05 );
+
+	//set skipthread
+	skipthread( "gravityUnit_ActivateFunction_SkipThread");
+
+	$Chell.ai_off();
+	$Franklin.ai_off();
+	$Jurot.ai_off();
+
+	wait( .25 );
+
+	$Chell.origin( '-1432 8 0' );
+	$Franklin.origin( '-1392 -16 0' );
+	$Jurot.origin( '-1328 -16 0' );
+
+	$Chell.angle( 45 );
+	$Franklin.angle( 60 );
+	$Jurot.angle( 110 );	
+
+	$cinematicGravity_barrel1.bind( $cinematicGravity_barrel1_clip );
+	$cinematicGravity_barrel1_fall.bind( $cinematicGravity_barrel1_clip );
+
+	$cinematicGravity_barrel2.bind( $cinematicGravity_barrel2_clip );
+	$cinematicGravity_barrel2_fall.bind( $cinematicGravity_barrel2_clip );
+
+	wait( 1 );
+
+	$cam5.fov( 90 );
+	$cam5.follow( $m3l1a_gravity_adam1 );
+	cuecamera( $cam5 );
+	$cam5.cut();
+
+	//fade in camera
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+
+	thread cinematicGravity_crewDead1_move();
+
+	$cinematicGravity_barrel1_clip.time( .5 );
+	$cinematicGravity_barrel2_clip.time( .5 );
+
+	$cinematicGravity_barrel1_clip.moveDown( 130 );
+	$cinematicGravity_barrel2_clip.moveDown( 34 );
+
+	cinematicGravity_objectshavefallen = 1;
+
+	wait( .55 );
+
+	// play sounds of barrels and bodies falling down and clanging against the metal of the ship
+	$cinematicGravity_barrel1_clip.time( .25 );
+	$cinematicGravity_barrel1_clip.moveUp( 8 );
+	$cinematicGravity_barrel1_clip.moveEast( 8 );
+	$cinematicGravity_barrel1_clip.moveNorth( 4 );
+
+	$cinematicGravity_barrel2_clip.time( .25 );
+	$cinematicGravity_barrel2_clip.moveUp( 8 );
+	$cinematicGravity_barrel2_clip.moveWest( 4 );
+	$cinematicGravity_barrel2_clip.moveSouth( 8 );
+
+	waitfor( $cinematicGravity_barrel1_clip );
+
+	$cinematicGravity_barrel1_clip.time( .25 );
+	$cinematicGravity_barrel1_clip.moveDown( 8 );
+	$cinematicGravity_barrel1_clip.moveEast( 8 );
+	$cinematicGravity_barrel1_clip.moveNorth( 4 );
+
+	$cinematicGravity_barrel2_clip.time( .25 );
+	$cinematicGravity_barrel2_clip.moveDown( 8 );
+	$cinematicGravity_barrel2_clip.moveWest( 4 );
+	$cinematicGravity_barrel2_clip.moveSouth( 8 );
+
+	waitfor( $cinematicGravity_barrel1_clip );
+
+	wait( 2 );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_gravon.mp3", 1, 11111, 1 ); //That did it! The gravity is back on! Can you open the shuttle doors from out there?
+
+	skipthread ( "null" );
+
+	_cinePlayerEnd();
+	_cineScreenEnd();
+}
+
+//---------------------
+// gravityUnit_ActivateFunction_SkipThread
+// skip thread for the gravity cinematic
+//---------------------
+void gravityUnit_ActivateFunction_SkipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "gravityUnit_ActivateFunction" );
+
+	if( cinematicGravity_objectshavefallen == 0 )
+	{
+		$cinematicGravity_barrel1_fall.time( .1 );
+		$cinematicGravity_barrel1_clip.time( .1 );
+		$cinematicGravity_barrel2_fall.time( .1 );
+		$cinematicGravity_barrel2_clip.time( .1 );
+
+		//$cinematicGravity_barrel1_fall.moveDown( 130 );
+		$cinematicGravity_barrel1_clip.moveDown( 130 );
+		//$cinematicGravity_barrel2_fall.moveDown( 32 );
+		$cinematicGravity_barrel2_clip.moveDown( 34 );
+		waitfor( $cinematicGravity_barrel1_fall );
+	}
+
+	thread cinematicGravity_crewDead1_move();
+
+	$Chell.ai_on();
+	$Franklin.ai_on();
+	$Jurot.ai_on();
+
+	wait( 1 );
+
+	_cinePlayerEnd();
+	_cineScreenEnd();
+
+}
+
+//==========================================================================================
+// BROKEN TURBOLIFT FUNCTIONS
+//==========================================================================================
+
+//---------------------
+// elevatorFall_MiddlePosition
+// makes the elevator fall to get stuck into it's middle position for the player to jump on
+//---------------------
+void elevatorFall_MiddlePosition()
+{
+	//--- massive earthquake and music cue
+	$BrokenTurboLiftOrigin.earthquake( 2, .75 );
+	music( "surprise", "normal" );
+
+	//--- turn on spark emitters and play creak sound
+	$BrokenTurboLiftSparks.show();
+	$BrokenTurboLiftSparks.playsound ( "sound/environment/metal/bigcreak.wav", 3, .9, 10000);
+
+	wait( .25 );
+
+	//--- make the elevator shake on the way down
+	thread elevatorFall_Shake();
+	$world.light_intensity( "turbo_lift_lights", .5 );
+	$BrokenTurboLiftSparks.playsound( "sound/environment/metal/metal_scrape1.wav", 3, .9, 10000 );
+
+	//--- make elevator fall
+	$BrokenTurboLiftOrigin.time( 1 );
+	$BrokenTurboLiftOrigin.moveto( $BrokenTurboLiftEnd );
+	waitfor( $BrokenTurboLiftOrigin );
+
+	//--- massive earthquake and sound
+	$BrokenTurboLiftOrigin.earthquake( 1, .75 );
+	$BrokenTurboLiftSparks.playsound ( "sound/environment/metal/bigcreak_impact.wav", 2, .9, 10000);
+	$BrokenTurboLiftSparks.hide();
+
+	$world.light_intensity( "turbo_lift_lights", 1 );
+}
+
+//---------------------
+// elevatorFall_Shake
+// makes the elevator shake as it moves down
+//---------------------
+void elevatorFall_Shake()
+{
+	$BrokenTurboLift.time( .1 );
+	$BrokenTurboLift.rotateZdown( 1 );
+	$BrokenTurboLift.rotateYup( 2 );
+	$BrokenTurboLift.rotateXdown( 1 );
+
+	waitfor( $BrokenTurboLift );
+
+	$BrokenTurboLift.time( 1.6 );
+	$BrokenTurboLift.rotateZdown( 2 );
+	$BrokenTurboLift.rotateYdown( 2 );
+	$BrokenTurboLift.rotateXup( 3 );
+
+	waitfor( $BrokenTurboLift );
+
+	$BrokenTurboLift.time( .1 );
+	$BrokenTurboLift.rotateZup( 3 );
+	$BrokenTurboLift.rotateYdown( 1 );
+	$BrokenTurboLift.rotateXdown( 1 );
+	waitfor( $BrokenTurboLift );
+}
+
+
+//---------------------
+// elevatorFall_EndingPosition
+// makes the elevator fall from the middle postion down into the void
+//---------------------
+void elevatorFall_EndingPosition()
+{
+	//--- massive earthquake and sound
+	$BrokenTurboLift.earthquake( 2, .75 );
+	$BrokenTurboLift.playsound ( "sound/environment/metal/bigcreak.wav", 3, .9, 10000);
+	//--- make the elevator fall down into posistion
+	$BrokenTurboLiftSparks.show();
+
+	//--- make the elevator shake on the way down
+	thread elevatorFall_Shake();
+
+	//--- shake the elevator as it falls
+	$world.light_intensity( "turbo_lift_lights", 1 );
+	$BrokenTurboLiftOrigin.time( 1 );
+	$BrokenTurboLiftOrigin.moveDown( 348 );
+	waitfor( $BrokenTurboLiftOrigin );
+	$world.light_intensity( "turbo_lift_lights", .75 );
+	$BrokenTurboLiftOrigin.time( .5 );
+	$BrokenTurboLiftOrigin.moveDown( 348 );
+	waitfor( $BrokenTurboLiftOrigin );
+	$world.light_intensity( "turbo_lift_lights", .5 );
+	$BrokenTurboLiftOrigin.time( .2 );
+	$BrokenTurboLiftOrigin.moveDown( 348 );
+	waitfor( $BrokenTurboLiftOrigin );
+	$world.light_intensity( "turbo_lift_lights", .2 );
+	$BrokenTurboLiftOrigin.time( .75 );
+	$BrokenTurboLiftOrigin.moveDown( 348 );
+	waitfor( $BrokenTurboLiftOrigin );
+	$BrokenTurboLift.playsound ( "sound/environment/metal/bigcreak_impact.wav", 2, .9, 10000);
+	//--- hide the sparks
+	$BrokenTurboLiftSparks.hide();
+}
+
+void turboliftShaft_lightdie1()
+{
+	$world.light_lightstyle( "lightAreaFlicker2", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+
+	$turboliftShaft_lightdie1_explosion.spawntargetname( "turboliftShaft_lightdie1_exploder" );
+	$turboliftShaft_lightdie1_explosion.modelname( "fx/fx-explosion-console-blue.tik" );
+	trigger( "$turboliftShaft_lightdie1_explosion" );
+	wait( 1 );
+
+	$turboliftShaft_lightdie1_explosion.modelname( "fx/fx-sparks-random-blue-medium.tik" );
+	trigger( "$turboliftShaft_lightdie1_explosion" );
+	wait( 1 );
+
+	$turboliftShaft_lightdie1_explosion.remove();
+}
+
+//==========================================================================================
+// Misc
+//==========================================================================================
+
+//---------------------
+// Close the airlock
+// Closes the airlock and readies the level transition trigger
+//---------------------
+void AirLockClose()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_gathered",100,'230 230 200',eTrigger.getOrigin());
+	vector vMins,vMaxs;
+	vMins = eTrigger.getMins();
+	vMaxs = eTrigger.getMaxs();
+	
+	wait(0.5);
+	$coop_playerGatherIngArea.setSize(vMins,vMaxs);
+}
+
+void coop_gathered()
+{	
+	//hzm coop mod chrissstrahl - do not lock in or out players
+	//
+	// make sure player stays in airlock room
+	//$airlockclip.solid();
+	//$AirLockDoor.lock();
+	//
+	//eof hzm
+	
+	$airlockdoor1_green.hide();
+	$airlockdoor1_red.show();
+
+	$airlockdoor1_red.playsound ( "sound/ships/forever/for_doorbeep.wav" , 30 , .35 , 100 );
+
+	$world.light_lightstyle ( "airlockdoor1_green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaazzzzzzzzzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaaaaaaaazzaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle ( "airlockdoor1_red", "zzzzzzzzzzaaaaaaaaaa" );
+
+	// close the airlock door
+	
+	$AirLockDoor.close();
+
+	wait( 1.5 );
+	$world.light_lightstyle ( "airlockdoor1_red", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle ( "airlockdoor1_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	wait( 1 );
+	$airlockdoor2_red.playsound ( "sound/ships/forever/for_beeps1.wav" , 30 , .35 , 100 );
+	//SOUND - COMPUTER VOICE
+
+	wait( 2 );
+
+	$exitTrigger.triggerable();
+
+	$airlockdoor2_green.show();
+	$airlockdoor2_red.hide();
+
+	$airlockdoor2_red.playsound ( "sound/ships/forever/for_doorbeep.wav" , 30 , .35 , 100 );
+
+	$world.light_lightstyle ( "airlockdoor2_red", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" );
+	$world.light_lightstyle ( "airlockdoor2_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	//hzm coop mod chrissstrahl - react instantly, this confuses players if there ia a dela, they go back and check if they missed something
+	//wait( 1.5 );
+	//$world.light_lightstyle ( "airlockdoor2_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	$endLevelTrigger.triggerable();	
+}
+
+//---------------------
+// ChangeLevel
+// changes level to m3l1b
+//---------------------
+void ChangeLevel()
+{
+	vector v;
+
+	$endLevelTrigger.playsound( "sound/ships/forever/for_doorbeep.wav" , 30 , .35 , 100 );
+
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m3l1b-forever" );
+	//wait( .25 );
+
+	// chell
+	setvectorvar( "game.saveChellOrigin", $Chell.getorigin() );
+	v = $Chell.getangles();
+	setfloatvar( "game.saveChellAngle", v_y );
+
+	// jurot
+	setvectorvar( "game.saveJurotOrigin", $Jurot.getorigin() );
+	v = $Jurot.getangles();
+	setfloatvar( "game.saveJurotAngle", v_y );
+
+	// franklin
+	setvectorvar( "game.saveFranklinOrigin", $Franklin.getorigin() );
+	v = $Franklin.getangles();
+	setfloatvar( "game.saveFranklinAngle", v_y );
+
+	// player
+	//setvectorvar( "game.savePlayerOrigin", $player.getorigin() );
+
+	setfloatvar( "game.savedTeamPos", 1 );
+	
+	//hzm coop mod chrissstrahl - get locations from game, from previouse level
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				setvectorvar( "game.savePlayerOrigin"+fPlayerIdInUse , ePlayer.getOrigin() );
+				setvectorvar( "game.savePlayerAngles"+fPlayerIdInUse , ePlayer.getAngles() );
+				
+				//hzm coop mod chrissstrahl - print some info into the game console
+				globalCoop_main_print("saved: "+ePlayer.getOrigin()+"\n");
+				
+			}
+		}
+	}
+	
+	
+	coop_endLevel();
+	//trigger ( "$trigger_endlevel" );
+}
+
+//---------------------
+// CargoBayDoor1Button_panel_open
+// causes the panel on the cargo bay button to open
+//---------------------
+void CargoBayDoor1Button_panel_open()
+{
+	$CargoBayDoor1Button_panel.time( 1 );
+	$CargoBayDoor1Button_panel.moveto ( $CargoBayDoor1Button_panel_openpoint1 );
+	waitfor( $CargoBayDoor1Button_panel );
+}
+
+//---------------------
+// CargoBayDoor1Button_panel_close
+// causes the panel on the cargo bay button to close
+//---------------------
+void CargoBayDoor1Button_panel_close()
+{
+	$CargoBayDoor1Button_panel.time( 1 );
+	$CargoBayDoor1Button_panel.moveto ( $CargoBayDoor1Button_panel_closepoint1 );
+	waitfor( $CargoBayDoor1Button_panel );
+}
+
+//---------------------
+// AirLockDoorButton_panel_open
+// causes the panel on the air lock door button to open
+//---------------------
+void AirLockDoorButton_panel_open()
+{
+	$AirLockDoorButton_panel.time( 1 );
+	$AirLockDoorButton_panel.moveto ( $AirLockDoorButton_panel_openpoint1 );
+	waitfor( $AirLockDoorButton_panel );
+}
+
+//---------------------
+// AirLockDoorButton_panel_close
+// causes the panel on the air lock door button to close
+//---------------------
+void AirLockDoorButton_panel_close()
+{
+	$AirLockDoorButton_panel.time( 1 );
+	$AirLockDoorButton_panel.moveto ( $AirLockDoorButton_panel_closepoint1 );
+	waitfor( $AirLockDoorButton_panel );
+}
+
+//==========================================================================================
+// Cinematics
+//==========================================================================================
+
+//---------------------
+// cinematicIntro
+// Intro cinematic - Adam 4/11/2003
+//---------------------
+void cinematicIntro()
+{
+	freezeplayer();
+
+	//--- set all the weapons
+	$Munro.useActorWeapon( "none" );
+	$Chell.useActorWeapon( "none" );
+	$Jurot.useActorWeapon( "none" );
+	$Franklin.useActorWeapon( "none" );
+
+	$Jurot.forceAlpha( 1 );
+	$Chell.forceAlpha( 1 );
+	$Franklin.forceAlpha( 1 );
+	$Munro.forceAlpha( 1 );
+
+	$Jurot.alpha( 0 );
+	$Chell.alpha( 0 );
+	$Munro.alpha( 0 );
+	$Franklin.alpha( 0 );
+
+	globalCineFX_PositionObject( $Munro, $introcin_munro_node1 );
+	globalCineFX_PositionObject( $Jurot, $introcin_jurot_node1 );
+	globalCineFX_PositionObject( $Chell, $introcin_chell_node1 );
+	globalCineFX_PositionObject( $Franklin, $introcin_franklin_node1 );
+	
+	//--------------------------------------------------------
+	//shot1 establishing, push in towards center of room behind crates
+	
+
+	
+	//--- set camera
+	$cam1.fov( 100 );
+	$cam1.cut();
+	$cam1.follow( $m3l1a_Intro_Shot1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--set skipthread
+	skipthread( "cinematicIntro_SkipThread");
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 5.5 );
+
+	//--- start the body twisting around
+	thread cinematicIntro_MoveBody();
+	wait( 4.5 );
+	
+	thread globalCineFX_CameraFOVLerp( $cam1, 100, 60, 6, "rampupdown" );
+	wait( 9 );
+
+	//--- team beams in
+	//thread globalTransport_InAIOff( $Munro, $introcin_munro_node1, "Munro", 999, "", "Federation" );
+	//thread globalTransport_InAIOff( $Chell, $introcin_chell_node1, "Chell", 999, "", "Federation" );
+	//thread globalTransport_InAIOff( $Jurot, $introcin_jurot_node1, "Jurot", 999, "", "Federation" );
+	//thread globalTransport_InAIOff( $Franklin, $introcin_franklin_node1, "Franklin", 999, "", "Federation" );
+
+	$Munro.displayEffect( "TransportIn", "Federation" );
+	wait( .1 );
+	
+	$Jurot.displayEffect( "TransportIn", "Federation" );
+	wait( .2 );
+	
+	$Chell.displayEffect( "TransportIn", "Federation" );
+	wait( .3 );
+	
+	$Franklin.displayEffect( "TransportIn", "Federation" );
+	wait( .4 );
+
+	//--------------------------------------------------------
+	//shot2 overhead of team finsihing beam in
+	
+	//--- set camera
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m3l1a_Intro_Shot2 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+	// pull out tricorders and look around
+	$Chell.useactorweapon( "Tricorder" );
+	$Jurot.useactorweapon( "Tricorder" );
+	$Chell.anim( "tricorder_draw" );
+	$Jurot.anim( "tricorder_draw" );
+	waitforanimation( $Jurot, "tricorder_draw" );
+	$Jurot.anim( "tricorder_fire" );
+	$Chell.anim( "tricorder_fire" );
+	
+	// start dialog
+	$Munro.headwatch( $CargoBay1Secret_fx );
+	wait( 1 );
+
+	$Munro.walkto( "intro_munroNode1" );
+	wait( .25 );
+
+	$Jurot.walkto( "intro_jurotNode1" );
+
+	$Franklin.walkto( "intro_franklinNode1" );
+	wait( 1.5 );
+	
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_gravlow.mp3", 1, 11111, 0); //Gravity's low.
+	waitfordialog ( $Franklin );	
+	wait( 1 );
+	
+	
+	$Chell.walkto( "intro_chellNode1" );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_malgrav.mp3", 1, 11111, 0); //The artificial gravity system is malfunctioning.
+	wait( 1 );
+	
+	//--------------------------------------------------------
+	//shot3 extreme zoom wiggle cam
+	
+	//--- set camera
+	$cam1.fov( 25 );
+	$cam1.cut();
+	$cam1.follow( $m3l1a_Intro_Shot3 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	
+	//--- wait for chell to finish yappin'
+	waitfordialog ( $Chell );
+	wait( .75 );
+
+	// chell notices the hole
+	$Chell.headwatch( $introcin_holeclip1 );
+	$Jurot.headwatch( $lowgravity_barrel3 );
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_nolife.mp3", 1, 11111, 0); //No lifesigns in this area.
+	waitfordialog ( $Jurot );
+	wait( .2 );
+
+	$Munro.resethead();
+	$Munro.playdialog ( "localization/sound/dialog/dallas01/munro_keepscan.mp3", 1, 11111, 0); //Well, keep scanning.
+	waitfordialog ( $Munro );
+	wait( 1.5 );
+
+	$Chell.headwatch( $introcin_holeclip1 );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_strnghole.mp3", 1, 11111, 0); //Look at this strange hole.
+	wait( 1 );
+	
+	//--------------------------------------------------------
+	//shot4 follow chell
+	
+	//--- set camera
+	//$cam2.fov( 60 );
+	//$cam2.cut();
+	//$cam2.follow( $m3l1a_Intro_Shot4 );
+	//wait( .2 );
+	
+	//cuecamera( $cam2 );
+	
+	//--- start walking chell over
+	$Chell.walkto( "intro_chellNode2" );
+	wait( 2 );
+
+	//--------------------------------------------------------
+	//shot5 reveal the hole
+	
+	//--- set camera
+	$cam3.fov( 60 );
+	$cam3.cut();
+	$cam3.follow( $m3l1a_Intro_Shot5 );
+	wait( .2 );
+	
+	cuecamera( $cam3 );
+
+	//--- walk the rest of the team over
+	$Munro.walkto( "intro_munroNode2" );	
+	$Franklin.walkto( "intro_franklinNode2" );
+
+	$Jurot.resethead();
+	$Jurot.walkto( "intro_jurotNode2" );
+	wait( 1.5 );
+
+	$Jurot.headwatch( $introcin_holeclip1 );
+	wait( .5 );
+	
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_irreg.mp3", 1, 11111, 0); //Too irregular for a phaser. Mechanical damage?
+	waitfordialog ( $Jurot );
+	wait( 1 );
+
+	// chell waves his tricorder around like hes doing stuff
+	$Chell.anim( "tricorder_scan180" );
+	waitForAnimation( $Chell , "tricorder_scan180" );
+	$Chell.anim( "tricorder_calm_idle" );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_edges.mp3", 1, 11111, 0); //The edges show irregular rasp marks. And trace amounts of liquid.
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//shot6 close up on chell
+
+	//--- set camera
+	$cam2.fov( 45 );
+	$cam2.cut();
+	$cam2.follow( $m3l1a_intro_adam4 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+	//--- wait for chell to stop speaking
+	waitfordialog ( $Chell );
+	wait( 1.25 );
+
+	$Jurot.headwatch( $Munro );
+	$Jurot.morph( "exp_Nervous" );
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_coolant.mp3", 1, 11111, 0); //Liquid coolant for an industrial drill?
+	waitfordialog ( $Jurot );
+
+ 	$Munro.morph( "exp_Confused" );
+	wait( .25 );
+	
+	$Jurot.headwatch( $Chell );
+	$Munro.headwatch( $Chell );
+	wait( 1.25 );
+
+	//--------------------------------------------------------
+	//shot7 the team
+
+	//--- set camera
+	$cam1.fov( 45 );
+	$cam1.cut();
+	$cam1.follow( $m3l1a_intro_adam3 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+
+	$Chell.anim( "tricorder_fire" );
+	waitForAnimation( $Chell , "tricorder_fire" );
+	$Chell.anim( "tricorder_calm_idle" );
+
+	$Munro.unmorph( "exp_Confused" );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_thicker.mp3", 1, 11111, 0); //No. There's too little of it. And it's thicker, with trace organic compounds, almost like…
+
+	//--------------------------------------------------------
+	//shot8 behind the crates at the team
+
+	//--- set camera
+	$cam2.fov( 30 );
+	$cam2.cut();
+	$cam2.follow( $m3l1a_Intro_Shot6 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+
+	//--- wait for chell to finish yappin'	
+	waitfordialog ( $Chell );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot9 chell again
+
+	//--- set camera
+	cuecamera( $cam1 );
+	wait( 1 );
+
+	$Franklin.headwatch( $Chell );
+	$Franklin.morph( "exp_Skeptical" );
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_what.mp3", 1, 11111, 0); //What?
+	waitfordialog ( $Franklin );
+	wait( 1 );
+
+   	$Chell.morph( "exp_Confused" );
+   	$Chell.headwatch( $introcin_holeclip1 );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_saliva.mp3", 1, 11111, 0); //Saliva.
+	waitfordialog ( $Chell );
+
+	//--------------------------------------------------------
+	//shot7 the team
+
+	//--- set camera
+	$cam2.fov( 30 );
+	$cam2.cut();
+	$cam2.follow( $m3l1a_intro_adam5 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_chewed.mp3", 1, 11111, 0); //Something chewed its way in?
+	waitfordialog ( $Franklin );
+	wait( .5 );
+	
+	$Franklin.headWatch( $Munro, 4 );
+	wait( .2 );
+	
+	$Munro.headWatch( $Franklin, 4 );
+	wait( .5 );
+	
+	cinematicIntro_SkipThread();
+
+/*
+	//set skipthread
+	skipthread( "cinematicIntro_SkipThread");
+
+	$cam1.follow( $m3l1a_intro_adam1 );
+	$cam1.follow( $m3l1a_Intro_Shot1 );
+	cuecamera( $cam1 );
+	$cam1.cut();
+	wait( 0.05 );
+	cam_fadein( 3, 0, 0, 0, 1, 0 );
+
+	wait( 3 );
+	//$cam1.follow( $m3l1a_intro_adam2 );
+
+	wait ( 8 );
+
+	// team beams in
+	thread globalTransport_InAIOff( $Munro, $introcin_munro_node1, "Munro", 999, "", "Federation" );
+	thread globalTransport_InAIOff( $Chell, $introcin_chell_node1, "Chell", 999, "", "Federation" );
+	thread globalTransport_InAIOff( $Jurot, $introcin_jurot_node1, "Jurot", 999, "", "Federation" );
+	thread globalTransport_InAIOff( $Franklin, $introcin_franklin_node1, "Franklin", 999, "", "Federation" );
+
+	wait( 1 );
+
+	// pull out tricorders and look around
+	$Chell.useactorweapon( "Tricorder" );
+	$Jurot.useactorweapon( "Tricorder" );
+	$Chell.anim( "tricorder_draw" );
+	$Jurot.anim( "tricorder_draw" );
+	waitforanimation( $Jurot, "tricorder_draw" );
+	$Jurot.anim( "tricorder_fire" );
+	$Chell.anim( "tricorder_fire" );
+
+	// start dialog
+	$Munro.headwatch( $CargoBay1Secret_fx );
+
+	wait( 1 );
+
+	$Munro.walkto( "intro_munroNode1" );
+
+	wait( .25 );
+
+	$Jurot.walkto( "intro_jurotNode1" );
+
+	$Franklin.walkto( "intro_franklinNode1" );
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_gravlow.mp3", 1, 11111, 0); //Gravity's low.
+	waitfordialog ( $Franklin );
+
+	$Chell.walkto( "intro_chellNode1" );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_malgrav.mp3", 1, 11111, 0); //The artificial gravity system is malfunctioning.
+	waitfordialog ( $Chell );
+
+	// chell notices the hole
+	$Chell.headwatch( $introcin_holeclip1 );
+	$Jurot.headwatch( $lowgravity_barrel3 );
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_nolife.mp3", 1, 11111, 0); //No lifesigns in this area.
+	waitfordialog ( $Jurot );
+
+	$Munro.resethead();
+	$Munro.playdialog ( "localization/sound/dialog/dallas01/munro_keepscan.mp3", 1, 11111, 0); //Well, keep scanning.
+	waitfordialog ( $Munro );
+
+	wait( .5 );
+
+	$Chell.headwatch( $introcin_holeclip1 );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_strnghole.mp3", 1, 11111, 0); //Look at this strange hole.
+	$cam1.fov( 35 );
+	$cam1.watch( "$Chell" );
+	$Chell.walkto( "intro_chellNode2" );
+
+	wait( 2 );
+
+	$Munro.walkto( "intro_munroNode2" );	
+	$Franklin.walkto( "intro_franklinNode2" );
+
+	$Jurot.resethead();
+	$Jurot.walkto( "intro_jurotNode2" );
+
+	wait( 4 );
+
+	$cam2.fov( 45 );
+	$cam2.follow( $m3l1a_intro_adam3 );	wait( .5 );
+	cuecamera( $cam2 );
+
+	$Jurot.headwatch( $introcin_holeclip1 );
+
+	wait( .5 );
+	
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_irreg.mp3", 1, 11111, 0); //Too irregular for a phaser. Mechanical damage?
+	waitfordialog ( $Jurot );
+
+	// chell waves his tricorder around like hes doing stuff
+	$Chell.anim( "tricorder_scan180" );
+	waitForAnimation( $Chell , "tricorder_scan180" );
+	$Chell.anim( "tricorder_calm_idle" );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_edges.mp3", 1, 11111, 0); //The edges show irregular rasp marks. And trace amounts of liquid.
+	waitfordialog ( $Chell );
+
+	$cam4.fov( 45 );
+	$cam4.follow( $m3l1a_intro_adam4 );	wait( .5 );
+	cuecamera( $cam4 );
+
+	wait( 1.25 );
+
+	$Jurot.headwatch( $Munro );
+	$Jurot.morph( "exp_Nervous" );
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_coolant.mp3", 1, 11111, 0); //Liquid coolant for an industrial drill?
+	waitfordialog ( $Jurot );
+
+ 	$Munro.morph( "exp_Confused" );
+
+	wait( .25 );
+	$Jurot.headwatch( $Chell );
+	$Munro.headwatch( $Chell );
+
+	wait( 1.25 );
+
+	cuecamera( $cam2 );
+
+	$Chell.anim( "tricorder_fire" );
+	waitForAnimation( $Chell , "tricorder_fire" );
+	$Chell.anim( "tricorder_calm_idle" );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_thicker.mp3", 1, 11111, 0); //No. There's too little of it. And it's thicker, with trace organic compounds, almost like…
+	waitfordialog ( $Chell );
+
+	$Franklin.headwatch( $Chell );
+	$Franklin.morph( "exp_Skeptical" );
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_what.mp3", 1, 11111, 0); //What?
+	waitfordialog ( $Franklin );
+
+	wait( 1 );
+
+   	$Chell.morph( "exp_Confused" );
+   	$Chell.headwatch( $introcin_holeclip1 );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_saliva.mp3", 1, 11111, 0); //Saliva.
+	waitfordialog ( $Chell );
+
+	$cam3.fov( 30 );
+	$cam3.follow( $m3l1a_intro_adam5 );	wait( .5 );
+	cuecamera( $cam3 );
+
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_chewed.mp3", 1, 11111, 0); //Something chewed its way in?
+	waitfordialog ( $Franklin );
+
+	cinematicIntro_SkipThread();
+*/
+}
+
+//---------------------
+// cinematicIntro_SkipThread
+// Intro cinematics skip thread
+//---------------------
+void cinematicIntro_SkipThread()
+{
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait( 2 );
+
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicIntro" );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ExploreShip$$","incomplete",1,1);
+
+        music ("normal");
+
+	$Jurot.forceAlpha( 0 );
+	$Chell.forceAlpha( 0 );
+	$Franklin.forceAlpha( 0 );
+	$Munro.forceAlpha( 0 );
+
+	$Chell.stopdialog();
+	$Franklin.stopdialog();
+	$Munro.stopdialog();
+	$Jurot.stopdialog();
+
+	cinematicIntro_End();
+}
+
+void cinematicIntro_End()
+{
+	$Jurot.resethead();
+	$Franklin.resethead();
+	$Chell.resethead();
+	//$Munro.resethead();
+
+	$Chell.show();
+	$Jurot.show();
+	$Franklin.show();
+
+	$Munro.remove();
+ 	//$Munro.notsolid();
+	//$Munro.hide();
+	
+	//--- remove the dead body close to the ground
+	$cinematicDeadBody.remove();
+	
+	// move all the jerkys into thier places
+	//$Munro.origin( '988.00 -572.00 -272.00' );
+	$Chell.origin( '712 -280 0' );
+	$Franklin.origin( '736 -136 0' );
+	$Jurot.origin( '704 -184 0' );
+
+	wait( 0.5 );
+
+	clearletterbox( .1 );
+	noncinematic();
+	wait( 0.1 );
+	cueplayer();
+
+	wait( .1 );
+
+	releaseplayer();
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	//$player.loopsound ( "sound/player/player_rebreath.wav", .4, 50);
+	//$player.use ( "tricorder-stx" );
+	
+	globalCoop_armory_useNamed("tricorder-stx");
+	
+	$Chell.ai_on();
+	$Jurot.ai_on();
+
+	$Chell.useactorweapon( "CompressionRifle" );
+	$Jurot.useactorweapon( "CompressionRifle" );
+
+	thread sequenceCargoBayDoorLocked();
+}
+
+//---------------------------------------------
+//--- rotates and shifts the body in the intro
+void cinematicIntro_MoveBody()
+{
+	$cinematicDeadBody.time( 6 );
+	$cinematicDeadBody.moveDown( 16 );
+	$cinematicDeadBody.moveNorth( 32 );
+	$cinematicDeadBody.moveEast( 128 );
+	$cinematicDeadBody.rotateX( -5 );
+
+}
+
+//==========================================================================================
+// Misc and Sound Stuff
+//==========================================================================================
+
+void waypoint_remove()
+{
+	$gravity_waypoint.missionobjective( 0 );
+	$gravity_waypoint.remove();
+}
+
+void scare_lurker1_go()
+{
+	music( "surprise", "normal" );
+	$scare_lurker1.walkto( "scare_lurker1_end", "run" );
+	$scare_lurker1.playsound ( "sound/chars/lurker/lurk_spottarget_amb.wav", 12, 1 , 1000 );
+	wait (2);
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_whatthat.mp3", 1, 11111, 1); //What was THAT?
+	waitfor( $scare_lurker1 );
+	$scare_lurker1.playsound( "sound/chars/lurker/lurk_idle2.wav", 1, 0.3, 1500 );
+	$scare_lurker1.remove();
+}
+
+void scare_lurker2_go()
+{
+//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations (at turboshaft)
+	coop_float_spawnAngle0 				= 90;
+	coop_float_spawnAngle1 				= 90;
+	coop_vector_spawnOrigin1 			= '-2470 854 390';
+	coop_vector_spawnOrigin2 			= '-2500 775 390';
+	coop_vector_spawnOrigin3 			= '-2520 854 390';
+	coop_vector_spawnOrigin4 			= '-2570 854 390';
+	coop_vector_spawnOrigin5 			= '-2620 854 390';
+	coop_vector_spawnOrigin6 			= '-2400 694 390';
+	coop_vector_spawnOrigin7 			= '-2450 694 390';
+	coop_vector_spawnOrigin8 			= '-2500 694 390';
+//hzm coop mod chrissstrahl - Applay values on the respawn origins as well
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	music( "aux2", "normal" );
+
+	$scare_lurker2.notsolid();
+	$scare_lurker2.playsound( "sound/chars/lurker/lurk_alert_amb.wav", 1, 0.7, 500 );
+
+	$scare_lurker2.time( 0.25 );
+	$scare_lurker2.moveup( 8 );
+	waitfor( $scare_lurker2 );
+
+	$scare_lurker2.time( .5 );
+	$scare_lurker2.moveup( 64 );
+	waitfor( $scare_lurker2 );
+
+	$scare_lurker2.remove();
+	$BrokenTurboLiftSparks.playsound ( "sound/environment/metal/metal_scrape4.wav", 3, .9, 1000);
+}
+
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+void wallsecret_open()
+{
+	music( "mystery" );
+
+	$fakestarfish2.origin( '-896 1268 428' );
+
+	//--- unlock the lower jtube door
+	globalTubeDoor_Unlock( "doorJTubeElevatorShaftLevel1_South" );
+	//thread globalTubeDoor_Setup ( "doorJTubeElevatorShaftLevel1_South", "normal", 36, "east_west", 0 );
+
+	$secretStarshipTrigger.triggerable();
+
+	$wallsecret_top.bind( $wallsecret_top_origin );
+	$wallsecret_top_origin.time( 0.1 );
+	$wallsecret_top_origin.rotateto( '-80 0 0' );
+	$wallsecret_bottom.movedown( 14 );
+}
+
+void shuttle_secret()
+{
+	//--- show the interior of the shuttle and spawn the secret starfish
+	//$shuttle.origin( '-367.90 -125.00  0.00' );
+	$shuttle_interior.origin( '-367.90 -125.00  0.00' );
+	$shuttle_interior.show();
+	$shuttle_door1.show();
+	$shuttle_door2.show();
+
+	$fakestarfish1.origin( '-368 -8 56' );
+
+	wait( .15 );
+
+	music( "mystery" );
+
+	//--- open the shuttle door
+	$shuttle_door.anim( "opening" );
+	waitForAnimation( $shuttle_door, "opening" );
+	$shuttle_door.anim( "open_idle" );
+
+	$shuttle_clip.remove();
+	$shuttle_clip_int.solid();
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m3l1b-forever");
+}
+
+

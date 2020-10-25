@@ -1,0 +1,451 @@
+//geometry started in 200? by Luke Sutton
+//script by chrissstrahl 2017.01.06 ulm, germany
+
+void main();
+void initial();
+void aiOnAggressive(entity e);
+void aiOnAggressiveBeam(entity e);
+void removeArchetypesFromGroup(string sName);
+
+void attraxianSecurity0_sequence();
+void alcoholic_sequence();
+void outdoor_sequence();
+void ferengieShuttle_sequence();
+void boss_sequence();
+void bossKilled_sequence();
+void levelEndCinematic();
+
+void puzzleSolved_warehouseGate0();
+void puzzleSolved_hallwayDoor();
+void hallwayDoorUsedOrPassed();
+
+float fSupportSniperSpawned = 0;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+
+void main()
+{
+	//hzm coop mod chrissstrahl - notify the coop mod that this mission has a user defined text
+	//there for does not use the $$ pre and suffix
+	$world.setFloatVar("globalCoop_missionFailedUserString",1);
+	
+	//set missionobjective on radar
+	$modulate0.missionObjective(1);
+
+//register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Tricorder-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Phaser-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-BurstRifle.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-CompressionRifle.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-attrex-rifle.tik");
+
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	soundtrack( "music/dm_kw.mus" );
+  
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Luke^0_^8Sutton";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Help the Attrexians and defeat the Romulan invaders.";
+	coop_string_objectiveItem2 = "Defend the Control Room, and its Personal.";
+	coop_string_objectiveItem3 = "Protect the wounded to allow for a evacuation.";
+	coop_string_objectiveItem4 = "Activate the Cart and drive it.";
+	coop_string_objectiveItem5 = "Modulate the thingy.";
+	coop_string_objectiveItem6 = "Return to your Shuttle.";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Helfen Sie den Attrexianern und besiegen Sie die romulanischen Eindringlinge.";
+	coop_string_objectiveItem2_deu = "Verteidigen Sie den Kontrollraum und sein Personal.";
+	coop_string_objectiveItem3_deu = "Besch$$u$$tzen Sie die verwundeten und erm$$o$$glichen Sie die Evakuation.";
+	coop_string_objectiveItem4_deu = "Aktivieren Sie Wagon und fahren Sie mit diesem.";
+	coop_string_objectiveItem5_deu = "Modulieren Sie das Dingens.";
+	coop_string_objectiveItem6_deu = "Kehren Sie zum Ihrem Shuttle zur$$u$$ck.";
+	coop_string_objectiveTacticalInfo1_deu = "";//N$$u$$tzen Sie die Verwirrung zu Ihrem Vorteil
+
+	coop_string_story = "Date: Jan 2388. USS Odyssey-A has been ordered to fight off an orbiting warbird, and liberate the planet. You and your teammates must battle through the streets of Attrexia and protect the population from Romulan invasion.";
+	coop_string_story_deu = "Datum: Jan 2388. Die USS Odyssey-A wurde entsannt um einen Warbird zu vertreiben und den Planeten zu befreien. Sie und Ihr Team m$$u$$ssen sich durch die Stra$$S$$en von Attrexia k$$a$$mpfen und die Bev$$o$$lkerung vor den romulanischen Invsoren sch$$u$$tzen.";
+	
+	thread initial();
+	
+	waitforplayer();
+	
+//update objectives - reroute power
+	globalCoop_objectives_update("complete" , 1 , 0 );//help attrax
+	globalCoop_objectives_update("complete" , 2 , 0 );//defend control
+	globalCoop_objectives_update("complete" , 3 , 0 );//protect
+	globalCoop_objectives_update("complete" , 4 , 0 );//avtivate cart
+	globalCoop_objectives_update("incomplete" , 5 , 1 );//modulate
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+}
+
+void initial()
+{
+	/* //disabled 2018.03.22
+	$ammoConsole.archetype("");
+	$ammoConsole0.archetype("");
+	$healthConsole.archetype("");
+	*/
+	
+	$ferengieShuttle_model.bind($ferengieShuttle_origin);
+	$ferengieShuttle_clip.bind($ferengieShuttle_origin);
+}
+
+void hazardTeam_activate()
+{
+	//hzm activate team ai
+	//hzm remove archetype
+	$hazardTeam1.ai_on();
+	//$hazardTeam1.archetype(""); //disabled 2018.03.22
+}
+
+void attraxianSecurity0_sequence()
+{
+	//play beam in effect and make aggressive, activate
+	aiOnAggressiveBeam($enemyOf_attraxianSecurity0);
+	
+	//activate attrax in room
+	aiOnAggressive($attraxianSecurity0);
+	
+	//give the player a moment to adapt to the new location
+	wait(2);
+	
+	//play beam in effect and make aggressive, activate
+	aiOnAggressiveBeam($granadeTrower0);
+	aiOnAggressiveBeam($granadeTrower1);
+	aiOnAggressiveBeam($granadeTrower2);
+	
+	//activate attrax at bar
+	aiOnAggressive($attraxianSecurity1);
+	aiOnAggressive($attraxianSecurity2);
+}
+
+void alcoholic_sequence()
+{
+	aiOnAggressive($alcoholic);
+}
+
+void outdoor_sequence()
+{
+	aiOnAggressive($outDoorEnemy0);
+	aiOnAggressive($outDoorEnemy1);
+	aiOnAggressive($outDoorEnemy2);
+	aiOnAggressive($outDoorEnemy4);
+	
+	aiOnAggressiveBeam($sniper0);
+	aiOnAggressiveBeam($sniper1);
+	
+	//activate additional enemies if there are more players
+	float fPlayers;
+	fPlayers = globalCoop_return_integerPlayersQuantity(2);
+	if(fPlayers > 1){
+		aiOnAggressiveBeam($sniper2);
+		aiOnAggressiveBeam($outDoorEnemy6);
+		if(fPlayers > 2)
+		{
+			aiOnAggressiveBeam($sniper3);
+			if(fPlayers > 3)
+			{
+				aiOnAggressiveBeam($sniper4);
+				if(fPlayers > 4)
+				{
+					aiOnAggressiveBeam($sniper5);
+					aiOnAggressiveBeam($sniper6);
+				}
+			}
+		}
+	}
+}
+
+void shuttleApproach_sequence()
+{
+	//activate sniper on shuttlepad, if allready used spawn a replacement
+	if(doesEntityExist($sniper6)){
+		aiOnAggressiveBeam($sniper6);
+	}else{
+		entity eActor;
+		eActor = spawn("actor","model","models/char/romulan-m11-rebel-sniper-f.tik","origin","274.00 -336.00 176.00","hide","1","ai_off","1");
+		wait(0.1);
+		aiOnAggressiveBeam(eActor);
+	}
+}
+
+void ferengieShuttle_sequence()
+{
+	$ferengieShuttle_origin.setVelocity('240 0 120');
+	$ferengieShuttle_origin.playsound("sound/vehicles/shuttlecraft/shuttle_takeoff.wav",3 ,2 ,400 );
+	
+	aiOnAggressiveBeam($shuttleGuard0);
+	if(globalCoop_return_integerPlayersQuantity(2) > 1)
+	{
+		aiOnAggressiveBeam($shuttleGuard1);
+	}
+	
+	
+	wait(5);
+	
+	float fScale;
+	fScale = 1;
+	while(fScale > 0)
+	{
+		wait(0.1);
+		fScale -= 0.01;
+		$ferengieShuttle_model.scale(fScale);
+	}
+}
+
+void boss_sequence()
+{
+	aiOnAggressiveBeam($boss);
+}
+
+void bossKilled_sequence()
+{
+	thread levelEndCinematic();
+}
+
+void InformantBoss_PickNewNodeID_Stage1()
+{
+	float i;
+
+	i = randomint( 5 ) + 1;
+//	print( "picked " + i + "\n" );
+	i = i + 100;
+	$boss.setnodeid( i );
+}
+
+void InformantBoss_WarpToNode_Stage1()
+{
+	float i;
+	string nodeName;
+	entity theNode;
+	vector nodeOrigin;
+
+	i = randomint( 5 ) + 1;
+//	print( "warpTo " + i + "\n" );
+	i = i + 100;
+
+	nodeName = "node" + i;
+	theNode = GetEntity( nodeName );
+
+	if ( doesEntityExist( theNode ) )
+	{
+		//added for smother gameplay
+		$boss.hide();
+		$boss.notsolid();
+		$boss.nodamage();
+		wait(0.05);
+		
+		
+		nodeOrigin = theNode.getorigin();
+		$boss.origin ( nodeOrigin );
+		wait(0.05);
+		
+		//added for smother gameplay
+		$boss.show();
+		$boss.takedamage();
+		$boss.turnTowardsPlayer ();
+		thread globalCoop_player_makeSolidASAP($boss);
+	}
+	
+	//if not allready actiuvated, activate support sniper
+	if(fSupportSniperSpawned == 0){
+		if(globalCoop_return_integerPlayersQuantity(2) > 1)
+		{
+			fSupportSniperSpawned=1;
+			aiOnAggressiveBeam($sniper7);
+		}
+	}
+}
+
+void InformantBoss_PickNewNodeID_Stage2()
+{
+	float i;
+
+	i = randomint( 9 ) + 1;
+//	print( "picked " + i + "\n" );
+	$boss.setnodeid( i );
+}
+
+void removeArchetypesFromGroup(string sName)
+{
+	float fNumber = 0;
+	entity e;
+	e = getEntity(sName + fNumber);
+	do
+	{
+		if(doesEntityExist(e)){
+			e.archetype("");
+			fNumber++;
+			e = getEntity(sName + fNumber);
+		}
+	}while(doesEntityExist(e));	
+}
+
+void aiOnAggressive(entity e)
+{
+	e.ai_on();
+	e.aggressive(1);
+}
+void aiOnAggressiveBeam(entity e)
+{
+	e.forcealpha(1);
+	e.alpha(0.1);
+	e.show();
+	e.displayeffect("TransportIn","Romulan");
+	aiOnAggressive(e);
+	e.solid();
+}
+
+
+void puzzleSolved_warehouseGate0()
+{
+	//set missionobjective on radar
+	$modulate0.missionObjective(0);
+	$modulate1.missionObjective(1);
+	$modulate0.remove();
+
+	$warehouseGate0.unlock();
+	$warehouseGate0.open($world);
+	
+	//make sure the door stays open for a extra while
+	//so players have time to orientate and find the exit
+	$warehouseGate0.wait(-1);
+	wait(7);
+	$warehouseGate0.wait(3);
+}
+
+void puzzleSolved_hallwayDoor()
+{
+	//set missionobjective on radar
+	$modulate1.missionObjective(0);
+	$use0.missionObjective(1);
+	$use0.scale(1);//make visible
+	$modulate1.remove();
+
+	$hallwayDoorUsedOrPassed.triggerable();
+	$hallwayDoor.unlock();
+}
+
+void hallwayDoorUsedOrPassed()
+{
+	//set missionobjective on radar
+	$use0.missionObjective(0);
+	$use1.missionObjective(1);
+	$use0.remove();
+	
+	//make ai follow player no lonegr, because this is better for bossfight
+	$hazardTeam1.setTendency("follow",0);
+}
+
+
+void puzzleCanceled()
+{
+	$puzzle.puzzleobject_reset();
+}
+void puzzleUsed()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 10 );
+	globalTricorderRoute_SetSource2Row( 8 );
+	globalTricorderRoute_SetDestination1( 3, 10 );
+    globalTricorderRoute_SetDestination2( 2, 8 );
+    
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 19, 16, 20, 22, 16, 16 );
+ 	globalTricorderRoute_SetNextRow( 19, 16, 20, 17, 32, 17, 17, 11,  8 );
+ 	globalTricorderRoute_SetNextRow( 17, 32, 25, 25, 32, 18, 21, 32, 17 );
+ 	globalTricorderRoute_SetNextRow( 23, 19, 24, 17, 32, 11,  3, 16,  8 );
+ 	globalTricorderRoute_SetNextRow( 25, 17, 25, 21, 25,  7,  9, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 17, 18, 21,  6,  4, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 21, 32, 32,  0, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  2, 16,  2, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 16,  7,  6, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 11, 32, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+}
+
+void puzzleSolved()
+{
+	//remove mission marker on radar
+	$puzzleSymbol.missionObjective(0);
+	
+	//remove modulate symbol
+	$puzzleSymbol.remove();
+	
+	//allow now to enter the colony
+	$bigSecurityDoor.open($world);
+	
+//update objectives - reroute power
+	//chrissstrahl - wrong objective numbers set, fixed [b607]
+	globalCoop_objectives_update("complete" , 5 , 1 );//modulate thingy
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//go back to shuttle
+}
+
+void levelEndCinematic()
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	
+//start cinematic
+	cam_fadeout( 0.18 , 0, 0, 0, 1 , 0 );
+	$cam1.cut();
+	spawn("camera","targetname","levelEndCam");
+	wait(0.1);
+	$levelEndCam.follow($levelEndCinematicPath);
+	wait(0.1);
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );
+	cuecamera($levelEndCam);
+	cam_fadein( 1 , 0, 0, 0, 0 , 0 );
+	wait(3);
+	$levelEndGate.open($world);
+	wait(2);
+	//cam_fadeout( 1.5 , 0, 0, 0, 1 , 0 );
+	//wait(2);
+	noncinematic();
+	clearletterbox( .1 );
+	
+	thread coop_endLevel();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	
+	cam_fadeout( 0.1 , 0, 0, 0, 1 , 0 );
+	
+//load next map
+	thread globalCoop_mission_completed("coop_rotec6");
+}
+
+
+

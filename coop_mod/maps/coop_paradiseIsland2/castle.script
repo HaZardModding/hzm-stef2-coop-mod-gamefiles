@@ -1,0 +1,182 @@
+void castleSpawn()
+//Spawn dudes in/at the castle
+{
+	thread globalCoop_level_onUse($castleSwitchRight,"castleSwitchRight");
+	thread globalCoop_level_onUse($castleSwitchLeft,"castleSwitchLeft");
+	cache("models/char/romulan-m11-rebel-grenade-m3.tik");
+	cache("models/char/romulan-m11-rebel-grenade-m.tik");
+	wait(1);
+entity e1,e2,e3,e4,e5,e6,e7,e8;
+//SNIPERz
+	e1=spawn("actor","model","models/char/romulan-m11-rebel-sniper-f.tik","origin","-27582.00 34253.00 448.00","angle","270");
+	
+	//update 2015.10.06 make it easier if the player is alone or just 2 players
+	if(globalCoop_return_integerPlayersQuantity(2) >1){
+		e2=spawn("actor","model","models/char/romulan-m11-rebel-sniper-f.tik","origin","-27675.09 34301.91 448.00","angle","230");
+		if(globalCoop_return_integerPlayersQuantity(2) >2){
+			e3=spawn("actor","model","models/char/romulan-m11-rebel-sniper-f.tik","origin","-28833.10 34255.90 448.00","angle","280");
+		}
+	}
+	
+	e4=spawn("actor","model","models/char/romulan-m11-rebel-sniper-f.tik","origin","-28771.62 34302.38 448.00","angle","290");
+//GRANADEz
+	e5=spawn("actor","model","models/char/romulan-m11-rebel-grenade-m.tik","origin","-28656.00 34360.00 248.00","angle","270");
+	
+	//update 2015.10.06 make it easier if the player is alone or just 2 players
+	if(globalCoop_return_integerPlayersQuantity(2) >1){
+		e6=spawn("actor","model","models/char/romulan-m11-rebel-grenade-m.tik","origin","-28296.00 34360.00 248.00","angle","270");
+		if(globalCoop_return_integerPlayersQuantity(2) >2){
+			e7=spawn("actor","model","models/char/romulan-m11-rebel-grenade-m.tik","origin","-28128.00 34360.00 248.00","angle","270");
+		}
+	}
+	
+	e8=spawn("actor","model","models/char/romulan-m11-rebel-grenade-m.tik","origin","-27792.00 34360.00 248.00","angle","270");
+	wait(.25);
+	thread castleAiSetup(e1);
+	thread castleAiSetup(e2);
+	thread castleAiSetup(e3);
+	thread castleAiSetup(e4);
+	thread castleAiSetup(e5);
+	thread castleAiSetup(e6);
+	thread castleAiSetup(e7);
+	thread castleAiSetup(e8);
+}
+
+void castleAiSetup(entity e)
+{
+	if(globalCoop_check_existingLivingEntity(e))
+	{
+		//globalCoop_actor_healthMultiplicatePerPlayer(e);//we don't really do this anymore players shall use skill to adjust their dificulty
+		e.aggressive(1);
+		//e.archetype(""); //reenabled 2018.03.22
+	}
+}
+
+
+void castleCourtyard()
+{
+	$pittySpawner.setspawngroupdeaththread("castleCourtyard1");
+	$pittySpawner.setspawngroupID(555);
+	$pittySpawner.modelName("char/bug_male.tik");
+	
+	$pittySpawner2.setspawngroupdeaththread("castleCourtyard2");
+	$pittySpawner2.setspawngroupID(556);
+	$pittySpawner2.modelName("char/bug_male.tik");
+	
+	globalCoop_level_triggerEntity($pittySpawner);
+	globalCoop_level_triggerEntity($pittySpawner2);
+	wait(.15);
+	thread castleAiSetup($pittySpawn);
+	thread castleAiSetup($pittySpawn2);
+}
+
+void castleCourtyard1()
+{
+	globalCoop_level_triggerEntity($pittySpawner);
+	wait(.15);
+	thread castleAiSetup($pittySpawn);
+}
+
+
+void castleCourtyard2()
+{
+	//don't spawn two of them until there at least sufficent players
+	while(globalCoop_return_integerPlayersQuantity(1) < 3){wait(2);}
+	
+	globalCoop_level_triggerEntity($pittySpawner2);
+	wait(.15);
+	thread castleAiSetup($pittySpawn2);
+}
+
+
+
+void castleSwitchLeft()
+//part1 of 2 to open the castle doors
+{
+	$use2Symbol.origin('-28032 41559 -413');
+	$castleSwitchLeft.nouse();
+	$castleSwitchLeft.moveNorth(-7);
+	$castleSwitchLeft.time(1);
+	$castleSwitchLeft.missionobjective(0);
+	$castleSwitchLeft.playsound("sound/environment/rock/rock_powerup.wav",0,1,64);
+	waitFor($castleSwitchLeft);
+	thread castleInnerDoorOpen();
+}
+void castleSwitchRight()
+//part2 of 2 to open the castle doors
+{
+	$use1Symbol.origin('-28382 39061 -136');
+	$castleSwitchRight.nouse();
+	$castleSwitchRight.moveNorth(-7);
+	$castleSwitchRight.time(1);
+	$castleSwitchRight.missionobjective(0);
+	$castleSwitchRight.playsound("sound/environment/rock/rock_powerup.wav",0,1,64);
+	waitFor($castleSwitchRight);
+	thread castleInnerDoorOpen();
+}
+
+void castleInnerDoorOpen()
+//open castle doors
+{
+	fCastleSwitch++;
+	if(fCastleSwitch == 2){
+	//allow mission to end now, sucessfully
+		thread globalCoop_mission_accomplished();
+		$castleInsideGate1.unlock();
+		$castleInsideGate1.wait(-1);
+		$castleInsideGate1.open($world);
+	//setup cannons, not that it really matters...
+		$cannon1.health(50);
+		$cannon2.health(50);
+		//globalCoop_actor_healthMultiplicatePerPlayer($cannon1);
+		//globalCoop_actor_healthMultiplicatePerPlayer($cannon2);
+		globalCoop_objectives_update("complete",1,1);//State,Item,ShowIt
+		thread castleLiftObjective();
+	}
+}
+
+
+void castleLiftObjective()
+{
+	thread globalCoop_objectives_update("InComplete",7,1);//State,Item,ShowIt
+	$castleLiftTrigger1.missionobjective(1);
+}
+
+void castleLiftOperational()
+{
+	entity e;
+	e=getCurrentEntity();
+	if(doesEntityExist(e))
+	{
+		
+		e.playsound("sound/ships/drull/drull-beepaccept.wav",0,1,256);
+	}
+	$use2Symbol.origin('-28066 38922 -136');
+	$t94.missionobjective(0);
+	$castleLiftTrigger1.missionobjective(1);
+	fCastleLiftPower=1;
+}
+
+void castleLift()
+{
+	entity e;
+	e=getCurrentEntity();
+	if(doesEntityExist(e))
+	{
+		if(fCastleLiftPower==1)
+		{
+			fCastleLiftPower++;
+			e.playsound("sound/ships/drull/drull-beepaccept.wav",0,1,256);
+			
+			//hzm coop mod chrissstrahl - gather all players at a spot
+			thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",75,'160 160 160',$endLiftOrigin.getOrigin());
+		}
+		else if(fCastleLiftPower == 0)
+		{
+			$castleLiftTrigger1.missionobjective(0);
+			$t94.missionobjective(1);
+			e.playsound("sound/ships/drull/drull-beepreject.wav",0,1,256);
+		}
+	}
+}
+

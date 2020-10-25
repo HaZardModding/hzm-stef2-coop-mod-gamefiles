@@ -1,0 +1,344 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:	  Spawns AI in waves
+//  Script By:    Benson R
+//  Created on:   8/27/2002
+//
+//  Last Edited:  Benson R
+//
+//-----------------------------------------------------------------
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DEFINE SCRIPT
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--- setup and designer called functions
+void globalSpawnWave_Setup( string strSpawnWaveName, float intNumberOfSpawners, float intNumberOfWaves, float intMinPerWave, float intMaxPerWave, float intWaveId );
+void globalSpawnWave_SetupDeathThread( string strSpawnWaveName, string strDeathThread );
+void globalSpawnWave_Start( string strSpawnWaveName );
+
+//--- spawn wave functions
+void globalSpawnWave_SpawnWave( string strSpawnWaveName );
+float globalSpawnWave_SpawnAI( string strSpawnWaveName, string strMasterArray, entity entSpawner );
+
+//--- common functions (FOR INTERNAL USE ONLY)
+string globalSpawnWave_CreateMasterArrayName( string strSpawnWaveName );
+string globalSpawnWave_CreateSpawnArrayName( string strSpawnWaveName );
+string globalSpawnWave_GetDeathThread( string strArray );
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  SETUP AND DESIGNER CALLED FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// globalSpawnWave_Setup
+// strSpawnWaveName - string, the name for the spawn wave
+// fltNumberOfSpawners - float, the number of spawners for the wave
+// fltNumberOfWaves - float, the number of waves to spawn
+// fltMinPerWave - float, minimum number of AI for the wave (no less than 2)
+// fltMaxPerWave - float, maximum number of AI for the wave (no greater than fltNumberOfSpawners)
+// fltWaveId - float, the group id number all the AI will spawn in with
+// sets up the master array for the spawn wave
+//---------------------
+void globalSpawnWave_Setup( string strSpawnWaveName, float intNumberOfSpawners, float intNumberOfWaves, float intMinPerWave, float intMaxPerWave, float intWaveId )
+{
+	string strMasterArray;
+	//--- check if the number of spawners is greater than 0
+	//--- check if the number of waves is greater than 0
+	
+	if(	intNumberOfSpawners < 1 ||
+		intNumberOfWaves < 1 ||
+		intMinPerWave < 1 ||
+		intMaxPerWave > intNumberOfSpawners ||
+		intMaxPerWave > intNumberOfSpawners
+	){
+		return;
+	}
+		//--- get the name for the master array
+	strMasterArray = globalSpawnWave_CreateMasterArrayName( strSpawnWaveName );
+
+	//--- initialize the array
+	globalArray_FloatSetup( strMasterArray, 9 );
+
+	//--- store all the values on the master array
+	globalArray_FloatSet( strMasterArray, 1, intNumberOfSpawners );		//element 1 = number of spawners for the group
+	globalArray_FloatSet( strMasterArray, 2, FALSE );					//element 2 = currently not used
+	globalArray_FloatSet( strMasterArray, 3, intMinPerWave );			//element 3 = the minimum number to spawn per wave
+	globalArray_FloatSet( strMasterArray, 4, intMaxPerWave );			//element 4 = the maximum number to spawn per wave
+	globalArray_FloatSet( strMasterArray, 5, intWaveId );				//element 5 = the group id for the AI for this wave
+	globalArray_FloatSet( strMasterArray, 6, 1 );						//element 6 = the total number of AI spawned *used for AI targetname creation*
+	globalArray_FloatSet( strMasterArray, 7, intNumberOfWaves );		//element 7 = number of waves for the group
+	globalArray_FloatSet( strMasterArray, 8, 0 );						//element 8 = the current number of AI alive
+																		//element 9 = flag used to tell that the group is currently spawning
+}
+
+
+//---------------------
+// globalSpawnWave_SetupDeathThread
+// strSpawnWaveName - string, the name of the wave to spawn
+// strDeathThread - string, the group death thread to set
+// Sets a group death thread for the desired spawn wave
+//---------------------
+void globalSpawnWave_SetupDeathThread( string strSpawnWaveName, string strDeathThread )
+{
+	entity entMasterArray;
+	//--- grab the entity
+	entMasterArray = getEntity(globalSpawnWave_CreateMasterArrayName( strSpawnWaveName ));
+
+	//--- set the string value
+	entMasterArray.setstringvar( "strDeathThread" , strDeathThread );
+}
+
+
+//---------------------
+// globalSpawnWave_Start
+// strSpawnWaveName - string, the name of the wave to spawn
+// starts a spawn wave with the first group
+//---------------------
+void globalSpawnWave_Start( string strSpawnWaveName )
+{
+	thread globalSpawnWave_SpawnWave( strSpawnWaveName );
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  WAVE SPAWN FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// globalSpawnWave_Spawn
+// strSpawnWaveName - string, the name of the wave to spawn
+// Spawns a wave of AI to attack
+//---------------------
+void globalSpawnWave_SpawnWave( string strSpawnWaveName )
+{
+	string 	strMasterArray,
+			strSpawnArray,
+			strSpawnerTargetname;
+	//float intNumberOfSpawners;
+	float intNumberOfWaves;
+	float intMinPerWave;
+	//float intMaxPerWave;
+	float intRandomSeed = 0;
+	float intNumberToSpawn = 0;
+	float intChoosenSpawner = 0;
+//	float i;
+	float boolSpawnSuccessful;
+	
+	//--- get the names for the master and spawn arrays
+	strMasterArray = globalSpawnWave_CreateMasterArrayName( strSpawnWaveName );
+	strSpawnArray = globalSpawnWave_CreateSpawnArrayName( strSpawnWaveName );
+
+	//--- check if there is already a group spawning, if so return
+	if( globalArray_FloatGet( strMasterArray, 9 ) == TRUE )
+	{
+		return;
+	}
+
+	//--- mark this as updating
+	globalArray_FloatSet( strMasterArray, 9, TRUE );
+	
+	//--- grab all the data off of the array
+	//intNumberOfSpawners = globalArray_FloatGet( strMasterArray, 1 );  	//number of spawners
+	intNumberOfWaves = globalArray_FloatGet( strMasterArray, 7 );		//number of waves
+	intMinPerWave = globalArray_FloatGet( strMasterArray, 3 );			//minimum number of AI per wave
+	//intMaxPerWave = globalArray_FloatGet( strMasterArray, 4 );			//maximum number of AI per wave
+	
+	//--- decrease the number of reinforcement waves available
+	intNumberOfWaves --;
+	globalArray_FloatSet( strMasterArray, 7, intNumberOfWaves );
+	
+	//--- calculate number to spawn
+	intRandomSeed = ( globalArray_FloatGet( strMasterArray, 4 ) - intMinPerWave ) + 1;
+	intNumberToSpawn = randomint( intRandomSeed ) + intMinPerWave;
+	
+	//--- setup the array
+	globalArray_FloatSetup( strSpawnArray, intNumberToSpawn );
+  
+	//--- loop through and spawn the reinforcements
+	for(intNumberOfWaves=1;intNumberOfWaves<=intNumberToSpawn;intNumberOfWaves++)
+	{
+		//--- mark the successful spawn flag as false
+		boolSpawnSuccessful = FALSE;	
+		
+		//--- keep trying spawners until an AI is spawned
+		while( boolSpawnSuccessful == FALSE )
+		{
+			//--- loop until a spawner is found that hasn't already been used for this wave
+    		intChoosenSpawner = -1;
+    		while( globalArray_FloatHasMatchingValue( strSpawnArray, intChoosenSpawner ) == TRUE || (intChoosenSpawner == -1) )
+    		{
+        		//--- pick a spawner
+        		intChoosenSpawner = (randomint(globalArray_FloatGet(strMasterArray,1)) + 1);
+        		globalCoop_main_waitAFrame();
+        	}
+        	
+        	//--- assemble the targetname and grab the spawner
+        	strSpawnerTargetname = strSpawnWaveName + intChoosenSpawner;
+        	//--- attempt to spawn the guy
+        	boolSpawnSuccessful = globalSpawnWave_SpawnAI( strSpawnWaveName, strMasterArray,getentity(strSpawnerTargetname));
+        	globalCoop_main_waitAFrame();
+        }
+    	    	
+    	//--- save the value into the array
+    	globalArray_FloatSet(strSpawnArray,intNumberOfWaves,intChoosenSpawner);
+	}
+	
+	//--- mark this as done updating
+	globalArray_FloatSet( strMasterArray, 9, FALSE );
+}
+
+
+//---------------------
+// globalSpawnWave_SpawnAI
+// strSpawnWaveName - string, the name of the spawn wave
+// entSpawner - entity, the choosen spawner to spawn from
+// spawns an AI from the passed spawner, returns whether or not it was successful
+//---------------------
+float globalSpawnWave_SpawnAI( string strSpawnWaveName, string strMasterArray, entity entSpawner )
+{
+	entity entSpawnedGuy;
+	float intTotalNumberOfAISpawned;
+	
+	//--- if the spawner passed in is bogus, return false
+	if( !doesEntityExist( entSpawner ) )
+	{
+		return( FALSE );
+	}
+	
+	//--- grab the total number of AI spawned
+	intTotalNumberOfAISpawned = globalArray_FloatGet( strMasterArray, 6 );
+	
+	//--- set the targetname in the spawner and spawn the guy
+	entSpawner.spawntargetname(strSpawnWaveName+"_SpawnedAI_"+intTotalNumberOfAISpawned);
+	entSpawner.checkForSpace();
+
+	//--- spawn the guy
+	entSpawnedGuy = entSpawner.spawnNow();
+
+	//--- check if the spawn occured
+	if( !doesEntityExist( entSpawnedGuy ) )
+	{
+		return( FALSE );
+	}
+	
+//might get other ai become stuck ?
+//	if(cvar_bool_multiplayer){//multiplayer
+//		globalCoop_level_warpEntityToVectorSafty(entSpawnedGuy,entSpawnedGuy.getOrigin());
+//	}
+
+	//--- up the total spawned guy counter and set it on the array
+	intTotalNumberOfAISpawned ++;
+	globalArray_FloatSet( strMasterArray, 6, intTotalNumberOfAISpawned );
+
+	//--- set the parameters on the spawned guy-man-dude
+	entSpawnedGuy.killthread( "globalSpawnWave_AIDeath" );
+	entSpawnedGuy.setgroupid( globalArray_FloatGet( strMasterArray, 5 ) );
+	entSpawnedGuy.setstringvar( "strMasterArray", strMasterArray );
+	entSpawnedGuy.setstringvar( "strSpawnWaveName", strSpawnWaveName );
+
+	//--- if it's the last wave, set the group death thread
+	if( globalArray_FloatGet( strMasterArray, 7 ) <= 0 )
+	{
+		entSpawnedGuy.groupdeaththread( globalSpawnWave_GetDeathThread( strMasterArray ) );
+	}
+	//--- increase the AI alive counter
+	intTotalNumberOfAISpawned = globalArray_FloatGet(strMasterArray,8);
+	intTotalNumberOfAISpawned ++;
+	globalArray_FloatSet(strMasterArray,8,intTotalNumberOfAISpawned);
+	
+	return( TRUE );
+}
+
+
+//---------------------
+// globalSpawnWave_AIDeath
+// thread to run when a spawned AI dies
+//---------------------
+void globalSpawnWave_AIDeath()
+{
+	float intNumberOfAIAlive;
+	float intMinPerWave;
+	string strMasterArray;
+	//string strSpawnWaveName;
+	entity entSpawnedAI;
+	
+	//--- grab the AI
+	entSpawnedAI = getCurrentEntity();
+	//--- grab the master array
+	strMasterArray = entSpawnedAI.getstringvar( "strMasterArray" );
+	//strSpawnWaveName = entSpawnedAI.getstringvar( "strSpawnWaveName" );
+	//--- decrease the AI alive counter
+	intNumberOfAIAlive = globalArray_FloatGet( strMasterArray, 8 );
+	intNumberOfAIAlive --;
+	globalArray_FloatSet( strMasterArray, 8, intNumberOfAIAlive );
+	//--- check if there are any reinforcement waves left
+	if( globalArray_FloatGet( strMasterArray, 7 ) > 0 )
+	{
+		//--- get the minimum allowed per wave
+		intMinPerWave = globalArray_FloatGet( strMasterArray, 3 );
+		//--- check if the number of guys alive is less than the minimum desired
+		if( intNumberOfAIAlive < intMinPerWave )
+		{
+			//--- spawn the next wave
+			thread globalSpawnWave_SpawnWave(entSpawnedAI.getstringvar( "strSpawnWaveName" ));
+		}
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  COMMON FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// globalSpawnWave_CreateMasterArrayName
+// strSpawnWaveName - string, used to create the master array name
+// creates and returns the master array name
+//---------------------
+string globalSpawnWave_CreateMasterArrayName( string strSpawnWaveName )
+{
+	return( strSpawnWaveName + "_MasterArray" );
+}
+
+
+//---------------------
+// globalSpawnWave_CreateSpawnArrayName
+// strSpawnWaveName - string, used to create the spawn array name
+// creates and returns the spawn array name
+//---------------------
+string globalSpawnWave_CreateSpawnArrayName( string strSpawnWaveName )
+{
+	return( strSpawnWaveName + "_SpawnArray" );
+}
+
+
+//---------------------
+// globalSpawnWave_GetDeathThread
+// strArray - string, the string of the master array to get the death thread from
+// returns the set group death thread
+//---------------------
+string globalSpawnWave_GetDeathThread( string strArray )
+{
+	entity entMasterArray;
+	//--- grab the master array
+	entMasterArray = getEntity( strArray );
+	//--- return the group death thread
+	return( entMasterArray.getstringvar( "strDeathThread" ) );
+}
+

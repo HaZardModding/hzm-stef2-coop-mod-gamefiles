@@ -1,0 +1,484 @@
+void main();
+void message_patternEnhancerArea(entity ePlayer);
+void campWebBlockadeDestroyed();
+void destroyWeak();
+void rejectSound();
+void positionPlayer(entity ePosition);
+void bomb_plant();
+void spawnTriggerAtObject(entity eObject,string sClass,string sThread,string sTarget,vector vMins,vector vMaxs);
+void openDustyDoor();
+void blowWallBackToBombs1Show();
+void towerToggleFf();
+void setOnDamageThread(entity e,string sThread);
+void handleStuffWhenDieing(entity ePlayer); //[b607]
+void coop_endLevel();
+
+float	float_blowTreeCounter,
+		float_forceFieldToggle,
+		float_liftState,
+		float_deadBeamed,
+		float_objective_beamDown,
+		float_objective_gearUp,
+		float_objective_bomb,
+		float_armoryFirstUse,
+		float_armoryBurstUsed,
+		float_armoryCompUsed;
+
+//INCLUDE other script files
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/matrix/main.scr" //co-op mod
+#include "coop_mod/maps/coop_bugs/declaration.script"
+#include "coop_mod/maps/coop_bugs/staudamm.script"
+#include "coop_mod/maps/coop_bugs/singleplayer.script"
+#include "coop_mod/maps/coop_bugs/enhancer.script"
+#include "coop_mod/maps/coop_bugs/enterprise.script"
+#include "coop_mod/maps/coop_bugs/objective.script"
+#include "coop_mod/maps/coop_bugs/setup.script"
+#include "coop_mod/maps/coop_bugs/beam.script"
+#include "coop_mod/maps/coop_bugs/bugplants.script"
+#include "coop_mod/maps/coop_bugs/request.script"
+#include "coop_mod/maps/coop_bugs/pyramid.script"
+#include "coop_mod/maps/coop_bugs/lights.script"
+#include "coop_mod/maps/coop_bugs/lift.script"
+#include "coop_mod/maps/coop_bugs/cinematic.script"
+#include "coop_mod/maps/coop_bugs/datapad.script"
+#include "coop_mod/maps/coop_bugs/bomb.script"
+#include "coop_mod/maps/coop_bugs/pods.script"
+
+
+void main()
+//this is executed as soon as the server has finished loading this map
+{
+	soundtrack( "music/m5l1b.mus" );
+	cache("models/weapons/worldmodel-CompressionRifle.tik");
+	cache("models/weapons/worldmodel-BurstRifle.tik");
+	$world.farplane_cull( 1 );//0
+	$world.farplane(3600);//5600,3400
+	$world.farplane_fog(1);
+	
+	$pyramide_codePunisher.setStringVar("uservar1","killmessage  was crushed by a Trap");
+	$pyramide_codePunisher.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einer Falle");
+	
+	$pyramid_tilesPuzzleCrusher.setStringVar("uservar1","killmessage  was crushed by a Trap");
+	$pyramid_tilesPuzzleCrusher.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einer Falle");
+	
+	thread setOnDamageThread($t1570,"pyramid_tilesPuzzleCrusherDamaged");
+	thread setOnDamageThread($t1566,"pyramid_tilesPuzzleCrusherDamaged");
+	thread setOnDamageThread($t1567,"pyramid_tilesPuzzleCrusherDamaged");
+	
+	//$world.farplane_color('0 0 0');
+	thread setupMap();
+//OVERWRITE CO-OP SETTINGS
+	$world.setFloatVar("globalCoop_disableBuildTransporter",1);//disable technican class teleporter build ability
+	coop_bool_showMissionSucessHud	= 1;//show sucess hud instead of just loading
+	coop_string_levelAuthor			= "Chrissstrahl";//level creator/team and involved
+//set objectives for this level
+	coop_string_objectiveItem1		= "Gear up and Beam Down to the Planet";
+	coop_string_objectiveItem2		= "Find and rescue the archaeologists";
+	coop_string_objectiveItem3		= "Locate and pickup a explosive device, to blast your way free";
+	coop_string_objectiveItem4		= "Build a secound Pattern Enhanced field";
+	coop_string_objectiveItem5		= "Restore the Lift Power and Rescure the Survivor";
+	coop_string_objectiveItem6		= "Beam Attrexian up to the Enterprise";
+	coop_string_objectiveItem7		= "Scann the Artifact to determin its function";
+	coop_string_story				= "The Attrexians revealed a list of all known Idrull planets. The Idrull and Attraxians started to work together, to refurbish the remaining Ruins. On behave of the Attrexian government, you are investigating why the Away-team does not repond.";
+	
+	coop_string_objectiveItem1_deu	= "Rüsten Sie sich aus und beamen Sie auf den Planet";
+	coop_string_objectiveItem2_deu	= "Finden und retten Sie die Archäologen";
+	coop_string_objectiveItem3_deu	= "Finden Sie eine Bombe und sprengen Sie den Weg frei";
+	coop_string_objectiveItem4_deu	= "Konstruieren Sie ein zweites Musterverstärker-Feld";
+	coop_string_objectiveItem5_deu	= "Stellen Sie die Lift Energie her und retten Sie den Überlebenden";
+	coop_string_objectiveItem6_deu	= "Beamen Sie den Attrexianer zur Enterprise";
+	coop_string_objectiveItem7_deu	= "Scannen Sie das Artifakt um seinen Zweck zu bestimmen";
+	coop_string_story_deu = "Die Attrexianer enthüllten eine Liste mit den bekannten idryll Planeten. Beide Völker begannen gemeinsam mit der Restaurierung der Ruinen. Auf Bitte der Attraxianer, untersuchen Sie warum das Außen-Team nicht mehr antwortet.";
+
+//tactical
+	coop_string_objectiveTacticalInfo1		= "Weak Structures and Traps can be spotted with the Tricorder";
+	coop_string_objectiveTacticalInfo2		= "Pattern-Enhanced Areas allow beaming from and to the Enterprise.";
+	
+	coop_string_objectiveTacticalInfo1_deu	= "Fallen und Schwachstellen erkennen Sie mit dem Tricorder.";
+	coop_string_objectiveTacticalInfo2_deu	= "Musterverstärker Bereiche erlauben das Beamen von und zur Enterprise";
+	
+//set Weapons for this level
+	coop_string_weapon1 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
+
+//set respawn locations, in sickbay
+/* not compatible with coop mod 6.0
+	coop_vector_respawnOrigin1 = '4192 -1120 -184';
+	coop_vector_respawnOrigin2 = '4192 -1120 -184';
+	coop_vector_respawnOrigin3 = '4192 -1120 -184';
+	coop_vector_respawnOrigin4 = '4192 -1120 -184';
+	coop_vector_respawnOrigin5 = '4192 -1120 -184';
+	coop_vector_respawnOrigin6 = '4192 -1120 -184';
+	coop_vector_respawnOrigin7 = '4192 -1120 -184';
+	coop_vector_respawnOrigin8 = '4192 -1120 -184';	
+	*/
+//clear/set viewmodes
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("tripwire");
+	$world.addAvailableViewMode("structuralintegrity");
+//show first objective
+	$enterprise_amory_symbol0.missionobjective(1);
+	globalCoop_objectives_update("InComplete",1,0);//State,Item,ShowIt right now
+	thread globalCoop_objectives_update("InComplete",2,1);//State,Item,ShowIt right now
+//relocate player to current work in progress location
+
+//$player.origin('2796 -2544 400'); //bug pod
+//$player.origin('2506 -12096 30'); //ente transp.pad
+//$player.origin('19805 -4411 -500'); //pyramid code door
+//spawn("script_model","model","models/coop_bugs/p1.tik","targetname","hans","origin","2506 -12096 30");
+//wait(2);
+//$player0.origin('-300 -2377 470'); //pattern-enhancers
+//thread globalCoop_level_onUse($hans,"enhancer_position");
+}
+
+void message_patternEnhancerArea(entity ePlayer)
+{
+	if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+		ePlayer.hudprint("^5INFO:^3 Sie sind ausserhalb des Bereichs!\n");
+	}else{
+		ePlayer.hudprint("^5INFO:^3 You need to be inside the Area!\n");
+	}
+}
+
+void pyramid_tilesPuzzleCrusherDamaged()
+{
+	entity e,ePlayer;
+	e=getCurrentEntity();
+	ePlayer=e.getLastActivatingEntity();
+	e.nodamage();
+	
+	if(doesEntityExist(ePlayer)){
+		ePlayer.triggerEntity(e);
+	}
+	
+	thread setOnDamageThread(e,"pyramid_tilesPuzzleCrusherDamaged");
+}
+
+//handle stuff that is suppose to happen if player dies
+void handleStuffWhenDieing(entity ePlayer)
+{
+	if(!doesEntityExist(ePlayer)){ return; }
+	ePlayer.setFloatVar("hasBomb",0);
+	ePlayer.setFloatVar("enhancersAttached",0);
+	ePlayer.removehud("coopbugs_bomb");
+	ePlayer.removehud("coopbugs_datapadupdate");
+	enterprise_handleDeadPlayer(ePlayer);
+}
+
+//started by the co-op mod it self, every time a new player enters the level
+void coop_newPlayerEntered(){thread lights_newPlayer();}
+
+//started by the co-op mod it self, every time a player dies
+void coop_justDiedplayer1(){handleStuffWhenDieing($player0);}
+void coop_justDiedplayer2(){handleStuffWhenDieing($player1);}
+void coop_justDiedplayer3(){handleStuffWhenDieing($player2);}
+void coop_justDiedplayer4(){handleStuffWhenDieing($player3);}
+void coop_justDiedplayer5(){handleStuffWhenDieing($player4);}
+void coop_justDiedplayer6(){handleStuffWhenDieing($player5);}
+void coop_justDiedplayer7(){handleStuffWhenDieing($player6);}
+void coop_justDiedplayer8(){handleStuffWhenDieing($player7);}
+
+//started by the co-op mod it self, every time a player spawns
+void coop_justSpawnedplayer1(){enterprise_handleRespawn($player0);}
+void coop_justSpawnedplayer2(){enterprise_handleRespawn($player1);}
+void coop_justSpawnedplayer3(){enterprise_handleRespawn($player2);}
+void coop_justSpawnedplayer4(){enterprise_handleRespawn($player3);}
+void coop_justSpawnedplayer5(){enterprise_handleRespawn($player4);}
+void coop_justSpawnedplayer6(){enterprise_handleRespawn($player5);}
+void coop_justSpawnedplayer7(){enterprise_handleRespawn($player6);}
+void coop_justSpawnedplayer8(){enterprise_handleRespawn($player7);}
+
+//started by the co-op mod it self, if player has changed model
+void coop_changedModelplayer1(){thread enhancer_reattach($player0);}
+void coop_changedModelplayer2(){thread enhancer_reattach($player1);}
+void coop_changedModelplayer3(){thread enhancer_reattach($player2);}
+void coop_changedModelplayer4(){thread enhancer_reattach($player3);}
+void coop_changedModelplayer5(){thread enhancer_reattach($player4);}
+void coop_changedModelplayer6(){thread enhancer_reattach($player5);}
+void coop_changedModelplayer7(){thread enhancer_reattach($player6);}
+void coop_changedModelplayer8(){thread enhancer_reattach($player7);}
+
+
+void campWebBlockadeDestroyed()
+//when blocking web has been destroyed, connect pathnodes, 
+{
+	globalCoop_level_remove($web3Viewmode);
+	//hm, dono if it works at all...
+	//connectPathnodes("campInside","campOutside");
+	ai_connectNodes("campInside","campOutside");
+	
+	float fBugs,fCurrentPlayers,fAngle;
+	vector vOrigin;
+	
+	fCurrentPlayers = globalCoop_return_integerPlayersQuantity(2);//0=all,1=living,2=no-spectators
+	
+//5 is the maximum we spawn extra here
+	if(fCurrentPlayers > 5)
+	{
+		fCurrentPlayers = 5;
+	}
+	
+	for(fBugs=0;fBugs<fCurrentPlayers;fBugs++)
+	{
+		if(fBugs == 0)
+			vOrigin = '-700 -3043 389';
+		else if(fBugs == 1)
+			vOrigin = '-697 -3197 408';
+		else if(fBugs == 2)
+			vOrigin = '-706 -3325 429';
+		else if(fBugs == 3)
+			vOrigin = '-391 -3484 399';
+		else if(fBugs == 4)
+			vOrigin = '-254 -3493 399';
+		else
+			vOrigin = '-129 -3490 399';
+		
+		if(fBugs < 4)
+		{
+			fAngle = 0;
+		}
+		else
+		{
+			fAngle = 90;
+		}
+		spawn("actor","model","models/char/bug_male.tik","origin",""+vOrigin,"angle",""+fAngle);
+	}
+}
+
+void lockedDoor()
+//play locked door sound
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();//grab entity which called this thread
+	if(doesEntityExist(eTrigger))//if called ba a level object, like a trigger
+	{
+		eTrigger.playSound("sound/doors/door_locked.wav",3,1,64);
+	}
+}
+
+
+void destroyWeak()
+//Manages all objects of a destructible object
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();//grab entity which called this thread
+	if(doesEntityExist(eTrigger))//if called ba a level object, like a trigger
+	{
+		entity eTarget;
+		string sRawTargetname;
+		eTarget = eTrigger.getTargetEntity();
+		if(doesEntityExist(eTarget))
+		{
+			sRawTargetname	= eTarget.getRawTargetname();
+		}
+		else{
+			sRawTargetname	= eTrigger.getRawTargetname();
+			eTarget = eTrigger;
+		}
+			
+		entity eCrack,eViewmode;
+		vector vOrigin,vBbox;
+		vOrigin		= eTarget.getOrigin();
+		vOrigin_z	+= vectorGetZ(eTarget.getMins());
+		
+		spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin);
+		eCrack			= getEntity(sRawTargetname+"Crack");
+		eViewmode		= getEntity(sRawTargetname+"Viewmode");
+		globalCoop_level_remove(eTarget);
+		globalCoop_level_remove(eCrack);
+		globalCoop_level_remove(eViewmode);
+	}
+}
+
+
+void rejectSound()
+//played a reject sound on the caller
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		eTrigger.playsound("sound/ships/drull/drull_accessdenies.wav",3,1,128);
+	}
+}
+
+void positionPlayer(entity ePosition)
+{
+	if(!cvar_bool_multiplayer)
+	{
+		if(doesEntityExist(ePosition))
+		{
+			$player.origin($survivorPlayerLocation.getOrigin());
+			vector vAngles;
+			vAngles_y = vectorgety($survivorPlayerLocation.getAngles());
+			$player.playerviewangles(vAngles);
+		}
+	}
+}
+
+void spawnTriggerAtObject(entity eObject,string sClass,string sThread,string sTarget,vector vMins,vector vMaxs)
+{
+	if(doesEntityExist(eObject))
+	{
+		if(sClass != "")
+		{
+			entity e;
+			e = spawn(""+sClass,"thread",""+sThread,"origin",""+eObject.getOrigin(),"target",""+sTarget);
+			wait(.1);
+			e.setSize(vMins,vMaxs);
+			if(	sClass == "trigger_use" ||
+				sClass == "trigger_useOnce" )
+			{
+				e.archeType("coopUseable");
+				e.contents("useable");
+			}
+		}
+	}
+}
+
+
+void openDustyDoor()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		entity eSfx,eDoor;
+		eSfx = getEntity(eTrigger.getStringVar("uservar1"));
+		eDoor= eTrigger.getTargetEntity();
+		if(doesEntityExist(eDoor))
+		{
+			if(doesEntityExist(eSfx))
+			{
+				if(eDoor.getFloatVar("isOpen") == 0)
+				{
+					eDoor.setFloatVar("isOpen",1);
+					eSfx.show();
+					while(eDoor.getVelocity() != '0 0 0')
+					{
+						globalCoop_main_waitAFrame();
+					}
+					eSfx.hide();
+					while(eDoor.getVelocity() == '0 0 0')
+					{
+						globalCoop_main_waitAFrame();
+					}
+					eSfx.show();
+					while(eDoor.getVelocity() != '0 0 0')
+					{
+						globalCoop_main_waitAFrame();
+					}
+					eSfx.hide();
+					eDoor.setFloatVar("isOpen",0);
+				}
+			}
+		}
+	}
+}
+
+void blowWallBackToBombs1Show()
+//show the secret bombable shortcut fakebomb model
+{
+	$fakeBomb1Symbol.show();
+}
+
+void towerToggleFf()
+{
+	$towerFfSymbol.missionobjective(0);
+	$fakeBomb2Symbol.missionobjective(1);
+
+	// if(!float_forceFieldToggle)
+	// {
+		//$towerFfSymbol.hide();
+		globalCoop_level_remove($towerFfSymbol);
+		float_forceFieldToggle=1;
+		$towerFfLeft.hide();
+		$towerFfLeft.notsolid();
+		$towerFfRight.hide();
+		$towerFfRight.notsolid();
+		$towerFfLeft.playsound("sound/ships/borg/borg_forcefield_on.wav",3,1,128);
+		$towerFfRight.playsound("sound/ships/borg/borg_forcefield_on.wav",3,1,128);
+	// }
+	// else
+	// {
+		// $towerFfSymbol.show();
+		// float_forceFieldToggle=0;
+		// $towerFfLeft.show();
+		// $towerFfLeft.solid();
+		// $towerFfRight.show();
+		// $towerFfRight.solid();
+		// $towerFfLeft.stoploopsound();
+		// $towerFfRight.stoploopsound();
+		// $towerFfLeft.loopsound("sound/ships/drull/drull_forcefield1.wav",1,128);
+		// $towerFfRight.loopsound("sound/ships/drull/drull_forcefield1.wav",1,128);
+	// }
+}
+
+void spawnExplosionRockDebris()
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		if(eTrigger.getRawTargetname() == "blowWallBackToBombs1")
+		{
+			spawn("coop_bugs_enviro_pod-ground","model","models/coop_bugs/p3.tik","angle","90","origin","1486.00 -3128.00 380.00");
+		}
+		vector vOrigin;
+		vOrigin = eTrigger.getOrigin();
+	//set explosion to start at bottom of the object, not at the center of it
+		vOrigin_z += vectorGetZ(eTrigger.getMins());
+		vOrigin_z += 4;
+
+		spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin);
+	}
+}
+
+
+void setOnDamageThread(entity e,string sThread)
+//----------------------------------------------------------------------
+// Set thread to start if this entity gets damaged
+//----------------------------------------------------------------------
+{
+//CHECK IF ENTITY EXISTS, DO NOTHING IF NOT
+	if(doesEntityExist(e)){
+		e.nodamage();
+		globalCoop_main_waitAFrame();
+		e.onDamage(sThread);
+		pause();
+	}
+}
+
+void pyramid_brikUsed()
+{
+	$pyramid_louseBrik.bind($pyramid_louseBrikOrigin);
+	$pyramid_louseBrikOrigin.moveForward(8);
+	$pyramid_louseBrikOrigin.moveLeft(8);
+	$pyramid_louseBrikOrigin.time(1);
+	
+	float fEffect;
+	for(fEffect=0;fEffect<7;fEffect++){
+		triggerEntity($pyramid_brigSecretDoor_spawner);
+		wait(0.9);
+	}
+}
+void pyramid_dimensionalGateUsed()
+{
+	$pyramid_dimensionalGate.bind($pyramid_dimensionalGateOrigin);
+	$pyramid_dimensionalGateOrigin.rotateYDown(90);
+	$pyramid_dimensionalGateOrigin.moveleft(50);
+	$pyramid_dimensionalGateOrigin.time(5);
+}
+
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+void coop_endLevel()
+{
+	thread globalCoop_mission_completed("coop_hatoriaOutpost");
+}
+

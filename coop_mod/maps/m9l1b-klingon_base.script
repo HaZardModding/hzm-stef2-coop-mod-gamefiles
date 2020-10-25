@@ -1,0 +1,598 @@
+//-----------------------------------------------------------------
+//klingonShooter01
+//  EF2 Level Script File
+//
+//  Level:	  m9l1b-klingon_base (K7 Starbase) 
+//  Script By:    Adam 'Senn' Bellefeuil
+//  Geometry By:  Adam 'Senn' Bellefeuil
+//  Created on:   07/31/2002
+//  Last Edited:  10/31/2002 - AB
+//-----------------------------------------------------------------
+
+void main();
+void init();
+void setupArchetypes();
+
+// Machine Room Sequences
+void bridgeCollapse();
+
+// Misc Sequences
+void liftPlayerExit_MoveDown();
+
+// Omag Chase Sequences
+void omagFollowPath01();
+void omagFollowPath02();
+void omagFollowPath03();
+
+// Hallway Battle Sequences
+void hallway_seq01();
+void hallway_seq02();
+void hallway_seq03();
+void hallway_seq04();
+void hallway_seq05();
+void hallway_seq06();
+void hallway_seq07();
+void hallway_seq08();
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+float fRustrationReducerActive=0;
+void	coop_makeThisLessFrustrating();
+void	coop_setNewSpawnForPlayer(float fPlayerId,vector vNew,float fAngle, float Stage);
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+//=============================================================================
+// Main 
+//=============================================================================
+
+//---------------------
+// main
+// do startup stuff 
+//---------------------
+void main()
+{
+//hzm coop mod chrissstrahl - spawnangle for all players
+	coop_float_spawnAngle0 				= 90;
+//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_vector_spawnOrigin1 			= '2370 475 267';
+	coop_vector_spawnOrigin2 			= '2300 475 267';
+	coop_vector_spawnOrigin3 			= '2230 475 267';
+	coop_vector_spawnOrigin4 			= '2160 475 267';
+	coop_vector_spawnOrigin5 			= '2370 375 267';
+	coop_vector_spawnOrigin6 			= '2300 375 267';
+	coop_vector_spawnOrigin7 			= '2230 375 267';
+	coop_vector_spawnOrigin8 			= '2160 375 267';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$DM9LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//--- setup distance fog
+	//$world.farplane( 5000 );
+	//$world.farplane_color( '.25 .2 .1' );
+
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 8000 );
+	
+	//--- set the soundtrack
+	soundtrack( "music/m9l1b-klingon_base.mus" );
+	 
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m9l1b_klingon_base" );
+	
+	thread init();
+
+	waitForPlayer();
+}
+
+void setupArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "targetable" );
+	e.archetype( theArchetype );
+}
+
+void setupCrateArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "+targetable" );
+	e.archetype( theArchetype );
+}
+
+//-----------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+//---------------------
+// init
+// intialization thread
+//---------------------
+void init()
+{
+	hallway_seq01();
+	hallway_seq03();
+	hallway_seq05();
+
+	$omag.immortal( 1 );
+	$omag.notsolid();
+	$omag.ai_off();
+
+	$clipLiftPlayerExit.notsolid();
+
+	$floater1_model.bind( $floater1 );
+	$floater2_model.bind( $floater2 );
+	
+	$doorDownLiftPlayerExit.time (.1);
+	$doorDownLiftPlayerExit.moveup ( 144 );
+	$doorNorthLiftPlayerExit.time (.1);
+	$doorNorthLiftPlayerExit.moveNorth ( 70 );
+	$doorSouthLiftPlayerExit.time (.1);
+	$doorSouthLiftPlayerExit.moveSouth ( 70 );
+	
+	$doorDownLiftOmagExit.time (.1);
+	$doorDownLiftOmagExit.moveup ( 144 );
+	$doorNorthLiftOmagExit.time (.1);
+	$doorNorthLiftOmagExit.moveNorth ( 70 );
+	$doorSouthLiftOmagExit.time (.1);
+	$doorSouthLiftOmagExit.moveSouth ( 70 );
+	
+	thread globalCommon_OnUse ( $buttonLiftPlayerExit , "liftPlayerExit_MoveDown");	
+	thread globalCommon_AiDummy ( $omag , "idle" );
+		
+	thread setupArchetypes();
+	
+	
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$TakeKrindotoBar$$","complete",1,0);
+	globalCoop_objectives_set("$$LocateOmag$$","complete",2,0);
+	globalCoop_objectives_set("$$FollowOmag$$","incomplete",3,1);
+}
+
+//---------------------
+// setupArchetypes
+// setting up the archetypes
+//---------------------
+void setupArchetypes()
+{
+	setupArchetypeObject( $arch_machine, "MaintenancePanel" );
+	setupArchetypeObject( $archetypeDoorPanel, "KlingonDoorPanel" );
+	setupArchetypeObject( $archetypeElevator, "KlingonLiftPanel" );
+
+	setupCrateArchetypeObject( $arch_crate1, "TrilithiumResin" );
+	setupCrateArchetypeObject( $bridge_exploder, "TrilithiumResin" );
+}
+
+//=============================================================================
+// Machine Room Sequences
+//=============================================================================
+
+//---------------------
+// sequenceBridgeWarehouseCollapse
+// bridge in first warehouse collapses when player steps on it
+//---------------------
+void bridgeCollapse()
+{
+	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	
+	trigger ( "$bridge_exploder" );
+	$bridge_barrel.remove();
+	
+	$bridge_intact.remove();
+	$bridge_busted.show();
+	$bridgeWarehouseCollapse.show();
+		
+	wait( .1 );
+	
+	//hzm coop mod chrissstrahl - grab player that was triggering this sequence and make the ai attak him if he is still valid
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		$hallway_seq03_pistol1.attack(entityPlayerGlobal);
+	}else{
+		$hallway_seq03_pistol1.aggressive(1);
+	}
+
+	trigger ( "$bridge_explode" );
+	$bridge_quake.playsound( "sound/impact/explosion/explo_shuttleint.wav", 5, 2, 1550 );
+	trigger ( "$bridge_quake" );
+
+	$bridge_explode.playsound( "sound/environment/metal/bigcreak.wav", 6, 2, 1550 );
+
+	globalAccelMove_Rotate( $bridgeWarehouseCollapse, '40 0 0', .75, "rampup", "sound/environment/machine/mech_move2.wav" );	
+	waitfor( $bridgeWarehouseCollapse );
+
+	//$bridgeWarehouseCollapse.time( .1 );
+	//$bridgeWarehouseCollapse.rotateXup( 40 );
+	//waitfor( $bridgeWarehouseCollapse );
+
+	$bridgeWarehouseCollapse.playsound( "sound/environment/metal/metal_exlpo3.wav", 6, 3, 1550 );
+}
+
+void coop_setNewSpawnForPlayer(float fPlayerId,vector vNew,float fAngle, float Stage)
+{
+	if($world.getFloatVar("stagePlayer"+ fPlayerId +"HasReached") == Stage){
+		return;
+	}
+	$world.setFloatVar("stagePlayer"+ fPlayerId +"HasReached",Stage) ;
+	
+	entity ePlayer;
+	ePlayer = getEntity("player"+fPlayerId);
+	//ePlayer.hudprint("You reached STAGE: "+Stage+"\n"); //debug message
+
+	if(fPlayerId == 0){
+		coop_float_spawnAngle1 				= fAngle;
+		coop_vector_spawnOrigin1 			= vNew;
+	}
+	else if(fPlayerId == 1){
+		coop_float_spawnAngle2 				= fAngle;
+		coop_vector_spawnOrigin2 			= vNew;
+	}
+	else if(fPlayerId == 2){
+		coop_float_spawnAngle3 				= fAngle;
+		coop_vector_spawnOrigin3 			= vNew;
+	}
+	else if(fPlayerId == 3){
+		coop_float_spawnAngle4 				= fAngle;
+		coop_vector_spawnOrigin4 			= vNew;
+	}
+	else if(fPlayerId == 4){
+		coop_float_spawnAngle5 				= fAngle;
+		coop_vector_spawnOrigin5 			= vNew;
+	}
+	else if(fPlayerId == 5){
+		coop_float_spawnAngle6 				= fAngle;
+		coop_vector_spawnOrigin6 			= vNew;
+	}
+	else if(fPlayerId == 6){
+		coop_float_spawnAngle7 				= fAngle;
+		coop_vector_spawnOrigin7 			= vNew;
+	}
+	else if(fPlayerId == 7){
+		coop_float_spawnAngle8 				= fAngle;
+		coop_vector_spawnOrigin8 			= vNew;
+	}
+}
+
+void coop_makeThisLessFrustrating()
+//------------------------------------------------------------------------------
+//advance player spawn/respawn this should keep the frustration about getting killed relaviely low
+//checks if a player managed to jump across the dadly fuild pit
+//------------------------------------------------------------------------------
+{
+	fRustrationReducerActive = 1;	
+	float fPlayerIdInUse;
+	float fStageThisPlayerHasReached;
+	vector vPlayerCurrentLoc;
+	entity ePlayer;
+	
+	//stop the warning messages in console
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		$world.setFloatVar("stagePlayer"+ fPlayerIdInUse +"HasReached",0);
+	}
+	
+	while(fRustrationReducerActive)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(globalCoop_check_existingLivingEntity(ePlayer)){
+				if(!globalCoop_check_playerSpectator(ePlayer)){
+					
+					fStageThisPlayerHasReached	= $world.getFloatVar("stagePlayer"+ fPlayerIdInUse +"HasReached");
+					vPlayerCurrentLoc			= ePlayer.getOrigin();
+					
+					if(fStageThisPlayerHasReached == 0){
+					//here he reaches stage 1 //first obstacle mastred, where you can recharge
+						if(vPlayerCurrentLoc_x < 1033 && vPlayerCurrentLoc_y > 3180 && vPlayerCurrentLoc_z < 85){
+							fStageThisPlayerHasReached++;
+							coop_setNewSpawnForPlayer(fPlayerIdInUse,'985 3656 0',220,fStageThisPlayerHasReached);
+						}
+					}
+					else if(fStageThisPlayerHasReached == 1){
+					//here he reaches stage 1 //first obstacle mastred, where you can recharge
+						if(vPlayerCurrentLoc_x < 233 && vPlayerCurrentLoc_y < 3350 && vPlayerCurrentLoc_z < 85){
+							fStageThisPlayerHasReached++;
+							coop_setNewSpawnForPlayer(fPlayerIdInUse,'-73 3360 0',273,fStageThisPlayerHasReached);
+						}
+					}
+					else if(fStageThisPlayerHasReached == 2){
+					//here he reaches stage 1 //first obstacle mastred, where you can recharge
+						if(vPlayerCurrentLoc_x > -140 && vPlayerCurrentLoc_y < 2025 && vPlayerCurrentLoc_z < 85){
+							fStageThisPlayerHasReached++;
+							coop_setNewSpawnForPlayer(fPlayerIdInUse,'86 1924 0',273,fStageThisPlayerHasReached);
+						}
+					}
+				}
+			}
+		}
+		if(fRustrationReducerActive == 1){
+			wait(0.1);
+		}
+	}
+}
+
+//=============================================================================
+// Misc Sequences
+//=============================================================================
+
+//---------------------
+// liftPlayerExit_MoveDown
+// player goes down lift and exits level
+//---------------------
+void liftPlayerExit_MoveDown()
+{
+	$buttonLiftPlayerExit.nouse();
+	$buttonLiftPlayerExit.playsound( "sound/ships/klingon/kling-beepyes.wav", 5, 1, 550 );	
+	$clipLiftPlayerExit.solid();
+	$doorDownLiftPlayerExit.playsound( "sound/ships/attrexian/att-elevat_door.wav", 5, 1, 550 );
+	$doorDownLiftPlayerExit.time ( 1.3 );
+	$doorDownLiftPlayerExit.movedown ( 144 );
+	$doorNorthLiftPlayerExit.time ( .9 );
+	$doorNorthLiftPlayerExit.moveSouth ( 70 );
+	$doorSouthLiftPlayerExit.time ( .9 );
+	$doorSouthLiftPlayerExit.moveNorth ( 70 );
+
+	waitfor( $doorDownLiftPlayerExit );
+	$doorDownLiftPlayerExit.playsound( "sound/ships/attrexian/att-elevat_door_stp.wav", 5, 1, 550 );
+
+	$buttonLiftPlayerExit.bind( $liftPlayerExit );
+	$archetypeElevator.bind( $liftPlayerExit );
+	wait ( 2 );
+	$liftPlayerExit.playsound( "sound/environment/machine/lift4.wav", 4, 1, 550 );
+	$liftPlayerExit.time ( 10 );
+	$liftPlayerExit.movedown ( 2000 );
+	wait(4);
+	thread coop_endLevel();
+}
+
+//===================================================================================================================
+// Omag Chase Sequences
+//===================================================================================================================
+
+//---------------------
+// omagFollowPath01
+// omags follows first path into crate room 
+//---------------------
+void omagFollowPath01()
+{	
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_stopthem.mp3", 1, 1000, 0); //Federation scum right behind me! They’re here to arrest everyone! Stop them, and I’ll pay you well!
+
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath01" );
+	waitfor ( $omag );
+	// warp omag to lower area in first crate room
+	$omag.warpTo ( "$omagWarptoPosition02" );
+}
+
+//---------------------
+// omagFollowPath02
+// omags follows second path into first hallway 
+//---------------------
+void omagFollowPath02()
+{
+	//hzm coop mod chrissstrahl - make players spawn/respawn here^, so if they die they don't have to go all the way again
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin1 			= '2150 3720 0';
+	coop_vector_spawnOrigin2 			= '2150 3660 0';
+	coop_vector_spawnOrigin3 			= '2150 3600 0';
+	coop_vector_spawnOrigin4 			= '2150 3540 0';
+	coop_vector_spawnOrigin5 			= '2150 3480 0';
+	coop_vector_spawnOrigin6 			= '2150 3420 0';
+	coop_vector_spawnOrigin7 			= '2150 3360 0';
+	coop_vector_spawnOrigin8 			= '2150 3300 0';
+	
+	//hzm coop mod chrissstrahl - mopve players trough forcefield
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	//if players die they will be respawned close to where they where, instead of far far away
+	thread coop_makeThisLessFrustrating();
+	
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_nosense.mp3", 1, 1000, 0); //You know, you Starfleet types make no sense to me.  Where is the profit in chasing me?  Especially when you could die from it!  Rule 23, nothing is more important than your health- except your money!  And you don't even USE money, Federation, so why even bother?  Running around the galaxy, trying to do good, going where no man has gone before, blah blah blah.  I'll say it again, WHERE is the profit?
+	waitForDialog( $omag );
+
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath02" );
+	waitfor ( $omag );
+	// warp omag to the end of the first hallway
+	$omag.warpTo ( "$omagWarptoPosition03" );
+	
+}
+
+//---------------------
+// omagFollowPath03
+// omags follows second path into first hallway 
+//---------------------
+void omagFollowPath03()
+{
+	$hallway_seq05_knife1.ai_on();
+	$hallway_seq05_batleth1.ai_on();
+	$hallway_seq05_rifle1.ai_on();
+	$hallway_seq05_rifle2.ai_on();
+	$hallway_seq05_rocket1.ai_on();
+	$hallway_seq05_rifle2.ai_on();
+
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_canta.mp3", 1, 800, 0); //Can't anyone kill this Federation scum!?  I thought this was supoosed to be a tough starbase!
+
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath03" );
+	waitfor ( $omag );
+	// warp omag into large bay room near large door
+	$omag.warpTo ( "$omagWarptoPosition04" );
+}
+
+//---------------------
+// omagFollowPath04
+// omags follows second path to elevator room 
+//---------------------
+void omagFollowPath04()
+{
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath04" );
+	waitfor ( $omag );
+	// warp omag into large bay room near large door
+	$omag.warpTo ( "$omagWarptoLift" );
+}	
+
+//---------------------
+// omagExitLift
+// Omag goes down lift at level exit
+//---------------------
+void omagExitLift()
+{
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_goingd.mp3", 1, 800, 0); //Going down, Mr. Federation?  Heh heh, see ya!
+
+	$doorNorthLiftOmagExit.playsound( "sound/ships/attrexian/att-elevat_door.wav", 5, 1, 550 );
+	$doorNorthLiftOmagExit.time (.9);
+	$doorNorthLiftOmagExit.moveSouth ( 70 );
+	$doorSouthLiftOmagExit.time (.9);
+	$doorSouthLiftOmagExit.moveNorth ( 70 );
+	$doorDownLiftOmagExit.time (1.3);
+	$doorDownLiftOmagExit.movedown ( 144 );
+	waitfor ( $doorDownLiftOmagExit );	
+	$doorNorthLiftOmagExit.playsound( "sound/ships/attrexian/att-elevat_door_stp.wav", 5, 1, 550 );
+	wait ( 1 );
+	//centerprint( "omag says something cynical to munro??" );
+	$liftOmagExit.playsound( "sound/environment/machine/lift4.wav", 6, 1, 250 );
+	$liftOmagExit.time ( 10 );
+	$liftOmagExit.movedown ( 2000 );
+}
+
+//---------------------
+// Hallway Battle Sequence 01
+//---------------------
+void hallway_seq01()
+{
+	$hallway_seq01_shotgun1.setactivationdelay( 0 ); // Was 1
+	$hallway_seq01_shotgun2.setactivationdelay( 3 ); // Was 6
+	$hallway_seq01_shotgun3.setactivationdelay( 4 );
+	$hallway_seq02_shotgun1.setactivationdelay( 0 );
+}
+
+//---------------------
+// Hallway Battle Sequence 02
+//---------------------
+void hallway_seq02()
+{
+	$hallway_seq03_pistol1.ai_on();
+	$hallway_seq03_pistol1.attack( $attackLocation01 );
+	$hallway_seq02_shotgun1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 03
+//---------------------
+void hallway_seq03()
+{
+	$hallway_seq03_shotgun1.setactivationdelay( .5 ); // Was 2
+}
+
+//---------------------
+// Hallway Battle Sequence 04
+//---------------------
+void hallway_seq04()
+{
+	$hallway_seq04_pistol1.walkto( "$pistol1node", "run" );
+	//waitfor( $hallway_seq04_pistol1 );
+	wait( .25 );
+	$hallway_seq04_pistol1.ai_on();
+		
+	$hallway_seq04_pistol2.walkto( "$pistol2node", "run" );
+	//waitfor( $hallway_seq04_pistol2 );
+	wait( .25 );
+	$hallway_seq04_pistol2.ai_on();
+
+	$hallway_seq04_shotgun1.walkto( "$shotgun1node", "run" );
+	//waitfor( $hallway_seq04_shotgun1 );
+	wait( .25 );
+	$hallway_seq04_shotgun1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 05
+//---------------------
+void hallway_seq05()
+{
+	$hallway_seq05_batleth1.setactivationdelay( 4 ); // Was 6
+	$hallway_seq05_knife1.setactivationdelay( 2 );	// Was 3
+}
+
+//---------------------
+// Hallway Battle Sequence 06
+//---------------------
+void hallway_seq06()
+{
+	$hallway_seq06_pistol1.ai_on();
+	$hallway_seq06_shotgun1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 07
+//---------------------
+void hallway_seq07()
+{
+	$hallway_seq07_rifle1.ai_on();
+	$hallway_seq07_rifle2.ai_on();
+	$hallway_seq07_shotgun1.ai_on();
+	$hallway_seq07_pistol1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 08
+//---------------------
+void hallway_seq08()
+{
+	$hallway_seq08_shotgun1.walkto( "$runnernode1", "run" );
+	$hallway_seq08_batleth1.walkto( "$runnernode2", "run" );
+	waitfor( $hallway_seq08_batleth1 );
+
+	$hallway_seq08_shotgun1.ai_on();
+	$hallway_seq08_batleth1.ai_on();
+
+	wait( 3 );
+
+	$hallway_seq08_rocket1.walkto( "$runnernode1", "run" );
+	$hallway_seq08_rocket2.walkto( "$runnernode2", "run" );
+	waitfor( $hallway_seq08_rocket2 );
+
+	$hallway_seq08_rocket1.ai_on();
+	$hallway_seq08_rocket2.ai_on();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	/*
+	stuffcmd("seta coop_igm 6\n");//set mission number
+	stuffcmd("seta coop_igmH 0\n");//set spawn in holodeck
+	globalCoop_main_waitAFrame();
+	stuffcmd("seta coop_igmT 0\n");//set spawn in turbolift
+	stuffCMD("seta coop_igmR 0\n");//set rooms visited
+	setfloatvar("game.globalMissionEnterprise",6);
+	*/
+	
+	thread globalCoop_mission_completed("m9l2-klingon_base");
+}
+
+
+
+

@@ -1,0 +1,889 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:		Map5
+//  Script By:	Nemo22, Cortex, LTiefland, TickNSwisted
+//  Geometry By:	Nemo22, TickNSwisted, Argyle
+//  Created on:	07.02.2004
+//
+// Last Edited on:  $Date: 2007-06-20 22:47:49 +0200 (Wed, 20 Jun 2007) $
+// Last Edited by:	Chrissstrahl
+//
+//--------------------------------------------------------------------------------------
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/coop_gbs/attackplayer.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+void main();
+void initArchetypes();
+void init();
+void first_shot();
+void finish_introcin();
+void bay_sec_beamin();
+void sec_shoot();
+void shuttle_open();
+void finish_awaycin();
+void shuttle_away();
+void shuttle_inside_sparks();
+void sparks();
+void redalert();
+void closed_door_sound();
+
+void shuttlesparks();
+void bill_ex();
+
+void main()
+{
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	thread globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+
+	thread initArchetypes();
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	thread init();
+	waitforPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	freezeplayer();
+
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed" , 1 , 0 );
+	globalCoop_objectives_update("complete" , 2 , 0 );
+	globalCoop_objectives_update("incomplete" , 3 , 1 );
+
+
+	playerDeathThread("playergotKilled");
+	
+	letterbox( .1 );
+	allowMusicDucking( 0 );
+	freezeplayer();
+	cinematic();
+	$world.canShakeCamera( 1 );	
+	thread first_shot();
+	soundtrack( "music/m8l2a.mus");
+}
+
+
+void initArchetypes()
+{
+
+      thread globalArchetype_Setup( $console_hint1, "mdoor");
+      thread globalArchetype_Setup( $console_hint2, "sdoor");
+
+}
+
+void init()
+{
+
+   	//$shuttle_stay.solid();
+   	$ramp_blocker.notsolid();
+
+	if(doesEntityExist($npcs_off)){
+		$npcs_off.notsolid();
+		$npcs_off.hide();
+		$npcs_off.ai_off();
+	}
+
+	$world.light_fade( "light_red", 0, 1 );	
+	$atlantic_out_origin.loopsound( "sound/ships/enterprise/ent_exterior_01.wav", 1 ,1024 );
+
+//--Das Shuttle, das wegfliegt:
+	$shuttle_fly_away_door.bind( $shuttle_origin );
+	$shuttle_fly_away_ext.bind( $shuttle_origin );
+	$shuttle_fly_away_door.hide();
+	$shuttle_fly_away_ext.hide();
+	
+//--Kameras laden und spawnen
+/*	cam.load( "map5_p_illia1" );
+	cam.load( "map5_shuttle_cam1" );
+	cam.load( "map5_shuttle_cam1d" );
+	cam.load( "map5_shuttle_cam2" );
+	cam.load( "map5_shuttle_cam3" );
+	cam.load( "map5_shuttle_cam4" );
+	cam.load( "map5_shuttle_path" );
+	cam.load( "map5_cam_shuttle" );
+	cam.load( "map5_jim_beamin" );
+	cam.load( "map5_atlantic_last_shot" );*/
+
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+
+//--Illia SetUp
+//	$illia.pushable( 1 );
+
+	$illia.ai_off();
+	$illia.pushable( 0 );
+	$illia.hide();
+	$illia.notsolid();
+	
+	//hzm coop mod chrissstrahl - removeany attached weapons
+	$illia.killattach();
+	
+	globalCommon_AiActorUseWeapon( $ceilling_illia, "none" );
+	$ceilling_illia.ai_off();
+	$ceilling_illia.pushable( 0 );
+	$ceilling_illia.hide();
+	$ceilling_illia.notsolid();
+	
+//--Illia_prisoner SetUp
+	$illia_prisoner.pushable( 0 );
+	$illia_prisoner.notsolid();
+	$illia_prisoner.ai_off();
+	globalCommon_AiActorUseWeapon( $illia_prisoner, "none" );
+	globalCommon_AiDummy( $illia_prisoner, "" );
+	$illia_prisoner.anim("cin-m8_situp");
+	
+//--people in Engineering
+	$jones0.ai_off();
+	globalCommon_AiActorUseWeapon( $jones0, "none" );
+	$shaun0.ai_off();
+	globalCommon_AiActorUseWeapon( $shaun0, "none" );
+	$bails0.ai_off();
+	$bails0.pushable( 0 );
+	globalCommon_AiActorUseWeapon( $bails0, "none" );
+	
+	$jones0.anim( "ent-curvedconsole-gesture" );
+	$shaun0.anim( "ent-compstation-idle" );
+	$bails0.anim( "ent-compstation-gesture1" );
+	
+//--Moya
+	$moya.ai_off();
+	
+//--Security team setup
+	$sec_1.ai_off();
+	$sec_1.pushable( 0 );
+/*	$sec_1.notsolid();
+	$sec_1.hide();*/
+	$sec_1.setgroupid ( 668 );
+
+	//$sec_1.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	//$sec_1.useactorweapon( "CompressionRifle" );
+//	$sec_1.anim( "idle_weapon_legs" );
+	$sec_1.anim( "compressionrifle_aim" );
+	
+	$sec_2.ai_off();
+	$sec_2.pushable( 0 );
+/*	$sec_2.notsolid();
+	$sec_2.hide();*/
+	//$sec_2.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	//$sec_2.useactorweapon( "CompressionRifle" );
+	$sec_2.setgroupid ( 668 );
+	
+	$sec_3.ai_off();
+	$sec_3.pushable( 0 );
+/*	$sec_3.notsolid();
+	$sec_3.hide();*/
+	//$sec_3.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	//$sec_3.useactorweapon( "CompressionRifle" );
+	$sec_3.anim( "crouch_idle" );
+	$sec_3.setgroupid ( 668 );
+
+	AIHideGroup(668);
+	
+//--misc
+	$illia.blink( 0 );
+	
+	$kraftfeld.hide();
+	
+	$security.nottriggerable();
+	$trigger_open.nottriggerable();
+	$away_trigger.nottriggerable();
+	
+	globalCommon_SpawnScriptModel( "vehicle/e-shuttle-ext.tik", "dallas_shuttle1", '-2200 596 60', 0 );
+	$dallas_shuttle1.scale( .01 );
+	
+	globalCommon_SpawnScriptModel( "vehicle/e-shuttle-door.tik", "dallas_shuttle2", '-2200 596 60', 0 );
+	$dallas_shuttle2.scale( .01 );
+	
+	$dallas_shuttle1.bind( $dallas_origin );
+	$dallas_shuttle2.bind( $dallas_origin );
+	
+	$atlantic_a.bind( $atlantic_out_origin );
+	$atlantic_b.bind( $atlantic_out_origin );
+	
+	$shuttle_warp.hide();
+	
+	wait( .1 );
+	$sec_2.anim( "idle_weapon_legs" );
+	
+//--Maschinenraumtür
+	$engdoor3.time( .1 );
+	wait( .1 );
+	$engdoor3.moveUp( 170 );
+	
+	$movewall.bind( $bay_move_origin );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////Intro/////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+
+void first_shot()
+{
+//--Camera fades in, Illia beams in, walks to console
+	skipthread ( "finish_introcin" );
+	$cam1.fov( 60 );
+	$cam1.follow( $map5_shuttle_cam1d );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	$illia.show();
+	$illia.displayEffect( "TransportIn", "FederationNoAnim" );
+	wait( 3 );
+	$illia.blink( 1 );
+	wait( 1 );
+	$illia.headWatchTarget( "illia_look_first", 7 );
+	wait( 1 );
+	$illia.headWatchTarget( "illia_look_second", 7 );
+	$cam2.fov( 60 );
+	$cam2.follow( $map5_shuttle_cam1 );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+	
+	wait( 2 );
+	$illia.walkto( "$walk1", "walk" );
+	wait( .5 );
+	$illia.headWatchTarget( "none", 7 );
+	waitfor( $illia );
+	$illia.walkto( "$walk2", "walk" );
+	waitfor( $illia );
+	$illia.turntoangle( 225 );
+	waitfor( $illia );
+	$illia.anim( "ent-curvedconsole-gesture" );
+	wait( 2 );
+	$illia.anim( "idle" );
+	wait( 1 );
+	$illia.emotion("exp_Anger");
+	//$illia.animateOnce("conv-shrug");
+	$illia.animateOnce("conv-embarrassment");
+	$illia.playdialog("localization/sound/dialog/map06/illia/damn.mp3", 1, 10000, 0);
+	waitfordialog( $illia );
+	cam_fadeout( 1.5, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	
+//--Camera cuts to imprisoned Illia
+	$cam3.fov( 60 );
+	$cam3.follow( $map5_p_illia1 );
+	$cam3.cut();
+	wait( .1 );
+	cuecamera( $cam3 );
+	cam_fadein( 1.5, 0, 0, 0, 1, 0 );
+	
+	wait( 2 );
+	$illia_prisoner.playdialog("localization/sound/dialog/map06/illia/ihadto.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner );
+	wait( .5 );
+	$illia_prisoner.playdialog("localization/sound/dialog/map06/illia/maincontrol.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner );
+//	wait( 1 );
+	cam_fadeout( 1.5, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	cam_fadein( 1.5, 0, 0, 0, 1, 0 );
+	
+//--camera is in shuttle, Illia exits
+	$cam2.fov( 60 );
+	$cam2.follow( $map5_shuttle_cam2 );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+
+	$illia.walkto( "$walk1", "walk" );
+	waitfor( $illia );
+	$illia.walkto( "$w1", "walk" );
+	wait( 1 );
+	///////////////////
+	//1. Tür geht auf//
+	///////////////////
+	$shuttle_stay_door1.anim( "opening" );
+	$shuttle_stay_door1.playsound( "sound/doors/enterprise_door1.wav", 1 ,10 );
+	waitforanimation( $shuttle_stay_door1, "opening" );
+	$shuttle_stay_door1.anim( "open_idle" );
+		
+//	$shuttle_stay_door1.time( 1 );
+//	$shuttle_stay_door1.moveWest( 38 );
+//	$shuttle_stay_door1.moveNorth( 38 );
+	
+	waitfor( $illia );
+	$illia.walkto( "$w2", "walk" );
+	waitfor( $illia );
+	$illia.walkto( "$w3", "walk" );
+	//////////////////
+	//1. Tür geht zu//
+	//////////////////
+	//$shuttle_stay_door1.anim( "closing" );
+	//$shuttle_stay_door1.playsound( "sound/doors/enterprise_door1.wav", 1 ,800 );
+	//waitforanimation( $shuttle_stay_door1, "closing" );
+	//$shuttle_stay_door1.anim( "closed" );
+
+//	$shuttle_stay_door1.time( 1 );
+//	$shuttle_stay_door1.moveEast( 38 );
+//	$shuttle_stay_door1.moveSouth( 38 );
+	waitfor( $illia );
+	///////////////////
+	//2. door opens //
+	///////////////////
+	$shuttle_stay_door2.anim( "opening" );
+	$shuttle_stay_door2.playsound( "sound/doors/enterprise_door1.wav", 1 ,10 );
+	waitforanimation( $shuttle_stay_door2, "opening" );
+	$shuttle_stay_door2.anim( "open_idle" );
+
+//	$shuttle_stay_door2.time( 1 );
+//	$shuttle_stay_door2.moveWest( 44 );
+//	$shuttle_stay_door2.moveNorth( 44 );
+
+	$illia.walkto( "$w4", "walk" );
+	
+	$cam3.fov( 60 );
+	$cam3.follow( $map5_shuttle_cam4 );
+	$cam3.cut();
+	wait( .1 );
+	cuecamera( $cam3 );
+	
+	waitfor( $illia );
+	//////////////////
+	//2. Tür geht zu//
+	//////////////////
+	//$shuttle_stay_door2.anim( "closing" );
+	//$shuttle_stay_door2.playsound( "sound/doors/enterprise_door1.wav", 1 ,800 );
+	//waitforanimation( $shuttle_stay_door2, "closing" );
+	//$shuttle_stay_door2.anim( "closed" );
+	
+//	$shuttle_stay_door2.time( 1 );
+//	$shuttle_stay_door2.moveEast( 44 );
+//	$shuttle_stay_door2.moveSouth( 44 );
+	
+	$illia.walkto("$w5");
+	wait(7);
+
+	thread finish_introcin();
+}
+
+
+void finish_introcin()
+{
+vector vPlayerWarp;
+
+	killthread("first_shot");
+	
+	$illia.warpto( "$w5" );
+	$illia.hide();
+	$illia.notsolid();
+	
+	$ramp_blocker.solid();
+
+
+//--Cinematic beenden
+	clearletterbox( 0.1 );
+	noncinematic();
+	cueplayer();
+	wait(.1);
+	releaseplayer();
+	//globalCommon_Autosave();
+	
+	//hzm coop mod chrissstrahl - show marker on radar
+	$security_beam_symbol.missionobjective(1);
+}
+////////////////////////////////////////////////////////////////////////////
+///////////After the player has maniplulated the main console///////////////
+/////player has to jump of the railing /////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+void bay_sec_beamin()
+{
+	//hzm coop mod chrissstrahl - show usable symbol now
+	$trigger_open_symbol.show();
+	$trigger_open.triggerable();
+	
+	//hzm coop mod chrissstrahl - show marker on radar
+	$security_beam_symbol.missionobjective(0);
+	$trigger_open_symbol.missionobjective(1);
+	
+
+	skipthread ( "finish_beamincin" );
+	letterbox( .1 );
+	freezeplayer();
+	cinematic();
+	$ceilling_illia.turntoangle( 180 );
+	
+	$ceilling_illia.show();
+	$cam1.fov( 60 );
+	$cam1.follow( $map5_shuttle_door_close );
+	$cam1.cut();
+	wait( .1 );
+	cuecamera( $cam1 );
+	
+	wait( 1 );
+	//--Shuttle sschließt die Türen
+   	$ramp_blocker.solid();
+	$shuttle_stay_door.anim( "closing" );
+	waitforanimation( $shuttle_stay_door, "closing" );
+	$shuttle_stay_door.anim( "closed" );
+	wait( 1 );
+	$kraftfeld.show();
+	$kraftfeld.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$kraftfeld.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	triggerentity( $kraftfeld_sound );
+	wait( .4 );
+
+	$rechte_door.time( 5.2 );
+	wait( .1 );
+	$rechte_door.moveUp( 300 );
+	$rechte_door.loopsound( "sound/doors/airlock_open01.wav", 1 ,1024 );
+	
+	wait( 5.2 );
+	$rechte_door.stoploopsound();
+	$rechte_door.playsound( "sound/doors/airlock_close01.wav", 10 ,1 ,1024 );
+
+	wait( 3.8 );
+		
+/*	$sec_1.solid();
+	$sec_2.solid();
+	$sec_3.solid();
+	wait(1);*/
+
+	
+	$cam2.fov( 60 );
+	$cam2.follow( $map5_jim_beamin );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+		
+	$ceilling_illia.playdialog("localization/sound/dialog/map06/illia/goodbye.mp3", 1, 10000, 0);
+	waitfordialog( $ceilling_illia );
+	
+	wait( 2 );
+/*	$sec_1.displayEffect( "TransportIn", "FederationNoAnim" );
+	$sec_2.displayEffect( "TransportIn", "FederationNoAnim" );
+	$sec_3.displayEffect( "TransportIn", "FederationNoAnim" );
+	wait( 2 );*/
+
+	AIShowGroup (668, "Federation");
+	$sec_1.headWatchTarget("player",7);
+	$sec_2.headWatchTarget("player",7);
+	$sec_3.headWatchTarget("player",7);
+	$sec_1.ai_off();
+	$sec_2.ai_off();
+	$sec_3.ai_off();
+	$sec_1.anim( "compressionrifle_aim" );
+	$sec_2.anim( "compressionrifle_aim" );
+	$sec_3.anim( "compressionrifle_aim" );
+	
+	$sec_2.playdialog( "localization/sound/dialog/map06/lee/donotmove.mp3", 1, 10000, 0);
+	waitfordialog( $sec_2 );
+	$ceilling_illia.turntoangle( 270 );
+	wait( .5 );
+	$sec_2.playdialog( "localization/sound/dialog/map06/lee/gameover.mp3", 1, 10000, 0);
+	waitfordialog( $sec_2 );
+	wait( 1 );
+	$ceilling_illia.hide();
+	
+	//--End cinematic
+	forcemusic( "action" );
+	clearletterbox( 0.1 );
+	noncinematic();
+	releaseplayer();
+	cueplayer();
+	
+	//hzm coop mod Chrissstrahl - do not allow player to pass security
+	$securityClip.solid();
+	
+//	$security_beam.nottriggerable();
+	$security.triggerable();
+}
+
+void sec_shoot()
+{
+//	centerprint("Sicherheit fängt an zu schießen!");
+
+
+	//hzm coop mod Chrissstrahl - security will now shoot and move, remove the clip
+	$securityClip.remove();
+	
+	$sec_1.turntoangle( 180 );
+	$sec_2.walkto( "$secnode1", "run" );
+	$sec_3.walkto( "$secnode2", "run" );
+	waitfor( $sec_3 );
+	$sec_1.anim( "idle_weapon_legs" );
+	$sec_2.turntoangle( 180 );
+	$sec_3.walkto( "$secnode3", "run" );
+	waitfor( $sec_3 );
+	$sec_3.turntoangle( 180 );
+	waitfor( $sec_3 );
+	$sec_3.anim( "idle_weapon_legs" );
+	wait( .7 );
+	$sec_2.anim( "idle_weapon_legs" );
+/*	$sec_1.attackplayer();
+	$sec_2.attackplayer();
+	$sec_3.attackplayer();*/
+	
+//	AIShowGroup(668, "Federation");
+
+	CommandToGroup ( 668 , "groupactortype" , "enemy" , "");
+	CommandToGroup ( 668 , "visiondistance" , "40000" , "" );
+	CommandToGroup ( 668 , "fov" , "360" , "" );
+	CommandToGroup ( 668 , "attack" , "$player" , "" );
+
+	$sec_1.ai_on();
+	$sec_2.ai_on();
+	$sec_3.ai_on();
+
+	$trigger_open.triggerable();
+	if(doesEntityExist($security)){
+		$security.nottriggerable();
+	}
+}
+
+void shuttle_open()
+{
+	//[b607] chrissstrahl - mark objective as complete
+	globalCoop_objectives_update("complete" , 3 , 1 );
+
+	//hzm coop mod chrissstrahl - show marker on radar
+	$shuttle_origin.missionobjective(1);
+	$trigger_open_symbol.missionobjective(0);
+	
+   	$ramp_blocker.notsolid();
+	$shuttle_stay_door.anim( "opening" );
+	waitforanimation( $shuttle_stay_door, "opening" );
+	$shuttle_stay_door.anim( "open_idle" );
+	
+	$away_trigger.triggerable();
+	$trigger_open.remove();
+	$trigger_open_symbol.remove();
+}
+
+void shuttle_away()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$shuttle_origin.missionobjective(0);
+
+	//hzm coop mod chrissstrahl - remove security actors
+	$sec_1.remove();
+	$sec_2.remove();
+	$sec_3.remove();
+
+//--Begin cinematic!
+	skipthread ( "finish_awaycin" );
+	letterbox( .1 );
+	freezeplayer();
+	cinematic();
+	
+	$illia.show();
+	$cam1.fov( 60 );
+	$cam1.follow( $away_cam1, $illia );
+	$cam1.cut();
+	wait( .1 );
+	cuecamera( $cam1 );
+	
+	$illia.walkto( "$w4", "run" );
+	waitfor( $illia );
+	
+	$shuttle_stay_door.anim( "closing" );
+	waitforanimation( $shuttle_stay_door, "closing" );
+	$shuttle_stay_door.anim( "closed" );
+	
+	$illia.hide();
+	
+	$shuttle_stay_door2.hide();
+	$shuttle_stay_door1.hide();
+	$shuttle_stay_door.hide();
+	$shuttle_stay.hide();
+	$shuttle_fly_away_door.show();
+	$shuttle_fly_away_ext.show();
+	
+	$cam2.fov( 60 );
+	$cam2.follow( $door_open_cam1 );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+	
+	$shuttle_origin.followpath($shuttle_path);
+	wait( 4.5 );
+	$shuttle_origin.playsound( "sound/vehicles/shuttlecraft/shuttle_takeoff.wav", 0, 4 );
+	wait( 16 );
+	$rechte_door.time( 5.2 );
+	$rechte_door.moveDown( 300 );
+	$rechte_door.loopsound( "sound/doors/airlock_open01.wav", 1 ,1024 );
+	wait( 2);
+	
+	wait( 4 );
+	
+	$cam2.fov( 20 );
+	$cam2.follow( $map5_cam_shuttle );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+	$sky_ship.hide();
+	
+	wait( 1.2 );
+	$rechte_door.stoploopsound();
+	$rechte_door.playsound( "sound/doors/airlock_close01.wav", 10 ,.5 ,1024 );
+	wait( .3 );
+	$dallas_origin.followpath( $map5_shuttle_path );
+	//wait( 6.5 );
+	wait( 4 );
+	
+	$atlantic_out_origin.followpath( $atlantic_out_path );
+	
+	$cam3.fov( 55 );
+	$cam3.follow( $atlantic_out_cam1, $atlantic_out_origin );
+	$cam3.cut();
+	wait( .1 );
+	cuecamera( $cam3 );
+	$kraftfeld.hide();
+	
+	wait( 8 );
+	
+	$cam1.fov( 55 );
+	$cam1.follow( $atlantic_out_cam2, $atlantic_out_origin );
+	$cam1.cut();
+	wait( .1 );
+	cuecamera( $cam1 );
+	wait( 17 );
+	/////////////////////////
+	//Moya in engineering//
+	/////////////////////////
+	$cam3.fov( 75 );
+	$cam3.follow( $engine_cam1 );
+	$cam3.cut();
+	wait( .1 );
+	cuecamera( $cam3 );
+	
+	wait( 1 );
+	thread sparks();
+	wait(.1);
+        $world.playsound( "sound/explo_large_01.wav",3,1,10000);
+	triggerentity( $big_boom_engineering );
+	wait(.1);
+
+	$cam3.earthquake( 2.2, 1 );
+	
+	triggerentity( $eng_explosion );
+	wait( 2 );
+	thread redalert();
+	$engdoor3.time( 6 );
+	wait( .1 );
+	$engdoor3.moveDown( 170 );
+	wait( 1 );
+
+	$moya.anim( "tap_comm" );//communicator
+	waitforanimation( $moya, "tap_comm" );
+	$moya.anim( "idle" );
+	wait(1);
+	$moya.playdialog( "localization/sound/dialog/map06/moya/bridge.mp3", 1, 10000, 0);
+	waitfordialog( $moya );
+	$moya.playdialog( "localization/sound/dialog/map06/moya/warpcore.mp3", 1, 10000, 0);
+	waitfordialog( $moya );
+	wait( .4 );
+	$moya.playdialog( "localization/sound/dialog/map06/moya/deadinspace.mp3", 1, 10000, 0);
+	waitfordialog( $moya );
+	wait( 2 );
+	triggerentity( $big_boom_engineering );
+	thread bill_ex();
+	wait( 2.5 );
+	killthread( "sparks" );
+	$cam2.fov( 90 );
+	$cam2.follow( $map5_atlantic_last_shot );
+	$cam2.cut();
+	wait( .1 );
+	cuecamera( $cam2 );
+	wait( 2 );
+	cam_fadeout( 10, 0, 0, 0, 1, 0 );
+	wait( 4 );
+//	stuffcmd( "showmenu continued\n" );
+//	wait( 4 );
+//	stuffcmd ( "popmenu 0\n" );
+	
+	wait( 4 );
+	finish_awaycin();
+}
+
+void finish_awaycin()
+{
+//--end cinematic
+	killthread("shuttle_away");
+	//clearletterbox( 0.1 );
+	//noncinematic();
+	//releaseplayer();
+	//cueplayer();
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+}
+
+//////////////////////////
+//Explosions and sparks//
+//////////////////////////
+void shuttle_inside_sparks()
+{
+	$movewall.time( 15 );
+	$sky_ship.time( 2.9 );
+	wait( .1 );
+	$movewall.moveEast( 1600 );
+	$sky_ship.moveEast( 3 );
+	$cam1.fov( 90 );
+	$cam1.follow( $shuttle_inside_cam1 );
+	$cam1.cut();
+	
+	//hzm coop mod chrissstrahl - move actor, reuse her
+	$illia.show();
+	$illia.angle( 180 );
+	$illia.origin( '-984.00 -2466.00 60.00' );
+	$illia.ai_off();
+	$illia.anim( "ent-frontchair-gesture1" );
+	
+	wait( .1 );
+	cuecamera( $cam1 );
+	$cam1.earthquake( 1.2, 1 );
+	triggerentity( $shuttle_inside_spark1 );
+	triggerentity( $shuttle_inside_spark1_s );
+	wait( .3 );
+	triggerentity( $shuttle_inside_spark3 );
+	triggerentity( $shuttle_inside_spark3_s );
+	wait( .2 );
+	triggerentity( $shuttle_inside_spark2 );
+	triggerentity( $shuttle_inside_spark2_s );
+	wait( .3 );
+	triggerentity( $shuttle_inside_spark1 );
+	triggerentity( $shuttle_inside_spark1_s );
+	triggerentity( $shuttle_inside_spark3 );
+	$sky_ship.time( .1 );
+	wait( 2 );
+	$sky_ship.moveWest( 3 );
+	cuecamera( $cam2 );
+	
+}
+
+void sparks()
+{
+	triggerentity( $sparks1 );
+	$sparks1.playsound( "sound/impact/explosion/explo_shuttleint.wav" );
+	wait( 1.1 );
+	triggerentity( $sparks3 );
+	$sparks3.playsound( "sound/impact/explosion/explo_shuttleint.wav" );
+	wait( 2 );
+	triggerentity( $sparks2 );
+	$sparks2.playsound( "sound/impact/explosion/explo_shuttleint.wav" );
+	wait( 1 );
+	triggerentity( $sparks1 );
+	$sparks1.playsound( "sound/impact/explosion/explo_shuttleint.wav" );
+	triggerentity( $sparks3 );
+	$sparks3.playsound( "sound/impact/explosion/explo_shuttleint.wav" );
+	wait( 2 );
+	thread sparks();
+}
+
+void redalert()
+{
+	$world.light_fade( "light_red", .65, .4 );
+	triggerentity( $redalert_sound );
+	wait( 1.5 );
+	$world.light_fade( "light_red", .1, .8 );
+	wait( 1 );
+	thread redalert();
+}
+
+void shuttlesparks()
+{
+	$cam1.earthquake( .8, 2 );
+	triggerentity( $shuttle_sparks );
+	triggerentity( $fly_away_sparks_s );
+	wait( .4 );
+	triggerentity( $shuttle_sparks );
+	triggerentity( $fly_away_sparks_s );
+	wait( .4 );
+	triggerentity( $shuttle_sparks );
+	triggerentity( $fly_away_sparks_s );
+	wait( .6 );
+	triggerentity( $shuttle_sparks );
+	triggerentity( $fly_away_sparks_s );
+	wait( .1 );
+	thread shuttle_inside_sparks();	
+}
+
+void shuttle_goto_warp()
+{
+	$shuttle_warp.show();
+	$shuttle_warp.followpath( $path_gowarp );
+	wait( 2.6 );
+	$shuttle_warp.playsound( "sound/ships/enterprise/ent_enter_warp.wav", 10 ,1 ,1024 );
+	wait( 3.7 );
+
+	$spawnWarpFlash.scale( .2 );
+	$spawnWarpFlash.modelname( "models/fx/fx-warpflash-federation.tik" );
+	$spawnWarpFlash.origin( $shuttle_warp.getOrigin() );
+	wait( .05 );
+
+	triggerEntity( $spawnWarpFlash );
+	$shuttle_warp.hide();
+}
+
+void bill_ex()
+{
+	$bails0.turntoangle( 135 );
+	wait( .1 );
+	$bails0.anim( "cin-m6l0-engineering-bill" );
+}
+
+void closed_door_sound()
+{
+	entity eTrigger, ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	ePlayer.playsound( "sound/environment/computer/lcars_no.wav");
+}
+
+
+void playergotKilled()
+//played when player dies
+{
+	//hzm coop mod chrissstrahl - do not do this in coop
+	if(getcvarInt("g_gametype") == 1 ){
+		return;
+	}
+	$player.setobjectivefailed("transportout", 1);
+	$player.missionfailed("transportout");
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs7");
+}
+
+
+

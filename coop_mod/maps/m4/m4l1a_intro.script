@@ -1,0 +1,110 @@
+// Script/Cameras by Jared Hefty
+
+void cinematicEntIntro ();
+void cinematicEntIntroEnd ();
+
+void initCinematicEntIntro ();
+
+float IGMCinematicDone = 0;
+
+void M4EntIntro ()
+{
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	initCinematicEntIntro ();
+	thread cinematicEntIntro ();
+
+	while ( !IGMCinematicDone )
+	{
+		wait ( .25 );
+	}
+
+	$entSkyOrigin.rendereffects ( "-skyorigin" );
+}
+
+void initCinematicEntIntro (  )
+{
+	//align the saucer more precisely than we can in radiant
+	$entSaucer.origin ( $entBody.getorigin ());
+	$entNacelles.origin ( $entBody.getorigin ());
+
+	$entSaucer.bind   ( $entOrigin );
+	$entBody.bind     ( $entOrigin );
+	$entNacelles.bind ( $entOrigin );
+
+	$entSkyOrigin.rendereffects ( "+skyorigin" );
+
+	$shuttle.origin ( $shuttleDoor.getorigin () );
+	$shuttle.bind ( $shuttleOrigin );
+	$shuttleDoor.bind ( $shuttleOrigin );
+}
+
+void cinematicEntIntro ()
+{
+	//--- set music
+	allowMusicDucking( 0 );
+	music ("aux1");
+	
+	//chrissstrahl - [b607] skip instantly when tooken is set (kinda loading save game)
+	if(sLevelTooken == "escort"){
+		thread cinematicEntIntroEnd();
+		return;
+	}
+
+	cinematic ();
+	freezeplayer ();
+	letterbox ( .1 );
+
+	spawn ( "Camera" , "targetname" , "entIntroCam" );
+	spawn ( "Camera" , "targetname" , "entIntroCam2" );
+	cam.load ( "m4Intro_ShuttlePath1" );
+	cam.load ( "m4Intro_ShuttlePath2" );
+	cam.load ( "m4Intro_Camera1" );
+	cam.load ( "m4Intro_Camera2" );
+
+	wait ( .1 );
+	skipthread ( "cinematicEntIntroEnd" );
+
+	$entIntroCam.follow ( $m4Intro_Camera1 );
+	$entIntroCam.fov ( 70 );
+	$entIntroCam.cut ();
+	cuecamera ( $entIntroCam );
+
+	$shuttleOrigin.followpath ( $m4Intro_ShuttlePath1 );
+	wait ( 1 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	globalCoop_player_transmittToAll( "locationprint 0 70 $$M4Stardate$$ 10.0\n" );
+
+	wait ( 5 );
+	$entIntroCam2.follow ( $m4Intro_Camera2 );
+	$entIntroCam2.fov ( 60 );
+	$entIntroCam2.cut ();
+	wait ( 2 );
+	cuecamera ( $entIntroCam2 );
+
+	wait ( 11.50 );
+
+	$shuttleOrigin.followpath ( $m4Intro_ShuttlePath2 );
+
+	wait ( 5.5 );
+	//$entIntroCam2.watch ( "$shuttleOrigin" );
+	thread cinematicEntIntroEnd ();
+}
+
+void cinematicEntIntroEnd ()
+{
+	//chrissstrahl - [b607] skip instantly when tooken is set (kinda loading save game)
+	if(sLevelTooken != "escort"){
+		globalCoop_player_transmittToAll( "locationprint 0 70 ^0 0.5\n" );
+
+		cam_fadeout( 1 , 0, 0, 0, 1, 0 );
+		wait ( 1 );
+	}
+
+	//cueplayer ();
+	//releaseplayer ();
+	//cam_fadein( .5 , 0, 0, 0, 1, 0 );
+	killthread ( "cinematicEntIntro" );
+
+	IGMCinematicDone = 1;
+}

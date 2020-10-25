@@ -1,0 +1,972 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck8 - MISSION 6
+//  Script By:    K.Thompson
+//  Created on:   08/12/2002
+//	Last Edited:  08/12/2002 - kt
+//-----------------------------------------------------------------
+
+void setupMission6Deck8();
+void justLoadedDeckThreadIGM6();
+
+void cinematicPicardTalksToDrullIGM6();
+void cinematicPicardTalksToDrullIGM6End();
+
+void barclayCallsMunroToShuttleBayIGM6();
+
+void ambientActorsIGM6();
+
+void alisonDorchevTalkIGM6();
+
+void alison_workIGM6();
+void alisonDialog6_1();
+void alisonDialog6_2();
+
+void dorchev_workIGM6();
+void dorchevDialog6_1();
+void dorchevDialog6_2();
+void dorchevDialog6_3();
+
+void korban_workIGM6();
+void korbanDialog6_1();
+void korbanDialog6_2();
+void korbanDialog6_10();
+
+void stevenson_workIGM6();
+void stevensonDialog6_1();
+void stevensonDialog6_2();
+
+void kretar_workIGM6();
+void kretarDialog6_1();
+void kretarDialog6_2();
+void kretarDialog6_3();
+
+//-----------------------------
+//--- variables
+
+entity cinematicArm_IGM6_Brig;
+
+
+//===================================================================================================================
+// Setup 
+//===================================================================================================================
+
+//---------------------
+// setupMission6Deck8	
+// does all the setup stuff for the mission
+//---------------------
+void setupMission6Deck8()
+{
+	//hzm coop mod chrissstrahl - make sure this sequence is only played when it is needed
+	float fMissionRooms;
+	fMissionRooms = getFloatVar("game.igmRoomsVisited");
+	setfloatvar ("game.checkEntMission6RoomsVisited",fMissionRooms);
+
+	if(fMissionRooms == 0){
+		//--- Fade Out
+		cam_fadeout( .05, 0, 0, 0, 1, 0 );
+		
+		//--- set the player
+		waitforplayer();
+		freezeplayer();
+
+		//hzm coop mod chrissstrahl - move a player to the given location
+		//might be removed again
+		//doesen't really matter 
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					ePlayer.origin ( '-9984 -800 0' );
+					ePlayer.playerviewangles( '0 0 0' );
+					fPlayerIdInUse=9999;
+				}
+			}
+		}
+
+		//hzm coop mod chrissstrahl - keep code for reference
+		/*$player.model( "models/char/munro_sf.tik" );
+		$player.health( 100 );
+		$player.freeinventory();
+		$player.give( "models/weapons/worldmodel-tricorder-STX.tik" );*/
+		
+		cinematic();
+		letterbox( .05 );
+		
+		spawn( "Camera", "targetname", "cam1" );
+		
+		cam.load( "cam1_ent_deck8_igm6" );
+
+		globalCommon_SpawnActor( "char/starfleet_picard.tik", "picard", '-9709.25 -685.25  0.00', 100 );	
+		globalCommon_AiActorUseWeapon( $picard, "none" );
+		
+		globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '-9764.00 -676.00  0.00', 90 );	
+		globalCommon_AiActorUseWeapon( $scriptmunro, "none" );
+		
+	//	globalCommon_SpawnActor( "char/drull_son-male.tik", "krindo", '-9748.00 -564.00  0.00', 270 );	
+	//	globalCommon_AiActorUseWeapon( $krindo, "none" );
+		
+		//Cinematic Actor
+		globalCommon_SpawnActor( "char/starfleet_barclay.tik", "barclay", '-9709.25 -685.25  0.00', 100 );	
+		globalCommon_AiActorUseWeapon( $barclay, "none" );
+		$barclay.hide();
+		$barclay.notsolid();
+	
+		setfloatvar ("game.checkEntMission6RoomsVisited", 0 );
+
+		$brigCellFeild3.show();
+		$brigCellFeild3.solid();
+		
+		//--- armature setup
+		cinematicArm_IGM6_Brig = createCinematic( "igm6_brig" );
+		cinematicArm_IGM6_Brig.setendthread( "cinematicPicardTalksToDrullIGM6End" );
+		
+		//--- Start Intro Cinimatic
+		Intro6 ();
+
+		//--- brig cinematic
+		thread cinematicPicardTalksToDrullIGM6();
+	}
+	else{
+		//hzm coop mod Chrissstrahl - set the objective
+		globalCoop_objectives_set("$$IGM6TelsiaKleeyaChoice$$","complete",1,0);
+			
+		if(getFloatVar("game.igmHolodeckSpawn") == 1){
+			//hzm coop mod chrissstrahl - spawn players inside holodeck
+			coop_spawnHolodeck();
+			
+			//hzm coop mod chrissstrahl - set objective
+			globalCoop_objectives_set("$$IGM6MeetKorban$$","complete",2,0);
+			globalCoop_objectives_set("$$IGM6CompleteHoloMission$$","complete",3,1);
+			
+			//hzm coop mod chrissstrahl - barclay calls for munro
+			$triggerHoloDeck.thread( "barclayCallsMunroToShuttleBayIGM6" );
+			$triggerArmory.thread( "barclayCallsMunroToShuttleBayIGM6" );
+			
+			//hzm coop mod chrissstrahl - we need barclay for dialog
+			globalCommon_SpawnActor( "char/starfleet_barclay.tik", "barclay", '-9709.25 -685.25  0.00', 100 );	
+			globalCommon_AiActorUseWeapon( $barclay, "none" );
+			$barclay.hide();
+			$barclay.notsolid();
+		}
+		else{
+			//hzm coop mod Chrissstrahl - set the objective
+			globalCoop_objectives_set("$$IGM6MeetKorban$$","incomplete",2,1);
+		}
+		ambientActorsIGM6();
+	}
+	
+	developerMode = 0;
+}
+
+//voided from IGM6 script
+void holoMissionIGM6Over();
+
+//---------------------
+// munroHereToSeePicardIGM6
+// Triggered and check to see if A cinematic should happen.
+//------------------------
+void justLoadedDeckThreadIGM6()
+{
+	/*
+	if( getfloatvar( "game.IGM6MeetTelsia" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM6MeetTelsia", 1 );
+	}
+	if( getfloatvar( "game.IGM6MeetTelsia" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM6MeetTelsia", 1 );			
+	}
+
+	if( getfloatvar( "game.IGM6TelsiaKleeyaChoice" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM6TelsiaKleeyaChoice", 1 );		
+	}
+	if( getfloatvar( "game.IGM6TelsiaKleeyaChoice" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM6TelsiaKleeyaChoice", 1 );			
+	}
+	
+	if( getfloatvar( "game.IGM6MeetKorban" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM6MeetKorban", 1 );		
+	}
+	if( getfloatvar( "game.IGM6MeetKorban" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM6MeetKorban", 1 );			
+	}
+	
+	if( getfloatvar( "game.IGM6CompleteHoloMission" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM6CompleteHoloMission", 1 );		
+	}
+	if( getfloatvar( "game.IGM6CompleteHoloMission" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM6CompleteHoloMission", 1 );			
+	}
+
+	if( getfloatvar( "game.IGM6GoToShuttleBay" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM6GoToShuttleBay", 1 );		
+	}
+	if( getfloatvar( "game.IGM6GoToShuttleBay" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM6GoToShuttleBay", 1 );			
+	}
+	
+	//if( doesVarExist( "game.checkEntMission6RoomsVisited" ) )
+		if( 5 == getfloatvar( "game.checkEntMission6RoomsVisited" ) )
+		{
+			$player.immobilize( 1 );
+			cam_fadeout( .05, 0, 0, 0, 1, 0 );
+			holoMissionIGM6Over();
+		}
+
+	if( getfloatvar( "game.checkEntMission6RoomsVisited" ) == 6 )
+		{
+			$triggerHoloDeck.thread( "barclayCallsMunroToShuttleBayIGM6" );
+			$triggerArmory.thread( "barclayCallsMunroToShuttleBayIGM6" );
+		}
+	*/
+}
+
+//---------------------
+// cinematic
+// setup and begin cinematicPicardTalksToDrullIGM6
+//---------------------
+void cinematicPicardTalksToDrullIGM6()
+{
+	//--- hide the player and AI
+	globalCommon_AiDummyHide( $scriptmunro );
+	
+	//--- start the armature
+	cinematicArm_IGM6_Brig.beginCinematic( "igm6_brig" );
+	wait( .2 );
+	
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	//--- set the skipthread
+	skipthread( "cinematicPicardTalksToDrullIGM6End" );
+	
+	wait( 105 );
+	
+	$brigCellFeild3.hide();
+	$brigCellFeild3.notsolid();
+	wait( .1 );
+	$brigCellFeild3.show();
+	wait( .1 );
+	$brigCellFeild3.hide();
+	wait( .1 );
+	$brigCellFeild3.show();
+	wait( .1);
+	$brigCellFeild3.hide();
+	wait( .1 );
+	$brigCellFeild3.show();
+	wait( .1 );
+	$brigCellFeild3.hide();
+	wait( .15 );
+	$brigCellFeild3.show();
+	wait( .15 );
+	$brigCellFeild3.hide();
+	wait( .15 );
+	$brigCellFeild3.show();
+	wait( .15 );
+	$brigCellFeild3.hide();
+}
+
+//---------------------
+// cinematicPicardTalksToDrullIGM6End
+// wrapup the cinematicPicardTalksToDrullIGM6
+//------------------------
+void cinematicPicardTalksToDrullIGM6End()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_IGM6_Brig.endCinematic( FALSE );
+
+	killthread( "cinematicPicardTalksToDrullIGM6" );
+	
+	$picard.remove();
+	$krindo.remove();
+	
+	$brigCellFeild3.hide();
+	$brigCellFeild3.notsolid();
+
+	//--- IGM stuff
+	setfloatvar ("game.checkEntMission6RoomsVisited", 1 );
+
+	if( developerMode == 1 )
+	{
+		cam_fadein( .5, 0, 0, 0, 1, 0 );
+		wait( .6 );
+		
+		cueplayer();
+		noncinematic();
+		releaseplayer();
+		clearletterbox( .05 );
+		
+		pause();
+	}
+	
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .05 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	coop_igm_mapToLoad = "ent-deck7b";
+	thread coop_endLevel();
+	
+	/*
+	//--- change levels
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "ent-deck7b" );
+	wait ( .1 );		
+	trigger ( "$trigger_endlevel" );*/
+}
+
+//---------------------
+// korbanCallsMunroToShuttleBayIGM6
+// Used to tell munro to come to shuttlebay
+//------------------------
+void barclayCallsMunroToShuttleBayIGM6()
+{
+	$triggerHoloDeck.thread( "" );
+	$triggerArmory.thread( "" );
+	
+	setfloatvar( "game.IGM6GoToShuttleBay", 1 );
+	
+	setfloatvar ("game.checkEntMission6RoomsVisited", 7 );
+	
+	//hzm coop mod chrissstrahl - make sure korban does not repeat dialog that we can try out weapon in holodeck
+	setNextDialog( $korban, 1 );
+	
+	
+	//hzm coop mod chrissstrahl - make sure the rooms are counted even after shutdown
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.igmRoomsVisited",7);//set rooms visited
+	//eof HZM
+	
+	//Turn Exit Triggers On
+	$triggerExit.triggerable();
+	
+	$barclay.playdialog("localization/sound/dialog/ent_m6/barc_transmit.mp3", 1, 10000, 1); //Barclay to Munro. We're finished. We can transmit now.
+	waitForDialog( $barclay );
+	
+	//hzm coop mod chrissstrahl - set objective
+	globalCoop_objectives_set("$$IGM6GoToShuttleBay$$","incomplete",4,1);
+	
+	//hzm coop mod chrissstrahl - allow travel to deck
+	setfloatvar(  "level.deckToChangeToIGM", 72 );
+}
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM6	
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM6()
+{	
+	globalCommon_SpawnActor( "char/hazardteam_sf-kourban.tik", "korban", '-12492 -1252 0', 90 );
+	thread randomlyAnimateActor( $korban, "ent-stand" );
+	$korban.setfloatVar( "actorToRandomlyUseTricorder", 1 );
+	thread korban_workIGM6();
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-male2.tik", "dorchev", '-9787 -1663 24', 45 );
+	$dorchev.pushable( 0 );
+	globalCommon_SpawnActor( "char/starfleet_crew-female5.tik", "alison", '-9728 -1590 24', 255 );
+	$alison.pushable( 0 );
+
+	$triggerTransporterRoom.thread( "alisonDorchevTalkIGM6" );
+
+	$dorchev.headwatch( $alison, 5 );
+	$alison.headwatch( $dorchev, 5 );
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-female4.tik", "kretar", '-11744 -848  0', 180 );
+	thread randomlyAnimateActor( $kretar, "ent-table-laptop" );
+	thread kretar_workIGM6();
+	
+	globalCommon_SpawnScriptModel( "enviro/enterprise_electronic_laptop.tik", "laptop", '-11757 -848 46', 0 );
+	$laptop.anim( "open_idle" );
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-female3.tik", "stevenson", '-11816 -1306 0', 180 );
+	globalCommon_AiActorUseWeapon( $stevenson, "EnterpriseDatapad" );
+	$stevenson.pushable( 0 );
+	$stevenson.anim( "ent-datapad-use" );
+	thread stevenson_workIGM6();
+		
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt3.tik", "mustaine", '-9960 -2434 16', 0 );
+	$mustaine.setnodeid( 50 );
+	$mustaine.alias( "mustaineIGMA1", "localization/sound/dialog/ent_m6/mustaine_risa.mp3" ); //I can’t wait to get back to Risa!  I’ve been polishing my horgon for weeks!
+	$mustaine.alias( "mustaineIGMA2", "localization/sound/dialog/ent_m6/mustaine_pleasure.mp3" ); //I must say a little pleasure planet would hit the spot right about now!
+	$mustaine.dialog( "mustaineIGMA" );	
+	$mustaine.ai_on();
+
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt2.tik", "thompson", '-12032 -1472 26', 0 );
+	$thompson.setnodeid( 51 );
+	$thompson.alias( "thompsonIGMA1", "localization/sound/dialog/ent_m6/thomson_red.mp3" ); //Red’s my lucky color.  What do you think?
+	$thompson.alias( "thompsonIGMA2", "localization/sound/dialog/ent_m6/thomson_madness.mp3" ); //Sometimes if you’re away from port too long, the Space Madness sets in.
+	$thompson.dialog( "thompsonIGMA" );
+	$thompson.ai_on();
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt4.tik", "waters", '-9712 -724 12', 0 );
+	$waters.setnodeid( 52 );
+	$waters.alias( "watersIGMA1", "localization/sound/dialog/ent_m6/waters_guncoll.mp3" ); //Hey Munro, you gonna show me your gun collection sometime?
+	$waters.alias( "watersIGMA2", "localization/sound/dialog/ent_m6/waters_lock.mp3" ); //I say we lock and load and “fix” the Exomorph problem.
+	$waters.dialog( "watersIGMA" );	
+	$waters.ai_on();	
+}
+
+///////////////////////////
+// alisonDorchevTalkIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void alisonDorchevTalkIGM6()
+{
+	$triggerTransporterRoom.thread( "" );
+	
+	$dorchev.lookat( $alison );
+	$alison.lookat( $dorchev );
+	
+	//hzm coop mod chrissstrahl - changed range from 64 to 100, or vaolue will appear to be to low
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_seelog.mp3", 1, 100, 0); //Come on, I just want to see the logs.
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_orever.mp3", 1, 100, 0); //I've already told you, no one has transported into your quarters in the last hour, the last day, the last month… or ever.
+	waitForDialog( $dorchev );
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_letsee.mp3", 1, 100, 0); //Just let me see the logs
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_worktodo.mp3", 1, 100, 0); //You're not seeing the logs.  Don't you have work to do or something?
+	waitForDialog( $dorchev );
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_thatbe.mp3", 1, 100, 0); //Oh, so THAT's  how you're going to be…
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_yeahthatb.mp3", 1, 100, 0); //Yeah, that's how I'm going to be.
+	waitForDialog( $dorchev );
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_romantic.mp3", 1, 100, 0); //Fine. But, somebody, somewhere on this ship is a romantic…
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_notme.mp3", 1, 100, 0); //Well, it's not me.
+	waitForDialog( $dorchev );
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_somethink.mp3", 1, 100, 0); //And SOMEBODY on this ship is thinking about me…
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_leftal.mp3", 1, 100, 0); //Once again… It's not me.  I don't know who it is… I don't want to know who it is… All I really want is to be left alone.
+	waitForDialog( $dorchev );
+	$alison.playdialog("localization/sound/dialog/ent_m6/alison_capt.mp3", 1, 100, 0); //I'm going to look at those logs…  I'll go to the Captain if I have to.
+	waitForDialog( $alison );
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_holdbrth.mp3", 1, 100, 0); //Yeah… I'll be holding my breath
+	waitForDialog( $dorchev );
+	
+	$alison.angle( 90 );
+	$dorchev.angle( 210 );
+	
+	$alison.resethead();
+	$dorchev.resethead();
+	
+	thread alison_workIGM6();
+	thread dorchev_workIGM6();
+	
+	thread randomlyAnimateActor( $dorchev, "ent-stand" );
+	thread randomlyAnimateActor( $alison, "ent-transporter-front" );
+}
+
+///////////////////////////
+// alisonOnUseWaitIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void alison_workIGM6()
+{
+	setNextDialog( $alison, 1 );
+	setDialogFunction( $alison, "alisonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $alison, "", "", 0 );
+		talkUntilDone( $alison );
+	}
+}
+
+///////////////////////////
+// alisonDialog6_1
+// Player and actor talk
+///////////////////////////
+void alisonDialog6_1()
+{
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($alison);
+	
+	$alison.headwatch( ePlayer , 10 );
+	
+	$alison.playdialog("localization/sound/dialog/ent_m1/alison_kindabusy.mp3", 1, 128, 0); //Please don't disturb me
+	waitForDialog( $alison );
+
+	setNextDialog( $alison, 2 );
+	$alison.resethead();
+	setDialogFinished( $alison );
+}
+
+///////////////////////////
+// alisonDialog6_2
+// Player and actor talk
+///////////////////////////
+void alisonDialog6_2()
+{
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($alison);
+	
+	$alison.headwatch( ePlayer , 10 );
+	
+	$alison.playdialog("localization/sound/dialog/ent_m1/alison_kindabusy.mp3", 1, 128, 0); //Please don't disturb me
+	waitForDialog( $alison );
+
+	setNextDialog( $alison, 1 );
+	$alison.resethead();
+	setDialogFinished( $alison );
+}
+
+///////////////////////////
+// dorchevOnUseWaitIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void dorchev_workIGM6()
+{
+	setNextDialog( $dorchev, 1 );
+	setDialogFunction( $dorchev, "dorchevDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $dorchev, "", "", 0 );
+		talkUntilDone( $dorchev );
+	}
+}
+
+///////////////////////////
+// dorchevDialog6_1
+// Player and actor talk
+///////////////////////////
+void dorchevDialog6_1()
+{
+	$dorchev.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$dorchev.anim( "ent-stand-scan" );
+
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($dorchev);
+	
+	$dorchev.headwatch( ePlayer , 10 );
+
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_beach.mp3", 1, 128, 0); //Hey Munro! Nice to see you.
+	waitForDialog( $dorchev );
+
+	setNextDialog( $dorchev, 2 );
+	$dorchev.resethead();
+	setDialogFinished( $dorchev );
+	$dorchev.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// dorchevDialog6_2
+// Player and actor talk
+///////////////////////////
+void dorchevDialog6_2()
+{
+	$dorchev.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$dorchev.anim( "ent-stand-scan" );
+
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($dorchev);
+	
+	$dorchev.headwatch( ePlayer , 10 );
+	
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_beach.mp3", 1, 128, 0); //Hey Munro! Nice to see you.
+	waitForDialog( $dorchev );
+
+	setNextDialog( $dorchev, 3 );
+	$dorchev.resethead();
+	setDialogFinished( $dorchev );
+	$dorchev.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// dorchevDialog6_3
+// Player and actor talk
+///////////////////////////
+void dorchevDialog6_3()
+{
+	$dorchev.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$dorchev.anim( "ent-stand-scan" );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($dorchev);
+	
+	$dorchev.headwatch( ePlayer , 10 );
+	
+	$dorchev.playdialog("localization/sound/dialog/ent_m6/crewm_beach.mp3", 1, 128, 0); //Hey Munro! Nice to see you.
+	waitForDialog( $dorchev );
+
+	setNextDialog( $dorchev, 1 );
+	$dorchev.resethead();
+	setDialogFinished( $dorchev );
+	$dorchev.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanOnUseWaitIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void korban_workIGM6()
+{
+	setNextDialog( $korban, 10 );
+	
+	setDialogFunction( $korban, "korbanDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $korban, "", "", 0 );
+		talkUntilDone( $korban );
+	}
+}
+
+///////////////////////////
+// korbanDialog6_1
+// Player and actor talk
+///////////////////////////
+void korbanDialog6_1()
+{
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	$korban.headwatch( ePlayer , 10 );
+
+	$korban.playdialog("localization/sound/dialog/ent_m6/korban_unfair.mp3", 1, 128, 0); //Those Idryll Rebels used unfair tactics on us.  They are lucky Sydney was injured, or they all would have fallen in battle!
+	waitForDialog( $korban );
+	
+	setNextDialog( $korban, 2 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanDialog6_2
+// Player and actor talk
+///////////////////////////
+void korbanDialog6_2()
+{
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	$korban.headwatch( ePlayer , 10 );
+
+	$korban.playdialog("localization/sound/dialog/ent_m6/korban_ihope.mp3", 1, 128, 0); //I hope you will give me another chance to prove myself, Lieutenant.
+	waitForDialog( $korban );
+	
+	setNextDialog( $korban, 1 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanDialog6_10
+// Player and actor talk
+///////////////////////////
+void korbanDialog6_10()
+{
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	$korban.headwatch( ePlayer , 10 );
+
+	$holoDeckWeaponStand.show();
+	globalCommon_SpawnScriptModel( "weapons/staticmodel-photon.tik", "photonBurst", '-12488 -334  12', 0 );
+	thread makeWeaponBob( $photonBurst );
+	$photonBurst.missionobjective( 1 );
+	
+	//I think this order will work. Junst not calling the obj. change untill Korban is
+	//done talking.
+	// I am doing this so player can enter the holodeck prematurely is he is rushing.
+	setfloatvar( "game.IGM6MeetKorban", 2 );
+	setfloatvar( "game.IGM6CompleteHoloMission", 1 );
+		
+	$korban.playdialog("localization/sound/dialog/ent_m6/korban_cheer.mp3", 1, 128, 0); //New features for the Photon Burst! And a new holoprogram to cheer you up!
+	waitForDialog( $korban );
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$IGM6MeetKorban$$","complete",2,0);
+	globalCoop_objectives_set("$$IGM6CompleteHoloMission$$","incomplete",3,1);
+	
+	setNextDialog( $korban, 1 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+	
+	//hzm coop mod Chrissstrahl - allow activation just now, not before
+	$triggerHoloDeck.thread( "startHoloTrainingMissionIGM6" );
+}
+
+///////////////////////////
+// stevensonOnUseWaitIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void stevenson_workIGM6()
+{
+	setNextDialog( $stevenson, 1 );
+	setDialogFunction( $stevenson, "stevensonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $stevenson, "", "", 0 );
+		talkUntilDone( $stevenson );
+	}
+}
+
+///////////////////////////
+// stevensonDialog6_1
+// Player and actor talk
+///////////////////////////
+void stevensonDialog6_1()
+{
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($stevenson);
+	
+	$stevenson.headwatch( ePlayer , 10 );
+	
+	$stevenson.anim( "ent-datapad-scan" );
+	$stevenson.turntowardsplayer();
+	
+	$stevenson.playdialog("localization/sound/dialog/ent_m6/doctor_glad.mp3", 1, 128, 0); //I’m glad you were able to arrange for Sydney to be transported back to the enterprise.  She was in bad shape.
+	waitForDialog( $stevenson );
+
+	setNextDialog( $stevenson, 2 );
+	$stevenson.resethead();
+	$stevenson.angle( 180 );
+	$stevenson.anim( "ent-datapad-use" );
+	setDialogFinished( $stevenson );
+}
+
+///////////////////////////
+// stevensonDialog6_2
+// Player and actor talk
+///////////////////////////
+void stevensonDialog6_2()
+{
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($stevenson);
+	
+	$stevenson.headwatch( ePlayer , 10 );
+	$stevenson.anim( "ent-datapad-scan" );
+	$stevenson.turntowardsplayer();
+	
+	$stevenson.playdialog("localization/sound/dialog/ent_m6/doctor_miracle.mp3", 1, 128, 0); //I’m a doctor, not a miracle worker, you know.
+	waitForDialog( $stevenson );
+
+	setNextDialog( $stevenson, 1 );
+	$stevenson.resethead();
+	$stevenson.angle( 180 );
+	$stevenson.anim( "ent-datapad-use" );
+	setDialogFinished( $stevenson );
+}
+
+///////////////////////////
+// kretarOnUseWaitIGM6
+// Wait for player to talk to actor
+///////////////////////////
+void kretar_workIGM6()
+{
+	setNextDialog( $kretar, 1 );
+	setDialogFunction( $kretar, "kretarDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $kretar, "", "", 0 );
+		talkUntilDone( $kretar );
+	}
+}
+
+///////////////////////////
+// kretarDialog6_1
+// Player and actor talk
+///////////////////////////
+void kretarDialog6_1()
+{
+	$kretar.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$kretar.anim( "ent-table-laptop-scan" );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($kretar);
+	
+	$kretar.headwatch( ePlayer , 10 );
+	
+	$kretar.playdialog("localization/sound/dialog/ent_m6/kretar_hellolt.mp3", 1, 128, 0); //Hello Lieutenant, do you require medical assistance?
+	waitForDialog( $kretar );
+
+	setNextDialog( $kretar, 2 );
+	$kretar.resethead();
+	setDialogFinished( $kretar );
+	$kretar.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// kretarDialog6_2
+// Player and actor talk
+///////////////////////////
+void kretarDialog6_2()
+{
+	$kretar.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$kretar.anim( "ent-table-laptop-scan" );
+
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($kretar);
+	
+	$kretar.headwatch( ePlayer , 10 );
+	
+	$kretar.playdialog("localization/sound/dialog/ent_m6/kretar_getrest.mp3", 1, 128, 0); //You should get some rest.  You’re not a one-man army, you know.
+	waitForDialog( $kretar );
+
+	setNextDialog( $kretar, 3 );
+	$kretar.resethead();
+	setDialogFinished( $kretar );
+	$kretar.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// kretarDialog6_3
+// Player and actor talk
+///////////////////////////
+void kretarDialog6_3()
+{
+	$kretar.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$kretar.anim( "ent-table-laptop-scan" );
+
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($kretar);
+	
+	$kretar.headwatch( ePlayer , 10 );
+	
+	$kretar.playdialog("localization/sound/dialog/ent_m6/kretar_adverse.mp3", 1, 128, 0); //You should visit the ship’s counselor, sustained combat can have adverse effects.
+	waitForDialog( $kretar );
+
+	setNextDialog( $kretar, 1 );
+	$kretar.resethead();
+	setDialogFinished( $kretar );
+	$kretar.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM6	
+//---------------------
+void checkForDeckChangeIGM6()
+{
+	if( getfloatvar( "game.checkEntMission6RoomsVisited" ) == 7 )
+	{
+		setfloatvar(  "level.deckToChangeToIGM", 72 );
+
+		$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_d7shutt.mp3", 1, 10000, 0); //Deck 7: Shuttle Bay
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

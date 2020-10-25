@@ -1,0 +1,905 @@
+//--------------------------------------------------------------------------------------
+//
+//  A Gate Two Birds And The Beautiful Sky Level Script File
+//	
+//  Level:			map7
+//  Script By:		Patrick "Nemo" Weiser
+//  Geometry By:	TickNSwisted & Patrick "Nemo" Weiser & LTiefland
+//  Created on:		27.01.2004
+//
+//  Last Edited by:	ltiefland
+//  Last Edited on:	11/11/06
+//
+//--------------------------------------------------------------------------------------
+
+void main();
+void init();
+void shoot_disrupter(entity weapon_parm, entity origin_parm, entity target_parm);
+void shoot_tal(entity weapon_parm, entity origin_parm, entity target_parm, string explosion_parm, entity other_entity);
+void moveWarbird();
+void intro();
+void finish_intro();
+void firstShoot();
+void romulancommander();
+void attack_bridge();
+void decloak_warbird();
+void attack_outpost();
+void bridge_endcinematic();
+void loop_explosions_bridge();
+void disrupter0();
+void disrupter1();
+void disrupter2();
+void disrupter3();
+
+void activate_trigger_count();
+void collision_counter();
+
+//Energieumleitung
+void energyrouting_Used();
+void energyrouting_Failed();
+void energyrouting_Canceled();
+void energyrouting_Solved();
+
+void warbirds_boom();
+
+void hall_collapse();
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+//REPLACED: models/fx/fx-explosion-impact-enterprise.tik
+//WITH: models/fx/fx-explosion-crate-attrex-01.tik
+//In the mapfile, because it is not so anoyingly loud
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+void main()
+{
+//--Kameras spawnen
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");	
+	
+	cam_fadeout( .05, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	//hzm coop mod chrissstrahl - player is suppose to run for his life not sharpen his batleth
+	/*coop_string_weapon2 = "models/weapons/worldmodel-Batleth.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon4 = "models/weapons/worldmodel-rom-disruptor.tik";
+	coop_string_weapon5 = "models/weapons/worldmodel-BurstRifle.tik";
+	coop_string_weapon6 = "models/weapons/worldmodel-FieldAssaultRifle.tik";*/
+
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	coop_string_objectiveItem4 = "Find an entrance to the remains of the outpost.";
+	coop_string_objectiveItem5 = "Go to the bridge of the warbird.";
+	coop_string_objectiveItem6 = "Reroute power to the transporter and beam off the ship.";
+	//Find Alexander Stammheim. He will be in a holding cell.
+	//Get to Stammheim's shuttle and escape with Stammheim.
+	//
+	//Time until Collision
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	coop_string_objectiveItem4_deu = "Finde einen Eingang zu den $$Ue$$berresten des Außenpostens.";
+	coop_string_objectiveItem5_deu = "Gehe auf die Brücke des Warbirds.";
+	coop_string_objectiveItem6_deu = "Leite Energie zum Transporter um und beame Dich vom Schiff.";
+	//Finde Alexander Stammheim. Er wird in einer Zelle sein.
+	//Gehe zu Stammheims shuttle und fliehe mit Stammheim.
+	//
+	//Zeit bis zur Kollision
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed"		, 1 , 0 );
+	globalCoop_objectives_update("complete"		, 2 , 0 );
+	globalCoop_objectives_update("complete"		, 3 , 0 );
+	globalCoop_objectives_update("complete"		, 4 , 0 );
+	globalCoop_objectives_update("complete"		, 5 , 0 );
+	globalCoop_objectives_update("incomplete"	, 6 , 1 );
+	
+	//test dissable temporary
+	//return;
+	
+	soundtrack( "music/warbird1.mus" );	
+	musicvolume( 0.75, .1 );
+	allowMusicDucking( 0 );	
+	
+//--Energieumleitung
+	$energyrouting.puzzleobject_itemtouse( "Tricorder" );
+	$energyrouting.puzzleobject_itemusedthread( "energyrouting_Used" );
+	$energyrouting.puzzleobject_solvedthread( "energyrouting_Solved" );
+	$energyrouting.puzzleobject_failedthread( "energyrouting_Failed" );
+	$energyrouting.puzzleobject_canceledthread( "energyrouting_Canceled" );
+	
+//--Erlaubt Kamera-Shakes
+	$world.canShakeCamera( 1 );
+	
+	init();
+	waitForPlayer();
+	playerDeathThread("playergotKilled");
+	letterbox( .1 );
+	freezeplayer();
+	cinematic();
+	thread intro();	
+}
+
+void finish_intro()
+{
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait(.5);
+	killthread("intro");
+	
+	//hzm coop mod chrissstrahl - make menu work in mp
+	globalCoop_player_transmittToAll( "popmenu 0\n" );	
+	
+	$screen.hide();
+	clearletterbox( .1 );
+	noncinematic();
+	releaseplayer();
+	cueplayer();
+	$illia.remove();
+	wait(.1);
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait(.5);
+	globalCommon_Autosave();
+	//Chrissstrahl 2007.06.20 player isn't a actor!
+	//$player.useActorWeapon( "TricorderSTX" );
+	
+	thread loop_explosions_bridge();
+	thread collision_counter();
+
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$marker1.missionobjective(1);
+}
+
+void init()
+{
+//--NPCs in game
+	$romulan.ai_off();
+	$illia.ai_off();
+	$illia.anim( "ent-library-seat-idle" );
+	$illia.morph( "exp_Serious" );
+	$illia.morph( "exp_Nervous" );
+	$illia.removeactorweapon ( "CompressionRifle" );
+	$illia_prisoner3.ai_off();
+	$illia_prisoner3.removeactorweapon ( "CompressionRifle" );
+	$illia_prisoner3.anim( "cin-m8_situp" );
+	if(doesEntityExist($guard1)){//Chrisstrahl 2007.06.20
+		$guard1.ai_off();
+		$guard1.hide();
+		$guard1.notsolid();
+	}
+	if(doesEntityExist($guard2)){//Chrisstrahl 2007.06.20
+		$guard2.ai_off();
+		$guard2.hide();
+	}
+
+	$tebok2.ai_off();
+
+	//Added by TickNSwisted 29/08/2004
+	$npcs_off.notsolid();
+	$npcs_off.ai_off();
+
+	
+	$beam_illia.ai_off();
+	$beam_illia.morph( "exp_Relief" );
+	$beam_illia.removeactorweapon ( "CompressionRifle" );
+	$beam_illia.hide();
+	$beam_illia.notsolid();
+
+	$screen.show();
+	$screen.solid();
+	$screen.alpha( 1 );
+
+	//Added by DrBob, 07/03/04
+	$illia_plasmaleak.hide();
+	$illia_flames.hide();
+
+//--Load models
+	spawn("script_object","targetname","fire1");wait(.1);	
+	$fire1.model( "models/projectile/projectile-photonball-voyager.tik" );
+	$fire1.scale( .2 );
+	$fire1.hide();
+
+	spawn("script_object","targetname","fire2");wait(.1);
+	$fire2.model( "models/projectile/projectile-photonball-voyager.tik" );
+	$fire2.hide();
+	$fire2.scale( .2 );
+
+	$warp.scale( 0.8 );
+	$warp.modelname( "models/fx/fx-warpflash-federation.tik" );
+	$warp.origin( $warbird1.getOrigin() );
+	
+//--Binding ships, weapons etc
+	$fire_origin1.bind($warbird1_origin);
+	$fire_origin2.bind($warbird1_origin);
+	$warbird1.bind($warbird1_origin); 
+	$illia_plasmaleak.bind( $warbird1_origin );
+	$illia_flames.bind( $warbird1_origin );
+	$warbird1.hide();
+	$warbird_talshiar.forcealpha( 1 );
+	$warbird_talshiar.alpha( 0 );
+	$warbird_talshiar.hide();
+
+//--Romulan outpost + torpedos
+	globalCommon_SpawnScriptModel( "projectile/projectile-photonball-voyager.tik", "torp_0", '-872 1264 -8', 0 );
+	globalCommon_SpawnScriptModel( "projectile/projectile-photonball-voyager.tik", "torp_1", '-872 1264 -8', 0 );
+	globalCommon_SpawnScriptModel( "projectile/projectile-photonball-voyager.tik", "torp_2", '-872 1264 -8', 0 );
+	globalCommon_SpawnScriptModel( "projectile/projectile-photonball-voyager.tik", "torp_3", '-872 1264 -8', 0 );
+
+	$bigBang1.doexplosion( "fx/fx-explosion-crate-attrex-01.tik" );
+	$bigBang3.doexplosion( "fx/fx-explosion-crate-romulan-01.tik" );
+	$bigBang4.doexplosion( "fx/fx-explosion-crate-attrex-large.tik" );
+	$bigBang5.doexplosion( "fx/fx-explosion-crate-romulan-03.tik" );
+
+	$bigBang2.doexplosion( "fx/fx-explosion-crate-attrex-01.tik" );
+	$bigBang6.doexplosion( "fx/fx-explosion-crate-romulan-03.tik" );
+	$bigBang7.doexplosion( "fx/fx-explosion-crate-klingon-02.tik" );
+
+	$bigBang8.doexplosion( "fx/fx-explosion-crate-klingon-03.tik" );
+	$bigBang9.doexplosion( "fx/fx-explosion-crate-attrex-large.tik" );
+	$bigBang10.doexplosion( "fx/fx-explosion-crate-romulan-01.tik" );
+
+	$bigBang11.doexplosion( "fx/fx-explosion-crate-romulan-03.tik" );
+	$bigBang12.doexplosion( "fx/fx-explosion-crate-klingon-03.tik" );
+	$bigBang13.doexplosion( "fx/fx-explosion-crate-attrex-large.tik" );
+	
+//--Collision-counter
+	if(doesEntityExist($stopCounter)){
+		$stopCounter.nottriggerable();
+	}
+//--Sonstiges
+	$sparks.hide();
+	$planet.hide();
+
+	$cam1.follow($map7_cam1);
+	$cam1.cut();
+	wait( .1 );
+	cuecamera($cam1);
+} 
+
+void shoot_disrupter(entity weapon_parm, entity origin_parm, entity target_parm)
+{
+	weapon_parm.origin(origin_parm.getorigin() );
+	weapon_parm.show();
+	weapon_parm.playsound("sound/weapons/radgun/rad_fire.wav");
+	weapon_parm.time(3);
+	weapon_parm.moveto(target_parm);  
+	wait(1);
+	weapon_parm.scale(0.000000001);
+	wait(2.1);
+	weapon_parm.hide();	
+}
+
+void shoot_tal(entity weapon_parm, entity origin_parm, entity target_parm, string explosion_parm, entity other_entity)
+{
+	weapon_parm.origin(origin_parm.getorigin() );
+	weapon_parm.show();
+	weapon_parm.playsound("sound/weapons/radgun/rad_fire.wav");
+	weapon_parm.time(1.5);
+	weapon_parm.moveto(target_parm);  
+	wait(.5);
+	weapon_parm.scale(0.00001);
+	wait(1);
+	trigger( explosion_parm);
+	wait(.1);
+	other_entity.show();
+	weapon_parm.remove();	
+}
+
+
+void moveWarbird()
+{   
+	triggerEntity( $warp );
+	$bird1_origin1.followpath($bird1_path1);
+	$cam1_origin1.playsound( "sound/ent_getoutof_warp.wav", 0, 4, 20000 );
+}
+
+void marker2()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$marker1.missionobjective(0);
+	$marker2.missionobjective(1);
+}
+void marker3()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$marker2.missionobjective(0);
+	$marker3.missionobjective(1);
+}
+void marker4()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$marker3.missionobjective(0);
+	$marker4.missionobjective(1);
+}
+void marker5()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$marker4.missionobjective(0);
+	$hall_collapseTrigger.missionobjective(1);
+}
+
+void intro()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	skipthread("finish_intro");
+	cam_fadein( 4, 0, 0, 0, 1, 0 ); 
+	wait(3);
+	//Menu below modified by DrBob on 07/03/04 to hide mouse
+	
+	//hzm coop mod chrissstrahl - make menu work in mp
+	globalCoop_player_transmittToAll( "showmenu oberth_system\n" );
+	
+	wait(4);
+	
+	//hzm coop mod chrissstrahl - hide info menu again
+	globalCoop_player_transmittToAll( "popmenu 0\n" );
+	
+	wait( 2 );
+	triggerEntity( $warp );
+	$warbird1_origin.followpath($warbird_path1);
+	//Modified on 07/03/04 by DrBob to add warpin sound.
+	$warbird1_origin.playsound( "sound/ent_getoutof_warp.wav", 0, 4, 20000 );
+	$warbird1.renderEffects("minlight");
+	$warbird1.show();
+	wait( 4 );
+	$cam2.follow($introcam_1);
+	$cam2.cut();
+	wait(.1);
+	cuecamera($cam2);
+	wait( 4 );
+	romulancommander();
+}       
+    
+void firstShoot()
+{
+	$cam4.follow($map7_cam2);
+	$cam4.cut();
+	wait( .1 );
+	cuecamera($cam4);
+    	wait(.5);
+    	thread shoot_disrupter($fire1, $fire_origin1, $fire);
+	wait(1);
+	thread shoot_disrupter($fire2, $fire_origin2, $fire);
+	wait( 2 );
+	attack_outpost();
+}
+
+void romulancommander()
+{
+	$illia.renderEffects("minlight");
+	$cam3.follow( $map7_rom1 );
+	$cam3.cut();
+	wait(.1);
+	cuecamera($cam3);
+	$screen.show();
+ 	$romulan.playdialog("localization/sound/dialog/map08/Tebok/approaching.mp3",1,10000,0);	 	
+ 	waitfordialog($romulan);	 	
+ 	$romulan.playdialog("localization/sound/dialog/map08/Tebok/military.mp3",1,10000,0);	 	
+ 	waitfordialog($romulan);	 	
+ 	$romulan.playdialog("localization/sound/dialog/map08/Tebok/turnyourship.mp3",1,10000,0);	 	
+	waitfordialog($romulan);
+	$screen.hide();
+	wait( 1.5 );
+	$cam2.follow( $map7_illia_cam1 );
+	$cam2.cut();
+	wait(.1);
+	cuecamera($cam2);
+	wait( .4 );
+	$illia.morph( "exp_Surprise" );
+	$illia.playdialog("localization/sound/dialog/map08/illia/heisangry.mp3", 1, 10000, 0);
+	wait(1);
+	$illia.anim( "ent-frontchair-gesture1" );
+	wait( 1.5 );
+	$illia.unmorph( "exp_Surprise" );
+	firstShoot();
+}
+
+void attack_bridge()
+{
+	$cam4.follow( $map7_rom2 );
+	$cam4.cut();
+	wait(.1);
+	cuecamera($cam4);
+	cam_fadein( 1.5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+//	$player.earthquake( 2, 2 ); //hzm coop mod chrissstrahl - make effect work for all players
+	triggerentity( $exp_center );
+	$exp_center.playsound( "sound/impact/explosion/expl_distnode1.wav", 0, 4, 20000 );
+	$sparks.show();
+	triggerentity( $exp_behind );
+	wait( 1.5 );
+	triggerentity( $exp_behind );
+	wait( .2 );
+	triggerentity( $exp_screen2 );
+//	$player.earthquake( 1, 3.5 );//hzm coop mod chrissstrahl - make effect work for all players
+	wait( .7 );
+	$cam4.earthquake( 1, 1 );
+	wait( 1 );
+	triggerentity( $exp_screen2 );
+	triggerentity( $exp_screen1 );
+	wait( .5 );
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait( .2 );
+	triggerentity( $exp_2 );
+	wait( .2 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	triggerentity( $exp_screen_trans );
+	cuecamera($cam2);
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/warbirdof.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner3 );
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/collision.mp3", 1, 1000, 0);
+	waitfordialog( $illia_prisoner3 );
+	
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	bridge_endcinematic();
+}
+
+void decloak_warbird()
+{
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	$cam2.fov( 85 );
+	$cam2.follow( $map7_p_illia1 );
+	$cam2.cut();
+	wait(.1);
+	cuecamera($cam2);
+	wait( 2.1 );
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/itwascleartome.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner3 );
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/minutesof.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner3 );
+	wait( 1.3 );
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/notgoingtoget.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner3 );
+	$torp_1.hide();
+	$torp_2.hide();
+	wait( .2 );
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	$cam3.follow( $introcam_2 );
+	$cam3.cut();
+	wait( .1 );
+	cuecamera($cam3);
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	wait( 1.7 );
+	
+	//Decloak the ship
+	$warbird_talshiar.renderEffects("minlight");
+	$warbird_talshiar.playsound( "sound/cloak.wav", 0, 4, 20000 );
+	$warbird_talshiar.fadein( 2, 1 );
+	$warbird_talshiar.show();
+	wait(2.5);
+	$cam1.follow( $map7_cam3 );
+	$cam1.cut();
+	wait( .1 );
+	cuecamera( $cam1 );
+
+	wait( .5 );
+    	thread shoot_tal($torp_1, $weapon_tal_origin, $weapon_tal_origin1, "$explosion", $illia_plasmaleak );
+	wait( 1 );
+    	thread shoot_tal($torp_2, $weapon_tal_origin, $weapon_tal_origin1, "$explosion2", $illia_flames);
+	wait( 3 );
+	
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+    	cuecamera($cam2);
+	$illia_prisoner3.playdialog("localization/sound/dialog/map08/illia/shouldnot.mp3", 1, 10000, 0);
+	waitfordialog( $illia_prisoner3 );
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1.5 );
+	attack_bridge();
+}
+
+void attack_outpost()
+{
+	$cam1.follow( $map7_outpost_cam1 );
+	$cam1.cut();
+	wait(.1);	
+	
+	cuecamera ($cam1);
+	wait(.7);
+	thread disrupter0();
+	wait(1);	
+	thread disrupter1();
+	wait(1);
+	thread disrupter2();
+	wait(1);
+	thread disrupter3();
+	wait( 4 );
+	decloak_warbird();
+}
+
+void bridge_endcinematic()
+{
+/* 	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait(.5);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	$player.earthquake( 2, 2 );
+	triggerentity( $exp_screen2 );
+	wait( 1);
+	$player.earthquake( 2.2, 1 );
+	triggerentity( $exp_screen1 );
+	wait( .4 );
+	$player.earthquake( 1.5, 1 );
+	triggerentity( $exp_behind );
+	triggerentity( $exp_screen2 );
+	wait( .6 );
+	triggerentity( $exp_screen1 );
+	$player.earthquake( 1, .4 );
+	wait( .5 );
+	triggerentity( $exp_behind );
+	wait(.3);
+	triggerentity( $exp_screen_trans ); */
+	thread finish_intro();
+}
+
+void loop_explosions_bridge()
+{
+	triggerentity( $exp_center );
+	$exp_center.playsound( "sound/impact/explosion/expl_distnode1.wav", 0, 4, 20000 );
+	//$player.earthquake( .5, 1 );//hzm coop mod chrissstrahl - make effect work for all players
+	wait( 2 );
+	triggerentity( $exp_screen1 );
+	wait( 2.5 );
+	triggerentity( $exp_Screen2 );
+	triggerentity( $exp_behind );
+	wait( 2 );
+	//$player.earthquake( .5, 1 );//hzm coop mod chrissstrahl - make effect work for all players
+	triggerentity( $exp_screen1 );
+	wait( 2 );
+	triggerentity( $exp_behind );
+	wait( 1 );
+	triggerentity( $exp_screen2 );
+	triggerentity( $exp_center );
+	$exp_center.playsound( "sound/impact/explosion/expl_drullship.wav", 0, 4, 20000 );
+	//$player.earthquake( 1, 2 );//hzm coop mod chrissstrahl - make effect work for all players
+	wait( 2 );
+	triggerentity( $exp_behind );
+	wait( 1 );
+	thread loop_explosions_bridge();
+}
+
+void disrupter0()
+{
+	$torp_0.followpath( $proj0_path);
+	wait(2);
+
+	trigger( "$bigBang11" );
+	$bigBang11.playsound( "sound/impact/explosion/explo_disruptor.wav", 0, 4, 20000 );
+	wait(.1);
+	trigger( "$bigBang12" );
+	wait(.1);
+	trigger( "$bigBang13" );
+	wait(.1);
+}
+
+void disrupter1()
+{
+	$torp_1.followpath( $proj1_path);
+	wait(1.7);
+	//$player.earthquake( 1, 0.3 );//hzm coop mod chrissstrahl - make effect work for all players
+	trigger( "$bigBang1" );
+	$bigBang1.playsound( "sound/impact/explosion/expl_towerfall.wav", 0, 4, 20000 );
+	wait(.1);
+	trigger( "$bigBang3" );
+	wait(.1);
+	trigger( "$bigBang4" );
+	wait(.1);
+	trigger( "$bigBang5" );
+	$torp_1.trigger("debris");
+	wait(2);
+	$debris.hide();
+}
+
+void disrupter2()
+{
+	$torp_2.followpath( $proj2_path);
+
+	wait(2);
+	//$player.earthquake( 1, 0.5 );//hzm coop mod chrissstrahl - make effect work for all players
+	trigger( "$bigBang2" );
+	$bigBang2.playsound( "sound/impact/explosion/explo_shuttleint.wav", 0, 4, 20000 );
+	wait(.1);
+	trigger( "$bigBang6" );
+	wait(.1);
+	trigger( "$bigBang7" );
+	//$proj1_origin.trigger("debris2");
+	trigger( "$debris2");
+}
+
+void disrupter3()
+{
+	$torp_3.followpath( $proj3_path);
+	wait(2);
+	//$player.earthquake( 1, 1 );//hzm coop mod chrissstrahl - make effect work for all players
+	
+	trigger( "$bigBang8" );
+	$bigBang8.playsound( "sound/impact/explosion/explo_wall1.wav", 0, 4, 20000 );
+	cam_fadeout( 1.5, 1, 1, 1, 1, 0 );
+	wait(.1);
+	trigger( "$bigBang9" );
+	wait(.1);
+	trigger( "$bigBang10" );
+	wait(.1);
+	trigger( "$bigBang8" );
+	wait(.1);
+	trigger( "$bigBang9" );
+	wait(.1);
+	trigger( "$bigBang10" );
+}
+
+void activate_trigger_count()
+{
+	$stopCounter.triggerable();
+}
+
+void collision_counter()
+{
+	//hzm coop mod chrissstrahl - add mission relevant hud to all players
+	thread globalCoop_huds_manageAll("coopGbs_timeUntilCollision",1,1);
+	
+	
+	//hzm coop mod chrissstrahl - create our own counter
+	float fValue		= 100;//full time
+	float fTime			= 60; //time in secounds
+	float fSubstract;
+	fSubstract = (fValue / fTime);
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.setstat ( "generic" , fValue );
+		}
+	}
+	
+	while(fValue > 0)
+	{
+		fValue -= fSubstract;
+		
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setstat ( "generic" , (fValue)  );
+			}
+		}
+		wait(1);
+	}
+	
+	if(fValue <= 0){
+		cam_fadeout( 3, 1, 1, 1, 1, 0 );
+		wait( 4 );
+		//hzm coop mod chrissstrahl - fail mission
+		globalCoop_mission_fail();
+	}
+}
+
+//Energieumleitung wird benutzt
+void energyrouting_Used()
+{
+	//print( "energyrouting_Used" );
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 3 );
+	globalTricorderRoute_SetDestination1( 6, 3 );
+
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 11, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow(  1, 20, 32, 32, 32,  7, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  8, 32, 32, 32, 23, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 18,  6, 16,  6,  1, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32,  9, 32,  4, 22,  0,  3,  7 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 17, 32, 32, 32, 32,  2,  6 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 11, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+}
+
+//Energieumleitung falsch
+void energyrouting_Failed()
+{
+	$energyrouting.puzzleobject_reset();
+}
+
+//Energieumleitung abgebrochen
+void energyrouting_Canceled()
+{
+	$energyrouting.puzzleobject_reset();
+}
+
+//Energieumleitung abgeschlossen
+void energyrouting_Solved()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$energyrouting_symbol.missionobjective(0);
+	
+	killthread( "collision_counter" );
+	killthread( "loop_explosions_bridge" );
+	
+	//hzm coop mod chrissstrahl - set objective complete
+	globalCoop_objectives_update("complete"	, 6 , 1 );
+	
+	spawn( "Camera", "targetname", "illia_beamout_cam" );
+	wait( 0.5 );
+	$illia_beamout_cam.follow( $illia_beamout_path );
+	$illia_beamout_cam.cut();
+	wait( 0.5 );
+
+	//Make the blip disappear on your radar
+	if(doesEntityExist($illias_transporter_console)){
+		$illias_transporter_console.missionobjective( 0 );
+	}
+
+	//thread warbirds_boom();
+	warbirds_boom();
+}
+
+void warbirds_boom()
+{
+
+	freezeplayer();
+	cinematic();
+	letterbox( 0.1 );
+	
+	$beam_illia.show();
+
+	cuecamera( $illia_beamout_cam );
+	wait( 2 );
+
+	$beam_illia.DisplayEffect( "TransportOut", "Romulan" );
+	wait( 2.7 );
+
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+
+	musicvolume( 1.2, .1 );
+	music( "action" );
+	wait( .3 );
+
+	//letterbox( .1 );
+	//cinematic();
+	//freezeplayer();
+
+	$planet.show();
+	
+	$cam1.follow($collision_cam1, $warbird_collision_illia);
+	$cam1.cut();
+	$warbird_collision_tal.renderEffects("minlight");
+	$warbird_collision_illia.renderEffects("minlight");
+	wait( .1 );
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	cuecamera($cam1);
+	$warbird_collision_illia.time(12.2);
+	$warbird_collision_illia.moveto($collision_point);  
+	wait( 4 );
+
+	$cam2.follow($collision_cam2);
+	$cam2.cut();
+	wait( .1 );
+	cuecamera($cam2);
+	wait( 4 );
+	
+	$cam3.follow($collision_cam3);
+	$cam3.cut();
+	wait( .1 );
+	cuecamera($cam3);
+	
+	//hzm coop mod chrissstrahl - animate the Tal warbird, it looks stupid if it does not move at all
+	$warbird_collision_tal.bind($warbird_collision_tal_origin);
+	$warbird_collision_tal_origin.time(7);
+	$warbird_collision_tal_origin.rotateX(2);
+	$warbird_collision_tal_origin.rotateY(8);
+	$warbird_collision_tal_origin.moveforward(-200);
+	 
+	
+	wait( 3.2 );
+	triggerentity($exp_col1);
+	wait( .5 );
+	triggerentity($exp_col2);
+	wait( .1 );
+	triggerentity($exp_col3);
+	wait( .1 );
+	triggerentity($bigboom);
+	$warbird_collision_illia.hide();
+	$warbird_collision_tal.hide();
+	
+	wait( 3 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+
+/*
+	$player.show();
+	$player.solid();
+	clearletterbox( .1 );
+	noncinematic();
+	releaseplayer();
+	cueplayer();
+*/
+
+}
+
+void hall_collapse()
+{
+	//hzm coop mod chrissstrahl - display a marker on the radar
+	$hall_collapseTrigger.missionobjective(0);
+	$energyrouting_symbol.missionobjective(1);
+	
+	
+ triggerentity( $exp_hall_01 );
+ //$player.playsound ("sound/environment/metal/bigcreak.wav" );
+ //$hall_rotate.playsound ("sound/environment/metal/metal_creak2.wav" );
+ //$player.earthquake( 3, 4 ); //hzm coop mod chrissstrahl - make work in mp
+ wait (.5);
+ triggerentity( $exp_hall_02 );
+ triggerentity( $snd_hall_02 );
+ $hall_rotate.playsound ( "sound/environment/metal/metal_explo3.wav" );
+
+ $hall_rotate.time (1);
+ $hall_rotate.movedown (320);
+ wait (1);
+ //$player.playsound ("sound/explo_large_06.wav" ); //hzm coop mod chrissstrahl - i think there is allready so much noise no one will really notioce the difference
+}
+
+void playergotKilled()
+//played when player dies
+{
+	return;
+	$player.setobjectivefailed("transportout", 1);
+	$player.missionfailed("WARBIRD1BeamOut");
+}
+
+void coop_showHallwayFloorFlame()
+{
+	$hallwayFloorFlame.selfdetonate();
+	$hallwayFloorFlame.show();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs9");
+}
+
+
+
+

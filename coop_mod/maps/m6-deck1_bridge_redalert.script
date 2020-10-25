@@ -1,0 +1,1343 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m6-deck1_bridge_redalert	  
+//  Script By:    Benson R
+//  Geometry By:  Benson R, Richard H.
+//  Created on:   9/6/2002
+//
+//  Last Edited By:  Benson R
+//
+//-----------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------------------------------
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_levelEndFailsafe(); //[b607] chrissstrahl - failsafe to load next map based on a timer
+void	coop_endLevel();
+void	coop_findAndTargetnameEntities();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_spawnWave.scr"
+
+//-------------------------------------------------------------------------------------------------
+void main();
+
+//--- setup routines
+void setupWorld();
+void setupAI();
+void setupArmatureCinematics();
+void setupStartingObjectives();
+
+void spawnIdryll( entity spawner, string direction );
+void IdryllDeath_west();
+void IdryllDeath_east();
+void IdryllDeath_shieldpeeps();
+
+//--- visual functions
+void sparksRandom( entity entSparks );
+
+//--- sequence functions
+void bridgeBattle_done();
+void picardDeath();
+
+//--- cinematics
+void cinematicArm_TossRifle_Start();
+void cinematicArm_TossRifle_ArmEnd();
+
+void cinematicEnd();
+void cinematicEnd_Skipthread();
+void cinematicEnd_Run1();
+void cinematicEnd_Run2();
+
+void cinematicDeathBrig();
+void cinematicDeathBrig_Skipthread();
+
+//--------------------------------
+//--- level variables
+float numIdryllSpawned = 0;
+float numIdryllDead = -3;
+float maxIdryllToSpawn = 9;
+float idryllnospawn_east = 0;
+float idryllnospawn_west = 0;
+float idryllnospawn_shieldpeeps = 0;
+
+entity cinematicArm_TossRifle;
+
+
+
+//-------------------------------------------------------------------------------------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_float_spawnAngle0 				= 270;
+	coop_float_spawnAngle1 				= 207;
+	coop_float_spawnAngle2 				= 234;
+	coop_float_spawnAngle3 				= 230;
+	coop_float_spawnAngle4 				= 230;
+	coop_float_spawnAngle5 				= 230;
+	coop_float_spawnAngle6 				= 298;
+	coop_float_spawnAngle7 				= 298;
+	coop_float_spawnAngle8 				= 260;
+	coop_vector_spawnOrigin1 			= '2433 -4773 0';
+	coop_vector_spawnOrigin2 			= '2379 -4706 0';
+	coop_vector_spawnOrigin3 			= '2287 -4536 -16';
+	coop_vector_spawnOrigin4 			= '2242 -4592 -16';
+	coop_vector_spawnOrigin5 			= '2224 -4664 -16';
+	coop_vector_spawnOrigin6 			= '1635 -4576 -16';
+	coop_vector_spawnOrigin7 			= '1680 -4660 -16';
+	coop_vector_spawnOrigin8 			= '1742 -4498 -16';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$TrainingLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+	
+	soundtrack( "music/m6l1_bridge.mus" );
+
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m6_deck1_bridge_redalert" );
+	
+	//--- run setup functions
+	setupWorld();
+	setupAI();
+	setupArmatureCinematics();
+
+	//--- wait for player to spawn
+	waitForPlayer();
+	
+	//--- setup the player
+	//freezeplayer();
+	wait( 1 );
+
+	//--- starting cinematic
+	thread cinematicArm_TossRifle_Start();
+}
+
+//-------------------------------------------------------------------------------------------------
+// idryll spawning code
+//-------------------------------------------------------------------------------------------------
+
+//---------------------
+// setupWorld
+// setup world objects
+//---------------------
+void setupWorld()
+{
+	//--- set the sky box
+	$sky.rendereffects( "+skyorigin" );
+
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	
+	//--- triggers
+	$triggerEnd_MunroInTurbolift.nottriggerable();
+	
+	//--- sparks
+	thread sparksRandom( $sparksRandom1 );
+	thread sparksRandom( $sparksRandom2 );
+	thread sparksRandom( $sparksRandom3 );
+	thread sparksRandom( $sparksRandom4 );
+	thread sparksRandom( $sparksRandom5 );
+	thread sparksRandom( $sparksRandom6 );
+	thread sparksRandom( $sparksRandom7 );
+	
+	//--- lock doors
+	$readyRoomDoor.lock();
+	
+	//--- viewscreen
+	$viewscreenPortal.hide();
+}
+
+
+//---------------------
+// setupAI
+// setup AI
+//---------------------
+void setupAI()	 
+{
+	//--- bridge personnel
+	globalCommon_AiDummy( $krindo, "" );
+	$crewChiefEngineer.ai_off();
+	globalCommon_AiDummy( $munro, "" );
+	globalCommon_AiDummy( $tuvok, "" );
+	globalCommon_AiDummy( $ops, "" );
+	globalCommon_AiDummy( $telsia, "" );
+
+	//--- setup picard
+	globalCommon_AiDummyHide( $picard );
+	$picard.health( 400 );
+	$picard.pushable( 0 );
+	
+	//--- death cinematic
+	globalCommon_AiDummy( $deathMunro, "idle" );
+	globalCommon_AiDummy( $deathChell, "sit_right" );
+	globalCommon_AiDummy( $deathJurot, "sit_elbows" );
+	globalCommon_AiDummy( $deathChang, "sit_lean" );
+	globalCommon_AiDummy( $deathTelsia, "sit_right" );
+	globalCommon_AiDummy( $deathSydney, "sit_elbows" );
+	globalCommon_AiDummy( $deathIdryllGuard1, "idle" );
+	globalCommon_AiDummy( $deathIdryllGuard2, "idle" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- make them use no weapon
+	$deathMunro.useActorWeapon( "none" );
+	$deathChell.useActorWeapon( "none" );
+	$deathJurot.useActorWeapon( "none" );
+	$deathChang.useActorWeapon( "none" );
+	$deathTelsia.useActorWeapon( "none" );
+	$deathSydney.useActorWeapon( "none" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//--- facial morphs
+	$deathMunro.morph( "exp_brows_down" );
+	$deathChell.morph( "exp_Fear" );
+	$deathJurot.morph( "exp_Skeptical" );
+	$deathChang.morph( "exp_Anger" );
+	$deathTelsia.morph( "exp_Serious" );
+	$deathSydney.morph( "exp_Fear" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+}
+
+//---------------------
+// setupArmatureCinematics
+// setup the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	cinematicArm_TossRifle = createCinematic( "m6l1_picgun" );
+	cinematicArm_TossRifle.setendthread( "cinematicArm_TossRifle_ArmEnd" );
+}
+
+//---------------------
+// setupStartingObjectives
+// setup the starting objectives for the player
+//---------------------
+void setupStartingObjectives()
+{
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepelInvaders$$","incomplete",1,0);
+	globalCoop_objectives_set("$$GetToBridge$$","complete",2,1);
+}
+
+//---------------------
+// bridgeBattle_done
+// when all the bridge spawning wave idryll are dead
+//---------------------
+void bridgeBattle_done()
+{
+	wait( 1 );
+	
+	//--- make the turbolift trigger triggerable
+	$triggerEnd_MunroInTurbolift.triggerable();
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepelInvaders$$","complete",1,1);
+	
+	//--- reset picards killthread
+	$picard.immortal( 1 );
+//	$picard.killthread( "picardDeath" );
+	
+	//--- start the end cinematic
+	thread cinematicEnd();	
+}
+
+//---------------------
+// Function: picardDeath
+// Comments:
+//
+//---------------------
+void picardDeath()
+{
+	//hzm coop mod chrissstrahl, fail current mission
+	globalCoop_mission_fail();
+}
+
+
+//-------------------------------------------------------------------------------------------------
+
+//---------------------
+// sparksRandom
+// turns the spark emitters on and off
+//---------------------
+void sparksRandom( entity entSparks )
+{
+	float fltRandomTime;
+	
+	//--- hide the sparks to start
+	entSparks.hide();
+	
+	//--- wait a random amount of time before starting
+	fltRandomTime = randomFloat( 1 ) + .75;
+	wait( fltRandomTime );
+	
+	//--- begin the loop
+	while( doesEntityExist( entSparks ) )
+	{
+		if( doesEntityExist( entSparks ) )
+		{
+    		//--- show the sparks and play a sound
+    		entSparks.show();
+    		entSparks.loopsound ( "sound/environment/electric/fritz5.wav", .5, 62 );
+    	}
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( .5 ) + .5;
+		wait( fltRandomTime );
+
+		if( doesEntityExist( entSparks ) )
+		{
+    		//--- hide the sparks and stop the sound
+    		entSparks.hide();
+            entSparks.stoploopsound();
+        }
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( 1 ) + .3;
+		wait( fltRandomTime );
+	}
+}
+
+
+//-------------------------------------------------------------------------------------------------
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicArm_TossRifle_Start
+// munro tosses picard an assault shotgun
+//---------------------
+void cinematicArm_TossRifle_Start()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	wait(1);
+	
+	//--- start the armature
+	cinematicArm_TossRifle.beginCinematic( "m6l1_picgun" );
+	wait( .5 );
+	
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_TossRifle_ArmEnd" );
+}
+
+
+//---------------------
+// cinematicArm_TossRifle_ArmEnd
+// end thread for cinematic
+//---------------------
+void cinematicArm_TossRifle_ArmEnd()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_TossRifle.endCinematic( FALSE );
+
+	killthread( "cinematicArm_TossRifle_Start" );
+	
+	//--- show and setup picard
+	globalCommon_AiActor( $picard );
+	//$picard.not_allowed_to_kill();
+	$picard.killthread( "cinematicDeathBrig" );
+
+	//--- set the player
+
+	//$player.warp( $nodeMunro_PostChellCinematic.getOrigin() );
+	//$player.turntowardsentity( $chell );
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .75 );
+
+	thread IdryllDeath_east();
+	thread IdryllDeath_west();
+	thread IdryllDeath_shieldpeeps();
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	
+	//--- setup starting objectives
+	setupStartingObjectives();
+	
+	//--- warp in the starting idryll
+	$seperationclip1.solid();
+
+	while( numIdryllDead != maxIdryllToSpawn )
+	{
+		wait( 1 );
+	}
+	
+	wait( 3 );
+	
+	bridgeBattle_done();
+}
+	
+//-------------------------------------------------------------------------------------------------
+// spawnIdryll - functionality for spawning a catwalk idryll, see:
+//	IdryllDeath_west and IdryllDeath_east
+//-------------------------------------------------------------------------------------------------
+void spawnIdryll( entity spawner, string direction )
+{
+	entity e;
+	float spawntries;
+	float MAX_SPAWN_TRIES, SPAWN_TRY_DELAY;
+	float peeptoattack;
+	
+	numIdryllSpawned++;
+	spawntries = 0;
+	MAX_SPAWN_TRIES = 10;
+	SPAWN_TRY_DELAY = 0.5;
+	
+	if( direction == "west" )
+	{
+		spawner.modelname( "char/idryll-m6-rebel-rifle-noshield-f1.tik" );	 
+		spawner.spawneffectname( "TransportIn" , "Idryll" );
+		e = spawner.spawnnow();
+		while( !doesEntityExist( e ) && (spawntries < MAX_SPAWN_TRIES) )
+		{
+			wait( SPAWN_TRY_DELAY );
+			e = spawner.spawnnow();
+		}
+		if( doesEntityExist( e ) )
+		{
+			e.setnodeid( 41 );
+			e.killthread( "IdryllDeath_" + direction );
+		}
+	}
+	else if( direction == "east" )
+	{
+		spawner.modelname( "char/idryll-m6-rebel-rifle-noshield-f1.tik" );	 
+		spawner.spawneffectname( "TransportIn" , "Idryll" );
+		e = spawner.spawnnow();
+		while( !doesEntityExist( e ) && (spawntries < MAX_SPAWN_TRIES) )
+		{
+			wait( SPAWN_TRY_DELAY );
+			e = spawner.spawnnow();
+		}
+		if( doesEntityExist( e ) )
+		{
+			e.setnodeid( 42 );
+			e.killthread( "IdryllDeath_" + direction );
+		}
+	}
+	else if( direction == "shieldpeeps" )
+	{
+		spawner.modelname( "char/idryll-m6-rebel-rifle-shield-m1.tik" );
+		spawner.spawneffectname( "TransportIn" , "Idryll" );
+		e = spawner.spawnnow();
+		while( !doesEntityExist( e ) && (spawntries < MAX_SPAWN_TRIES) )
+		{
+			wait( SPAWN_TRY_DELAY );
+			e = spawner.spawnnow();
+		}
+		if( doesEntityExist( e ) )
+		{
+			e.setnodeid( 43 );
+			e.killthread( "IdryllDeath_" + direction );
+		}
+	}
+	else
+	{
+		// should never happen
+		return;
+	}
+	
+	if( doesEntityExist( e ) )
+	{
+		peeptoattack = randomint( 5 );
+		
+		if( peeptoattack != 4 )
+		{
+			e.attackplayer();
+		}
+		else if( peeptoattack == 4 )
+		{
+			e.attack( $picard );
+		}
+	}
+		
+	// this is spawning the last guy who will ever be spawned
+	if( numIdryllSpawned == maxIdryllToSpawn )
+	{
+		$spawner1.remove();
+		$spawner2.remove();
+		$spawner3.remove();
+		$spawner4.remove();
+		$spawner5.remove();
+	}
+	
+}
+
+//-------------------------------------------------------------------------------------------------
+// IdryllDeath_west - called when the east catwalk idryll in the cargo bay dies;
+// 	This will continue to spawn more guys forever until the spawner is removed, which should
+//	happen from a trigger when the player gets too close.
+//-------------------------------------------------------------------------------------------------
+void IdryllDeath_west()
+{
+	numIdryllDead++;
+
+	if( ! doesEntityExist( $spawner1 ) )
+		return;
+
+	wait( 1 );
+	spawnIdryll( $spawner1, "west" );
+}
+
+//-------------------------------------------------------------------------------------------------
+// IdryllDeath_east - called when the east catwalk idryll in the cargo bay dies;
+// 	This will continue to spawn more guys forever until the spawner is removed, which should
+//	happen from a trigger when the player gets too close.
+//-------------------------------------------------------------------------------------------------
+void IdryllDeath_east()
+{
+	numIdryllDead++;
+
+	if( ! doesEntityExist( $spawner2 ) )
+		return;
+
+	wait( 1 );
+	spawnIdryll( $spawner2, "east" );
+}
+
+//-------------------------------------------------------------------------------------------------
+// IdryllDeath_east - called when the east catwalk idryll in the cargo bay dies;
+// 	This will continue to spawn more guys forever until the spawner is removed, which should
+//	happen from a trigger when the player gets too close.
+//-------------------------------------------------------------------------------------------------
+void IdryllDeath_shieldpeeps()
+{
+	float randomidryllspawnflt;
+	entity randomidryllspawnent;
+	
+	numIdryllDead++;
+	
+	if( ! doesEntityExist( $spawner3 ) ) // if 3 is gone, then 4 and 5 are too
+		return;
+	
+	wait( 2 );
+	randomidryllspawnflt = randomint( 3 ) + 3;
+	randomidryllspawnent = getentity( "spawner" + randomidryllspawnflt );
+	spawnIdryll( randomidryllspawnent, "shieldpeeps" );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+
+void testSetup()
+{
+	//--- setup the actors
+	//$picard.giveActorWeapon( "models/actorweapons/fed-fieldassaultrifle.tik" );
+	$tuvok.giveActorWeapon( "models/actorweapons/fed-phaser-STX.tik" );
+	$telsia.giveActorWeapon( "models/actorweapons/fed-compressionrifle-enhanced.tik" );
+	//$munro.giveActorWeapon( "models/actorweapons/fed-fieldassaultrifle.tik" );
+	
+	$picard.useActorWeapon( "None" );
+	$telsia.useActorWeapon( "CompressionRifleEnhanced" );
+	$munro.useActorWeapon( "None" );
+	
+	globalCommon_AiDummy( $picard, "" );
+	
+	//--- position actors
+	globalCineFX_PositionObject( $picard, $nodePicard_CinematicEnd_Start );
+	globalCineFX_PositionObject( $tuvok, $nodeTuvok_CinematicEnd_Start );
+	globalCineFX_PositionObject( $telsia, $nodeTelsia_CinematicEnd_Start );
+	globalCineFX_PositionObject( $munro, $nodeMunro_CinematicEnd_Start );
+}
+
+void testRunTuvok()
+{
+	$turboLift1.open( $world );
+	
+	$tuvok.walkTo( "$node_CinematicEnd_OffLift1", "run" );
+	waitFor( $tuvok );
+	
+	$tuvok.walkTo( "$nodeTelsia_CinematicEnd_RunTo1", "run" );
+	waitFor( $tuvok );
+
+	$tuvok.walkTo( "$node_CinematicEnd_OffLift2", "run" );
+	waitFor( $tuvok );
+
+	$tuvok.walkTo( "$nodeTuvok_CinematicEnd_RunTo1", "run" );
+	waitFor( $tuvok );
+	
+	$tuvok.useActorWeapon( "none" );
+	
+	$picard.turnTowardsEntity( $tuvok );
+	$munro.turnTowardsEntity( $tuvok );
+	wait( .5 );
+	
+	$tuvok.anim( "ent-stand-scan" );
+}
+
+void testRunTelsia()
+{
+	$telsia.walkTo( "$node_CinematicEnd_OffLift1", "run" );
+	waitFor( $telsia );
+	
+	$telsia.walkTo( "$nodeTelsia_CinematicEnd_RunTo1", "run" );
+	waitFor( $telsia );
+
+	$telsia.turnTowardsEntity( $picard );
+}
+
+void testRunMunro()
+{
+
+}
+
+void testPicardScreen()
+{
+	$picard.turnTowardsEntity( $viewscreenPortal );
+}
+
+void testViewscreen1()
+{
+
+}
+
+//---------------------
+// cinematicEnd
+// ending cinematic
+//---------------------
+void cinematicEnd()
+{
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- load the camera paths
+	cam.load( "m6_Deck1_Red_Shot1" );
+	cam.load( "m6_Deck1_Red_Shot2" );
+	cam.load( "m6_Deck1_Red_Shot3" );
+	cam.load( "m6_Deck1_Red_Shot4" );
+	cam.load( "m6_Deck1_Red_Shot5" );
+	cam.load( "m6_Deck1_Red_Shot6" );
+	cam.load( "m6_Deck1_Red_Shot7" );
+	cam.load( "m6_Deck1_Red_Shot8" );
+	cam.load( "m6_Deck1_Red_Shot9" );
+	cam.load( "m6_Deck1_Red_Shot10" );
+	cam.load( "m6_Deck1_Red_Shot11" );
+	cam.load( "m6_Deck1_Red_Shot12" );
+	cam.load( "m6_Deck1_Red_Shot13" );
+	cam.load( "m6_Deck1_Red_Shot14" );
+	cam.load( "m6_Deck1_Red_Shot15" );
+	cam.load( "m6_Deck1_Red_Shot16" );
+	
+	//--- setup the actors
+	//$picard.giveActorWeapon( "models/actorweapons/fed-fieldassaultrifle.tik" );
+	$tuvok.giveActorWeapon( "models/actorweapons/fed-phaser-STX.tik" );
+	$telsia.giveActorWeapon( "models/actorweapons/fed-compressionrifle-enhanced.tik" );
+	//$munro.giveActorWeapon( "models/actorweapons/fed-fieldassaultrifle.tik" );
+	
+	$picard.useActorWeapon( "None" );
+	$telsia.useActorWeapon( "CompressionRifleEnhanced" );
+	$munro.useActorWeapon( "None" );
+	
+	globalCommon_AiDummy( $picard, "" );
+	
+	//--- position actors
+	globalCineFX_PositionObject( $picard, $nodePicard_CinematicEnd_Start );
+	globalCineFX_PositionObject( $tuvok, $nodeTuvok_CinematicEnd_Start );
+	globalCineFX_PositionObject( $telsia, $nodeTelsia_CinematicEnd_Start );
+	globalCineFX_PositionObject( $munro, $nodeMunro_CinematicEnd_Start );
+	wait ( .5 );
+
+	$turboLift1.close();
+	wait( .3 );
+
+	//--------------------------------------------------------
+	//shot1 establishing of tuvok and telsia running into the room
+	
+	//--- set camera
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--- set the skipthread
+	skipthread( "cinematicEnd_Skipthread");
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1.3 );
+	
+	//--- make tuvok and telsia run to their destination
+	thread cinematicEnd_Run1();
+	wait( 1.25 );
+	
+	//--------------------------------------------------------
+	//shot2 watch as tuvok gets to the console
+	
+	//--- set camera
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot2 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	thread cinematicEnd_Run2();
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//shot3 pull around shot on tuvok
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot3 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .2 );
+
+	//--- tuvok says all decks are clear
+    $tuvok.playdialog("localization/sound/dialog/m6l1/tuvok_decksclear.mp3", 1, 11111, 0); //The invaders have been repelled. I am initiating a dampening field to repulse any additional direct-frequency transporter attempts
+	wait( 2 );
+	
+	$tuvok.headWatchTarget( "nodeTuvokLookAt2", 3 );
+	wait( 2 );
+	
+	$tuvok.headWatchTarget( "none", 3 );
+    waitForDialog( $tuvok );
+	wait( 2 );
+
+    $tuvok.playdialog("localization/sound/dialog/m6l1/tuvok_lowered2.mp3", 1, 11111, 0); //we are being hailed 
+    waitForDialog( $tuvok );
+	wait( .2 );
+
+	$picard.turnTowardsEntity( $viewscreenPortal );
+	wait( .1 );
+	
+	$munro.turnTowardsEntity( $viewscreenPortal );
+	
+	//--------------------------------------------------------
+	//shot4 picard turns around to face the screen
+	
+	//--- set camera
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot4 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_onscreen.mp3", 1, 11111, 0); //On screen.
+    waitForDialog( $picard );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot5 viewscreen as krindo appears
+	
+	//--- set camera
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot5 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .2 );
+	
+	$viewscreenImage.hide();
+	$viewscreenPortal.hide();
+	wait( .1 );
+	
+	$viewscreenPortal.show();
+	wait( .1 );
+	
+    $krindo.playdialog("localization/sound/dialog/m6l1/krindo_surrender.mp3", 1, 11111, 0); //Surrender your ship! 
+    waitForDialog( $krindo );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot6 picard addressing krindo that his invasion was stupid
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot6 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_invasion.mp3", 1, 11111, 0); //It looks like your invasion did not go as well as you had hoped! 
+    wait( 3 );
+    
+	//--------------------------------------------------------
+	//shot7 over picards shoulder at the viewscreen
+	
+	//--- set camera
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot7 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );  
+
+    //--- wait for picard to stop talking
+    waitForDialog( $picard );
+	wait( .2 );
+
+    $krindo.playdialog("localization/sound/dialog/m6l1/krindo_finish.mp3", 1, 11111, 0); //Your ship is crippled; your weapons are non-functional. There’s no way out, Picard!
+    waitForDialog( $krindo );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot8 picard answering back
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot8 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	wait( .2 );
+	
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_discuss.mp3", 1, 11111, 0); //Let's discuss it.
+    waitForDialog( $picard );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot9 over picards shoulder at the viewscreen
+	
+	//--- set camera
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot7 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );  
+	
+    $krindo.playdialog("localization/sound/dialog/m6l1/krindo_repair.mp3", 1, 11111, 0); //And give you time to repair your ship? Do you take me for a fool? 
+    waitForDialog( $krindo );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot10 viewscreen closeup
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot5 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+    $krindo.playdialog("localization/sound/dialog/m6l1/krindo_oblivion.mp3", 1, 11111, 0); //Turn your ship over to me, Picard, and I’ll offload you and your crew to the nearest hospitable planet
+    waitForDialog( $krindo );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot11 closeup of picard
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot9 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );  
+	
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_terms.mp3", 1, 11111, 0); //I would sooner destroy this ship
+    waitForDialog( $picard );
+
+	//--------------------------------------------------------
+	//shot12 viewscreen closeup
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot5 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+
+    $krindo.playdialog("localization/sound/dialog/m6l1/krindo_goahead.mp3", 1, 11111, 0);	//You’re bluffing. But, in case you aren’t...
+    waitForDialog( $krindo );
+	wait( .2 );
+
+	//--- deactivate the viewscreen
+	$viewscreenImage.hide();
+	$viewscreenPortal.hide();
+	wait( .1 );
+	
+	$viewscreenImage.show();
+	wait( .3 );
+
+	//--------------------------------------------------------
+	//shot13 from tuvok to picard
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot10 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );  
+
+	$tuvok.headWatchTarget( "nodeTuvokLookAt2", 4 );
+	
+    $tuvok.playdialog( "localization/sound/dialog/m6l1/tuvok_severalsmall.mp3", 1, 11111, 0);	//Captain, several small Idryll craft have landed on our ventral hull
+	wait( 1 );
+	
+	//--- turn picard and munro around
+	$munro.turnTowardsEntity( $tuvok );
+	$picard.turnTowardsEntity( $tuvok );
+    wait( 1 );
+    
+    $tuvok.headWatchTarget( "nodeTuvokLookAt1", 4 );
+    
+    waitfordialog( $tuvok );
+    wait( .2 );
+    
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_whatrthey.mp3", 1, 11111, 0);	//what are they doing
+    waitForDialog( $picard );
+	wait( .2 );
+	
+	//--------------------------------------------------------
+	//shot14 low shot on picard and munro as computer warns
+	
+	//--- set camera
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot11 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );	
+    
+    $world.simpleplaydialog( "localization/sound/dialog/m6l1/comp_badaccess.mp3", 1, 200000 );	//Warning. Unauthorized access detected
+    wait( .5 );
+    
+    $picard.headWatchTarget( "nodeComputerLookAt", 5 );
+    wait( .3 );
+    
+    $munro.headWatchTarget( "nodeComputerLookAt", 5 );
+    
+    //waitDialogLength( "localization/sound/dialog/m6l1/comp_badaccess.mp3" );
+    wait( 3 );
+    
+  	//--------------------------------------------------------
+	//shot15 from tuvok to picard
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot10 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );    
+   	
+    $tuvok.playdialog( "localization/sound/dialog/m6l1/tuvok_attempt.mp3", 1, 11111, 0);	//The Idryll are accessing our computer system directly from the hull. Self destruct systems have been disabled. They are attempting to reroute command protocols and gain control of the Enterprise.
+	wait( .5 );
+
+    $picard.headWatchTarget( "none", 5 );
+    $munro.headWatchTarget( "none", 5 );
+    
+   	wait( 2 );
+   	
+   	$tuvok.headWatchTarget( "nodeTuvokLookAt2", 4 );
+	
+	//--------------------------------------------------------
+	//shot16 closeup of computer screen
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot12 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );	
+	wait( 4 );
+	
+  	//--------------------------------------------------------
+	//shot17 tuvok finishes his line
+	
+	//--- set camera
+	cuecamera( $cam1 );
+
+	//--- wait for tuvok to finish talking		
+	waitfordialog( $tuvok );
+	wait( .2 );
+
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_reverse.mp3", 1, 11111, 0);	//Reverse ventral hull polarity. See if we can shake them loose.
+    waitForDialog( $picard );
+    wait( .2 );
+    
+    $tuvok.headWatchTarget( "nodeTuvokLookAt1", 4 );
+    
+    $tuvok.playdialog( "localization/sound/dialog/m6l1/tuvok_cannotdo.mp3", 1, 11111, 0);	//Negative. They have locked hull polarity in their area. I have polarized the outer saucer ring, which will prevent them from progressing any further, but I have no way of removing the Idryll invaders
+	wait( 5 );
+	
+	$tuvok.headWatchTarget( "none", 4 );
+	
+	$tuvok.anim( "idle" );
+	wait( .3 );
+	
+	$tuvok.turnTowardsEntity( $picard );
+	wait( 2 );
+
+	//--------------------------------------------------------
+	//shot18 shot of tuvok, munro, and picard
+	
+	//--- set camera
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot13 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );	
+
+	//--- wait for tuvok to finish talking
+    waitfordialog( $tuvok );
+	wait( .2 );
+    
+    $picard.turnTowardsEntity( $munro );
+    wait( .2 );
+    
+    $picard.playdialog("localization/sound/dialog/m6l1/picard_torp.mp3", 1, 11111, 0);	//Lieutenant Munro, report to the Enterprise hull and repel the Idryll invaders. Do not let them reroute the command protocols
+	wait( .5 );
+	
+	$munro.turnTowardsEntity( $picard );
+	wait( 1 );
+	
+  	//--------------------------------------------------------
+	//shot19 push in on picard
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot14 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );    	
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//shot20 closeup of munro
+	
+	//--- set camera
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m6_Deck1_Red_Shot15 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );	
+	
+	//--- wait for picard to finish talking
+    waitForDialog( $picard );
+	wait( .2 );
+
+    $munro.playdialog("localization/sound/dialog/m6l1/munro_ayesir5.mp3", 1, 11111, 0); //Aye, sir.
+    waitForDialog( $munro );
+    wait( .2 );
+
+  	//--------------------------------------------------------
+	//shot21 push in on turbo lift as munro enters it
+	
+	//--- set camera
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m6_Deck1_Red_Shot16 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );    	
+
+	thread globalCineFX_CameraFOVLerp( $cam1, 50, 10, 3, "rampupdown" );
+	wait( .5 );
+
+	//--- run munro to the lift
+	$munro.walkTo( "$node_CinematicEnd_OnLift1", "run" );
+	wait( 1 );
+	
+	//added failsafe in [b607]
+	thread coop_levelEndFailsafe();
+	
+	//--- open the lift door
+	$turboLift2.open( $world );	
+	waitFor( $munro );
+	
+	$munro.walkTo( "$nodeMunro_CinematicEnd_RunTo1", "run" );
+	waitFor( $munro );
+	wait( .5 );
+	
+	$turboLift2.close();
+	wait( 1.5 );
+
+	//--- end the cinematic
+	thread cinematicEnd_Skipthread();
+}
+
+//sometimes munro does not enter the lift [b607]
+//this is a failsave to make sure the mission does not get stuck
+//we where no able to find the cause of the issue
+//it can't be reproduced reliable
+void coop_levelEndFailsafe()
+{
+	wait(10);
+	//--- end the cinematic
+	thread cinematicEnd_Skipthread();
+}
+
+//---------------------
+// cinematicEnd_Skipthread
+// the end cinematic skipthread 
+//---------------------
+void cinematicEnd_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicEnd" );
+	
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+	
+	noncinematic();
+	clearletterbox( 0.05 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+	
+	/*
+	//--- level transistion
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m6-exterior" );
+	wait ( .1 );		
+	triggerentity ( $trigger_endlevel );
+	*/
+}
+
+//---------------------
+// telsia runs to her location
+void cinematicEnd_Telsia()
+{
+	$telsia.walkTo( "$node_CinematicEnd_OffLift1", "run" );
+	waitFor( $telsia );
+	
+	$telsia.walkTo( "$nodeTelsia_CinematicEnd_RunTo1", "run" );
+	waitFor( $telsia );
+
+	$telsia.turnTowardsEntity( $tuvok );
+}
+
+//---------------------
+// first part of tuvok and telsia running out of the lift
+void cinematicEnd_Run1()
+{
+	$turboLift1.open( $world );
+	
+	$tuvok.walkTo( "$node_CinematicEnd_OffLift1", "run" );
+	waitFor( $tuvok );
+	
+	$tuvok.walkTo( "$nodeTelsia_CinematicEnd_RunTo1", "run" );
+	$telsia.walkTo( "$node_CinematicEnd_OffLift1", "run" );
+	waitFor( $telsia );
+}
+
+//---------------------
+// second part of tuvok and telsia running out of the lift
+void cinematicEnd_Run2()
+{
+	$tuvok.walkTo( "$node_CinematicEnd_OffLift2", "run" );
+	waitFor( $tuvok );
+
+	$telsia.walkTo( "$nodeTelsia_CinematicEnd_RunTo1", "run" );
+	$tuvok.walkTo( "$nodeTuvok_CinematicEnd_RunTo1", "run" );
+	waitFor( $tuvok );
+	
+	$tuvok.useActorWeapon( "none" );
+	
+	$picard.turnTowardsEntity( $tuvok );
+	$munro.turnTowardsEntity( $tuvok );
+	wait( .5 );
+	
+	$tuvok.anim( "ent-stand-scan" );
+	
+	$tuvok.headWatchTarget( "nodeTuvokLookAt1", 3 );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicDeathBrig
+// player fails mission, showing hazard team in the brig
+//---------------------
+void cinematicDeathBrig()
+{
+	wait( 3 );
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+	
+	cam.load( "m6_DeathBrig_Shot1" );
+	wait( .1 );
+
+	//--- set the camera on the first path
+	$cam1.follow( $m6_DeathBrig_Shot1 );
+	$cam1.cut();
+	$cam1.fov( 60 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+
+    //--- fade in
+    cam_fadein( 1, 0, 0, 0, 1, 0 );
+    wait( 6 );
+    
+    //--- walk munro to the front of the cell
+    $deathMunro.walkto( "$nodeDeathMunro_WalkTo1", "walk" );
+    wait( 2 );
+    
+    //--- make munro and guard2 watch the guards
+    $deathMunro.headWatchTarget( "deathIdryllGuard1", 4 );
+    $deathIdryllGuard2.headWatchTarget( "deathIdryllGuard1", 4 );
+    wait( 1 );
+
+	//--- change munro's expression as the guard walks by    
+    $deathMunro.morph( "exp_Disgust" );
+
+    //--- walk the guard across the cells
+    $deathIdryllGuard1.walkto( "$nodeDeathIdryllGuard1_WalkTo1", "walk" );
+    wait( 2.5 );
+    
+	//--- open the brig door
+	$doorBrig.open( $world );
+	wait( .5 );
+	
+	$deathIdryllGuard2.headWatchTarget( "deathMunro", 4 );
+	wait( 4.5 );
+	
+    //--- close the door
+    //$doorBrig.close();
+
+	thread cinematicDeathBrig_Skipthread();
+}
+
+
+//---------------------
+// cinematicDeathBrig_Skipthread
+// skipthread
+//---------------------
+void cinematicDeathBrig_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicDeathBrig" );
+	
+	//--- fade to black
+	cam_fadeout( .2, 0, 0, 0, 1, 0 );
+	wait( .2 );
+
+	//--- fail the mission
+	
+	//hzm coop mod chrissstrahl, fail current mission
+	globalCoop_mission_fail();
+}
+
+
+//-----------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+void coop_findAndTargetnameEntities()
+//find entities without targetname and vive em a targetname
+{	
+	float fEntity,fFind;
+	entity e;
+	for(fEntity=0;fEntity<1023;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if(e.getOrigin() == '2151 -4806 64'){
+				e.targetname("doorConRoom");
+				e.lock();
+				fFind++;
+			}
+			if(e.getOrigin() == '2118 -4789 64'){
+				e.targetname("doorConRoom");
+				e.lock();
+				fFind++;
+			}
+			if(fFind>1){
+				return;
+			}
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m6-exterior");
+}
+
+
+
+
+

@@ -1,0 +1,821 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  Enterprise Exterior
+//  Script By:    Adam 'Senn' Bellefeuil
+//  Geometry By:  Adam 'Senn' Bellefeuil
+//  Created on:   03/07/2002
+//	Modified:	  08/12/2002	Jared Hefty
+//-----------------------------------------------------------------
+
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+//	Function Headers
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+
+//m6_exterior_stage1.scr
+void stage1Timer			( );
+void beginStage1            ( );
+void endStage1Timer 		( );
+void sweepBeam              ( entity b );
+
+//m6_exterior_stage2.scr
+void beginStage2		    ( );
+void runCapShip 	   		( );
+void componentDestroyed     ( );
+
+//m6_exterior_cinematics.scr
+void cinematicIntro();
+void cinematicIntro_Skipthread();
+void cinematicIntro_BlowHatch();
+void cinematicEndStage1();
+void cinematicEndStage1_Skipthread();
+void cinematicEndStage1_OpenCannonHatch();
+void cinematicEndStage1_RaiseCannon();
+void cinematicEndStage1_BlowCannonControlHatch();
+void endStage2Cinematic     ( );
+void missionFailedCinematic ( );
+
+//local
+void playerRangeCheck ();
+
+
+//--- setup functions
+void init();
+
+float levelComplete = 0;
+
+float coop_fForceStage2;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_playerDeionize(entity ePlayer);
+void	coop_playerFloatIntoSpace(entity ePlayer);
+void	coop_newPlayerEntered();
+void	coop_stage2ForceRulesOnPlayers();
+float	coop_calerPriviouseHealth;
+float	STAGE1_ISOVER = 0;
+entity	entityPlayerGlobal;
+
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+#include "maps/m6/m6-exterior_globals.scr"
+
+#include "coop_mod/maps/m6/m6-exterior_cinematics.script"
+#include "coop_mod/maps/m6/m6-exterior_stage1.script"
+#include "coop_mod/maps/m6/m6-exterior_stage2.script"
+#include "coop_mod/maps/m6/m6-exterior_forceStage2.script"
+
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+//	Function Implementations
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+float totalHealth = 1000;
+float lastPercent = 0;
+float deathNextHit = 0;		//will the enterprise die the next time it's nailed?
+
+//"bob" is our loving name for the actor showing the enterprise surface's health, mainly because it's shorter to type
+float nextShieldDialog = 1;	//flag to indicate we've already played a particular line
+void damageSurface ( ) {
+	if ( levelComplete )
+		return;
+	float healthPercent;
+	entity caller,activator;
+
+	caller = getcurrententity ();
+	
+	entity ePlayer;
+	
+	if(!doesEntityExist(caller)){
+		return;
+	}
+	else{
+		ePlayer = caller.getLastActivatingEntity();
+		if(globalCoop_check_entityValidPlayerTargetname(ePlayer)){
+			caller.health(coop_calerPriviouseHealth);
+			ePlayer.hurt(30);
+			thread globalCommon_OnDamage ( $entSurface , "damageSurface" );
+			return;
+		}
+	}
+	
+	
+	if ( deathNextHit == 1 )
+	{
+		missionFailedCinematic();
+		return;
+	}
+	
+	//hzm coop mod chrissstrahl - make this work in coop
+	coop_calerPriviouseHealth = caller.gethealth();
+	$bob.health( coop_calerPriviouseHealth );
+
+	healthPercent = ($bob.gethealth()) / totalHealth;
+
+	print ( "Last " + lastPercent + "    Current " +healthPercent + "\n" );
+	//only play this dialog once
+	if (( deathNextHit == 0 ) && ( healthPercent <=0))
+	{
+		deathNextHit = 1;
+		$barclay.playdialog("localization/sound/dialog/m6l2/barc_shielddown.mp3", 1, 200000, 1); //Shields down! A direct hit will destroy the ship!
+
+		//give the player some leeway
+		wait ( 6 );
+		$entSurface.triggerable ();
+	}
+
+	//only play "hit" dialog if the ship has taken 10% or more damage (ie, not every time the surface gets hit)
+	//and don't play these if we've already said "shields down"
+	float percentDifference;
+	percentDifference = lastPercent - healthPercent;
+
+	healthPercent *=100;
+
+	if (( deathNextHit == 0 ))
+	{
+		if ((healthPercent >10) && (healthPercent < 42) && nextShieldDialog >= 4 )
+		{
+			if ( mod ( nextShieldDialog , 6 ) == 0 )
+				$barclay.playdialog ( "localization/sound/dialog/m6l2/barc_shield10.mp3", 1, 200000, 1); //We've been hit. Shields down by 10%
+			nextShieldDialog ++;
+		}
+		else if ( healthPercent <=42 && nextShieldDialog == 3)
+		{
+			$barclay.playdialog ( "localization/sound/dialog/m6l2/barc_shield42.mp3", 1, 200000, 1); //Another hit! Shields at 42%
+			nextShieldDialog = 4;
+		}
+		else if ( healthPercent <=65 && nextShieldDialog == 2)
+		{
+		//--- change the music
+		forcemusic( "aux4" );
+			$barclay.playdialog ( "localization/sound/dialog/m6l2/barc_shield65.mp3", 1, 200000, 1); //Shields at 65%
+			nextShieldDialog = 3;
+		}
+		else if ( healthPercent <=80 && nextShieldDialog == 1 )
+		{
+			$barclay.playdialog ( "localization/sound/dialog/m6l2/barc_shield80.mp3", 1, 200000, 1); //We've been hit. Shields at 80%.
+			nextShieldDialog = 2;
+		}
+	}
+	lastPercent = healthPercent;
+	thread globalCommon_OnDamage ( $entSurface , "damageSurface" );
+}
+
+void playerOnDeath ()
+{
+//	print ( "ASDFASDF" );//hzm coop mod chrissstrahl - um, okay, everything will be fine...
+
+	//hzm coop mod chrissstrahl - remove timmer hud
+	thread globalCoop_huds_manageAll("m6CapitalShipHealth",0,0);
+	thread globalCoop_huds_manageAll("m6SabotageTimer",0,0);
+
+	//$player.anim ( "m6_death" ); //hzm coop mod chrissstrahl - not in coop
+	wait ( 4 );
+	
+	//hzm coop mod chrissstrahl, fail current mission
+	globalCoop_mission_fail();
+}
+
+//----------------------------
+void main()
+//----------------------------
+{
+	forceStage2_init();
+
+	//hzm coop mod chrissstrahl - display this message if a player dies, rather than display killed by world
+	$world.setStringvar("uservar1","killmessage  drifted into space...");
+	$world.setStringvar("uservar2","killmessage_de  trieb in den Weltraum ab...");
+	
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl - grab current health
+	coop_calerPriviouseHealth = totalHealth;
+	
+	coop_float_spawnAngle0 				= 170;
+	coop_vector_spawnOrigin8 			= '-20020 12846 1027';
+	coop_vector_spawnOrigin7 			= '-19950 12846 1027';
+	coop_vector_spawnOrigin6 			= '-19880 12846 1027';
+	coop_vector_spawnOrigin5 			= '-19810 12846 1027';
+	coop_vector_spawnOrigin4 			= '-20020 12920 1027';
+	coop_vector_spawnOrigin3 			= '-19950 12920 1027';
+	coop_vector_spawnOrigin2 			= '-19880 12920 1027';
+	coop_vector_spawnOrigin1			= '-19810 12920 1027';
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	//hzm coop mod chrissstrahl - if map (not)loaded with parameter to force stage 2
+	if( !coop_fForceStage2 ){
+		coop_float_spawnAngle1 				= 90;
+		//coop_vector_spawnOrigin1 			= '-19810 12920 1027';//lined up with everyone else
+		coop_vector_spawnOrigin1 			= '-19968 12864 832';//inside hatch
+	}
+	
+	
+	//hzm coop mod chrissstrahl - set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$EnterpriseExteriorLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+	//hzm coop mod chrissstrahl - if map (not)loaded with parameter to force stage 2
+	if( !coop_fForceStage2 ){
+		//--- fade the world out
+		cam_fadeout( .1, 0, 0, 0, 1, 0 );
+		letterbox( .1 );
+		cinematic();
+	}
+	
+	level_ai ( 0 );
+
+	//--- set the soundtrack
+	soundtrack( "music/m6l1.mus" );
+
+	$world.entity_fade_dist( 0 );
+	
+	//hzm coop moc chrissstrahl - 80 don't work right in mp if playergets hit few times it takes him ages to glide down again
+	$world.physicsvar ( "gravity" , 90 );
+
+	$bob.health ( totalHealth );
+	$bob.maxbosshealth ( totalHealth );
+	$entSurface.health ( totalHealth );
+
+	//Show and hide as appropriate for cinematics
+	$entTurret.notsolid ();
+
+	$turret.time ( .1 );
+	$turret.notsolid ();
+	$turret.hide ();
+	$turret.movedown ( 1024 );	//keep it out of reach of prying hands
+
+	playerDeathThread ( "playerOnDeath" );
+	$f1.hide();
+	$f2.hide();
+	$f3.hide();
+	$f4.hide();
+
+	spawn ( "Actor" , "model" , "char/starfleet_barclay.tik" , "targetname" , "barclay" );
+	spawn ( "Actor" , "model" , "models/char/starfleet_tuvok.tik" , "targetname" , "tuvok" );
+	spawn ( "Actor" , "model" , "models/char/starfleet_picard.tik" , "targetname" , "picard" );
+	wait ( .1 );
+
+	$idryll_weapons.handlesdamage ( 1 );
+	$idryll_warpdrive.handlesdamage ( 1 );
+	$idryll_engines.handlesdamage ( 1 );
+
+	//--- hide the friendlies
+	globalCommon_AiDummyHide( $barclay );
+	globalCommon_AiDummyHide( $tuvok );
+	globalCommon_AiDummyHide( $picard );
+	globalCommon_AiDummyHide( $munro );
+
+	//--- death cinematic
+	globalCommon_AiDummy( $deathMunro, "idle" );
+	globalCommon_AiDummy( $deathChell, "sit_right" );
+	globalCommon_AiDummy( $deathJurot, "sit_elbows" );
+	globalCommon_AiDummy( $deathChang, "sit_lean" );
+	wait( .5 );
+
+	globalCommon_AiDummy( $deathTelsia, "sit_right" );
+	globalCommon_AiDummy( $deathSydney, "sit_elbows" );
+	globalCommon_AiDummy( $deathIdryllGuard1, "idle" );
+	globalCommon_AiDummy( $deathIdryllGuard2, "idle" );
+
+	//--- make them use no weapon
+	$deathMunro.useActorWeapon( "none" );
+	$deathChell.useActorWeapon( "none" );
+	$deathJurot.useActorWeapon( "none" );
+	$deathChang.useActorWeapon( "none" );
+	$deathTelsia.useActorWeapon( "none" );
+	$deathSydney.useActorWeapon( "none" );
+
+	//--- facial morphs
+	$deathMunro.morph( "exp_brows_down" );
+	$deathChell.morph( "exp_Fear" );
+	$deathJurot.morph( "exp_Skeptical" );
+	$deathChang.morph( "exp_Anger" );
+	$deathTelsia.morph( "exp_Serious" );
+	$deathSydney.morph( "exp_Fear" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m6_exterior" );
+	
+	globalCommon_AiDummy( $deathIdryllGuard1, "idle" );
+	globalCommon_AiDummy( $deathIdryllGuard2, "idle" );
+
+	//--- setup the world
+	init();
+
+	waitforplayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//--- setup the player
+	
+	//hzm coop mod chrissstrahl - if map (not)loaded with parameter to force stage 2
+	if( !coop_fForceStage2 ){
+		freezeplayer();
+		wait( 1 );
+	
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$ClearHullOfSaboteurs$$","incomplete",1,1);		
+	}
+	
+	//$group1Target.groupdeaththread ( "incrementGroupDeaths" );
+	//$group2Target.groupdeaththread ( "incrementGroupDeaths" );
+
+	$group1Target.sendeventtogroup ( "health" , 150 );
+	$group2Target.sendeventtogroup ( "health" , 150 );
+
+	//--- intro cinematic
+	thread cinematicIntro();
+	
+	$turret.notsolid ();
+	$entSurface.notsolid ();
+	
+	//hzm coop mod chrissstrahl - if map (not)loaded with parameter to force stage 2
+	if( !coop_fForceStage2 ){
+		thread playerRangeCheck();
+		$cinematicSky.time ( 60 );
+		$cinematicSky.rotateY ( 1 );
+		
+		globalArchetype_Setup ( $hatchArchetype , "EnterpriseHatch" );
+		
+		$group1Puzzle.setsize ( '-32 -32 0' , '32 32 32' );
+		$group2Puzzle.setsize ( '-32 -32 0' , '32 32 32' );
+		$group3Puzzle.setsize ( '-32 -32 0' , '32 32 32' );
+		
+	}else{
+		forceStage2_playerHatch();
+		forceStage2_devices();		
+	}
+	
+}
+
+float devicesDisabled = 0;
+float NUMBER_OF_DEVICES = 3;
+
+void disableDevice ()
+{
+	entity caller,shields,clip,clip2,device,arch;
+	float num;
+	caller = getcurrentEntity ();
+	num = caller.getfloatvar ( "uservar1" );
+	wait ( .05 );
+	shields = getentity ( "group" + num + "Shields" );
+	clip2 = getentity ( "group" + num + "Clip2" );
+	clip = getentity ( "group" + num + "Clip" );
+	device = getentity ( "group" + num + "Device" );
+	arch = getentity ( "group" + num + "DeviceArchetype" );
+	arch.remove ();
+
+	caller.missionobjective ( 0 );
+	caller.playsound ( "sound/ships/drull/drull-beepaccept.wav" , 2 , .9 ,384 );
+	caller.remove ();
+
+	shields.remove ();
+	clip.remove ();
+	clip2.remove ();
+
+	device.anim ( "idle_off" );
+
+	devicesDisabled++;
+	if ( devicesDisabled >= NUMBER_OF_DEVICES )
+	{
+
+		// don't let player switch weapons when turret comes up
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-imod.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-drull-staff.tik" );
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-rom-radgun.tik" );		
+		
+		killthread ( "stage1Timer" );
+		wait ( 2 );
+		
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$ClearHullOfSaboteurs$$","complete",1,1);
+		
+		thread cinematicEndStage1();
+	}
+
+
+	//clip.bind ( device );
+	//clip.setstringvar ( "myDevice" , device.getrawtargetname());
+	//clip.notsolid ();
+	device.notsolid ();
+	thread globalAccelMoveZ ( device , 8192 + randomint ( 64 ) , 120 , "rampup" , "" );
+	//thread globalAccelMove_RotateZ ( device , 2048 , 30 , "rampupdown" , "" );
+	device.rotatez ( 3 );
+	device.rotatey ( 10 );
+	device.rotatez ( 5 );
+	device.notsolid ();
+	//device.handlesdamage ( 1 );
+	//device.health ( 5 );
+	//thread globalCommon_OnDamage ( clip , "destroyDevice" );
+	//wait ( 20 );
+	//clip.solid ();
+}
+
+void destroyDevice ()
+{
+	entity deviceClip,device;
+	deviceClip = getcurrententity ();
+	device = getentity ( deviceClip.getstringvar ( "myDevice" ));
+
+	device.scale ( 0.25 );
+	device.model ( "models/fx/fx-drull-ship-explode.tik" );
+	wait ( 1 );
+	device.remove ();
+	deviceClip.remove ();
+}
+
+//----------------------------
+void init()
+//----------------------------
+{
+	$entTurret.anim ( "idle_below" );
+	//Initialize damage triggers for enterprise surface
+	$bob.ai_off();
+
+	$search_beam1.show();
+	$search_beam1.loopsound ( "sound/ships/drull/drull_scan1.wav", 7, 700);
+	$search_beam1_rotate_origin.bind ( $search_fighter1 );
+	$search_beam1.bind ( $search_beam1_rotate_origin );
+	$search_beam1_origin.bind ( $search_beam1_rotate_origin );
+
+	wait ( .1 );
+
+	$search_fighter1.followpath ( $patrolPath1 , "loop" , "normalangles" );
+	thread sweepBeam ( $search_beam1_rotate_origin );
+
+	//Setup cinematics
+	cam.load( "ent_exterior_beamoutcam1" );
+	cam.load( "ent_exterior_explodecam1" );
+
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");
+
+	$photon_cannon_hatch_steam.hide();
+
+	$photon_cannon_doora.time( .05 );
+	$photon_cannon_doora.moveWest( 6144 );
+	$photon_cannon_doora.moveDown ( 1024 );
+
+	$photon_cannon_doorb.time( .05 );
+	$photon_cannon_doorb.moveWest( 6144 );
+	$photon_cannon_doorb.moveDown ( 1024 );
+
+	$jtube_hatch.time( .05 );
+	$jtube_hatch.moveWest( 6144 );
+	$jtube_hatch.moveDown( 1024 );
+
+	$photon_cannon_hatch.time( .05 );
+	$photon_cannon_hatch.moveWest( 6144 );
+	$photon_cannon_hatch.moveDown( 1024 );
+
+	$idryll_weapons.hide ();
+	$idryll_warpdrive.hide ();
+	$idryll_engines.hide ();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$capital_ship.notsolid ();
+
+	$capital_ship.bind      ( $capShipOrigin );
+	$idryll_weapons.bind    ( $capShipOrigin );
+	$idryll_warpdrive.bind  ( $capShipOrigin );
+	$idryll_engines.bind    ( $capShipOrigin );
+
+	$weaponsBattery1.bind	( $capShipOrigin );
+	$weaponsBattery2.bind	( $capShipOrigin );
+
+	$warpDriveBattery1.bind	( $capShipOrigin );
+	$warpDriveBattery2.bind	( $capShipOrigin );
+
+	$enginesBattery1.bind	( $capShipOrigin );
+	$enginesBattery2.bind	( $capShipOrigin );
+
+	globalArchetype_Setup ( $group1DeviceArchetype , "IdryllSabotageDevice" );
+	globalArchetype_Setup ( $group2DeviceArchetype , "IdryllSabotageDevice" );
+	globalArchetype_Setup ( $group3DeviceArchetype , "IdryllSabotageDevice" );
+}
+
+void playerRangeCheck ()
+{
+	$playableRangeOrigin.movedown(1500);
+	$playableRangeOrigin.time(.2);	
+	float dist;
+	entity ePlayer;
+	float fPlayerIdInUse;
+	vector vPlayer;
+	vector vCheker;
+	vCheker = $playableRangeOrigin.getorigin();
+	
+	while(!STAGE1_ISOVER)
+	{
+		fPlayerIdInUse=0;
+		while(fPlayerIdInUse<coop_integer_maxPlayers)
+		{
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(ePlayer.getFloatVar("coop_floatingInSpace") != 1){
+					vPlayer = ePlayer.getOrigin();
+					dist = (vPlayer_z - vCheker_z);
+					if (globalMath_GetXYDistance ( ePlayer.getorigin () , $playableRangeOrigin.getorigin()) >= 4800 && dist < 3000)
+					{
+						if(vPlayer_z > 860){//840
+							if(!ePlayer.getFloatVar("coop_exteriorWarningHudAdded")){
+								ePlayer.setFloatVar("coop_exteriorWarningHudAdded",1);
+								thread globalCoop_huds_Add(ePlayer,"m6BoundaryWarning");
+							}
+						}
+						else{
+							thread coop_playerDeionize(ePlayer);
+						}
+					}
+					else if(ePlayer.getFloatVar("coop_exteriorWarningHudAdded") == 1){
+						ePlayer.setFloatVar("coop_exteriorWarningHudAdded",0);
+						ePlayer.setFloatVar("coop_exteriorDeisonized",0);
+						thread globalCoop_huds_Remove(ePlayer,"m6BoundaryWarning");
+					}
+				//Kill dude
+					if (dist > 2900){//in the "dead zone"
+						thread coop_playerFloatIntoSpace(ePlayer);
+					}
+				}
+			}
+			fPlayerIdInUse++;
+		}
+		wait(.25);
+	}
+
+
+/*
+	float dist;
+	float hudUp = 0;
+
+	while ( 1 )
+	{
+		dist = globalMath_GetXYDistance ( $player.getorigin () , $playableRangeOrigin.getorigin());
+
+		if ( dist > 5500 )	//in the "dead zone"
+		{
+			$tuvok.stopdialog ();
+			killthread ( "stage1Timer" );
+			killthread ( "beginStage1" );
+
+			$player.hide();
+			$player.notsolid ();
+			endStage1Timer ();
+			spawn ( "Camera" , "targetname" , "deathCam" );
+			wait ( .05 );
+
+			cinematic ();
+			$world.physicsvar ( "gravity" , -300 );
+			spawn ( "script_model" , "targetname" , "spaceMunro" );
+			wait ( .05 );
+			vector v;
+			v = $player.getorigin();
+			v_z += 128;
+			$spaceMunro.origin ( v );
+
+			$spaceMunro.model ( "models/char/hazardteam_evosuit-munro.tik" );
+			$spaceMunro.anim ( "m6_death" );
+
+			$spaceMunro.time ( 30 );
+			$spaceMunro.moveup ( 2048 );
+			$deathCam.orbit ( $spaceMunro , $spaceMunro );
+			$deathCam.orbit_height ( -32 );
+			$deathCam.speed ( .3 );
+			$deathCam.cut ();
+
+			cam_fadeout( 1, 0, 0, 0, 1, 0 );
+			letterbox ( .1 );
+			cuecamera ( $deathCam );
+			cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+			wait ( 13 );
+
+			$player.missionfailed ( "YouFloatedIntoSpace" );
+			noncinematic ();
+			return;
+		}
+		else if ( (dist >= 4700) && (hudUp == 0))
+		{
+			print ( "up\n" );
+			$player.addhud	( "m6BoundaryWarning" );
+			hudUp = 1;
+		}
+		else if ( (dist < 4700) && (hudUp == 1) )
+		{
+			print ( "dn\n" );
+			$player.removehud	( "m6BoundaryWarning" );
+			hudUp = 0;
+		}
+
+		wait ( 0.5 );
+	}
+*/
+}
+
+//called from the idryl state machine
+//Versionpasdasdfasd asdfsidf]-
+//6.0
+void IdryllFloatAway()
+{
+	entity e;
+	vector o;
+	float deathanim;
+
+	deathanim = randomint( 2 );
+
+	e = getcurrententity();
+	if( doesEntityExist( e ) )
+	{
+		e.attackplayer();
+		wait( 0.05 );
+		e.groupattack( );
+		e.ai_off();
+
+		if( deathanim == 1 )
+			e.anim( "death_A" );
+		else
+			e.anim( "death_B" );
+
+		e.notsolid();
+		e.gravity( 0 );
+		o = e.getorigin();
+		o_z += 2;
+		e.origin( o );
+		wait( 0.05 );
+		e.setvelocity( '0 0 64' );
+
+		if( deathanim == 1 )
+		{
+			waitforanimation( e, "death_A" );
+			e.anim( "death_A_idle" );
+		}
+		else
+		{
+			waitforanimation( e, "death_B" );
+			e.anim( "death_B_idle" );
+		}
+
+		wait( 1 + randomfloat( 3 ) );
+
+		e.displayeffect( "TransportOut", "Idryll" );
+		wait( 2 );
+		e.suicide();
+		e.remove();
+	}
+}
+
+void coop_playerFloatIntoSpace(entity ePlayer)
+//----------------------------
+//	Kill player in multiplayer
+//----------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getFloatVar("coop_floatingInSpace") == 1){
+			return;
+		}
+		ePlayer.setFloatVar("coop_floatingInSpace",1);
+		ePlayer.gravity(0);
+		wait(.5);
+		ePlayer.jump(3000);
+		ePlayer.hudPrint("^1 $$YouFloatedIntoSpace$$ \n");
+		wait(2);
+		ePlayer.kill();
+		float fFloating = 1;
+		while(fFloating){
+			wait(.2);
+			if(ePlayer.getHealth() > 1){
+				fFloating = 0;
+			}
+		}
+		if(doesEntityExist(ePlayer)){
+			ePlayer.gravity(1);
+			wait(1);
+			ePlayer.setFloatVar("coop_floatingInSpace",0);
+		}
+	}
+}
+
+void coop_playerDeionize(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer))
+	{
+		if(!ePlayer.getFloatVar("coop_exteriorDeisonized")){
+			ePlayer.setFloatVar("coop_exteriorDeisonized",1);
+			ePlayer.droptofloor();
+			wait(.1);
+			if(doesEntityExist(ePlayer)){
+				if(!globalCoop_check_playerSpectator(ePlayer)){
+					ePlayer.immobilize();
+					ePlayer.displayEffect("TransportOut","Chewer");
+					wait(3);
+					
+					if(doesEntityExist(ePlayer)){
+						if(	globalMath_GetXYDistance ( ePlayer.getorigin () , $playableRangeOrigin.getorigin()) < 4800 ||
+							globalCoop_check_playerSpectator(ePlayer) == 1){
+							return;
+						}
+						ePlayer.anim("death2");
+						//ePlayer.hide();
+						wait(.4);
+						if(doesEntityExist(ePlayer)){
+							ePlayer.takedamage();
+							ePlayer.immortal(0);
+							ePlayer.deactivateshield();
+							ePlayer.kill();
+							ePlayer.hurt(2);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void coop_newPlayerEntered()
+////////////////////////////////////////////////////////////////////////////////
+// Called by the co-op mod each time anew player enters the server
+////////////////////////////////////////////////////////////////////////////////
+{
+	float fPlayerIdInUse;
+	entity ePlayer;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++)
+	{
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer))
+		{
+			if(ePlayer.getFloatVar("setSetSetSetSetSet") != 1)
+			{
+				ePlayer.setFloatVar("setSetSetSetSetSet",1);
+				ePlayer.setFloatVar("coop_floatingInSpace",0);
+				ePlayer.setFloatVar("coop_exteriorWarningHudAdded",0);
+			}
+		}
+	}
+}
+
+void coop_stage2ForceRulesOnPlayers()
+//force players to their locations
+{
+	entity ePlayer;
+	float fPlayerIdInUse;
+	vector vOrigin;
+	while(1)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<=coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(doesEntityExist(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.scale(.2);
+				ePlayer.notsolid();
+				ePlayer.gravity(0);
+				vOrigin=ePlayer.getOrigin();
+				if(vOrigin_z > 1030)
+				{
+					vOrigin_z = 1024;
+					ePlayer.setvelocity('0 0 0');
+					thread globalCoop_player_warpToSpawn(ePlayer);
+				}
+			}
+		}
+		wait(0.5);
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m7l1a-attrexian_colony");
+}
+
+

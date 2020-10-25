@@ -1,0 +1,3282 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	 	m2l1-sfa - Starfleet Academy
+//  Script By:   	Adam B, Luke W, Benson R
+//  Geometry By:  	Adam B, Benson R
+//  Created on:   	06/21/2002
+//  Last Edited:  	04/25/2003 - Adam B
+//-----------------------------------------------------------------
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  DEFINE
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void careerOption1();
+void careerOption2();
+void careerOption3();
+
+
+void main();
+
+//--- setup functions
+void setupAI();
+void setupArmatureCinematics();
+void setupCameras();
+void setupWorld();
+void setupSkyShuttles();
+void setupTurbolifts();
+
+//--- conversation functions
+void conversationHazardTeam();
+void conversationHazardTeam_MoveTelsia();
+void conversationHazardTeam_MoveChang();
+void conversationHazardTeam_MoveChell();
+void conversationMainBuilding_Voyager();
+void conversationMainBuilding_Voyager_CadetFemale1_Post();
+void conversationMainBuilding_Voyager_CadetFemale2_Post();
+void conversationCourtyard_Inquisition();
+void conversationMainLectureHall_Female();
+
+//--- game mechanic functions
+void gameTuvokDeparts();
+void gameTurboLift_Blow();
+void gamePhaseInverter_OpenDoor();
+void gamePhaseInverter_CloseDoor();
+void gamePhaseInverter_EmitSparks( entity entSparks );
+void gamePorterFound();
+void gamePorterFound_WalkToLift();
+void gamePorterFound_MakeComment();
+void gamePorterCheckLift();
+void gamePorterCheckDistance();
+void gameHarryFound();
+void gameMaintenanceDoor_Open();
+void gamePickupPhaseInverter();
+void gamePlayerHasInverter();
+void gameMeetHeadmaster();
+void gameMeetTelsia();
+
+//--- ambient functions
+void ambientMainBuilding_CadetLeavesLift();
+void ambientMainBuilding_TeacherMale2_UsePad();
+void ambientMainBuilding_TeacherMale2_Converse();
+void ambientMainBuilding_CadetFemale5_UsePad();
+void ambientMainBuilding_CadetFemale6_StandAround();
+void ambientMainBuilding_CadetFemale6_Converse();
+void ambientUsePad( entity entAI );
+
+//--- computer message functions
+void computerHaveVisitor();
+void computerGoToHeadmaster();
+void computerTurboliftBroken();
+void computerTurboliftRepaired();
+void computerPASystem();
+float computerPASystem_PickChoice();
+void computerPASystem_SayAnnouncement( float fltChoice );
+entity computerPASystem_PickSpeaker();
+
+//--- common functions
+void commonRandomlyAnimateActor( entity actorToAnimate, string animationToUse );
+void commonRemoveActor();
+void commonAccessDenied();
+void commonSetLiftState( string strState );
+void commonAnimateStance( entity entAI, float fltNumCycles, string strAnim1, float boolLoop1, string strAnim2, float boolLoop2, string strAnim3, float boolLoop3, string strAnim4, float boolLoop4 );
+void commonPatrol( entity entAI, entity entNode );
+
+//--- cleanup functions
+void removeHazardTeam();
+
+//--- cinematic functions
+void cinematicArm_Functionary_Start();
+void cinematicArm_Functionary_Skipthread();
+void cinematicArm_Functionary1_ArmEnd();
+void cinematicArm_Functionary2_ArmEnd();
+
+void cinematicArm_MeetTelsia_Intro_Start();
+void cinematicArm_MeetTelsia_Intro_ArmEnd();
+void cinematicArm_MeetTelsia_ArmEnd();
+
+void cinematicMeetVisitor();
+void cinematicMeetVisitor_Skipthread();
+void cinematicMeetVisitor_MunroLookAround();
+void cinematicMeetVisitor_MunroSurprised();
+void cinematicMeetVisitor_MunroNod();
+void cinematicMeetVisitor_MunroTuvokLookUp();
+
+void cinematicLevelStart();
+
+void koi();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- parameter constants
+
+string M2_SOUND_ACCESS_DENIED = "sound/environment/computer/lcars_no.wav";
+string M2_SOUND_ACCESS_GRANTED = "sound/environment/computer/lcars_yes.wav";
+
+float PORTER_DISTANCE_TOLERANCE = 192;
+
+float PA_WAIT_OFFSET = 16;		//the amount of random time to add to the PA base time for waiting between announcements
+float PA_WAIT_BASE = 15;		//the minimum amount of time to wait between PA announcements
+float PA_DISTANCE = 512;		//the sound distance for max volume, it will fade off after this distance
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+//--- armature cinematics
+//entity cinematicArm_Functionary1;
+//entity cinematicArm_Functionary2;
+entity cinematicArm_MeetTelsia_Intro;
+entity cinematicArm_MeetTelsia_Choice1;
+entity cinematicArm_MeetTelsia_Choice2;
+entity cinematicArm_MeetTelsia_Choice3;
+
+float currentDeck = 1;
+
+//--- flags
+float boolPlayerLeftFunctionaryFloor = 0;
+float boolPlayerLeftFunctionaryFloor_OpenLiftDoors = 0;
+float boolComputerHaveVisitorPlayed = 0;
+float boolPlayerToldToGetInverter = 0;
+float boolPhaseInvertDoorOpen = 0;
+float boolUnlockOfficeObjectiveShown = 0;
+float boolHavePhaseInverter = 0;
+float boolMaintenanceDoor_Unlocked = 0;
+float boolPorterAtLift_FirstLine = 0;
+float boolPorterAtLift_SecondLine = 0;
+float boolPorterAtLift_ThirdLine = 0;
+float boolPorterAtLift_FourthLine = 0;
+float boolPorterAtLift = 0;
+float boolCinematicActive = 0;
+float boolImportantDialogActive = 0;
+
+//--- PA stuff
+vector vecPAArray = '0 0 0';
+float fltPAArrayChoice = 1;
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  INCLUDES
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	ePlayer_cinematicMeetVisitor;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/m2/m2l1_dialog.scr"
+#include "maps/m2/m2_objectiveFinder.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/maps/m2/m2_turbolift.script"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  MAIN
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// main
+// do start up stuff
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl, Set spawnlocations for this level
+	coop_float_spawnAngle1 				= 226;
+	coop_vector_spawnOrigin1 			= '-2424 5352 1120';
+	
+	//hzm coop mod chrissstrahl - spawpoints, have a new set here
+	//set new spawnpoints based upon a base vector
+	float i;
+	float f;
+	vector v;
+	//player 8 to 4
+	v = '-2320 5415 1120';
+	f = v_x;
+	for(i=8;i>1;i--){
+		setFloatScriptVariable("coop_float_spawnAngle"+i,270);
+		v_x = f;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		f += -50;
+	}
+	//eof hzm
+	
+	
+	//hzm coop mod chrissstrahl, set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$SFALoadingText$$";
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+
+	//--- set the soundtrack
+	soundtrack( "music/m2l1-sfa.mus" );
+
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 2000 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m2l1_sfa" );
+
+	//--- setup the world
+	setupAI();
+	setupArmatureCinematics();
+	setupCameras();
+	setupTurbolifts();
+	setupWorld();
+	thread setupSkyShuttles();
+	koi();
+
+	//--- setup dialog
+	initDialog();
+
+	//--- wait for player
+	waitforplayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//--- loadout the player
+	freezeplayer();
+	wait( 1 );
+
+	//--- launch the intro cinematic
+	//thread cinematicArm_Functionary_Start();
+	thread cinematicLevelStart();
+
+	//--- start the PA system
+	thread computerPASystem();
+}
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  SETUP FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// setupWorld
+// setup the world
+//---------------------
+void setupWorld()
+{
+	//--- stemmons terminal
+	$terminalStemmonsIntro.anim( "idle" );
+	$terminalStemmonsIntro.notsolid();
+	$terminalStemmons.anim( "idle" );
+	$terminalStemmons.hide();
+	$terminalStemmons.notsolid();
+
+	//--- triggers
+	//$MainLectureHall_Location1_Call.nottriggerable();		//HACK 	added
+	$triggerGamePlayerHasInverter.nottriggerable();
+	$triggerGameMeetTelsia.nottriggerable();
+	//$triggerLiftPanelFinished.nottriggerable();			//HACK 	commented out
+	$triggerExit.notTriggerable();
+	$triggerGameTurboLift_Blow.notTriggerable();			//HACK	added
+	$triggerGamePickupPhaseInverter.notTriggerable();		//HACK 	added
+
+	//--- phase inverters
+	$objectPhaseInverter_Repaired.hide();
+
+	//--- fx
+	$objectPhaseInverter_Sparks.hide();
+
+	//--- on use objects
+	//thread globalCommon_OnUse( $objectPhaseInverter_Door, "gamePhaseInverter_OpenDoor" );		//HACK	commented out
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup starting variables
+	commonSetLiftState( "Normal" );
+
+	//--- archetypes
+	//globalArchetype_Setup( $archetypePhaseInverter_Pickup, "PulsePhaseInverter" );	//HACK commented out
+	globalArchetype_Setup( $archetypeMaintenanceDoorPanelInner, "DoorPanel" );
+	globalArchetype_Setup( $archetypeMaintenanceDoorPanelOuter, "DoorPanel" );
+	//globalArchetype_Setup( $archetypeRepairPanel, "TurboLiftRepairPanel" );		//HACK 	commented out
+
+	//--- lock doors
+	$doorMainLectureHall1.lock();
+	$doorMainLectureHall2.lock();
+
+	//--- objects
+	$laptopHeadmasters.anim( "idle" );
+	$flags.anim( "idle" );
+	$skySFA.show();
+	$skySFADome.surface( "material2", "+nodraw" );
+	$skySFADome.surface( "material3", "+nodraw" );
+	$skySFAShuttle1.hide();
+	$skySFAShuttle2.hide();
+	$nodeLoudSpeaker1.notSolid();
+	$nodeLoudSpeaker1.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$nodeLoudSpeaker2.notSolid();
+	$nodeLoudSpeaker2.hide();
+	$nodeLoudSpeaker3.notSolid();
+	$nodeLoudSpeaker3.hide();
+	$nodeLoudSpeaker4.notSolid();
+	$nodeLoudSpeaker4.hide();
+	$nodeLoudSpeaker5.notSolid();
+	$nodeLoudSpeaker5.hide();
+	$nodeLoudSpeaker6.notSolid();
+	$nodeLoudSpeaker6.hide();
+}
+
+//---------------------
+// setupSkyShuttles
+// setup the skyportal shuttles flying around
+//---------------------
+void setupSkyShuttles()
+{
+	$skySFAShuttle1.anim( "idle" );
+	wait( 30 );
+
+	$skySFAShuttle2.anim( "idle" );
+	//wait( 5 );
+
+	$skySFAShuttle3.remove();
+}
+
+//---------------------
+// setupAI
+// setting up AI
+//---------------------
+void setupAI()
+{
+	//print( "SETTING UP AI!!!\n" );
+	$stemmons.ai_off();
+
+	//--- hazard team
+	globalCommon_AiDummyHide( $munro );
+	globalCommon_AiDummyHide( $telsia );
+	globalCommon_AiDummyHide( $chang );
+	globalCommon_AiDummyHide( $chell );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//----------------------------------
+	//--- main building
+	//main characters
+	
+	$stemmons.removeactorweapon( "Phaser" );
+	$stemmons.hide();
+	$stemmons.notsolid();
+	thread commonRandomlyAnimateActor( $stemmons, "ent-vchair" );		//make him randomly animate in the chair
+
+	globalCommon_AiDummyHide( $tuvok );
+
+	//globalCommon_AiDummyHide( $harry );	//HACK	commented out
+	$harry.settendency( "patrol", 1 );
+	$harry.settendency( "work", 1 );
+	//$harry.archetype( "Harry" );
+	$harry.useActorWeapon( "EnterpriseDatapad" );
+
+	//officials
+	globalCommon_AiDummy( $mainBuilding_OfficialMale1, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialMale1, 0, "sfa_hands_back", 1, "conv-handsweep", 0, "conv-affirmative", 0, "conv-talk2", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_OfficialMale2, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialMale2, 0, "sfa_hands_back", 1, "conv-handsweep", 0, "conv-affirmative", 0, "conv-talk2", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_OfficialFemale1, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialFemale1, 0, "conv-scratchingchin-thinking", 0, "sfa_handsclasp", 1, "conv-talk-handsonhips", 0, "conv-look", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_OfficialFemale2, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialFemale2, 0, "conv-talk2", 0, "conv-crossarms", 0, "sfa_handsclasp", 1, "conv-look", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_OfficialFemale3, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialFemale3, 0, "conv-scratchingchin-thinking", 0, "sfa_handsclasp", 1, "conv-talk-handsonhips", 0, "conv-look", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_OfficialFemale4, "" );
+	thread commonAnimateStance( $mainBuilding_OfficialFemale4, 0, "sfa_crossarmsR", 1, "conv-wtf", 0, "conv-shakehead", 0, "conv-gestureR", 0 );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//teachers
+	globalCommon_AiDummy( $mainBuilding_TeacherMale1, "" );
+	thread commonAnimateStance( $mainBuilding_TeacherMale1, 0, "sfa_hands_back", 1, "conv-scratchingchin-thinking", 0, "conv-talk3", 0, "conv-affirmative", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_TeacherMale2, "" );
+	$mainBuilding_TeacherMale2.settendency( "work", 1 );
+	$mainBuilding_TeacherMale2.settendency( "patrol", 1 );
+	//$mainBuilding_TeacherMale2.useActorWeapon( "EnterpriseDatapad" );
+	thread commonPatrol( $mainBuilding_TeacherMale2, $t389 );
+
+	globalCommon_AiDummy( $mainBuilding_TeacherMale3, "" );
+	thread commonAnimateStance( $mainBuilding_TeacherMale3, 0, "sfa_hands_back", 1, "conv-laugh1", 0, "conv-shrug", 0, "conv-embarrassment", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_TeacherMale4, "" );
+	$mainBuilding_TeacherMale4.useActorWeapon( "EnterpriseDatapad" );
+	thread commonAnimateStance( $mainBuilding_TeacherMale4, 0, "ent-datapad-scan", 0, "ent-datapad-use", 0, "", 0, "", 0 );
+
+	$mainBuilding_TeacherFemale1.settendency( "work", 1 );
+	$mainBuilding_TeacherFemale1.settendency( "patrol", 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//cadets
+	globalCommon_AiDummy( $cadetFemale1_MainBuilding_VoyagerConversation, "" );
+	globalCommon_AiDummy( $cadetFemale2_MainBuilding_VoyagerConversation, "" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetMale1, "" );
+	thread commonAnimateStance( $mainBuilding_CadetMale1, 0, "sfa_chair-idle", 1, "sfa_chair_talk_A", 0, "sfa_chair_talk_B", 0, "sfa_chair_talk_C", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_CadetMale2, "sfa_sit_B" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetMale3, "" );
+	$mainBuilding_CadetMale3.useActorWeapon( "EnterpriseDatapad" );
+	thread commonAnimateStance( $mainBuilding_CadetMale3, 0, "sfa_datapad_situse", 0, "sfa_datapad_sitidle", 0, "", 0, "", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_CadetMale4, "sfa_sit_A" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetMale5, "" );
+	thread commonAnimateStance( $mainBuilding_CadetMale5, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale1, "" );
+	thread commonAnimateStance( $mainBuilding_CadetFemale1, 0, "sfa_crossarmsR", 1, "sfa_crossarmsL", 1, "conv-affirmative", 0, "conv-talk-handsonhips", 0 );
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale2, "sfa_chair-idle" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale3, "sfa_leanL" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale4, "" );
+	//$mainBuilding_CadetFemale4.useActorWeapon( "EnterpriseDatapad" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale5, "ent-datapad-use" );
+	$mainBuilding_CadetFemale5.useActorWeapon( "EnterpriseDatapad" );
+
+	globalCommon_AiDummy( $mainBuilding_CadetFemale6, "" );
+	thread commonPatrol( $mainBuilding_CadetFemale6, $t396 );
+
+	globalCommon_AiDummy( $mainBuilding_ReceptionistFemale, "" );
+	thread commonRandomlyAnimateActor( $mainBuilding_ReceptionistFemale, "ent-vchair" );
+
+	//----------------------------------
+	//--- courtyard
+	//main characters
+	globalCommon_AiActor( $porter );
+	$porter.useActorWeapon( "EnterpriseDatapad" );
+	$porter.settendency( "patrol", 1 );
+	$porter.settendency( "work", 1 );
+	//$porter.archetype( "Porter" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_AiDummy( $teacherMale1_Courtyard_InquisitionConversation, "" );
+	globalCommon_AiDummy( $cadetMale1_Courtyard_InquisitionConversation, "" );
+	globalCommon_AiDummy( $cadetMale2_Courtyard_InquisitionConversation, "" );
+
+	//officials
+	globalCommon_AiDummy( $mainCourtyard_OfficialMale1, "" );
+	thread commonAnimateStance( $mainCourtyard_OfficialMale1, 0, "sfa_hands_back", 1, "conv-handsweep", 0, "conv-affirmative", 0, "conv-talk2", 0 );
+
+	//globalCommon_AiDummy( $mainCourtyard_OfficialMale2, "" );
+	$mainCourtyard_OfficialMale2.settendency( "patrol", 1 );
+	$mainCourtyard_OfficialMale2.settendency( "work", 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//$mainCourtyard_OfficialMale3.useActorWeapon( "EnterpriseDatapad" );
+	//$mainCourtyard_OfficialMale3.settendency( "patrol", 1 );
+	//$mainCourtyard_OfficialMale3.settendency( "work", 1 );
+	$mainCourtyard_OfficialMale3.remove();	//FRRAMERATE FIX
+
+	globalCommon_AiDummy( $mainCourtyard_OfficialFemale1, "" );
+	thread commonAnimateStance( $mainCourtyard_OfficialFemale1, 0, "conv-scratchingchin-thinking", 0, "sfa_handsclasp", 1, "conv-talk-handsonhips", 0, "conv-look", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_OfficialFemale2, "" );
+	thread commonAnimateStance( $mainCourtyard_OfficialFemale2, 0, "sfa_crossarmsR", 1, "conv-wtf", 0, "conv-shakehead", 0, "conv-gestureR", 0 );
+
+	//teachers
+	globalCommon_AiDummy( $mainCourtyard_TeacherMale1, "" );
+	$mainCourtyard_TeacherMale1.useActorWeapon( "EnterpriseDatapad" );
+	thread commonAnimateStance( $mainCourtyard_TeacherMale1, 0, "ent-datapad-scan", 0, "ent-datapad-use", 0, "", 0, "", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_TeacherMale2, "" );
+	thread commonAnimateStance( $mainCourtyard_TeacherMale2, 0, "sfa_hands_back", 1, "conv-scratchingchin-thinking", 0, "conv-talk3", 0, "conv-affirmative", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_TeacherFemale1, "" );
+	thread commonAnimateStance( $mainCourtyard_TeacherFemale1, 0, "conv-scratchingchin-thinking", 0, "sfa_handsclasp", 1, "conv-talk-handsonhips", 0, "conv-look", 0 );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	globalCommon_AiDummy( $mainCourtyard_TeacherFemale2, "" );
+	thread commonAnimateStance( $mainCourtyard_TeacherFemale2, 0, "conv-scratchingchin-thinking", 0, "sfa_handsclasp", 1, "conv-talk-handsonhips", 0, "conv-look", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_TeacherFemale3, "sfa_leanR" );
+	$mainCourtyard_TeacherFemale3.headwatchtarget( "mainCourtyard_TeacherFemale4" , 5);
+
+	globalCommon_AiDummy( $mainCourtyard_TeacherFemale4, "" );
+	thread commonAnimateStance( $mainCourtyard_TeacherFemale4, 0, "sfa_crossarmsR", 1, "sfa_crossarmsL", 1, "conv-affirmative", 0, "conv-talk-handsonhips", 0 );
+
+	//cadets
+	//globalCommon_AiDummy( $mainCourtyard_CadetMale1, "" );
+	//$mainCourtyard_CadetMale1.settendency( "patrol", 1 );
+	//$mainCourtyard_CadetMale1.settendency( "work", 1 );
+	$mainCourtyard_CadetMale1.remove();
+
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale2, "" );
+	thread commonAnimateStance( $mainCourtyard_CadetMale2, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+	$mainCourtyard_CadetMale2.headwatchtarget( "mainCourtyard_CadetFemale4" , 5);
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale3, "sfa_datapad_situse" );
+	$mainCourtyard_CadetMale3.useActorWeapon( "EnterpriseDatapad" );
+	thread commonAnimateStance( $mainCourtyard_CadetMale3, 0, "sfa_datapad_situse", 0, "sfa_datapad_sitidle", 0, "", 0, "", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale4, "sfa_leanR" );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale5, "" );
+	$mainCourtyard_CadetMale5.useActorWeapon( "EnterpriseDatapad" );
+	thread commonAnimateStance( $mainCourtyard_CadetMale5, 0, "sfa_datapad_situse", 0, "sfa_datapad_sitidle", 0, "", 0, "", 0 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale6, "sfa_sit_B" );
+	$mainCourtyard_CadetMale6.headwatchtarget( "mainCourtyard_CadetFemale3" , 5);
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale7, "" );
+	thread commonAnimateStance( $mainCourtyard_CadetMale7, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetMale8, "" );
+	thread commonAnimateStance( $mainCourtyard_CadetMale8, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale1, "sfa_sit_B" );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale2, "" );
+	thread commonAnimateStance( $mainCourtyard_CadetFemale2, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale3, "" );
+	$mainCourtyard_CadetFemale3.headwatchtarget( "mainCourtyard_CadetMale6" , 5);
+	thread commonAnimateStance( $mainCourtyard_CadetFemale3, 0, "sfa_crossarmsR", 1, "conv-backthere", 0, "conv-laugh1", 0, "sfa_crossarmsL", 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale4, "sfa_leanL" );
+	$mainCourtyard_CadetFemale4.headwatchtarget( "mainCourtyard_CadetMale2" , 5);
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale5, "sfa_sit_A" );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale6, "" );
+	thread commonPatrol( $mainCourtyard_CadetFemale6, $t406 );
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale7, "sfa_leanL" );
+	$mainCourtyard_CadetFemale7.headwatchtarget( "mainCourtyard_CadetMale7" , 5);
+
+	globalCommon_AiDummy( $mainCourtyard_CadetFemale8, "sfa_leanL" );
+	$mainCourtyard_CadetFemale8.headwatchtarget( "mainCourtyard_CadetMale8" , 5);
+
+	//--- academic building (lecture hall)
+	$headmaster.ai_off();
+	//$headmaster.notsolid();
+	//$headmaster.archetype( "HeadMaster" );
+	thread commonRandomlyAnimateActor( $headmaster, "ent-table-laptop" );		//make her randomly animate in the chair
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_AiDummy( $cadetFemale1_MainLectureHall_FemaleConversation, "" );
+	globalCommon_AiDummy( $cadetMale1_MainLectureHall_FemaleConversation, "" );
+}
+
+//---------------------
+// setupCameras
+// setting up cameras
+//---------------------
+void setupCameras()
+{
+	//spawn cameras and paths
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+}
+
+
+//---------------------
+// setupArmatureCinematics
+// setup the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--- setup both parts of the functionary cinematic
+	//cinematicArm_Functionary1 = createCinematic( "m2l1-sf_acadamy" );
+	//cinematicArm_Functionary1.setendthread( "cinematicArm_Functionary1_ArmEnd" );
+	//cinematicArm_Functionary2 = createCinematic( "m2l1-sf_acadamy2" );
+	//cinematicArm_Functionary2.setendthread( "cinematicArm_Functionary2_ArmEnd" );
+
+	//--- setup the meet telsia cinematic
+    cinematicArm_MeetTelsia_Intro = createCinematic( "m2l1-telsia" );
+    cinematicArm_MeetTelsia_Intro.setEndThread( "cinematicArm_MeetTelsia_Intro_ArmEnd" );
+    cinematicArm_MeetTelsia_Choice1 = createCinematic( "m2l1-telsia-t1" );
+    cinematicArm_MeetTelsia_Choice1.setEndThread( "cinematicArm_MeetTelsia_ArmEnd" );
+    cinematicArm_MeetTelsia_Choice2 = createCinematic( "m2l1-telsia-t2" );
+    cinematicArm_MeetTelsia_Choice2.setEndThread( "cinematicArm_MeetTelsia_ArmEnd" );
+    cinematicArm_MeetTelsia_Choice3 = createCinematic( "m2l1-telsia-t3" );
+    cinematicArm_MeetTelsia_Choice3.setEndThread( "cinematicArm_MeetTelsia_ArmEnd" );
+}
+
+
+//---------------------
+// setupTurbolifts
+// setups turbolifts
+//---------------------
+void setupTurbolifts()
+{
+	//--- main building
+	m2Turbolift_Setup( "MainBuildingRight" );
+	m2Turbolift_Lock( "MainBuildingRight" );
+	m2Turbolift_Setup( "MainBuildingLeft" );
+
+	//--- lecture hall building
+	m2Turbolift_Setup( "MainLectureHall" );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  CONVERSATION FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//-----------------------------------------------------------------------------------------------------
+//--- HAZARD TEAM CONVERSATION OUTSIDE OF FUNCTIONARIES OFFICE
+//-----------------------------------------------------------------------------------------------------
+
+//---------------------
+// conversationHazardTeam
+// conversation between the hazard team outside of stemmons office
+//---------------------
+void conversationHazardTeam()
+{
+	float fltDistance;
+
+    $chell.playdialog( "localization/sound/dialog/m2l1/chell_disbanding.mp3", 1, 200, 0 ); //I can't believe he's disbanding the Hazard Team.
+    waitForDialog( $chell );
+
+    $chang.playdialog( "localization/sound/dialog/m2l1/chang_tosspen.mp3", 1, 200, 0 ); //Come on, Munro. Just give me five minutes alone with him...
+    waitForDialog( $chang );
+
+    $telsia.playdialog( "localization/sound/dialog/m2l1/telsia_igstup.mp3", 1, 200, 0 ); //So, you can be thrown into the Brig?
+    waitForDialog( $telsia );
+
+    $chell.playdialog( "localization/sound/dialog/m2l1/chell_pencil.mp3", 1, 200, 0 ); //Chang’s right! We have to do something!
+    waitForDialog( $chell );
+
+    $telsia.playdialog( "localization/sound/dialog/m2l1/telsia_friends.mp3", 1, 200, 0 ); //How do incompetent people end up with such important jobs?
+    waitForDialog( $telsia );
+
+    $chell.playdialog( "localization/sound/dialog/m2l1/chell_heck.mp3", 1, 200, 0 ); //Maybe we can get him fired for being a hack!
+    waitForDialog( $chell );
+
+    $chang.playdialog( "localization/sound/dialog/m2l1/chang_notright.mp3", 1, 200, 0 ); //Wow, even Chell wasn’t this bloodthirsty fighting the Borg!
+    waitForDialog( $chang );
+
+    $telsia.playdialog( "localization/sound/dialog/m2l1/telsia_higherl.mp3", 1, 200, 0 ); //I’m going to file an appeal with Starfleet Command. Someone in the chain of command will listen to reason.
+    waitForDialog( $telsia );
+
+    $chang.playdialog( "localization/sound/dialog/m2l1/chang_dontwork.mp3", 1, 200, 0 ); //And if that doesn't work??
+    waitForDialog( $chang );
+
+    $telsia.playdialog( "localization/sound/dialog/m2l1/telsia_boring.mp3", 1, 200, 0 ); //Then we make some hard choices….
+    waitForDialog( $telsia );
+
+	thread conversationHazardTeam_MoveTelsia();
+
+	$chang.lookat( globalCoop_return_playerClosestPreferActive($chang) );
+    $chang.playdialog( "localization/sound/dialog/m2l1/chang_calmm.mp3", 1, 200, 0 ); //Damn…
+    waitForDialog( $chang );
+	wait( 1 );
+
+	thread conversationHazardTeam_MoveChang();
+	wait( .5 );
+
+	thread conversationHazardTeam_MoveChell();
+	
+	
+}
+
+
+//---------------------
+// conversationHazardTeam_MoveTelsia
+// exit telsia to the turbolift
+//---------------------
+void conversationHazardTeam_MoveTelsia()
+{
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+    	//--- load out her dialog
+    	initDialog_Telsia( $telsia );
+
+    	//--- open the lift doors
+    	$telsia.walkto( "$nodeTelsia_PostConversation", "walk" );
+    	waitFor( $telsia );
+    }
+
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+    	//--- open the doors
+    	m2Turbolift_DoorOpen( "MainBuildingRight", 1 );
+    	boolPlayerLeftFunctionaryFloor_OpenLiftDoors = TRUE;
+    	wait( 1 );
+    }
+
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+    	//--- walk her onto the lift and close the doors
+    	$telsia.walkto( "$intro_telsia_waypoint2", "walk" );
+    	waitFor( $telsia );
+    	wait( .2 );
+    }
+
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+    	$telsia.turntoangle( 270 );
+    	wait( .1 );
+    }
+
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+    	//--- close the doors then remove her
+    	m2Turbolift_DoorClose( "MainBuildingRight", 1 );
+    	boolPlayerLeftFunctionaryFloor_OpenLiftDoors = FALSE;
+    	wait( 3 );
+    }
+
+    //--- tell the player he has a visitor
+    computerHaveVisitor();
+}
+
+
+//---------------------
+// conversationHazardTeam_MoveChang
+// exit chang to the panel
+//---------------------
+void conversationHazardTeam_MoveChang()
+{
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+        //--- load out his dialog
+        initDialog_Chang( $chang );
+
+        $chang.walkto( "$nodeChang_PostConversation", "walk" );
+        waitFor( $chang );
+        wait( 1 );
+
+        thread commonAnimateStance( $chang, 0, "conv-poundfist", 0, "conv-handflick-hellno", 0, "conv-shakehead", 0, "conv-talk1", 0 );
+        $chang.pushable ( 1 );
+    }
+}
+
+
+//---------------------
+// conversationHazardTeam_MoveChell
+// exit chell to follow chang
+//---------------------
+void conversationHazardTeam_MoveChell()
+{
+	if( boolPlayerLeftFunctionaryFloor == FALSE )
+	{
+       	//--- load out his dialog
+    	initDialog_Chell( $chell );
+
+    	$chell.walkto( "$nodeChell_PostConversation", "walk" );
+    	waitFor( $chell );
+    	wait( .25 );
+
+    	thread commonAnimateStance( $chell, 0, "conv-talk3", 0, "conv-shrug", 0, "sfa_handsclasp", 1, "conv-affirmative", 0 );
+    	$chell.pushable ( 1 );
+    }
+}
+
+
+//-----------------------------------------------------------------------------------------------------
+//--- BETWEEN TWO GIRLS IN THE MAIN BUILDING ABOUT VOYAGER
+//-----------------------------------------------------------------------------------------------------
+
+//---------------------
+// conversationMainBuilding_Voyager
+// conversation between two girls in the main building
+//---------------------
+void conversationMainBuilding_Voyager()
+{
+    $cadetFemale1_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet1_canyoub.mp3", 1, 200, 0); //Can you believe it?  Voyager returned after being gone all those years.
+    waitForDialog( $cadetFemale1_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale2_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet2_strand.mp3", 1, 200, 0); //I wonder what it was like?  Being stranded so far from home all that time….
+    waitForDialog( $cadetFemale2_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet1_stories.mp3", 1, 200, 0); //I'd love to sit down and talk with them about their adventures.
+    waitForDialog( $cadetFemale1_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale2_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet2_seven.mp3", 1, 200, 0); //Yeah.
+    waitForDialog( $cadetFemale2_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet1_nosilly.mp3", 1, 200, 0); //They must be in demand all over the Federation.
+    waitForDialog( $cadetFemale1_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale2_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet2_pleasure.mp3", 1, 200, 0); //An officer from that ship must have his pick of assignments.
+    waitForDialog( $cadetFemale2_MainBuilding_VoyagerConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainBuilding_VoyagerConversation.playdialog("localization/sound/dialog/m2l1/cadet1_notbad.mp3", 1, 200, 0); //After all that excitement, I don’t know how they could ever go back to normal duties.
+    waitForDialog( $cadetFemale1_MainBuilding_VoyagerConversation );
+    wait( 1 );
+
+    //--- load their +use dialog
+    initDialog_ConversationVoyager_Cadet1( $cadetFemale1_MainBuilding_VoyagerConversation );
+    initDialog_ConversationVoyager_Cadet2( $cadetFemale2_MainBuilding_VoyagerConversation );
+
+    //--- they walk away to their areas
+    thread conversationMainBuilding_Voyager_CadetFemale1_Post();
+    thread conversationMainBuilding_Voyager_CadetFemale2_Post();
+}
+
+//---------------------
+// conversationMainBuilding_Voyager_CadetFemale1_Post
+// female1 walks away to talk to someone else
+//---------------------
+void conversationMainBuilding_Voyager_CadetFemale1_Post()
+{
+	$cadetFemale1_MainBuilding_VoyagerConversation.walkTo( "$nodeCadetFemale1_MainBuilding_VoyagerConversation_Post", "walk" );
+	waitFor( $cadetFemale1_MainBuilding_VoyagerConversation );
+
+	//--- have her and the dude look at each other
+	$cadetFemale1_MainBuilding_VoyagerConversation.headwatchtarget( "mainCourtyard_CadetMale4" , 5);
+	wait( .3 );
+
+	$mainCourtyard_CadetMale4.headwatchtarget( "cadetFemale1_MainBuilding_VoyagerConversation" , 5);
+
+	//--- she chatterboxes him
+	thread commonAnimateStance( $cadetFemale1_MainBuilding_VoyagerConversation, 0, "conv-embarrassment", 0, "conv-laugh1", 0, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+}
+
+//---------------------
+// conversationMainBuilding_Voyager_CadetFemale2_Post
+// female1 walks away to talk to someone else
+//---------------------
+void conversationMainBuilding_Voyager_CadetFemale2_Post()
+{
+	$cadetFemale2_MainBuilding_VoyagerConversation.walkTo( "$nodeCadetFemale2_MainBuilding_VoyagerConversation_Post", "walk" );
+	waitFor( $cadetFemale2_MainBuilding_VoyagerConversation );
+
+	//--- have her and her look at each other....confusing...isn't it??
+	$cadetFemale2_MainBuilding_VoyagerConversation.headwatchtarget( "mainCourtyard_CadetFemale5" , 5);
+	wait( .3 );
+
+	$mainCourtyard_CadetFemale5.headwatchtarget( "cadetFemale2_MainBuilding_VoyagerConversation" , 5);
+
+	//--- she chatterboxes her
+	thread commonAnimateStance( $cadetFemale2_MainBuilding_VoyagerConversation, 0, "conv-embarrassment", 0, "sfa_standR", 1, "conv-talk1", 0, "sfa_crossarmsL", 1 );
+}
+
+
+//-----------------------------------------------------------------------------------------------------
+//--- INQUISITION CONVERSATION BETWEEN TWO CADETS AND A TEACHER
+//-----------------------------------------------------------------------------------------------------
+
+//---------------------
+// conversationCourtyard_Inquisition
+// conversation between 2 cadets and a teacher out in the courtyard
+//---------------------
+void conversationCourtyard_Inquisition()
+{
+	//--- walk the cadets over to the teacher
+	$cadetMale1_Courtyard_InquisitionConversation.walkto( "$nodeCadet1_InquisitionConversation", "walk" );
+	$cadetMale2_Courtyard_InquisitionConversation.walkto( "$nodeCadet2_InquisitionConversation", "walk" );
+	waitFor( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_questions.mp3", 1, 200, 0 ); //Sir, we have some questions about the exam.
+    wait( .25 );
+
+    //--- turn the teacher to face the cadets
+    $teacherMale1_Courtyard_InquisitionConversation.lookat( $cadetMale1_Courtyard_InquisitionConversation );
+    $cadetMale1_Courtyard_InquisitionConversation.lookat( $teacherMale1_Courtyard_InquisitionConversation );
+    $cadetMale2_Courtyard_InquisitionConversation.lookat( $teacherMale1_Courtyard_InquisitionConversation );
+    waitForDialog( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_whatever.mp3", 1, 200, 0 ); //What are your questions cadet?
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale2_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet2_conclusion.mp3", 1, 200, 0 ); //Why did you put so much emphasis on Cochrane’s theories?
+    waitForDialog( $cadetMale2_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_idont.mp3", 1, 200, 0 ); //Cochrane provides the foundation for all warp technology. His theories opened space to humanity, and still compose the basis for Federation ship technology.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_forex.mp3", 1, 200, 0 ); //But his theories are almost 300 years old. It’s hard to imagine a time without warp technology, or that humans were ever that backwards.
+    waitForDialog( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_notser.mp3", 1, 200, 0 ); //They weren’t backward. Just … unenlightened.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale2_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet2_redshirt.mp3", 1, 200, 0 ); //That’s our point, sir. That culture created Zefram Cochrane. So how could his work still have relevance?
+    waitForDialog( $cadetMale2_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_dontthink.mp3", 1, 200, 0 ); //Fail to understand the past, and you can never see the future.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_star.mp3", 1, 200, 0 ); //I have an easier time with Cochrane’s theories than with the early Vulcan warp technology.
+    waitForDialog( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale2_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet2_timet.mp3", 1, 200, 0 ); //The work of Dr. Leia Brahms is a lot more accessible.
+    waitForDialog( $cadetMale2_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_purely.mp3", 1, 200, 0 ); //While Dr. Brahms’ work is necessary reading and very informative, you still need to maintain a fundamental understanding of Dr. Cochrane’s work.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale2_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_poorsap.mp3", 1, 200, 0 ); //I still think it's a waste of time.  We'll never really break new ground by relying on ancient theories.
+    waitForDialog( $cadetMale2_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_cannot.mp3", 1, 200, 0 ); //And we’ll never make progress without building on the past.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_wordy.mp3", 1, 200, 0 ); //But we’ve gone far past Vulcan technology.
+    waitForDialog( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_ridic.mp3", 1, 200, 0 ); //Every race in the Federation makes its contribution.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+    $cadetMale2_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet2_turnon.mp3", 1, 200, 0 ); //Can we at least study someone from this century?
+    waitForDialog( $cadetMale2_Courtyard_InquisitionConversation );
+
+    $cadetMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/cadet1_amazed.mp3", 1, 200, 0 ); //Or this planet?
+    waitForDialog( $cadetMale1_Courtyard_InquisitionConversation );
+
+    $teacherMale1_Courtyard_InquisitionConversation.playdialog( "localization/sound/dialog/m2l1/teacher_nowlook.mp3", 1, 200, 0 ); //Remember, “Ex astris, scientia.” From the stars, knowledge.
+    waitForDialog( $teacherMale1_Courtyard_InquisitionConversation );
+
+	thread initDialog_ConversationInquisition_Cadet1( $cadetMale1_Courtyard_InquisitionConversation );
+	thread initDialog_ConversationInquisition_Cadet2( $cadetMale2_Courtyard_InquisitionConversation );
+	thread initDialog_ConversationInquisition_Teacher( $teacherMale1_Courtyard_InquisitionConversation );
+
+	//--- they all start fake chatter bombing each other
+	thread commonAnimateStance( $cadetMale1_Courtyard_InquisitionConversation, 0, "conv-poundfist", 0, "conv-fingerup-warning", 0, "conv-crossarms", 0, "conv-no", 0 );
+	thread commonAnimateStance( $cadetMale2_Courtyard_InquisitionConversation, 0, "conv-shrug", 0, "conv-wtf", 0, "conv-handflick-hellno", 0, "conv-embarrassment", 0 );
+	thread commonAnimateStance( $teacherMale1_Courtyard_InquisitionConversation, 0, "conv-shakehead", 0, "conv-no", 0, "conv-scratchingchin-thinking", 0, "conv-fingerup-warning", 0 );
+}
+
+
+//-----------------------------------------------------------------------------------------------------
+//--- FEMALE CONVERSATION BETWEEN CADETS
+//-----------------------------------------------------------------------------------------------------
+
+//---------------------
+// conversationMainLectureHall_Female
+// conversation between upset cadet girlfriend and her boyfriend
+//---------------------
+void conversationMainLectureHall_Female()
+{
+    $cadetMale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/male_sheese.mp3", 1, 128, 0 ); 		//I swear that it’s all right. You have my complete permission. I really want to see what it’s like.
+    waitForDialog( $cadetMale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_readth.mp3", 1, 128, 0 ); 	//You have to understand. Most Betazoids hate using telepathy on those who don’t have it.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_yesdid.mp3", 1, 128, 0 );	 //In the past, it’s led to war and death.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_iknow.mp3", 1, 128, 0 ); 	//Far too many of us ended up in concentration camps, placed there by those who feared our powers.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_nodiff.mp3", 1, 128, 0 ); 	//We’ve learned to respect the privacy of other races.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_sister.mp3", 1, 128, 0 ); 	//Learning the value of other people’s privacy was a major step forward for us.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_nonono.mp3", 1, 128, 0 ); 	//We’ve learned that all people have a right to think freely, without coercion or outside scrutiny.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_exerc.mp3", 1, 128, 0 ); 	//But if you’re really determined, we can give it a try.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .5 );
+
+    $cadetMale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/male_privacy.mp3", 1, 128, 0 ); 		//I would be honored to have you read my mind.
+    waitForDialog( $cadetMale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_pathetic.mp3", 1, 128, 0 ); //But only for a moment.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( 2 );
+
+    $cadetMale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/male_ohyeah.mp3", 1, 128, 0 ); //So?
+    waitForDialog( $cadetMale1_MainLectureHall_FemaleConversation );
+    wait( .3 );
+
+    $cadetFemale1_MainLectureHall_FemaleConversation.playdialog( "localization/sound/dialog/m2l1/female_gasp.mp3", 1, 128, 0 ); //That’s sweet.
+    waitForDialog( $cadetFemale1_MainLectureHall_FemaleConversation );
+    wait( .2 );
+
+    //--- load up their plus use dialog
+    //thread initDialog_ConversationFemale_Female( $cadetFemale1_MainLectureHall_FemaleConversation );
+    //thread initDialog_ConversationFemale_Male( $cadetMale1_MainLectureHall_FemaleConversation );
+   	thread commonAnimateStance( $cadetFemale1_MainLectureHall_FemaleConversation, 0, "conv-poundfist", 0, "conv-fingerup-warning", 0, "conv-crossarms", 0, "conv-no", 0 );
+	thread commonAnimateStance( $cadetMale1_MainLectureHall_FemaleConversation, 0, "conv-shrug", 0, "conv-wtf", 0, "conv-handflick-hellno", 0, "conv-embarrassment", 0 );
+	thread initDialog_CadetMale( $cadetMale1_MainLectureHall_FemaleConversation, TRUE, "headwatchonly" );
+	thread initDialog_CadetFemale( $cadetFemale1_MainLectureHall_FemaleConversation, TRUE, "headwatchonly" );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  AMBIENT FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// ambientMainBuilding_CadetLeavesLift
+// cadet walks out of lift and starts her patrol path
+//---------------------
+void ambientMainBuilding_CadetLeavesLift()
+{
+	//--- open the lift doors
+	m2Turbolift_DoorOpen( "MainBuildingLeft", 1 );
+	wait( .2 );
+
+	$mainBuilding_CadetFemale4.walkTo( "$nodeMainBuilding_OffLift", "walk" );
+	waitFor( $mainBuilding_CadetFemale4 );
+
+	//--- close the lift doors
+	thread m2Turbolift_DoorClose( "MainBuildingLeft", 1 );
+
+	//--- get her patrolling
+	$mainBuilding_CadetFemale4.ai_on();
+	$mainBuilding_CadetFemale4.settendency( "patrol", 1 );
+	$mainBuilding_CadetFemale4.settendency( "work", 1 );
+}
+
+//---------------------
+// 	ambientMainBuilding_TeacherMale2_UsePad
+// 	he uses his datapad
+//---------------------
+void ambientMainBuilding_TeacherMale2_UsePad()
+{
+	//thread ambientUsePad( $mainBuilding_TeacherMale2 );
+	commonAnimateStance( $mainBuilding_CadetFemale6, 3, "sfa_crossarmsL", 1, "sfa_hands_back", 1, "sfa_crossarmsR", 1, "sfa_standR", 1 );
+
+	//--- reset him to continue patrolling
+	$mainBuilding_TeacherMale2.setFloatVar( "boolRunFunction", FALSE );
+}
+
+//---------------------
+// 	ambientMainBuilding_CadetLeavesLift
+// 	he converses with a nearby cadet
+//---------------------
+void ambientMainBuilding_TeacherMale2_Converse()
+{
+	//--- have him put away the anim
+	//$mainBuilding_TeacherMale2.anim( "ent-datapad-putaway" );
+	//waitForAnimation( $mainBuilding_TeacherMale2, "ent-datapad-putaway" );
+
+	//$mainBuilding_TeacherMale2.useActorWeapon( "none" );
+
+	//--- converse with student
+	$mainBuilding_TeacherMale2.headwatchtarget( "mainBuilding_CadetMale4" , 5);
+	wait( .2 );
+
+	$mainBuilding_CadetMale4.headwatchtarget( "mainBuilding_TeacherMale2" , 4);
+
+	commonAnimateStance( $mainBuilding_TeacherMale2, 5, "conv-talk1", 0, "conv-look", 0, "conv-overthere", 0, "sfa_standR", 1 );
+
+	//--- wrap up
+	$mainBuilding_TeacherMale2.headwatchtarget( "none" , 5);
+	$mainBuilding_CadetMale4.headwatchtarget( "none" , 4);
+
+	//--- pull out the datapad again
+	//$mainBuilding_TeacherMale2.anim( "ent-datapad-raise" );
+
+	//$mainBuilding_TeacherMale2.useActorWeapon( "EnterpriseDatapad" );
+	//waitForAnimation( $mainBuilding_TeacherMale2, "ent-datapad-raise" );
+
+	//--- reset him to continue patrolling
+	$mainBuilding_TeacherMale2.setFloatVar( "boolRunFunction", FALSE );
+}
+//---------------------
+// 	ambientMainBuilding_CadetFemale5_UsePad
+// 	she uses the datapad
+//---------------------
+void ambientMainBuilding_CadetFemale5_UsePad()
+{
+	thread ambientUsePad( $mainBuilding_CadetFemale5 );
+}
+
+//---------------------
+// 	ambientMainBuilding_CadetFemale6_StandAround
+// 	she stands around...looking cute....hoping some stud will notice her....maybe even Wesley.....if he wasn't off exploring the universe with infinite power.......
+//---------------------
+void ambientMainBuilding_CadetFemale6_StandAround()
+{
+	commonAnimateStance( $mainBuilding_CadetFemale6, 3, "sfa_crossarmsL", 1, "sfa_hands_back", 1, "sfa_crossarmsR", 1, "sfa_standR", 1 );
+
+	//--- set the value to make them patrol again
+	$mainBuilding_CadetFemale6.setFloatVar( "boolRunFunction", FALSE );
+}
+
+//---------------------
+// 	ambientMainBuilding_CadetFemale6_Converse
+// 	she talks to some stud...well...she thinks he's a stud....he's actually a two-timing dork....yeah...that's right.....DORK!!!!!!
+//---------------------
+void ambientMainBuilding_CadetFemale6_Converse()
+{
+	//--- converse with student
+	$mainBuilding_CadetFemale6.headwatchtarget( "mainBuilding_CadetMale2" , 5);
+	wait( .2 );
+
+	$mainBuilding_CadetMale2.headwatchtarget( "mainBuilding_CadetFemale6" , 4);
+
+	commonAnimateStance( $mainBuilding_CadetFemale6, 5, "conv-talk1", 0, "conv-look", 0, "conv-talk-handsonhips", 0, "sfa_crossarmsR", 1 );
+
+	//--- wrap up
+	$mainBuilding_CadetFemale6.headwatchtarget( "none" , 5);
+	$mainBuilding_CadetMale2.headwatchtarget( "none" , 4);
+
+	//--- reset him to continue patrolling
+	$mainBuilding_CadetFemale6.setFloatVar( "boolRunFunction", FALSE );
+}
+
+//---------------------
+// 	ambientMainCourtyard_CadetFemale6_StandAround
+// 	she stands around...looking cute....hoping some stud will notice her....maybe even Wesley.....if he wasn't off exploring the universe with infinite power.......
+//---------------------
+void ambientMainCourtyard_CadetFemale6_StandAround()
+{
+	commonAnimateStance( $mainCourtyard_CadetFemale6, 3, "sfa_crossarmsL", 1, "sfa_hands_back", 1, "sfa_crossarmsR", 1, "sfa_standR", 1 );
+
+	//--- set the value to make them patrol again
+	$mainCourtyard_CadetFemale6.setFloatVar( "boolRunFunction", FALSE );
+}
+
+//---------------------
+// 	ambientUsePad
+// 	tells the passed in dork to use their datapad
+//---------------------
+void ambientUsePad( entity entAI )
+{
+	//--- use his datapad
+	commonAnimateStance( entAI, 5, "ent-datapad-use", 0, "", 0, "ent-datapad-scan", 0, "", 0 );
+
+	//--- set the value to make them patrol again
+	entAI.setFloatVar( "boolRunFunction", FALSE );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  GAME MECHANIC FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//-----------------------------------------------------------------------------------------------------
+//--- TUVOK MEETING
+//-----------------------------------------------------------------------------------------------------
+//---------------------
+// gameTuvokDeparts
+// tuvok walks out to the shuttle pad
+//---------------------
+void gameTuvokDeparts()
+{
+	$tuvok.walkto( "$nodeTuvok_Depart1", "walk" );
+	waitFor( $tuvok );
+
+	$tuvok.walkto( "$nodeRemoveActor_MainBuildingLeft", "walk" );
+	wait( 1 );
+
+	//--- play the computer message
+	//thread computerGoToHeadmaster();
+}
+
+
+//-----------------------------------------------------------------------------------------------------
+//--- BLOWN TURBOLIFT SEQUENCE
+//-----------------------------------------------------------------------------------------------------
+//---------------------
+// gameTurboLift_Blow
+// blow the panel on the turbolift
+//---------------------
+void gameTurboLift_Blow()
+{
+	centerprint("WARNING, not coopified: gameTurboLift_Blow");
+	
+	//--- play turbolift winning sound and breaking
+	$MainLectureHall_Location1_Call.playsound( "sound/ships/enterprise/ent_turbolift_break.wav", 0, 1, 256 );
+	wait( 2 );
+
+	//--- lock the turbolift
+	m2Turbolift_Lock( "MainLectureHall" );
+
+	//--- error sound
+	$player.playsound( "sound/environment/computer/lcars_error.wav", 0, 1, 128 );
+	wait( 1 );
+	
+	centerprint("WARNING, not coopified: gameTurboLift_Blow");
+
+	//--- play computer message
+	computerTurboliftBroken();
+
+	//--- add the objective
+	$player.setobjectiveshow( "RepairLift", 1 );
+	m2Objective_SetObjectiveLocation( $porter, M2OBJECTIVE_OUTSIDE );
+
+	//--- set the flag
+	commonSetLiftState( "Found" );
+
+	//--- set the onuse thread for porter
+	//thread globalCommon_OnUse( $porter, "gamePorterFound" );
+	thread gamePorterFound();
+}
+
+
+//---------------------
+// gamePhaseInverter_OpenDoor
+// open the turbolift panel
+//---------------------
+void gamePhaseInverter_OpenDoor()
+{
+	//--- if the door's already been open, then return
+	if( boolPhaseInvertDoorOpen == TRUE )
+	{
+		return;
+	}
+
+	boolPhaseInvertDoorOpen = TRUE;
+
+	//--- play access sound on the door
+	$objectPhaseInverter_Door.playsound( "sound/environment/computer/lcars_yes.wav", 0, .5, 128 );
+	wait( .5 );
+
+	$objectPhaseInverter_Door.notsolid();
+	$objectPhaseInverter_Door.time( .3 );
+	$objectPhaseInverter_Door.moveWest( 3 );
+	waitFor( $objectPhaseInverter_Door );
+	wait( .75 );
+
+	$objectPhaseInverter_Door.moveSouth( 26 );
+	waitFor( $objectPhaseInverter_Door );
+
+	//--- remove the archetype
+	$archetypeRepairPanel.remove();
+
+	//--- activate the sparks
+	thread gamePhaseInverter_EmitSparks( $objectPhaseInverter_Sparks );
+}
+
+
+//---------------------
+// gamePhaseInverter_CloseDoor
+// close the turbolift panel
+//---------------------
+void gamePhaseInverter_CloseDoor()
+{
+	//--- close the door
+	$objectPhaseInverter_Door.time( .3 );
+	$objectPhaseInverter_Door.moveNorth( 26 );
+	waitFor( $objectPhaseInverter_Door );
+	wait( .5 );
+
+	$objectPhaseInverter_Door.moveEast( 3 );
+	waitFor( $objectPhaseInverter_Door );
+}
+
+
+//---------------------
+// gamePhaseInverter_EmitSparks
+// turns the spark emitters on and off
+//---------------------
+void gamePhaseInverter_EmitSparks( entity entSparks )
+{
+	float fltRandomTime;
+
+	while( doesEntityExist( entSparks ) )
+	{
+		if( doesEntityExist( entSparks ) )
+		{
+    		//--- show the sparks and play a sound
+    		entSparks.show();
+    		entSparks.loopsound ( "sound/environment/electric/fritz5.wav", .5, 62 );
+    	}
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( .5 ) + .5;
+		wait( fltRandomTime );
+
+		if( doesEntityExist( entSparks ) )
+		{
+    		//--- hide the sparks and stop the sound
+    		entSparks.hide();
+            entSparks.stoploopsound();
+        }
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( 1 ) + .3;
+		wait( fltRandomTime );
+	}
+}
+
+
+//---------------------
+// gamePorterFound
+// the player found and used porter after finding the broken turbolift
+//---------------------
+void gamePorterFound()
+{
+	//--- show porter
+	globalCommon_AiDummy( $porter, "idle" );
+
+	//--- make porter walk to the elevator
+	thread gamePorterFound_WalkToLift();
+
+	//--- when player gets close, say comment
+	thread gamePorterFound_MakeComment();
+
+    //--- set the flag
+    commonSetLiftState( "GotPorter" );
+
+	//--- wait for him to reach the lift
+	while( boolPorterAtLift != TRUE )
+	{
+		wait( 1 );
+	}
+
+    //--- open the door if it isn't already
+    gamePhaseInverter_OpenDoor();
+
+    //--- set the flag
+    commonSetLiftState( "Arrived" );
+
+    //--- have porter start to assess the lift
+    thread gamePorterCheckLift();
+    wait( .1 );
+
+    thread gamePorterCheckDistance();
+
+/*
+	$porter.nouse();
+
+	//--- stop porter from whatever he was doing and have him face the player
+	globalCommon_AiDummy( $porter, "idle" );
+	$porter.lookat( $player );
+	wait( .5 );
+
+	//--- have porter say his line
+    $porter.playdialog( "localization/sound/dialog/m2l1/porter_turbbust.mp3", 1, 200, 0 ); //What?  That turbolift's busted?!  I just fixed that darned thing last Tuesday!!!  Ohhhh alright, let's get on it!!
+    waitForDialog( $porter );
+
+    //--- set the flag
+    commonSetLiftState( "GotPorter" );
+
+    //--- walk porter to the lift
+    $porter.walkto( "$nodePorter_LiftPanel", "walk" );
+    waitFor( $porter );
+
+    //--- open the door if it isn't already
+    gamePhaseInverter_OpenDoor();
+
+    //--- set the flag
+    commonSetLiftState( "Arrived" );
+
+    //--- have porter start to assess the lift
+    thread gamePorterCheckLift();
+    wait( .1 );
+
+    thread gamePorterCheckDistance();
+*/
+}
+
+//---------------------
+// gamePorterFound_WalkToLift
+// walk porter to the lift
+//---------------------
+void gamePorterFound_WalkToLift()
+{
+	//--- set the flag
+	boolPorterAtLift = FALSE;
+
+    //--- walk porter to the lift
+    $porter.walkto( "$nodePorter_LiftPanel", "walk" );
+    waitFor( $porter );
+
+	//--- set the flag
+	boolPorterAtLift = TRUE;
+}
+
+//---------------------
+// gamePorterFound_MakeComment
+// when the player gets close, porter will say he's here to fix the lift
+//---------------------
+void gamePorterFound_MakeComment()
+{
+	centerprint("WARNING, not coopified: gamePorterFound_MakeComment");
+	
+	float fltDistance;
+	float boolDone = 0;
+
+	while( boolPorterAtLift != TRUE && boolDone != TRUE)
+	{
+		if( globalMath_GetXYDistance( $player.getOrigin(), $porter.getOrigin() ) < 256 )
+		{
+			boolDone = TRUE;
+			//$porter.walkto( "$porter", "walk" );
+			$porter.playdialog( "localization/sound/dialog/m2l1/porter_turbbust.mp3", 1, 200, 0 ); //What?  That turbolift's down again? Harry was supposed to run diagnostics on it last week. Let’s get to it.
+			//waitForDialog( $porter );
+			//wait( .5 );
+		}
+
+		wait( 1 );
+	}
+}
+
+//---------------------
+// gamePorterCheckLift
+// porter checks the lift, and says something if the player goes too far away
+//---------------------
+void gamePorterCheckLift()
+{
+	centerprint("WARNING, not coopified: gamePorterCheckLift");
+	
+	//--- have porter check distance against the player and stop if player goes too far away
+	if( boolPorterAtLift_FirstLine == FALSE )
+	{
+    	//--- porter begins inspection
+        $porter.playdialog( "localization/sound/dialog/m2l1/man_trouble.mp3", 1, 200, 0 ); //Let's see what the trouble is.
+        waitForDialog( $porter );
+
+        boolPorterAtLift_FirstLine = TRUE;
+    }
+
+	if( boolPorterAtLift_SecondLine == FALSE )
+	{
+        $porter.playdialog( "localization/sound/dialog/m2l1/man_nothing.mp3", 1, 200, 0 ); //Nothing wrong there…hmm.
+        waitForDialog( $porter );
+        wait( 2 );
+
+        boolPorterAtLift_SecondLine = TRUE;
+    }
+
+	if( boolPorterAtLift_ThirdLine == FALSE )
+	{
+        $porter.playdialog( "localization/sound/dialog/m2l1/man_atten.mp3", 1, 200, 0 ); //The attenuation coil looks alright.
+        waitForDialog( $porter );
+        wait( 1 );
+
+	    boolPorterAtLift_ThirdLine = TRUE;
+    }
+
+ 	if( boolPorterAtLift_FourthLine == FALSE )
+	{
+		boolPorterAtLift_FourthLine = TRUE;
+
+		//--- autosave
+		globalCommon_Autosave();
+
+        $porter.playdialog( "localization/sound/dialog/m2l1/man_thingy.mp3", 1, 200, 0 ); //Ahh...it's the pulse phase inverter. I told Harry to change this out last week.  I don't have one on me.  Can you head over to the maintenance office? There should be one on the shelf inside.
+        waitForDialog( $porter );
+
+        //--- set the objective
+        $player.setobjectiveshow( "GetInverter", 1 );
+        $porter.missionobjective( 0 );
+        m2Objective_SetObjectiveLocation( $objectPhaseInverter_Pickup, M2OBJECTIVE_OUTSIDE );
+
+        //--- set the flag
+        boolPlayerToldToGetInverter = TRUE;
+
+        //--- set the flag
+        commonSetLiftState( "Waiting" );
+    }
+}
+
+//---------------------
+// gamePorterCheckDistance
+// checks the distance and stops porter if the player goes away
+//---------------------
+void gamePorterCheckDistance()
+{
+	centerprint("WARNING, not coopified: gamePorterCheckDistance");
+	//--- loop until the fourth line is played
+	while( boolPorterAtLift_FourthLine == FALSE )
+	{
+		if( globalMath_GetDistance( $player.getorigin(), $porter.getorigin() ) > PORTER_DISTANCE_TOLERANCE )
+		{
+			//--- stop porter from whatever he was saying and say this
+			$porter.stopdialog();
+			killthread( "gamePorterCheckLift" );
+
+			$porter.anim( "idle" );
+			$porter.lookat( $player );
+            $porter.playdialog( "localization/sound/dialog/m2l1/man_hey.mp3", 1, 512, 0 ); //Hey!!  Don't go yet, I might need your help!!!
+            waitForDialog( $porter );
+
+            //--- wait for the player to return
+            while( globalMath_GetDistance( $player.getorigin(), $porter.getorigin() ) > PORTER_DISTANCE_TOLERANCE )
+            {
+            	wait( .1 );
+            }
+
+            //--- turn porter back to the panel
+            $porter.turntoangle( 180 );
+            wait( .5 );
+
+            //--- have porter continue
+            thread gamePorterCheckLift();
+		}
+
+		wait( .1 );
+	}
+}
+
+//---------------------
+// gameHarryFound
+// player uses harry after finding the maintenance room locked
+//---------------------
+void gameHarryFound()
+{
+	centerprint("WARNING, not coopified: gameHarryFound");
+	
+	$harry.nouse();
+
+	//--- stop harry from whatever he was doing and have him face the player
+	globalCommon_AiDummy( $harry, "idle" );
+	$harry.lookat( $harry );
+	wait( .5 );
+
+	//--- have harry say his line
+    $harry.playdialog( "localization/sound/dialog/m2l1/harry_locked.mp3", 1, 200, 0 ); //Locked? What's the maintenance office doing locked?  Oh, I bet I forgot to… Come on!  Before Porter finds out!
+    waitForDialog( $harry );
+
+    //--- set the flag
+    commonSetLiftState( "GotHarry" );
+
+    //--- walk harry to the maintenance room
+    $harry.walkto( "$nodeHarry_OpenMaintenanceDoor", "walk" );
+    waitFor( $harry );
+
+    //--- set the flag
+    commonSetLiftState( "Transition" );
+
+	//--- use the door panel
+	wait( 1 );
+	$triggerGameMaintenanceDoor_Open.playsound( "sound/environment/computer/lcars_beep3.wav", 0, 1, 128 );
+	wait( 2 );
+
+	//--- play an access granted sound
+	$doorMaintenanceOffice.playsound( M2_SOUND_ACCESS_GRANTED, 0, 1, 128 );
+
+	//--- set the flag
+	boolMaintenanceDoor_Unlocked = TRUE;
+
+    //--- set the flag
+    commonSetLiftState( "OfficeUnlocked" );
+
+    //--- set the objective
+	$player.setobjectivecomplete( "UnlockMaintenanceOffice", 1 );
+	$harry.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $objectPhaseInverter_Pickup, M2OBJECTIVE_OUTSIDE );
+
+    //--- open the door
+    gameMaintenanceDoor_Open();
+
+    //--- turn harry towards the player
+    $harry.lookat( $player );
+}
+
+
+//---------------------
+// gameMaintenanceDoor_Open
+// opens the maintenance door and handles it being locked
+//---------------------
+void gameMaintenanceDoor_Open()
+{
+//HACK	commented out
+/*
+	//--- if harry's unlocked the door, open, else play a locked sound
+	if( boolMaintenanceDoor_Unlocked == FALSE )
+	{
+		//--- access denied sound
+		$doorMaintenanceOffice.playsound( M2_SOUND_ACCESS_DENIED, 0, 1, 128 );
+
+		//--- check if the objective needs to be displayed
+		if( boolPlayerToldToGetInverter == TRUE && boolUnlockOfficeObjectiveShown == FALSE )
+		{
+			//--- set the flag
+			boolUnlockOfficeObjectiveShown = TRUE;
+
+            //--- set the flag
+            commonSetLiftState( "OfficeLocked" );
+
+        	//--- set the onuse thread for porter
+        	thread globalCommon_OnUse( $harry, "gameHarryFound" );
+        	wait( .5 );
+
+			//--- set the unlock objective
+			$player.setobjectiveshow( "UnlockMaintenanceOffice", 1 );
+			$objectPhaseInverter_Pickup.missionobjective( 0 );
+			m2Objective_SetObjectiveLocation( $harry, M2OBJECTIVE_OUTSIDE );
+		}
+	}
+	else
+	{
+		//--- trigger the door
+		trigger( "$doorMaintenanceOffice" );
+	}
+*/
+
+		//--- trigger the door
+		trigger( "$doorMaintenanceOffice" );
+}
+
+
+//---------------------
+// gamePickupPhaseInverter
+// pickup the game phase inverter off of the shelf
+//---------------------
+void gamePickupPhaseInverter()
+{
+	centerprint("WARNING, not coopified: gamePickupPhaseInverter");
+	
+	//--- play sound
+	$player.playsound( "sound/environment/machine/phaseinv_pickup.wav", 0, 1, 128 );
+
+	//--- remove the item
+	$objectPhaseInverter_Pickup.remove();
+
+	//--- remove the archetype
+	$archetypePhaseInverter_Pickup.remove();
+
+	//--- set the flag
+	boolHavePhaseInverter = TRUE;
+
+	//--- set the objective
+	$player.setobjectivecomplete( "GetInverter", 1 );
+	$objectPhaseInverter_Pickup.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $porter, M2OBJECTIVE_OUTSIDE );
+
+    //--- set the flag
+    commonSetLiftState( "GotInverter" );
+
+    //--- set the exit trigger to triggerable
+    $triggerGamePlayerHasInverter.triggerable();
+
+    //--- set the onuse thread for porter
+    thread globalCommon_OnUse( $porter, "gamePorterFixLift" );
+}
+
+
+//---------------------
+// gamePlayerHasInverter
+// player left the maintenance office with the inverter
+//---------------------
+void gamePlayerHasInverter()
+{
+	//--- start harry on his patrol
+	globalCommon_AiActor( $harry );
+	$harry.setnodeid( 11 );
+	$harry.settendency( "patrol", 1 );
+	$harry.settendency( "work", 1 );
+}
+
+
+//---------------------
+// gamePorterFixLift
+// porter repairs the turbolift
+//---------------------
+void gamePorterFixLift()
+{
+	centerprint("WARNING, not coopified: gamePorterFixLift");
+	
+	$porter.nouse();
+
+    //--- set the dialog flag
+    commonSetLiftState( "Transition" );
+
+    //--- look at the player
+    $porter.lookat( $player );
+    wait( .5 );
+
+    //--- porter makes a comment
+    $porter.playdialog( "localization/sound/dialog/m2l1/man_forever.mp3", 1, 200, 0 ); //Well THAT took forever!!  What happened?!  Did Harry lock the maintenance office again?  Remind me to lock him in there after I fix this turbolift!
+    waitForDialog( $porter );
+
+    //--- fix the lift
+    $porter.turntoangle( 180 );
+    wait( 1 );
+
+    //--- fix the part
+    $objectPhaseInverter_Repaired.show();
+    $objectPhaseInverter_Damaged.hide();
+    $objectPhaseInverter_Sparks.remove();
+
+	//--- play sound
+	$objectPhaseInverter_Repaired.playsound( "sound/environment/machine/phaseinv_install.wav", 0, 1, 128 );
+
+	//--- unlock the turbolift
+	m2Turbolift_Unlock( "MainLectureHall" );
+
+    //--- play sounds
+    computerTurboliftRepaired();
+
+    //--- set the objective
+	$player.setobjectivecomplete( "RepairLift", 1 );
+	$porter.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $headmaster, M2OBJECTIVE_LECTURE_HALL );
+
+    //--- have porter wrap it up
+    $porter.playdialog( "localization/sound/dialog/m2l1/man_yup.mp3", 1, 200, 0 ); //All fixed up. Good as new.  Thanks for your help. Heh heh.
+    waitForDialog( $porter );
+
+    //--- set the dialog flag
+    commonSetLiftState( "Fixed" );
+
+    //--- close the door
+    thread gamePhaseInverter_CloseDoor();
+
+    //--- make the panel after it's closed triggerable
+    $triggerLiftPanelFinished.triggerable();
+
+    //--- make the turbolift trigger triggerable
+    $MainLectureHall_Location1_Call.triggerable();
+
+    //--- autosave
+    globalCommon_Autosave();
+
+    //--- send porter back on patrol
+	$porter.walkto( "$nodePorter_ReturnToPatrol", "walk" );
+	waitFor( $porter );
+
+	//--- turn porter back on...his work here is done....what a man....what an AI......I think I'm gonna cry....
+	globalCommon_AiActor( $porter );
+	//$porter.setnodeid( 10 );
+	$porter.settendency( "patrol", 1 );
+	$porter.settendency( "work", 1 );
+}
+
+
+//-----------------------------------------------------------------------------------------------------
+//--- HEADMASTER SEQUENCE
+//-----------------------------------------------------------------------------------------------------
+
+//---------------------
+// gameMeetHeadmaster
+// player meets the headmaster objective
+//---------------------
+void gameMeetHeadmaster()
+{
+	//--- make the telsia trigger active
+	$triggerGameMeetTelsia.triggerable();
+
+	//--- close the headmaster's door
+	$doorHeadmaster.close();
+
+	//hzm coop mod chrissstrahl - get player closest to headmaster
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($headmaster);
+	string sTargetname;
+	sTargetname = ePlayer.getTargetname();
+	
+	
+	$headmaster.headWatchTarget( ""+sTargetname, 5 );
+
+	//--- dialog
+    $munro.playdialog( "localization/sound/dialog/m2l1/munro_ltreport.mp3", 1, 20000, 1 ); //Lieutenant Munro reporting sir.
+    waitForDialog( $munro );
+    wait( .2 );
+
+    $headmaster.playdialog( "localization/sound/dialog/m2l1/headmaster_assign.mp3", 1, 20000, 1 ); //Ah, good to meet you, Lieutenant. I have your teaching assignment. You'll be instructing the cadets in small-unit tactics.
+    waitForDialog( $headmaster );
+
+    $headmaster.headWatchTarget( "none", 5 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$GoToHeadmaster$$","complete",2,1);
+	
+	$headmaster.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $headmaster, M2OBJECTIVE_NONE );
+
+	//--- load the headmasters +use dialog
+	thread initDialog_Headmaster( $headmaster );
+}
+
+
+//---------------------
+// gameMeetTelsia
+// telsia comms the player to meet her
+//---------------------
+void gameMeetTelsia()
+{
+    $telsia.playdialog( "localization/sound/dialog/m2l1/telsia_meetmec.mp3", 1, 20000, 1 ); //Telsia to Munro. Could you meet me in the courtyard? Starfleet’s answered our petition.
+    waitForDialog( $telsia );
+
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$MeetTelsia$$","incomplete",3,1);
+	
+	m2Objective_SetObjectiveLocation( $telsia, M2OBJECTIVE_OUTSIDE );
+
+    //--- position telsia
+	$telsia.warp( $nodeTelsiaCourtyard.getorigin() );
+	$telsia.turntoangle( 270 );
+	globalCommon_AiDummy( $telsia , "" );
+
+    //--- telsia onuse ending
+    thread globalCommon_OnUse( $telsia , "cinematicArm_MeetTelsia_Intro_Start" );
+
+    //--- set telsia's dialog flag
+    setfloatvar( "level.telsiaInCourtyard", TRUE );
+
+    //--- set the exit trigger
+    $triggerExit.triggerable();
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  COMPUTER MESSAGE FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// computerHaveVisitor
+// message that munro has a visitor
+//---------------------
+void computerHaveVisitor()
+{
+	boolImportantDialogActive = TRUE;
+
+	//--- check if it's already playing
+	if( boolComputerHaveVisitorPlayed == TRUE )
+	{
+		return;
+	}
+
+	boolComputerHaveVisitorPlayed = TRUE;
+
+	//-----------------------------------------------
+	//--- clean up the functionary floor stuff
+
+   	//--- if the lift doors were open, close them
+   	if( boolPlayerLeftFunctionaryFloor_OpenLiftDoors == TRUE )
+   	{
+    	m2Turbolift_DoorClose( "MainBuildingRight", 1 );
+    	boolPlayerLeftFunctionaryFloor_OpenLiftDoors = FALSE;
+    	wait( 2 );
+    }
+
+   	//--- hide telsia
+   	globalCommon_AiDummyHide( $telsia );
+
+	//--- unlock the lift and remove the player clip
+   	$clipTelsiaLift.remove();
+   	m2Turbolift_Unlock( "MainBuildingRight" );
+
+	//-----------------------------------------------
+	//--- play computer message for munro
+  	$world.simpleplaydialog( "localization/sound/dialog/m2l1/computer_visit.mp3", 1, 200000 ); //Lieutenant Munro, you have a visitor waiting for you in the main entrance.
+	waitDialogLength( "localization/sound/dialog/m2l1/computer_visit.mp3" );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$MeetVisitor$$","incomplete",1,1);
+	
+	m2Objective_SetObjectiveLocation( $tuvok, M2OBJECTIVE_OUTSIDE );
+
+	boolImportantDialogActive = FALSE;
+}
+
+
+//---------------------
+// computerGoToHeadmaster
+// message to tell munro to report to the headmasters office
+//---------------------
+void computerGoToHeadmaster()
+{
+	boolImportantDialogActive = TRUE;
+
+	$world.simplePlayDialog( "localization/sound/dialog/m2l1/computer_head.mp3", 1, 2000000 ); //Lieutenant Munro, please report to the headmasters office.
+	waitDialogLength( "localization/sound/dialog/m2l1/computer_head.mp3" );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$GoToHeadmaster$$","incomplete",2,1);
+	
+	m2Objective_SetObjectiveLocation( $headmaster, M2OBJECTIVE_LECTURE_HALL );
+
+	boolImportantDialogActive = FALSE;
+}
+
+
+//---------------------
+// computerTurboliftBroken
+// message to tell munro the turbolift is busted
+//---------------------
+void computerTurboliftBroken()
+{
+	$world.simplePlayDialog( "localization/sound/dialog/m2l1/computer_tinop.mp3", 1, 2000000 ); //Turbolift is inoperative.
+	wait( 2 );
+}
+
+
+//---------------------
+// computerTurboliftRepaired
+// message to tell munro the turbolift is repaired
+//---------------------
+void computerTurboliftRepaired()
+{
+	$world.simplePlayDialog( "localization/sound/dialog/m2l1/computer_top.mp3", 1, 2000000 ); //Turbolift is online.
+	wait( 2 );
+}
+
+//---------------------
+// computerPASystem
+// randomly play's messages over the comm
+//---------------------
+void computerPASystem()
+{
+	float fltWait;
+
+	float fltChoice;
+
+	while( 1 )
+	{
+		//print( "PA SYSTEM ????????????????????????????????????????????\n" );
+		//print( "PA SYSTEM boolCinematicActive: " + boolCinematicActive + " : boolImportantDialogActive: " + boolImportantDialogActive + "\n" );
+
+		if( (boolCinematicActive == FALSE) && (boolImportantDialogActive == FALSE) && (enumM2Objective_LocationPlayer == M2OBJECTIVE_OUTSIDE) )
+		{
+
+			print( "PA SYSTEM NO CINEMATIC, MAKING CHOICE\n" );
+
+			fltChoice = computerPASystem_PickChoice();
+			print( "PA SYSTEM RETURNED: " + fltChoice + "\n" );
+
+			computerPASystem_SayAnnouncement( fltChoice );
+		}
+
+		//--- randomly wait an intervale
+		fltWait = randomFloat( PA_WAIT_OFFSET ) + PA_WAIT_BASE;
+
+		//hzm coop mod chrissstrahl - this is not helpfull to find errors in the logfile, so I disabled it
+		//print( "PA SYSTEM WAITING: " + fltWait + "\n" );
+		wait( fltWait );
+	}
+}
+
+//---------------------
+// computerPASystem_PickChoice
+// picks the PA announcement to say, checks to see if it's been said already
+//---------------------
+float computerPASystem_PickChoice()
+{
+	float boolPass = 0, fltChoice;
+
+	//--- loop until a choice that hasn't been use the last 3 times is found
+	while( boolPass == FALSE )
+	{
+		fltChoice = randomInt( 10 ) + 1;
+
+		print( "PA CHOICE ===================================================\n" );
+		print( "PA CHOICE POTENTIAL: " + fltChoice + "\n" );
+		print( "PA CHOICE STORED X: " + vecPAArray_x + "\n" );
+		print( "PA CHOICE STORED Y: " + vecPAArray_y + "\n" );
+		print( "PA CHOICE STORED Z: " + vecPAArray_z + "\n" );
+
+		//--- if the choice hasn't been use in the last 3 times, stuff it into the array and return it
+		if( (fltChoice != vecPAArray_x) && (fltChoice != vecPAArray_y) && (fltChoice != vecPAArray_z) )
+		{
+			boolPass = TRUE;
+
+			print( "PA CHOICE SUCCESSFUL: " + fltChoice + "\n" );
+
+			if( fltPAArrayChoice == 1 )
+			{
+				vecPAArray_x = fltChoice;
+				fltPAArrayChoice = 2;
+				print( "PA CHOICE STORING ON X\n" );
+			}
+			else if( fltPAArrayChoice == 2 )
+			{
+				vecPAArray_y = fltChoice;
+				fltPAArrayChoice = 3;
+				print( "PA CHOICE STORING ON Y\n" );
+			}
+			else
+			{
+				vecPAArray_z = fltChoice;
+				fltPAArrayChoice = 1;
+				print( "PA CHOICE STORING ON Z\n" );
+			}
+		}
+
+		print( "PA CHOICE boolPass: " + boolPass + "\n" );
+		wait ( .5 );
+	}
+
+	return( fltChoice );
+}
+
+//---------------------
+// computerPASystem_SayAnnouncement
+// plays the passed in announcement
+//---------------------
+void computerPASystem_SayAnnouncement( float fltChoice )
+{
+	entity entSpeaker;
+
+	print( "PA PLAYING <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n" );
+	print( "PA PLAYING: " + fltChoice + "\n" );
+
+	entSpeaker = computerPASystem_PickSpeaker();
+
+	print( "PA PLAYING: using speaker: " + entSpeaker.getTargetname() + "\n" );
+
+	if( fltChoice == 1 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_adkin.mp3", 0, 1, PA_DISTANCE );	//Professor Mahathir, please report to the warp physics department.
+	}
+	else if( fltChoice == 2 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_ellis.mp3", 0, 1, PA_DISTANCE );	//Professor Ellis, please report to hydroponics.
+	}
+	else if( fltChoice == 3 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_fuller.mp3", 0, 1, PA_DISTANCE );	//Cadet Kaloka, please report to the headmaster’s office immediately.
+	}
+	else if( fltChoice == 4 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_ross.mp3", 0, 1, PA_DISTANCE );	//Nkomo to the engineering replication center.
+	}
+	else if( fltChoice == 5 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_hall7.mp3", 0, 1, PA_DISTANCE );	//The advanced thermodynamics lecture has been moved to hall seven.
+	}
+	else if( fltChoice == 6 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_intwarp.mp3", 0, 1, PA_DISTANCE );	//Intermediate warp theory classes have been cancelled. Contact Professor Twombly for an updated schedule.
+	}
+	else if( fltChoice == 7 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_caruso.mp3", 0, 1, PA_DISTANCE );	//Professor Caruso, please report to Stellar Mechanics.
+	}
+	else if( fltChoice == 8 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_harcourt.mp3", 0, 1, PA_DISTANCE );	//Professor Harcourt, please report to the Non-Linear Chronometrics lab.
+	}
+	else if( fltChoice == 9 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_cleanx.mp3", 0, 1, PA_DISTANCE );	//Cleanup teams required in the Xenobiology lab.
+	}
+	else if( fltChoice == 10 )
+	{
+		entSpeaker.playsound( "localization/sound/dialog/m2l1/comp_xarth.mp3", 0, 1, PA_DISTANCE );	//Professor Xarthros, please report to Xenolinguistics.
+	}
+
+	wait( 6 );
+}
+
+//---------------------
+// computerPASystem_PickSpeaker
+// picks the speaker closest to the player
+//---------------------
+entity computerPASystem_PickSpeaker()
+{
+	float fltDistanceCheck, fltDistanceBest = 50000, i;
+
+	entity entSpeakerCheck, entSpeakerBest;
+
+	for( i = 1 ; i <= 6 ; i++ )
+	{
+		print( "PA SPEAKER FINDING CLOSEST\n" );
+
+		entSpeakerCheck = getEntity( "nodeLoudSpeaker" + i );
+
+		print( "PA SPEAKER: checking: " + entSpeakerCheck.getTargetname() + "\n" );
+
+		fltDistanceCheck = globalMath_GetXYDistance( entSpeakerCheck.getOrigin(), $player.getOrigin() );
+
+		print( "PA SPEAKER: distance: " + fltDistanceCheck + "\n" );
+
+		if( fltDistanceCheck < fltDistanceBest )
+		{
+			print( "PA SPEAKER: is the closest speaker\n" );
+			fltDistanceBest = fltDistanceCheck;
+			entSpeakerBest = entSpeakerCheck;
+		}
+	}
+
+	print( "PA SPEAKER: returning: " + entSpeakerBest.getTargetname() + "\n" );
+	return( entSpeakerBest );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  COMMON FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// commonRandomlyAnimateActor
+// keeps an actor animating
+//---------------------
+void commonRandomlyAnimateActor( entity actorToAnimate, string animationToUse )
+{
+	float randomNumber;
+	string appendedAnimationName;
+
+	while( 1 )
+	{
+		randomNumber = randomint ( 16 );
+		//wait( .05 );
+		if( randomNumber <=9 ){ appendedAnimationName = animationToUse + "-idle"; }
+		else if( randomNumber <= 11 ){ appendedAnimationName = animationToUse + "-idle-look"; }
+		else if( randomNumber <= 13 ){ appendedAnimationName = animationToUse + "-gesture"; }
+		else if( randomNumber <= 15 ){ appendedAnimationName = animationToUse + "-gesture1"; }
+
+		actorToAnimate.anim( appendedAnimationName );
+		waitforanimation( actorToAnimate, appendedAnimationName );
+	}
+}
+
+
+//---------------------
+// commonRemoveActor
+// removes the actor that touches the trigger
+//---------------------
+void commonRemoveActor()
+{
+	entity entTrigger;
+	entity entActor;
+
+	entTrigger = getCurrentEntity();
+	entActor = entTrigger.getLastActivatingEntity();
+
+	entActor.remove();
+}
+
+
+//---------------------
+// commonAccessDenied
+// play the access denied sound
+//---------------------
+void commonAccessDenied()
+{
+	entity entEntity;
+
+	entEntity = getCurrentEntity();
+
+	//--- play the sound on the entity that called this function
+	entEntity.playsound( M2_SOUND_ACCESS_DENIED, 0, 1, 128 );
+}
+
+
+//---------------------
+// commonSetLiftState
+// strState - string, the state to set
+// sets the passed in state to true, and the others to false regarding the lift puzzle
+//---------------------
+void commonSetLiftState( string strState )
+{
+	string strAssemble;
+
+	//--- set all the states to false
+	setfloatvar( "level.liftNormal", FALSE );
+	setfloatvar( "level.liftFound", FALSE );
+	setfloatvar( "level.liftGotPorter", FALSE );
+	setfloatvar( "level.liftArrived", FALSE );
+	setfloatvar( "level.liftWaiting", FALSE );
+	setfloatvar( "level.liftOfficeLocked", FALSE );
+	setfloatvar( "level.liftGotHarry", FALSE );
+	setfloatvar( "level.liftOfficeUnlocked", FALSE );
+	setfloatvar( "level.liftGotInverter", FALSE );
+	setfloatvar( "level.liftFixed", FALSE );
+	setfloatvar( "level.liftTransition", FALSE );
+
+	//--- set the passed in state to true
+	strAssemble = "level.lift" + strState;
+
+	setfloatvar( strAssemble, TRUE );
+}
+
+//---------------------
+// 	commonAnimateStance
+//	fltNumCycles - float, the number of times to cycle through, 0 means infinite
+//	entAI - entity, the AI dork to animate.......yeah...that's right....I said dork....got a problem with that......then yer a dork..dork!!!!
+// 	strAnim1,...strAnim4 - string, the animations to cycle through
+// 	boolLoop1,...boolLoop4 - float, whether or not to loop the corresponding anim
+// 	takes the passed in AI and cycles the passed in animations
+//---------------------
+void commonAnimateStance( entity entAI, float fltNumCycles, string strAnim1, float boolLoop1, string strAnim2, float boolLoop2, string strAnim3, float boolLoop3, string strAnim4, float boolLoop4 )
+{
+	float intChoice, intPrevChoice = 0, fltCurrentCycle = 0;
+
+	while( doesEntityExist( entAI ) && fltCurrentCycle <= fltNumCycles )
+	{
+		intChoice = randomInt( 4 ) + 1;
+
+		//--- if not set to infinite cycles, then increment the cycle counter
+		if( fltNumCycles != 0 )
+		{
+			//print( "ANIMATE: dude: " + entAI.getRawTargetname() + " : on cycle: " + fltCurrentCycle + " : out of num cycles: " + fltNumCycles + "\n" );
+			fltCurrentCycle++;
+		}
+
+		//--- play the first anim if it's available
+		if( intChoice == 1 && intPrevChoice != 1 && strAnim1 != "" )
+		{
+			//--- set the previous choice
+			intPrevChoice = intChoice;
+
+			entAI.anim( strAnim1 );
+
+			//--- check whether to let it loop a bit, or have it be a one shot
+			if( boolLoop1 == TRUE )
+			{
+				wait( randomInt( 3 ) + 2 );
+			}
+			else
+			{
+				waitForAnimation( entAI, strAnim1 );
+			}
+		}
+		else if( intChoice == 2 && intPrevChoice != 2 && strAnim2 != "" )	//play the second anim if it's available
+		{
+			//--- set the previous choice
+			intPrevChoice = intChoice;
+
+			entAI.anim( strAnim2 );
+
+			//--- check whether to let it loop a bit, or have it be a one shot
+			if( boolLoop2 == TRUE )
+			{
+				wait( randomInt( 3 ) + 2 );
+			}
+			else
+			{
+				waitForAnimation( entAI, strAnim2 );
+			}
+		}
+		else if( intChoice == 3 && intPrevChoice != 3 && strAnim3 != "" )	//play the third anim if it's available
+		{
+			//--- set the previous choice
+			intPrevChoice = intChoice;
+
+			entAI.anim( strAnim3 );
+
+			//--- check whether to let it loop a bit, or have it be a one shot
+			if( boolLoop3 == TRUE )
+			{
+				wait( randomInt( 3 ) + 2 );
+			}
+			else
+			{
+				waitForAnimation( entAI, strAnim3 );
+			}
+		}
+		else if( intChoice == 4 && intPrevChoice != 4 && strAnim4 != "" )	//play the fourth anim if it's available
+		{
+			//--- set the previous choice
+			intPrevChoice = intChoice;
+
+			entAI.anim( strAnim4 );
+
+			//--- check whether to let it loop a bit, or have it be a one shot
+			if( boolLoop4 == TRUE )
+			{
+				wait( randomInt( 3 ) + 2 );
+			}
+			else
+			{
+				waitForAnimation( entAI, strAnim4 );
+			}
+		}
+	}
+}
+
+//---------------------
+// 	commonPatrol
+//	entAI - entity, the dork to patrol...yeah...I said dork again...deal...
+// 	entNode - entity, the node in the chain
+// 	custom patrol routine
+//---------------------
+void commonPatrol( entity entAI, entity entNode )
+{
+	string strAssemble;
+
+	while( doesEntityExist( entNode ) )
+	{
+		//print( "PATROL: walking to node: " + entNode.gettargetname() + "\n" );
+
+		//--- walk to the current node
+		entAI.walkto( entNode.getTargetname(), "walk" );
+		waitFor( entAI );
+
+		//print( "PATROL: setting angles to: " + entNode.getAngles() + "\n" );
+
+		//--- turn to the angles of the node
+		entAI.angles( entNode.getAngles() );
+
+		//--- if there's a function on the node, run it
+		if( entNode.getStringVar( "uservar1" ) != "" )
+		{
+			//print( "PATROL: uservar1 was set to: " + entNode.getStringVar( "uservar1" ) + "\n" );
+
+			//--- set the flag that a function is running
+			entAI.setFloatVar( "boolRunFunction", TRUE );
+
+			//--- assemble the function to run and run it
+			strAssemble = "script thread " + entNode.getStringVar( "uservar1" ) + "\n";
+
+			//print( "PATROL: stuffcmd'ing: " + strAssemble + "\n" );
+
+			stuffcmd( strAssemble );
+
+			//--- wait until the function's done
+			while( entAI.getFloatVar( "boolRunFunction" ) == TRUE )
+			{
+				//print( "PATROL: waiting on: " + entAI.gettargetname() + "\n" );
+				wait( .1 );
+			}
+		}
+		else if( entNode.getFloatVar( "uservar2" ) != 0 )
+		{
+			wait( entNode.getFloatVar( "uservar2" ) );
+		}
+
+		//--- get the next node and proceed down the path
+		entNode = getEntity( entNode.getTarget() );
+
+		//print( "PATROL: next node: " + entNode.gettargetname() + "\n" );
+	}
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  CLEANUP FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// removeHazardTeam
+// remove the hazard team from the office building
+//---------------------
+void removeHazardTeam()
+{
+	//--- cancel the thread
+	killthread( "conversationHazardTeam" );
+
+	//--- set the flag
+	boolPlayerLeftFunctionaryFloor = TRUE;
+
+	//--- remove the triggers
+	$triggerRemoveHazardTeam.remove();
+
+	//--- stop all conversation
+	$telsia.stopdialog();
+	$chang.stopdialog();
+	$chell.stopdialog();
+
+	//--- remove all but telsia
+	$chang.remove();
+	$chell.remove();
+
+	//--- make the cadet walk out of the elevator
+	triggerEntity( $triggerAmbientMainBuilding_CadetLeavesLift );
+
+	//--- tell the player he has a visitor
+	computerHaveVisitor();
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  CINEMATIC FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicArm_Functionary_Start
+// setup for and call the functionary armature cinematic
+//---------------------
+void cinematicArm_Functionary_Start()
+{
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+	letterbox( .1 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_Functionary_Skipthread" );
+	wait( 1 );
+
+	//--- start the first piece of the cinematic
+	//cinematicArm_Functionary1.beginCinematic( "m2l1-opening" );
+}
+
+
+//---------------------
+// cinematicArm_Functionary1_ArmEnd
+// calls when the first armature cinematic ends
+//---------------------
+void cinematicArm_Functionary1_ArmEnd()
+{
+	//--- start the next piece of the cinematic
+	//cinematicArm_Functionary2.beginCinematic( "m2l1-opening" );
+}
+
+
+//---------------------
+// cinematicArm_Functionary2_ArmEnd
+// calls when the first armature cinematic ends
+//---------------------
+void cinematicArm_Functionary2_ArmEnd()
+{
+	//--- run the ending routines for the cinematic
+	thread cinematicArm_Functionary_Skipthread();
+}
+
+
+//---------------------
+// cinematicArm_Functionary_Skipthread
+// skip thread that wraps up the whole cinematic
+//---------------------
+void cinematicArm_Functionary_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	//cinematicArm_Functionary1.endCinematic();
+	//cinematicArm_Functionary2.endCinematic( FALSE );
+
+	killthread( "cinematicArm_Functionary_Start" );
+	killthread( "cinematicArm_Functionary1_ArmEnd" );
+	killthread( "cinematicArm_Functionary2_ArmEnd" );
+
+	//--- show the hazard team for post cinematic
+	//globalCommon_AiDummy( $munro, "" );
+	globalCommon_AiDummy( $telsia, "" );
+	globalCommon_AiDummy( $chang, "" );
+	globalCommon_AiDummy( $chell, "" );
+
+	wait( .75 );
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	wait( .2 );
+
+	cueplayer();
+	releaseplayer();
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( .75 );
+
+	//--- set objective and blip
+	//$player.setobjectiveshow( "MeetTelsia", 1 );
+	//$telsia.missionobjective( 1 );
+
+	//--- show stemmons in his office
+	$stemmons.show();
+	$stemmons.solid();
+
+	//--- stemmons terminal
+	$terminalStemmonsIntro.hide();
+	$terminalStemmons.show();
+
+	//--- start conversation
+	thread conversationHazardTeam();
+
+	//--- set the objective finder values
+	enumM2Objective_LocationPlayer = M2OBJECTIVE_MAIN_BUILDING;
+	enumM2Objective_LocationObjective = M2OBJECTIVE_NONE;
+}
+
+
+void cinematicLevelStart()
+{
+	//--- show the hazard team for post cinematic
+	//globalCommon_AiDummy( $munro, "" );
+	globalCommon_AiDummy( $telsia, "" );
+	globalCommon_AiDummy( $chang, "" );
+	globalCommon_AiDummy( $chell, "" );
+
+	wait( .75 );
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	wait( .2 );
+
+	cueplayer();
+	releaseplayer();
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( .75 );
+
+	//--- set objective and blip
+	//$player.setobjectiveshow( "MeetTelsia", 1 );
+	//$telsia.missionobjective( 1 );
+
+	//--- show stemmons in his office
+	$stemmons.show();
+	$stemmons.solid();
+
+	//--- stemmons terminal
+	$terminalStemmonsIntro.hide();
+	$terminalStemmons.show();
+
+	//--- start conversation
+	thread conversationHazardTeam();
+
+	//--- set the objective finder values
+	enumM2Objective_LocationPlayer = M2OBJECTIVE_MAIN_BUILDING;
+	enumM2Objective_LocationObjective = M2OBJECTIVE_NONE;
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicMeetVisitor
+// cinematic of meeting Tuvok in the main entrance
+//---------------------
+void cinematicMeetVisitor()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		ePlayer_cinematicMeetVisitor = eTrigger.getLastActivatingEntity();
+	}
+	
+	//--- set the cinematic flag
+	boolCinematicActive = TRUE;
+
+	float playerX, tuvokX;
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	cam.load( "m2l1_meetVisitor_Shot1" );
+	cam.load( "m2l1_meetVisitor_Shot1b" );
+	cam.load( "m2l1_meetVisitor_Shot2" );
+	cam.load( "m2l1_meetVisitor_Shot3" );
+	cam.load( "m2l1_meetVisitor_Shot4" );
+	cam.load( "m2l1_meetVisitor_Shot5" );
+	cam.load( "m2l1_meetVisitor_Shot6" );
+	cam.load( "m2l1_meetVisitor_Shot7" );
+	cam.load( "m2l1_meetVisitor_Shot8" );
+	cam.load( "m2l1_meetVisitor_Shot9" );
+	cam.load( "m2l1_meetVisitor_Shot10" );
+
+	//--- set the music
+	music( "aux1" );
+
+	//--------------------------------------------------------
+	//establishing shots
+	
+	if(!doesEntityExist(ePlayer_cinematicMeetVisitor)){
+		ePlayer_cinematicMeetVisitor = $world;
+	}
+	
+	playerX = vectorGetX( ePlayer_cinematicMeetVisitor.getOrigin() );
+	tuvokX = vectorGetX( $tuvok.getOrigin() );
+
+	//--- setup and start the cinematic based on which side the player entered
+	if( playerX < tuvokX )
+	{
+		//--- player entered on the west side
+    	$munro.warp( $nodeMunro_MeetVisitorWest.getorigin() );
+    	$munro.angles( $nodeMunro_MeetVisitorWest.getangles() );
+    	globalCommon_AiDummyShow( $munro );
+		wait( .2 );
+
+    	//--- set the camera on the first path
+    	$cam1.fov( 70 );
+    	$cam1.follow( $m2l1_meetVisitor_Shot1 );
+    	$cam1.cut();
+    	cuecamera( $cam1 );
+    	wait( .1 );
+
+        //--- fade in
+        cam_fadein( 1, 0, 0, 0, 1, 0 );
+        wait( .2 );
+
+    	//--- start Munro walking
+    	$munro.walkto( "$nodeMunro_MeetVisitor_WalkTo1", "walk" );
+
+    	//--- set skipthread
+    	skipthread( "cinematicMeetVisitor_Skipthread" );
+    	wait( 4 );
+
+    	$munro.headWatchTarget( "mainBuilding_CadetMale5", 4 );
+    	wait( 2 );
+
+    	$munro.headWatchTarget( "mainBuilding_ReceptionistFemale", 4 );
+    	wait( 2 );
+
+    	$munro.headWatchTarget( "none", 10 );
+    	wait( 1 );
+
+    	//--- make cadet patrol
+    	thread commonPatrol( $mainBuilding_CadetFemale5, $t391 );
+    }
+    else
+    {
+    	//--- player entered on the east side
+    	$munro.warp( $nodeMunro_MeetVisitorEast.getorigin() );
+    	$munro.angles( $nodeMunro_MeetVisitorEast.getangles() );
+    	globalCommon_AiDummyShow( $munro );
+		wait( .2 );
+
+    	//--- set the camera on the first path
+    	$cam1.fov( 70 );
+    	$cam1.follow( $m2l1_meetVisitor_Shot1b );
+    	$cam1.cut();
+    	cuecamera( $cam1 );
+    	wait( .1 );
+
+        //--- fade in
+        cam_fadein( 1, 0, 0, 0, 1, 0 );
+        wait( .2 );
+
+    	//--- start Munro walking
+    	$munro.walkto( "$nodeMunro_MeetVisitor_WalkTo2", "walk" );
+    	//$munro.walkto( "'-3392 1296 -96'", "walk" );
+
+    	//--- set skipthread
+    	skipthread( "cinematicMeetVisitor_Skipthread" );
+    	wait( 3 );
+
+    	$munro.headWatchTarget( "mainBuilding_ReceptionistFemale", 4 );
+    	wait( 2 );
+
+    	$munro.headWatchTarget( "cadetFemale1_MainBuilding_VoyagerConversation", 4 );
+    	wait( 2 );
+
+    	$munro.headWatchTarget( "none", 10 );
+    	wait( 3 );
+
+    	//--- make cadet patrol
+    	thread commonPatrol( $mainBuilding_CadetFemale5, $t391 );
+    }
+
+	//--------------------------------------------------------
+	//swing around munro left, tuvok entrance
+
+	thread cinematicMeetVisitor_MunroLookAround();
+	wait( 2 );
+
+	//--- next paths
+	$cam1.follow( $m2l1_meetVisitor_Shot2 );
+	$cam2.follow( $m2l1_meetVisitor_Shot3 );
+	$cam2.fov( 40 );
+	wait( 3.25 );
+
+	//--- walk Tuvok over
+	globalCommon_AiDummyShow( $tuvok );
+	$tuvok.walkto( "$nodeTuvok_MeetVisitor_WalkTo1", "walk" );
+	wait( 2.5 );
+
+    $tuvok.playdialog( "localization/sound/dialog/m2l1/tuvok_greetlt.mp3", 1, 20000, 0 ); //Greetings Lieutenant
+	wait( .5 );
+
+	thread cinematicMeetVisitor_MunroSurprised();
+	wait( 1 );
+
+	//--------------------------------------------------------
+	//over the shoulder at munro
+
+	//--- next paths
+	$cam2.cut();
+	cuecamera( $cam2 );
+	//$munro.origin( $nodeMunro_MeetVisitor_End.getOrigin() );
+	wait( .25 );
+
+    $cam1.follow( $m2l1_meetVisitor_Shot4 );
+    $cam1.fov( 40 );
+
+    $munro.playdialog( "localization/sound/dialog/m2l1/munro_whatdot.mp3", 1, 20000, 0 ); //Tuvok?!  What are you doing here?
+    $munro.turnToAngle( 0 );
+    waitForDialog( $munro );
+    wait( .1 );
+
+	//--------------------------------------------------------
+	//over the shoulder at tuvok
+
+	//--- next paths
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .1 );
+
+    $cam2.follow( $m2l1_meetVisitor_Shot3 );
+    $cam2.fov( 40 );
+
+    $tuvok.playdialog( "localization/sound/dialog/m2l1/tuvok_currvul.mp3", 1, 20000, 0); //I had time for a brief stopover on my way to Vulcan. Congratulations on your new assignment.
+    wait( 4 );
+
+	//--------------------------------------------------------
+	//Over the shoulder at munro
+
+	//--- next paths
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( .1 );
+
+    $cam1.follow( $m2l1_meetVisitor_Shot6 );
+    $cam1.fov( 50 );
+    wait( 1.5 );
+
+    $munro.playdialog( "localization/sound/dialog/m2l1/munro_likenew.mp3", 1, 20000, 0 ); //Thanks, but I don’t want to leave active duty for teaching.
+    waitForDialog( $munro );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//close up on Tuvok
+
+	//--- next paths
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .1 );
+
+    $cam2.follow( $m2l1_meetVisitor_Shot5 );
+    $cam2.fov( 50 );
+    wait( .25 );
+
+    $tuvok.playdialog( "localization/sound/dialog/m2l1/tuvok_teachres.mp3", 1, 20000, 0 ); //There are few jobs more important than teaching. But I will explain your plight to my colleagues.
+    wait( 3 );
+
+	//--------------------------------------------------------
+	// close up on munro
+
+	//--- next paths
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( 1.5 );
+
+	$munro.morph( "exp_eyes_relaxed" );
+
+    waitForDialog( $tuvok );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//over the shoulder at munro, slight sweep left
+
+	//--- next paths
+	$cam1.follow( $m2l1_meetVisitor_Shot7 );
+	$cam1.cut();
+	wait( .1 );
+
+	cuecamera( $cam1 );
+	wait( .25 );
+
+    $munro.playdialog( "localization/sound/dialog/m2l1/munro_serveneed.mp3", 1, 20000, 0 ); //Thanks, Tuvok. I just think I can be of better use out there.
+    waitForDialog( $munro );
+    wait( .4 );
+
+	//--------------------------------------------------------
+	//slow sweep left looking slightly up at tuvok
+
+	//--- next paths
+	$cam2.follow( $m2l1_meetVisitor_Shot8 );
+	$cam2.cut();
+	wait( .1 );
+
+	cuecamera( $cam2 );
+	wait( .1 );
+
+	$cam1.follow( $m2l1_meetVisitor_Shot5 );
+
+    $tuvok.playdialog( "localization/sound/dialog/m2l1/tuvok_confi.mp3", 1, 20000, 0 ); //The Academy offers contact with many prominent people. Demonstrations of talent and initiative do not go unnoticed.
+    waitForDialog( $tuvok );
+    wait( .2 );
+
+ 	//--------------------------------------------------------
+	// close up on munro
+
+	//--- next paths
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .25 );
+
+    $cam2.follow( $m2l1_meetVisitor_Shot9 );
+    $cam2.fov( 70 );
+
+	thread cinematicMeetVisitor_MunroNod();
+	wait( 2.25 );
+
+ 	//--------------------------------------------------------
+	// low, looking up shot at both Tuvok and Munro
+
+	//--- next paths
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( .1 );
+
+    $cam1.follow( $m2l1_meetVisitor_Shot5 );
+
+    $tuvok.simplePlayDialog( "localization/sound/dialog/m2l1/computer_report2.mp3", 1, 20000 ); //Commander Tuvok, please report to launch pad 2.
+    //waitDialogLength( "localization/sound/dialog/m2l1/computer_report2.mp3" );
+    wait( .2 );
+
+    thread cinematicMeetVisitor_MunroTuvokLookUp();
+	wait( 2.75 );
+
+ 	//--------------------------------------------------------
+	// close up on munro
+
+	//--- next paths
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( 1 );
+
+    $cam2.follow( $m2l1_meetVisitor_Shot6 );
+    $cam2.fov( 50 );
+
+    $munro.headWatchTarget( "none", 2 );
+    $tuvok.headWatchTarget( "none", 2 );
+    wait( .75 );
+
+    $munro.playdialog( "localization/sound/dialog/m2l1/munro_goodseet.mp3", 1, 20000, 0 ); //It was an honor to serve with you.
+    waitForDialog( $munro );
+    wait( .2 );
+
+ 	//--------------------------------------------------------
+	// close up on tuvok
+
+	//--- next paths
+	$cam2.cut();
+	cuecamera( $cam2 );
+	wait( .1 );
+
+    $tuvok.playdialog( "localization/sound/dialog/m2l1/tuvok_senti.mp3", 1, 20000, 0 ); //The honor was mine, Lieutenant Munro. Live long, and prosper.
+    wait( 2.5 );
+
+ 	//--------------------------------------------------------
+	// slow pull out
+
+	//--- next paths
+	$cam1.follow( $m2l1_meetVisitor_Shot10 );
+	wait( .1 );
+
+	$cam1.cut();
+	cuecamera( $cam1 );
+	waitForDialog( $tuvok );
+    wait( 1 );
+
+    thread cinematicMeetVisitor_Skipthread();
+}
+
+
+//---------------------
+// cinematicMeetVisitor_Skipthread
+// meet visitor cinematic skipthread
+//---------------------
+void cinematicMeetVisitor_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicMeetVisitor" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- stop the chatter
+	$munro.stopdialog();
+	$tuvok.stopdialog();
+
+	//--- hide the fake munro
+	globalCommon_AiDummyHide( $munro );
+	globalCommon_AiDummyShow( $tuvok );
+
+	if(doesEntityExist(ePlayer_cinematicMeetVisitor)){
+		ePlayer_cinematicMeetVisitor.warp( $nodeMunro_MeetVisitor_End.getorigin() );
+	}
+	
+	//--- warp Tuvok
+	
+	$tuvok.warp( $nodeTuvok_MeetVisitor_End.getorigin() );
+	wait( .1 );
+
+	//--- warp the player
+	$tuvok.turnTowardsEntity( ePlayer_cinematicMeetVisitor );
+	
+	if(doesEntityExist(ePlayer_cinematicMeetVisitor)){
+		ePlayer_cinematicMeetVisitor.turnTowardsEntity( $tuvok );
+	}
+	
+	wait( .5 );
+
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .3 );
+	
+	//hzm coop mod chrissstrahl - fix munro blocking players (dono why he does)
+	$munro.notsolid();
+
+	//--- set the cinematic flag
+	boolCinematicActive = FALSE;
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- set the music
+	forcemusic( "normal" );
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$MeetVisitor$$","complete",1,1);
+
+	$tuvok.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $tuvok, M2OBJECTIVE_NONE );
+
+	//--- start harry on his patrol
+	//globalCommon_AiActor( $harry );		//HACK 	commented out
+	//$harry.setnodeid( 12 );				//HACK	commented out
+	//$harry.settendency( "patrol", 1 );	//HACK 	commented out
+	//$harry.settendency( "work", 1 );		//HACK 	commented out
+
+	//--- load +use dialog for tuvok
+	thread initDialog_Tuvok( $tuvok );
+
+	//--- tuvok departs
+	thread gameTuvokDeparts();
+	wait( 2 );
+
+	//--- have telsia tell munro she's ready to meet him
+	//thread gameMeetTelsia();				//HACK added
+	thread computerGoToHeadmaster();
+}
+
+//-----------------------------------------
+//--- munro looks around confused at the start of the cinematic
+void cinematicMeetVisitor_MunroLookAround()
+{
+	//centerprint( "Munro looks around confused" );
+	$munro.morph( "exp_Relief" );
+
+	$munro.headWatchTarget( "tuvok", 4 );
+	wait( 1.5 );
+
+	//$munro.turnToAngle( 315 );
+
+	$munro.headWatchTarget( "mainBuilding_CadetMale5", 4 );
+	wait( 1.5 );
+
+	$munro.morph( "exp_Nervous" );
+	$munro.headWatchTarget( "mainCourtyard_OfficialFemale1", 4 );
+	$munro.turnToAngle( 270 );
+	//$munro.anim( "turn_right" );
+	//waitForAnimation( $munro, "turn_right" );
+	//$munro.angles( '0 270 0' );
+	//$munro.anim( "idle" );
+	wait( 1 );
+
+	//$munro.turnToAngle( 225 );
+
+	$munro.morph( "exp_Skeptical" );
+	wait( .5 );
+
+	$munro.headWatchTarget( "none", 10 );
+	wait( .5 );
+
+	$munro.turnToAngle( 180 );
+	//$munro.anim( "turn_right" );
+	//waitForAnimation( $munro, "turn_right" );
+	//$munro.angles( '0 180 0' );
+	//$munro.anim( "idle" );
+	$munro.headWatchTarget( "t391", 4 );
+	wait( 1.5 );
+
+	$munro.headWatchTarget( "none", 4 );
+}
+
+//-----------------------------------------
+//--- munro gets a surprised look
+void cinematicMeetVisitor_MunroSurprised()
+{
+	$munro.morph( "exp_Surprise" );
+}
+
+//-----------------------------------------
+//--- munro nods in agreement with Tuvok
+void cinematicMeetVisitor_MunroNod()
+{
+	$munro.morph( "exp_Serious" );
+
+	$munro.headWatchTarget( "nodeMunroNod", 2 );
+	wait( .35 );
+
+	$munro.headWatchTarget( "none", 4 );
+}
+
+//-----------------------------------------
+//--- munro and tuvok look upwards as the computer calls to Tuvok
+void cinematicMeetVisitor_MunroTuvokLookUp()
+{
+	$tuvok.headWatchTarget( "nodeComputerLookAt", 4 );
+	wait( .2 );
+
+	$munro.headWatchTarget( "nodeComputerLookAt", 4 );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicArm_MeetTelsia_Intro_Start
+// ending cinematic talking with Telsia, intro armature
+//---------------------
+void cinematicArm_MeetTelsia_Intro_Start()
+{
+	$telsia.nouse();
+
+	//--- set the cinematic flag
+	boolCinematicActive = TRUE;
+
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- hide the player and the telsia
+	globalCommon_AiDummyHide( $telsia );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$MeetTelsia$$","complete",3,1);
+	
+	$telsia.missionobjective( 0 );
+	m2Objective_SetObjectiveLocation( $telsia, M2OBJECTIVE_NONE );
+
+	//--- shut up the professor conversation if it's going
+	killthread( "conversationCourtyard_Inquisition" );
+	$cadetMale1_Courtyard_InquisitionConversation.stopDialog();
+	$cadetMale2_Courtyard_InquisitionConversation.stopDialog();
+	$teacherMale1_Courtyard_InquisitionConversation.stopDialog();
+
+	//--- start the first piece of the cinematic
+	cinematicArm_MeetTelsia_Intro.beginCinematic( "m2l1-telsia" );
+	wait( .2 );
+
+	//--- fade the camera back in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	//--- set the armature characters to not 'sleep'
+	$armTelsia.max_inactive_time( -1 );
+	$armMunro.max_inactive_time( -1 );
+}
+
+
+
+//---------------------
+// cinematicArm_MeetTelsia_Intro_ArmEnd
+// telsia cinematic end of intro armature
+//---------------------
+void cinematicArm_MeetTelsia_Intro_ArmEnd()
+{
+	//globalCommon_AiDummy( $armTelsia, "" );
+	//globalCommon_AiDummy( $armMunro, "" );
+
+	//hzm coop mod chrissstrahl, select on default
+	thread careerOption2();
+	
+	//--- launch telsia's dialog option
+ 	//$telsia.branchdialog( "munro_telsia_career" );
+	//pause();
+}
+
+
+void careerOption1()
+{
+	//--- start the first piece of the cinematic
+	cinematicArm_MeetTelsia_Choice1.beginCinematic( "m2l1-telsia" );	//won't give up the career
+}
+
+void careerOption2()
+{
+	//--- start the first piece of the cinematic
+	cinematicArm_MeetTelsia_Choice2.beginCinematic( "m2l1-telsia" );	//ahhhh, they're so cute they've made up
+
+    //--- telsia scores.....
+	globalCommon_LoveChoice_Telsia();
+}
+
+void careerOption3()
+{
+	//--- start the first piece of the cinematic
+	cinematicArm_MeetTelsia_Choice3.beginCinematic( "m2l1-telsia" );	//POW, telsia should be slappin' dat fo!!
+
+    //--- munro takes a nose dive in the love race....
+	globalCommon_LoveChoice_None();
+}
+
+
+//---------------------
+// cinematicArm_MeetTelsia_ArmEnd
+// telsia cinematic end
+//---------------------
+void cinematicArm_MeetTelsia_ArmEnd()
+{
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1.25 );
+
+	//--- tell the game to not translate the player's orientation
+	dontSaveOrientation();
+
+	noIntermission();
+
+	coop_endLevel();
+	
+	
+	//--- transition to m2l2
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m2l2-sfa" );
+	//wait ( .1 );
+	//triggerentity ( $trigger_endlevel );
+}
+
+//---------------------
+// Koi Fish - Adam 4/25/03
+// Make the koi fish swim around in the pond
+//---------------------
+void koi()
+{
+	wait( 1 );
+
+	globalArchetype_Setup( $koi11_arch , "koi7" );
+	globalArchetype_Setup( $koi12_arch , "koi6" );
+	globalArchetype_Setup( $koi13_arch , "koi2" );
+	globalArchetype_Setup( $koi14_arch , "koi4" );
+	globalArchetype_Setup( $koi15_arch , "koi1" );
+	globalArchetype_Setup( $koi16_arch , "koi5" );
+
+	wait( 1 );
+
+	$koi11_arch.bind( $koi11 );
+	$koi12_arch.bind( $koi12 );
+	$koi13_arch.bind( $koi13 );
+	$koi14_arch.bind( $koi14 );
+	$koi15_arch.bind( $koi15 );
+	$koi16_arch.bind( $koi16 );
+
+	wait( 1 );
+
+	$koi1.anim( "idle" );
+	$koi2.anim( "idle" );
+	$koi3.anim( "idle" );
+	$koi4.anim( "idle" );
+	$koi5.anim( "idle" );
+	$koi6.anim( "idle" );
+	$koi7.anim( "idle" );
+	$koi8.anim( "idle" );
+	$koi9.anim( "idle" );
+	$koi10.anim( "idle" );
+	$koi11.anim( "idle" );
+	$koi12.anim( "idle" );
+	$koi13.anim( "idle" );
+	$koi14.anim( "idle" );
+	$koi15.anim( "idle" );
+	$koi16.anim( "idle" );
+
+	$koi1.followpath( $koi1_path , "loop" , "normalangles" );
+	$koi2.followpath( $koi2_path , "loop" , "normalangles" );
+	$koi3.followpath( $koi3_path , "loop" , "normalangles" );
+	$koi4.followpath( $koi4_path , "loop" , "normalangles" );
+	$koi5.followpath( $koi5_path , "loop" , "normalangles" );
+	$koi6.followpath( $koi6_path , "loop" , "normalangles" );
+	$koi7.followpath( $koi7_path , "loop" , "normalangles" );
+	$koi8.followpath( $koi8_path , "loop" , "normalangles" );
+	$koi9.followpath( $koi9_path , "loop" , "normalangles" );
+	$koi10.followpath( $koi10_path , "loop" , "normalangles" );
+	$koi11.followpath( $koi11_path , "loop" , "normalangles" );
+	$koi12.followpath( $koi12_path , "loop" , "normalangles" );
+	$koi13.followpath( $koi13_path , "loop" , "normalangles" );
+	$koi14.followpath( $koi14_path , "loop" , "normalangles" );
+	$koi15.followpath( $koi15_path , "loop" , "normalangles" );
+	$koi16.followpath( $koi16_path , "loop" , "normalangles" );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m2l2-sfa");
+}
+
+

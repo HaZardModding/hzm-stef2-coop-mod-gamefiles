@@ -1,0 +1,381 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2007.09.29
+// E-Mail:		chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// CONTAININS ALL CHECK RUTINES USED BY THE CO-OP MOD
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2015 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////Functions
+////////////////////////////////////////////////////////////////////////////////
+float globalCoop_check_stringEntityExist(string sTargetname)
+//------------------------------------------------------------------------------
+//Cheks for an entity it's by the given targetname,
+//------------------------------------------------------------------------------
+{
+	if(sTargetname != ""){
+		entity e;
+		e = getEntity(sTargetname+"");
+		if(doesEntityExist(e) == 1 ){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+float globalCoop_check_existingLivingEntity(entity e)
+//------------------------------------------------------------------------------
+//Cheks for an entity it's existance and health,
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(e)){
+		if(e.getHealth() > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+float globalCoop_check_playerCrouching(entity ePlayer)
+//------------------------------------------------------------------------------
+//is player crouching 0/1
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		vector vMaxs;
+		vMaxs = ePlayer.getMaxs();
+		if(vMaxs_z == 49){
+			return 1;
+		}
+	}
+//Return False by default
+	return 0;
+}
+
+
+float globalCoop_check_playerInRange(entity eOrigin,float fRange)
+//------------------------------------------------------------------------------
+//is player withing in range of  0/1
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eOrigin)){
+		entity ePlayer;
+//GRAB ON DEFAULT
+		ePlayer = $player;
+//MULTIPLAYER
+		if(cvar_bool_multiplayer){
+			ePlayer = globalCoop_return_playerClosestActive(eOrigin);//check active players only
+		}
+	
+//CHECK IF THE GIVEN PLAYER IS IN RANGE
+		//[b607] chrissstrahl - added health, class and spectator check
+		if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0 && getStringEntitySubclass(ePlayer) == "Player" && getIntPlayerSpectator(ePlayer) == 0 ){
+			if(ePlayer.iswithindistanceof(eOrigin,fRange)){
+				return 1;
+			}
+		}
+	}
+//Return FalsePlayerby default
+	return 0;
+}
+
+float globalCoop_check_playerSpectator(entity ePlayer)
+//------------------------------------------------------------------------------
+//Cheks if the given player is in spectator mode, if so return 1 else 0
+//------------------------------------------------------------------------------
+{
+	return getIntPlayerSpectator(ePlayer);
+}
+
+float globalCoop_check_entityValidPlayerTargetname(entity ePlayer)
+//------------------------------------------------------------------------------
+//checks if the entity is a player with ID (player1 etc), returns TRUE if so
+//------------------------------------------------------------------------------
+{
+	if(globalCoop_return_integerPlayerId(ePlayer) > -1){
+		return 1;
+	}
+	return 0;
+}
+
+float globalCoop_check_activeWeaponType(entity e, string sWeaponType)
+//------------------------------------------------------------------------------
+// Cheks the type of weapon the entity has
+//------------------------------------------------------------------------------
+{
+	if(globalCoop_check_existingLivingEntity(e))
+	{
+//Create Var
+		string sPlayerWeapon;
+		sPlayerWeapon	=	globalCoop_return_stringActiveWeaponName(e);
+		
+//check quickly if the given string is equal to the weapon the dude is using
+		if(sPlayerWeapon == sWeaponType)
+		{
+			return 1;
+		}
+//If tricorder
+		if(sWeaponType == "tricorder" || sWeaponType == "Tricorder")
+		{
+			if(	sPlayerWeapon == "Tricorder" || sPlayerWeapon == "Tricorder-stx"|| sPlayerWeapon == "Tricorder-rom")
+			{
+				return 1;
+			}
+		}
+//If Phaser
+		if(sWeaponType == "phaser" || sWeaponType == "Phaser")
+		{
+			if(	sPlayerWeapon == "Phaser" || sPlayerWeapon == "Phaser-stx")
+			{
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+
+float globalCoop_check_isEntityTouchingOther(entity eTouch, entity eOther, float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF THE GIVEN ENTITIES ARE TOUCHING EACH OTHERS BOUNDINGBOXES
+//------------------------------------------------------------------------------
+{
+//padding=add to the bounding box, or substract by using negative values
+//ignore=if set to 'z' Z-coordinates will be ignored, options are x,y,z
+
+	if(!doesEntityExist(eTouch) || !doesEntityExist(eOther)){	
+		return 0;
+	}
+	fPadding = (fPadding + 2);//for some reason trigger their field is plus 1 or 2 units, well, so this is our bugfix for this issue
+	
+	vector vOriginTouch,vOriginOther,vBBoxMinsTouch,vBBoxMaxsTouch,vBBoxMinsOther,vBBoxMaxsOther;
+	
+	vOriginTouch = eTouch.getOrigin();
+	vOriginOther = eOther.getOrigin();
+	
+	vBBoxMinsTouch = eTouch.getMins();
+	vBBoxMaxsTouch = eTouch.getMaxs();
+	vBBoxMinsOther = eOther.getMins();
+	vBBoxMaxsOther = eOther.getMaxs();
+
+	float fDistanceOrgins,fLengthBothBoxesTouchLower,fLengthBothBoxesOtherLower;
+	
+//if touch x is lower than other x
+	fDistanceOrgins = globalCoop_return_floatLengthFromVectorCalc(vOriginTouch_x,vOriginOther_x);
+	fLengthBothBoxesTouchLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsTouch_x,vBBoxMinsOther_x);
+	fLengthBothBoxesOtherLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsOther_x,vBBoxMinsTouch_x);
+	
+	if(vOriginTouch_x < vOriginOther_x){
+		if(fDistanceOrgins > (fLengthBothBoxesTouchLower + fPadding)){
+			return 0;	//their bounding boxes do not tuch
+		}
+	}else if(fDistanceOrgins > (fLengthBothBoxesOtherLower + fPadding)){
+		return 0;	//their bounding boxes do not tuch
+	}
+	
+//if touch y is lower than other y
+	fDistanceOrgins = globalCoop_return_floatLengthFromVectorCalc(vOriginTouch_y,vOriginOther_y);
+	fLengthBothBoxesTouchLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsTouch_y,vBBoxMinsOther_y);
+	fLengthBothBoxesOtherLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsOther_y,vBBoxMinsTouch_y);
+	
+	if(vOriginTouch_y < vOriginOther_y){
+		if(fDistanceOrgins > (fLengthBothBoxesTouchLower + fPadding)){
+			return 0;	//their bounding boxes do not tuch
+		}
+	}else if(fDistanceOrgins > (fLengthBothBoxesOtherLower + fPadding)){
+		return 0;	//their bounding boxes do not tuch
+	}
+	
+//if touch z is lower than other z
+	fDistanceOrgins = globalCoop_return_floatLengthFromVectorCalc(vOriginTouch_z,vOriginOther_z);
+	fLengthBothBoxesTouchLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsTouch_z,vBBoxMinsOther_z);
+	fLengthBothBoxesOtherLower	= globalCoop_return_floatLengthFromCombinedBbox(vBBoxMaxsOther_z,vBBoxMinsTouch_z);
+	
+	if(vOriginTouch_z < vOriginOther_z){
+		if(fDistanceOrgins > (fLengthBothBoxesTouchLower + fPadding )){
+			return 0;	//their bounding boxes do not tuch
+		}
+	}else if(fDistanceOrgins > (fLengthBothBoxesOtherLower + fPadding )){
+		return 0;	//their bounding boxes do not tuch
+	}
+	return 1;
+}
+
+
+float globalCoop_check_isEntityInsideOfEntity(entity e1,entity e2,float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ENTITY2 OR OTHERWISE
+//------------------------------------------------------------------------------
+{
+//USE PADDING FOR MOVING ENTITYS, DEPENDING ON VELOCITY THEY CAN HAVE MOVED AWAY FROM THE LAST ORIGIN
+	if(doesEntityExist(e1) == 1 && doesEntityExist(e2) == 1){
+//CREATE VARS
+		vector	vOrigin1,
+				vBBoxMins1,
+				vBBoxMaxs1,
+				vOrigin2,
+				vBBoxMins2,
+				vBBoxMaxs2;
+//GRAB DATA FROM BBOX, SAVES US TWO "else" statments
+		vBBoxMins1 = e1.getMins();
+		vBBoxMaxs1 = e1.getMaxs();
+		vBBoxMins2 = e2.getMins();
+		vBBoxMaxs2 = e2.getMaxs();
+//IS ENTITY (1) A PLAYER ENTITY
+		if(globalCoop_return_integerPlayerId(e1) > -1){
+			vBBoxMins1 = '-22 -22 0';
+			vBBoxMaxs1 = '22 22 96';
+		}		
+//IS ENTITY (2) A PLAYER ENTITY
+		if(globalCoop_return_integerPlayerId(e2) > -1){
+			vBBoxMins2 = '-22 -22 0';
+			vBBoxMaxs2 = '22 22 96';
+		}
+//GET ORIGINS
+		vOrigin1 = e1.getOrigin();
+		vOrigin2 = e2.getOrigin();
+//DO THE BBOX CHECK, CHECK BOTHCONSTELLATIONS TO AVOID MISSCALCULATION, UPDATE globalCoop_check_isBoundingBox2InsideOfBoundingBox1 TO SOLVE ERROR
+		float fInside = 0;
+		if(	globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin1,vBBoxMins1,vBBoxMaxs1,vOrigin2,vBBoxMins2,vBBoxMaxs2,fPadding) == 1 &&
+			globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin2,vBBoxMins2,vBBoxMaxs2,vOrigin1,vBBoxMins1,vBBoxMaxs1,fPadding) == 1)
+		{
+			fInside = 1;
+		}
+		return fInside;
+	}
+//Return False Player by default
+	return 0;
+}
+
+float globalCoop_check_isBoundingBox2InsideOfBoundingBox1(	vector vOrigin1,//ORIGIN BBOX1
+															vector vBBoxMins1,//e.getMins()
+															vector vBBoxMaxs1,//e.getMaxs()
+															vector vOrigin2,//ORIGIN BBOX2
+															vector vBBoxMins2,//e.getMins()
+															vector vBBoxMaxs2,//e.getMaxs()
+															float fPadding)//ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+//------------------------------------------------------------------------------
+//CHECK IF THE GIVEN BOUNDINGBOXES ARE TOUCHING OR INSIDE OF EACH OTHER BOUNDINGBOX
+//------------------------------------------------------------------------------
+{
+//VECTOR LENGTH
+	float fCalcDist;
+//TEMP-VECTORS FOR CALCULATIONS
+ 	vector vCalc1,vCalc2;
+//IF ORIGIN IS NOT EXACTLY THE SAME
+	if(vOrigin1 != vOrigin2){
+//X-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_x = vOrigin1_x;//GET ONLY X
+		vCalc2_x = vOrigin2_x;//GET ONLY X
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_x >= vCalc2_x){
+			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_x) + vBBoxMaxs2_x)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_x + globalCoop_return_floatNotNegative(vBBoxMins2_x))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Y-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_y = vOrigin1_y;//GET ONLY Y
+		vCalc2_y = vOrigin2_y;//GET ONLY Y
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_y >= vCalc2_y){
+			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_y) + vBBoxMaxs2_y)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_y + globalCoop_return_floatNotNegative(vBBoxMins2_y))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Z-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_z = vOrigin1_z;//GET ONLY Z
+		vCalc2_z = vOrigin2_z;//GET ONLY Z
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_z <= vCalc2_z){
+			if(	fCalcDist > (vBBoxMaxs1_z + globalCoop_return_floatNotNegative(vBBoxMins2_z))){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_z) + vBBoxMaxs2_z)){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+	}
+//IS STUCK
+	return 1;
+}
+
+
+float globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ANY PLAYER
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(e1)){
+		string sRawTargetname;
+		float fPlayerIdInUse,fInside;
+		entity ePlayer;
+		sRawTargetname = e1.getRawTargetname();
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+		//DON'T BE SILLY DON'T CHECK THE PLAYER BEEING STUCK INSIDE HIM SELF!
+			if(sRawTargetname != "player"+fPlayerIdInUse){
+		//DONT CHECK DEATH PPL
+				if(globalCoop_check_existingLivingEntity(ePlayer)){
+		//CHECK IF ANY ELSE DUDE IS STUCK IN THE ENTITY
+					if(globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity(ePlayer,e1,fPadding) == 1){
+						fInside++;
+					}
+				}
+			}
+		}
+//SINGLEPLAYER
+		if(!cvar_bool_multiplayer){
+			if(globalCoop_check_isEntityInsideOfEntity(e1,$player,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity($player,e1,fPadding) == 1){
+				fInside++;
+			}
+		}
+		if(fInside > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+float globalCoop_check_isPowerOfGiven(float fValue,float fGiven)
+//----------------------------------------------------------------------
+// RETURN TRUE OR FALSE IF THE VALUE IS A POWER OF THE GIVEN
+//----------------------------------------------------------------------
+{
+	float fValueCalc;
+	fValueCalc = (fValue / fGiven);
+	fValueCalc = floor(fValueCalc);
+	if((fValueCalc * fGiven) == fValue){
+		return 1;
+	}
+	return 0;
+}
+
+
+

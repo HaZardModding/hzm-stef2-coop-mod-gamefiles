@@ -1,0 +1,179 @@
+//coop_bugs, lift related stuff
+
+void lift_moan()
+//munro figures that the lift will not work 
+{
+	$liftPannel1OnSymbol.missionobjective(0);
+
+	if(cvar_bool_multiplayer)
+	{
+		entity eTrigger,ePlayer;
+		eTrigger = getCurrentEntity();
+
+		if(doesEntityExist(eTrigger))
+		{
+			ePlayer = eTrigger.getLastActivatingEntity();
+			if(doesEntityExist(ePlayer))
+			{
+				ePlayer.simplePlayDialog( "localization/sound/dialog/m8l2/munro_cancloak.mp3",1,128 );
+			}
+		}
+	}
+	else
+	{
+		if(doesEntityExist($munro))
+		{
+			$munro.origin($player.getOrigin());
+		}
+		else
+		{
+			spawn("actor","model","models/coop_bugs/munro.tik","targetname","munro","origin",""+$player.getOrigin(),"hide","1");
+			globalCoop_main_waitAFrame();
+			$munro.notsolid();
+			$munro.notarget();
+		}
+		$munro.playDialog( "localization/sound/dialog/m8l2/munro_cancloak.mp3",1,999999 );
+	}
+	if(!objective_liftRestorePowerDone)
+	{	
+		thread objective_liftRestorePower();
+	}
+//hide use symbol
+	$liftPannel1OnSymbol.hide();
+	$liftPannel1MoanEffect.show();
+}
+
+
+
+void lift_come()
+//make the lift come overm after this the lift will be operational again from both sides
+{
+	$liftPannel2OnSymbol.missionobjective(0);
+	thread objective_liftRestoreComplete();
+
+//remove the moan trigger
+	globalCoop_level_remove($liftPannel1MoanTrigger);
+	globalCoop_level_remove($liftPannel1MoanEffect);
+//cinamtic
+	cinematic_lift();
+//dude activate and follow player
+	thread lift_dude_triggerFollow();
+	$lift_dude.health(500);
+	$lift_dude.maxhealth(500);
+	$lift_dude_trigger.origin('12151 -5093 -990');
+	$lift_dude.origin('12151 -5093 -1020');
+	$lift_dude_trigger.bind($lift_dude);
+	$lift_dude.ai_on();
+	$lift_dude.killthread("objective_liftDudeSurviveFailed");
+//[b607] chrissstrahl - set archetype Friend
+	$lift_dude.archetype("Friend");
+//this makes the lift operational
+	$liftOn.show();
+	$liftOff.hide();
+	$liftPannel1On.show();
+	$liftPannel2On.show();
+	$liftPannel1Off.hide();
+	$liftPannel2Off.hide();
+	$liftPannel2Trigger.triggerable();
+	$liftPannel1Trigger.triggerable();
+	$liftTrigger.triggerable();
+//set new objective (attrexian must survive)
+	thread objective_liftDudeSurvive();
+	wait(2);
+//munro tells the lift dude to follow him
+	entity ePlayer;
+	ePlayer=globalCoop_return_playerClosestPreferActive($lift_dude);
+	
+	ePlayer.simplePlayDialog( "localization/sound/dialog/m7l1/munro_comeon.mp3",1,1024 );
+}
+
+void lift_toogle()
+{
+	killthread("lift_doToggle");
+	thread lift_doToggle();
+}
+
+void lift_doToggle()
+{
+	$liftOn.hide();
+	$liftOnSymbol.hide();
+	$liftOff.show();
+	$liftPannel1On.hide();
+	$liftPannel1OnSymbol.hide();
+	$liftPannel2On.hide();
+	$liftPannel2OnSymbol.hide();
+	$liftPannel2Off.show();
+	$liftPannel1Off.show();
+	$liftPannel2Trigger.nottriggerable();
+	$liftPannel1Trigger.nottriggerable();
+	$liftTrigger.nottriggerable();
+	if(float_liftState==0)
+	{
+		float_liftState=2;
+		$liftDoorOrigin.rotateZup(90);
+		$liftDoorOrigin.time(3);
+		waitFor($liftDoorOrigin);
+		$liftOrigin.movetopos($liftLocation1.getOrigin());
+		$liftOrigin.time(5);
+		waitFor($liftOrigin);
+		$liftOrigin.movetopos($liftLocation0.getOrigin());
+		$liftOrigin.time(5);
+		waitFor($liftOrigin);
+		$liftDoorOrigin.rotateZdown(90);
+		$liftDoorOrigin.time(3);
+		waitFor($liftDoorOrigin);
+		float_liftState=1;
+	}
+	else if(float_liftState == 1)
+	{
+		float_liftState=2;
+		$liftDoorOrigin.rotateZup(90);
+		$liftDoorOrigin.time(3);
+		waitFor($liftDoorOrigin);
+		$liftOrigin.movetopos($liftLocation1.getOrigin());
+		$liftOrigin.time(5);
+		waitFor($liftOrigin);
+		$liftOrigin.movetopos($liftLocation2.getOrigin());
+		$liftOrigin.time(5);
+		waitFor($liftOrigin);
+		$liftDoorOrigin.rotateZdown(90);
+		$liftDoorOrigin.time(3);
+		waitFor($liftDoorOrigin);
+		float_liftState=0;
+	}
+	$liftOnSymbol.show();
+	$liftOn.show();
+	$liftOff.hide();
+	$liftPannel1On.show();
+	$liftPannel1OnSymbol.show();
+	$liftPannel2On.show();
+	$liftPannel2OnSymbol.show();
+	$liftPannel1Off.hide();
+	$liftPannel2Off.hide();
+	$liftPannel2Trigger.triggerable();
+	$liftPannel1Trigger.triggerable();
+	$liftTrigger.triggerable();
+}
+
+void lift_dude_triggerFollow()
+{
+	vector vOrigin;
+	$lift_dude.immortal(1);
+	while(globalCoop_check_existingLivingEntity($lift_dude))
+	{
+		vOrigin = $lift_dude.getOrigin();
+		vOrigin_z += 60;
+		$lift_dude_trigger.origin(vOrigin);
+		wait(0.15);
+		$lift_dude_trigger.selfdetonate();
+	}
+	$lift_dude_trigger.remove();
+}
+
+
+void lift_dude_onUse()
+{
+	centerprint("lift dude has been used");
+}
+
+

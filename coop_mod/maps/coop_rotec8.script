@@ -1,0 +1,963 @@
+//CHrissstrahl - 2019.12.12
+void main();
+void setupLevel();
+
+//kneel_working_idle
+//hypo_idle
+//hypo_fire
+//hypo_fire_duck
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void main();
+void setupLevel();
+void setupActor(entity eActor);
+void setupTransoprterActor(entity eActor);
+void escapePod();
+void spawnsMove();
+void spawnsMoveBack();
+void spawnsMoveTransporter();
+void turboliftCrewHandle(entity eActor,float fNodeNum);
+void turboliftCrewAnimationMale();
+void turboliftCrewAnimationFemale();
+void turboliftCrew();
+void showerToggle();
+void noLongerSmelling();
+void sinkToggle();
+void transporterroomBeamIn();
+void myRoomReplicator();
+void barReplicator();
+void treadmill_toggle();
+void treadmill_useing();
+void treadmill_pusher();
+void sequenceShuttle();
+void sauna();
+void readyUpForNextMission();
+void readyForNextMission();
+void barTurnAway();
+void coop_endLevel();
+
+float fEscapePodTravelTime = 200;
+float fTransporterSequenceDone = 0;
+float fReadyUpForNxtMiss = 0;
+float fShowerTaken = 0;
+float fGymOrSaunaUseTime = 30; //should be 30
+float fShowerUseTime = 10; //should be 10 or longer
+float fPusherLast = -1;
+
+#include "coop_mod/matrix/main.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//animations
+/*
+cin-m3_toscan,cin-m3_fromscan
+cin-m3_tohunch,cin-m3_fromhunch
+
+
+cin-m3_greet - tapping com
+cin-m3_hunch - look into something
+cin-m3_late - to late
+cin-m3_lean - lean casual
+cin-m3_scan - scan crouced
+cin-m3_staying - i am not staying...
+
+communicator
+conv-backthere
+conv-affirmative
+conv-comehere
+conv-crossarms
+conv-embarrassment
+conv-fingerpoint-atyou
+conv-fingerup-warning
+conv-gesture
+conv-gesture1
+conv-gestureL
+conv-gestureR
+conv-handflick-hellno
+conv-handsweep
+conv-idle
+conv-idle-look
+conv-laugh1
+conv-no
+conv-overthere
+conv-poundfist
+conv-scratchingchin-thinking
+conv-shakehead
+conv-shrug
+conv-talk-handsonhips
+conv-wavehello
+conv-wtf
+conv-yes
+
+
+ent-compstation-idle-look
+ent-compstation-idle
+ent-compstation-gesture1
+ent-compstation-gesture
+ent-curvedconsole-gesture
+
+*/
+
+//====================================================
+void main()
+//====================================================
+{
+	$world.light_intensity("replicatorLightBar",0);
+	$world.light_intensity("spacemanDynLight",1);
+	$world.light_lightstyle("spacemanDynLight","aaazzzazahhhzazbabazazabzabszabszashortrpzazaza",0);
+
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1; //this should be removed if coop_rotec9 is ready
+	
+	$world.entity_fade_dist(10000);
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to the Hazard Ops and put down your gear.";
+	coop_string_objectiveItem2 = "Take the Turbolift to get to your quarters.";
+	coop_string_objectiveItem3 = "Replicate some food in your quarters.";
+	coop_string_objectiveItem4 = "Your replicator is broken, go to the Bar and eat there.";
+	coop_string_objectiveItem5 = "Go to the Sauna or Gym for relaxation.";
+	coop_string_objectiveItem6 = "Take a shower and get ready for your next mission.";
+	coop_string_objectiveItem7 = "When ready Take the Turbolift for your next Mission.";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Gehen Sie zu Hazard Operations und legen Sie die Ausr$$u$$stung ab.";
+	coop_string_objectiveItem2_deu = "Nehmen Sie den Turbolift zu Ihrem Quatier.";
+	coop_string_objectiveItem3_deu = "Replizieren Sie etwas zu essen in Ihrem Quartier.";
+	coop_string_objectiveItem4_deu = "Ihr Replikator ist kaputt, gehen Sie zur Bar zum essen.";
+	coop_string_objectiveItem5_deu = "Gehen Sie in die Sauna oder zum Fittness zum erholen.";
+	coop_string_objectiveItem6_deu = "Nehmen Sie ein Brausebad und bereiten Sie sich für den Einsatz vor.";
+	coop_string_objectiveItem7_deu = "Wenn Sie einsatzbereit sind nehmen Sie den Turbolift.";
+	coop_string_objectiveTacticalInfo1_deu = "";//N$$u$$tzen Sie die Verwirrung zu Ihrem Vorteil
+
+	//coop_string_story = "You are back on the USS Odyssey-A. Have some off duty time for your self.";
+	//coop_string_story_deu = "Sie sind wieder auf der USS Odyssey-A. Nehmen Sie sich eine kleine Auszeit.";
+	
+	
+	thread setupLevel();
+	
+	//structural view mode
+	//$world.addAvailableViewMode("structuralintegrity");
+	
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Luke^0_^8Sutton";	
+}
+
+//====================================================
+void setupLevel()
+//====================================================
+{
+	//setup actors
+	setupActor($crewTurboliftChat1);
+	setupActor($crewTurboliftChat2);
+	setupActor($crewTransporter1);
+	setupActor($crewTransporter2);
+	setupActor($crewBar1);
+	setupActor($crewBar2);
+	setupActor($crewBedroom1);
+	setupActor($guestBedroom1);
+	setupActor($spaceman);
+	setupActor($transporterOfficialWaiting);
+	
+	
+	setupTransoprterActor($transporterOfficialBeamIn1);
+	setupTransoprterActor($transporterOfficialBeamIn2);
+	
+	$crewBar1.anim("conv-gesture");
+	$crewBar2.anim("conv-gesture");
+	$crewTurboliftChat1.anim("cin-m3_lean");	
+	$spaceman.nodamage();
+	$spaceman.anim("crouch_idle");
+	
+	$escapePod.bind($escapePod_origin);
+	
+	entity e;
+	float i;
+	for(i=0;i<8;i++){
+		e = getEntity("escapePodJet"+i);
+		if(doesEntityExist(e)){
+			//e.model("models/fx/fx-plasmajet-blue-directional.tik");
+			e.model("models/fx/fx-plasmaburn-flamethrow-red.tik");
+			e.scale(0.75);
+			e.hide();
+			e.bind($escapePod_origin);
+		}
+	}
+	
+	//$spacemanSparks.scale(0.05);
+	
+	//$skyboxGalaxy
+	//$skyboxPlanet
+	//$skyboxSpace
+	
+	//set missionobjective on radar
+	$myRoomReplicatorTrigger.missionObjective(1);
+
+//setup stuff, activate/deactivate/hide and so on
+	$turboliftPlayerClip.bind($turboliftPlayerClipOrigin);
+	$treadmill1_on.hide();
+	$treadmill2_on.hide();
+	$treadmill3_on.hide();
+	$showerSpray.scale(0);
+	$sinkWaterSpray.scale(0);
+	$shuttle.scale(0.01);
+	$shuttle.hide();
+	$shuttle.bind($shuttleOrigin);
+	$shuttleClip.bind($shuttleOrigin);
+	$shuttleOriginBottom.bind($shuttleOrigin);
+	
+	$crewTransporter1.anim("ent-compstation-gesture");
+	$crewTransporter2.anim("ent-curvedconsole-gesture");
+	
+//update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//go to hazardops
+	globalCoop_objectives_update("complete" , 2 , 0 );//take turbo
+	globalCoop_objectives_update("incomplete" , 3 , 1 );//go quaters replicate
+	
+//activity threads
+	thread turboliftCrewAnimationMale();
+	thread turboliftCrewAnimationFemale();
+	
+//prevent player from entering that quarters
+	$crewBar2PlayerClip.solid();
+}
+
+//====================================================
+void setupActor(entity eActor)
+//====================================================
+{
+	if(doesEntityExist(eActor)){
+		eActor.mass(99999);
+		eActor.pushable(0);
+		eActor.killattach(); //removes weapons and added items/models
+	}
+}
+
+//====================================================
+void setupTransoprterActor(entity eActor)
+//====================================================
+{
+	if(doesEntityExist(eActor)){
+		eActor.notsolid();
+		eActor.fade(0.01,0);
+		eActor.forceAlpha(1);
+		setupActor(eActor);
+	}
+}
+
+//====================================================
+void barTurnAway()
+//====================================================
+{
+	$crewBar1.animateonce("conv-poundfist");
+	waitforAnimation($crewBar1,"conv-poundfist");
+	$crewBar1.anim("idle");
+	wait(0.1);
+	$crewBar1.turntoangle(90);
+	$crewBar2.animateonce("conv-wtf");
+	waitforAnimation($crewBar2,"conv-wtf");
+	$crewBar2.anim("idle");	
+	$crewBar1.anim("conv-crossarms");
+	
+	$crewBar2.turntoangle(270);
+	wait(1);
+	string sAnim;
+	//sAnim = "run";
+	sAnim = "walk";
+	$crewBar2.walkto("$crewBar2BarExit",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit2",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit3",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit4",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit5",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit6",sAnim);
+	waitfor($crewBar2);
+	$crewBar2.walkto("$crewBar2BarExit7",sAnim);
+	waitfor($crewBar2);
+	
+	$crewBar2.walkto("$crewBar2Pathnode1");
+	waitfor($crewBar2);
+	$crewBar2.ignoremonsterclip();//allow past the movementclip, that will block the player
+	$crewBar2Door.open($crewBar2);
+	$crewBar2.walkto("$crewBar2Pathnode2");
+	waitfor($crewBar2);
+	$crewBar2Door.lock();
+}
+
+//====================================================
+void escapePod()
+//====================================================
+//a escapepod with faiulty boosters floating in space
+{
+	$escapePod_origin.rotateX(40);
+	$escapePod_origin.rotateY(20);
+	$escapePod_origin.rotateZ(5);
+	$escapePod_origin.movetopos('4288.00 382.26 1085.97');
+	$escapePod_origin.time(fEscapePodTravelTime);	
+
+	float fTime = 100;
+	while(fEscapePodTravelTime > 0){
+		entity e;
+		float i;
+		i=randomint(8);
+		e = getEntity("escapePodJet"+i);
+		if(doesEntityExist(e)){
+			e.show();
+			wait(0.5);
+			e.hide();
+			wait(0.5);
+		}
+		fEscapePodTravelTime--;
+	}
+}
+
+//====================================================
+void spawnsMove()
+//====================================================
+//moves spawnpoints away from turbo
+{
+	float f;
+	entity e;
+	vector vCoords;
+	for(f=1;f<9;f++){
+		e = getEntity("$ipd"+f);
+		
+		if(f==1)	{vCoords='-674 -982 1168';}
+		else if(f==2){vCoords='-674 -870 1168';}
+		else if(f==3){vCoords='-738 -982 1168';}
+		else if(f==4){vCoords='-738 -870 1168';}
+		else if(f==5){vCoords='-810 -982 1168';}
+		else if(f==6){vCoords='-810 -870 1168';}
+		else if(f==7){vCoords='-890 -982 1168';}
+		else		{vCoords='-890 -870 1168';}
+		
+		if(doesEntityExist(e)){
+			e.setVectorVar("lastOrigin",e.getOrigin());
+			e.origin(vCoords);
+		}
+	}
+}
+
+//====================================================
+void spawnsMoveBack()
+//====================================================
+//move the spawns back into turbo
+{
+	//do not move spawns back if they are moved to the trans
+	if(fReadyUpForNxtMiss){
+		return;
+	}
+	float f;
+	entity e;
+	vector vCoords;
+	for(f=1;f<9;f++){
+		e = getEntity("$ipd"+f);
+		if(doesEntityExist(e)){
+			e.origin(e.getVectorVar("lastOrigin"));
+		}
+	}
+}
+
+
+//====================================================
+void spawnsMoveTransporter()
+//====================================================
+//move spawns on transporter pad
+{
+	entity e;
+	float i;
+	for(i=1;i<9;i++){
+		e=getEntity("ipd"+i);
+		if(doesEntityExist(e)){
+			e.angle(270);
+		}
+	}
+	$ipd1.origin('1311 -1422 1194');
+	$ipd2.origin('1383 -1421 1194');
+	$ipd3.origin('1255 -1337 1194');
+	$ipd4.origin('1319 -1336 1194');
+	$ipd5.origin('1374 -1337 1194');
+	$ipd6.origin('1438 -1337 1194');
+	$ipd7.origin('1311 -1256 1194');
+	$ipd8.origin('1383 -1256 1194');	
+}
+
+//====================================================
+void turboliftCrewHandle(entity eActor,float fNodeNum)
+//====================================================
+{
+	if(doesEntityExist(eActor)){
+		eActor.walkto("$turboliftNodeEnter"+fNodeNum);
+		waitFor(eActor);
+		if(doesEntityExist(eActor)){
+			eActor.walkto("$turboliftNode"+fNodeNum);
+			if(doesEntityExist(eActor)){
+				eActor.notsolid();
+			}
+		}
+	}
+}
+
+//====================================================
+void turboliftCrewAnimationMale()
+//====================================================
+{
+	float fRandom = 15;//15
+	while(1){
+		$crewTurboliftChat2.anim("conv-gesture");
+		waitForAnimation($crewTurboliftChat2,"conv-gesture");
+		$crewTurboliftChat1.anim("idle");
+		wait(randomint(fRandom) + 1);
+		
+		$crewTurboliftChat2.anim("conv-affirmative");
+		waitForAnimation($crewTurboliftChat2,"conv-affirmative");
+		$crewTurboliftChat1.anim("idle");
+		wait(randomint(fRandom) + 1);
+		
+		$crewTurboliftChat2.anim("conv-crossarms");
+		waitForAnimation($crewTurboliftChat2,"conv-crossarms");
+		$crewTurboliftChat1.anim("idle");
+		
+		wait(randomint(fRandom) + 1);
+	}
+}
+
+//====================================================
+void turboliftCrewAnimationFemale()
+//====================================================
+{
+	float fRandom = 15;//15
+	float fRRR;
+	while(1){
+		fRRR = randomInt(4);
+		if(fRRR == 0){
+			$crewTurboliftChat1.anim("idle");
+			wait(3);
+		}
+		else if(fRRR == 1){
+			$crewTurboliftChat1.anim("conv-affirmative");
+			waitForAnimation($crewTurboliftChat1,"conv-affirmative");	
+		}
+		else if(fRRR == 2){
+			$crewTurboliftChat1.anim("conv-scratchingchin-thinking");
+			waitForAnimation($crewTurboliftChat1,"conv-scratchingchin-thinking");	
+		}
+		else{
+			$crewTurboliftChat1.anim("conv-no");
+			waitForAnimation($crewTurboliftChat1,"conv-no");		
+		}
+		$crewTurboliftChat1.anim("idle");
+		wait(randomint(fRandom) + 1);
+	}
+}
+
+//====================================================
+void turboliftCrew()
+//====================================================
+//crew taking the turbolift after the player is no longer near
+{
+	float fWait = 1;
+	while(fWait){
+		wait(0.5);
+		if(globalCoop_return_integerPlayersQuantity(2) > 0){ //exclude specs in this check
+			if(!globalCoop_check_playerInRange($turbolift_origin,340)){
+				fWait=0;
+				//start escapepod sequence
+				thread escapePod();
+			}
+		}
+	}
+	
+	//no player shall enter the turbo from now on
+	$turboliftPlayerClip.solid();
+	spawnsMove();
+	
+	//make em go into the turbo
+	$turboliftDoors.open($crewTurboliftChat1);
+	$turboliftDoors.wait(-1);//keep open forever
+	
+	killthread("turboliftCrewAnimationMale");
+	killthread("turboliftCrewAnimationFemale");
+	
+	//allow past the movementclip, that will block the player
+	$crewTurboliftChat1.ignoremonsterclip();
+	$crewTurboliftChat2.ignoremonsterclip();
+	
+	$crewTurboliftChat2.anim("conv-backthere");
+	waitForAnimation($crewTurboliftChat2,"conv-backthere");
+	$crewTurboliftChat2.anim("idle");
+	
+	turboliftCrewHandle($crewTurboliftChat2,2);
+	
+	thread turboliftCrewHandle($crewTurboliftChat1,1);
+	waitfor($crewTurboliftChat2);
+	
+	$turboliftPlayerClipOrigin.moveForward(180);
+	$turboliftPlayerClipOrigin.time(5);
+	
+	$turboliftDoors.lock();
+	$turboliftDoors.close();
+	$turboliftDoors.wait(3);//autoclose after 3 sec
+	wait(2);
+	
+	$crewTurboliftChat1.remove();
+	$crewTurboliftChat2.remove();
+	wait(6);
+	
+	spawnsMoveBack();
+	
+	$turboliftDoors.unlock();
+	$turboliftPlayerClip.remove();
+	$turboliftPlayerClipOrigin.remove();
+}
+
+//====================================================
+void showerToggle()
+//====================================================
+//player used shower
+{
+	$showerSpray.scale(1);
+	
+	if($showerSpray.getFloatVar("isOn")){
+		$showerSpray.setFloatVar("isOn",0);
+		$showerSpray.forceAlpha(1);
+		$showerSpray.fade(.2,0);
+		$showerSpray.stopLoopSound();		
+	}else{	
+		$showerSpray.setFloatVar("isOn",1);
+		$showerSpray.forceAlpha(0);
+		$showerSpray.fadein(.2,1);
+		$showerSpray.loopsound("sound/environment/water/steam1.wav",1,48);
+	}
+	
+	if(!$showerSpray.getFloatVar("usedBefore")){
+		$showerSpray.setFloatVar("usedBefore",1);
+		entity eTrigg;
+		entity ePlay;
+		eTrigg = getCurrentEntity();
+		if(doesEntityExist(eTrigg)){
+			ePlay = eTrigg.getLastActivatingEntity();
+			if(doesEntityExist(ePlay)){
+				if(getStringPlayerLanguage(ePlay) == "Deu"){
+					ePlay.hudprint("In voller Montur?\nNa, wenn es denn sein muss, aber warum ohne Seife?\n");
+				}
+				else{
+					ePlay.hudprint("In full Gear?\nWell, if needs to be, but why no soap?\n");
+				}
+			}
+		}
+		//complete shower mission objective
+		thread noLongerSmelling();
+		
+		wait(3);
+		if(doesEntityExist(ePlay)){
+			if(getStringPlayerLanguage(ePlay) == "Deu"){
+				ePlay.hudprint("Bleiben Sie eine Weile in der Dusche, Sie brauchen dies!\n");
+			}
+			else{
+				ePlay.hudprint("Stay a While in the Shower, you really need this!\n");
+			}
+		}
+	}
+}
+
+//====================================================
+void noLongerSmelling()
+//====================================================
+{
+	if(fShowerTaken){
+		return;
+	}
+	fShowerTaken=1;
+	
+	float fTime=0;
+	while(fTime<fShowerUseTime){
+		if(globalCoop_check_playerInRange($shower_origin,25)){ 
+			if($showerSpray.getFloatVar("isOn")){
+				wait(1);
+				fTime++;
+//$player0.hudprint("time: "+fTime+"\n");
+			}
+			wait(1);
+		}else{
+			wait(1);
+		}
+	}
+	$showerToggleTrigger.missionObjective(0);
+	
+	//start ready for mission theread
+	thread readyForNextMission();
+}
+
+//====================================================
+void sinkToggle()
+//====================================================
+//player used sink
+{
+	$sinkWaterSpray.scale(1);
+	if($sinkWaterSpray.getFloatVar("isOn")){
+		$sinkWaterSpray.setFloatVar("isOn",0);
+		$sinkWaterSpray.forceAlpha(1);
+		$sinkWaterSpray.fade(.2,0);
+		$sinkWaterSpray.stopLoopSound();
+	}else{
+		$sinkWaterSpray.setFloatVar("isOn",1);
+		$sinkWaterSpray.forceAlpha(0);
+		$sinkWaterSpray.fadein(.2,0);
+		$sinkWaterSpray.loopSound("sound/environment/water/fount1.wav",1,48);
+	}
+}
+
+//====================================================
+void transporterroomBeamIn()
+//====================================================
+//player entred transporter room
+{
+	fTransporterSequenceDone = 1;
+	
+	$transporterOfficialBeamIn1.solid();
+	$transporterOfficialBeamIn1.show();
+	$transporterOfficialBeamIn1.displayEffect("TransportIn","Federation");
+
+	$transporterOfficialBeamIn2.solid();
+	$transporterOfficialBeamIn2.show();
+	$transporterOfficialBeamIn2.displayEffect("TransportIn","Federation");
+	
+	wait(3);
+	
+	$transporterOfficialWaiting.animateOnce("conv-wavehello");
+	wait(1);
+	$transporterOfficialBeamIn1.walkto("$transporterOfficialPos1");
+	wait(0.25);
+	$transporterOfficialBeamIn2.walkto("$transporterOfficialPos2");
+	waitfor($transporterOfficialBeamIn2);
+	
+	$transporterOfficialWaiting.anim("conv-gesture");
+	$transporterOfficialBeamIn1.anim("conv-gesture");
+	$transporterOfficialBeamIn2.anim("conv-gesture");
+}
+
+//====================================================
+void myRoomReplicator()
+//====================================================
+//player used replicator in own quarters
+{
+	$myRoomReplicatorTrigger.missionObjective(0); //remove from radar
+
+	//$world.light_lightstyle("replicatorLightMyRoom","z",1);
+	$world.light_intensity("replicatorLightMyRoom",1);
+	$world.light_lightstyle("replicatorLightMyRoom","zyazzbgaazbzazazazaza",0);
+	wait(2);
+	entity e;
+	//e = spawn("script_model","model","fx/fx-warpflash-federation.tik","origin",""+$myRoomReplicatorOrigin.getOrigin(),"scale","0.001");
+	e=spawn("script_model","model","fx/fx-sparks-random-yellow.tik","targetname","replicatorEffectMyRoom","origin",""+$myRoomReplicatorOrigin.getOrigin(),"angle","90");
+	$world.light_intensity("replicatorLightMyRoom",0);
+	//$world.light_lightstyle("replicatorLightMyRoom","a",1);
+	wait(1);
+	e.scale(1.5);
+	//if(doesEntityExist(e)){
+		//e.remove();
+	//}
+	
+	globalCoop_objectives_update("failed" , 3 , 0 );//go quaters replicate
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//go eat bar
+	
+	
+	wait(1);
+	$barReplicatorTrigger.triggerable();
+	$barReplicatorTrigger.missionObjective(1);//add to radar
+}
+
+//====================================================
+void barReplicator()
+//====================================================
+//player used replicator in bar
+{	
+	$barReplicatorTrigger.nottriggerable();
+	$barReplicatorTrigger.playsound("sound/ships/enterprise/ent_replicator.wav",3,2,128);
+	$world.light_intensity("replicatorLightBar",1);
+	wait(2);
+	entity e;
+	e= spawn("script_model","model","models/enviro/klingon_food3.tik","targetname","replicatorBarFood","origin",""+$barReplicatorOrigin.getOrigin(),"hide","1");
+	wait(0.1);
+	if(doesEntityExist(e)){
+		e.fade(0.01,0);
+		e.forceAlpha(1);
+		e.notsolid();
+		e.show();
+		e.scale(2);
+		wait(0.1);
+		e.displayEffect("TransportIn","FederationWeapons");
+	}
+	wait(1.5);
+	$world.light_intensity("replicatorLightBar",0);
+	
+	
+	$barReplicatorTrigger.thread("barReplicatorPickup");
+	$barReplicatorTrigger.triggerable();
+}
+
+//====================================================
+void barReplicatorPickup()
+//====================================================
+{
+	$barReplicatorTrigger.missionObjective(0);//remove from radar
+	$barReplicatorTrigger.nottriggerable();
+	$replicatorBarFood.remove();
+	wait(6);
+	$barReplicatorTrigger.remove();
+	globalCoop_objectives_update("complete" , 4 , 0 );//go eat bar
+	globalCoop_objectives_update("incomplete" , 5 , 1 );//sauna or gym
+	
+	wait(1);
+	
+	//show on radar
+	$saunaFx.missionObjective(1);	
+	$treadmill_toggle1.missionObjective(1);
+	$treadmill_toggle2.missionObjective(1);
+	$treadmill_toggle3.missionObjective(1);
+	
+	//enable triggers
+	$treadmill_toggle1.triggerable();
+	$treadmill_toggle2.triggerable();
+	$treadmill_toggle3.triggerable();
+	$saunaTrigger.triggerable();
+}
+
+//====================================================
+void treadmill_toggle()
+//====================================================
+//player used a treadmill
+{
+	float fNumb; //are you numb?
+	entity eTrig;
+	if($world.getFloatVar("treadmillsUsed") == 0){
+		$world.setFloatVar("treadmillsUsed",1);
+		entity ePlay;
+		eTrig = getCurrentEntity();
+		if(doesEntityExist(eTrig) == 0){
+			return;
+		}
+		ePlay = eTrig.getLastActivatingEntity();
+		if(doesEntityExist(ePlay) == 0){
+			return;
+		}
+		
+		if(getStringPlayerLanguage(ePlay) == "Deu"){
+			ePlay.hudprint("Oh jee da haben SIe aber viel vor um in Form zu kommen...\n");
+		}
+		else{
+			ePlay.hudprint("Oh gosh, you have much ahead to get in shape...\n");
+		}
+		
+		//check how long player was useing teadmill
+		//is touching check
+		thread treadmill_useing();
+		
+	}else{
+		eTrig = getCurrentEntity();
+		if(doesEntityExist(eTrig) == 0){
+			return;
+		}
+	}
+	
+	//toggle mill on/off
+	fNumb = eTrig.getFloatVar("uservar1");//get mill number, they all use this thread
+	entity ePush;
+	entity eMechanic1;
+	entity eMechanic2;
+	eMechanic1=getEntity("treadmill"+fNumb+"_on");
+	eMechanic2=getEntity("treadmill"+fNumb+"_off");
+	ePush=getEntity("treadmill"+fNumb+"_pusher");
+	
+	if(eTrig.getFloatVar("isOn")){
+		eTrig.setFloatVar("isOn",0);
+		ePush.nottriggerable();
+		eMechanic1.stopLoopSound();
+		eMechanic1.hide();
+		eMechanic2.show();
+	}else{
+		eTrig.setFloatVar("isOn",1);
+		ePush.triggerable();
+		eMechanic1.show();
+		//sound\environment\machine\factory_loop2.wav
+		//sound\environment\machine\lift3_looponly.wav
+		//sound\environment\machine\borg_biglift.wav
+		//sound\environment\roomtones\rmtn_lite05a.wav
+		eMechanic1.loopsound("sound/environment/roomtones/rmtn_lite05a.wav",3,64);
+		eMechanic2.hide();
+	}
+}
+
+//====================================================
+void treadmill_useing()
+//====================================================
+{
+	float fTime=0;
+	while(fTime<fGymOrSaunaUseTime){
+		wait(1);
+		//if a player is still using one of the treadmills
+		if((fPusherLast + 1) > getLevelTime() ){
+			fTime++;
+		}
+	}
+	thread readyUpForNextMission();
+}
+
+//====================================================
+void treadmill_pusher()
+//====================================================
+//check if a player is using the mill
+{
+	entity eTrigg;
+	entity ePlay;
+	eTrigg = getCurrentEntity();
+	if(doesEntityExist(eTrigg)){
+		ePlay = eTrigg.getLastActivatingEntity();
+		if(doesEntityExist(ePlay)){
+			fPusherLast = getLevelTime();
+//$player0.hudprint("mill using\n");
+		}
+	}
+}
+
+//====================================================
+void sauna()
+//====================================================
+//player entred the sauna
+{
+	entity eTrigg;
+	entity ePlay;
+	eTrigg = getCurrentEntity();
+	if(doesEntityExist(eTrigg)){
+		ePlay = eTrigg.getLastActivatingEntity();
+		if(doesEntityExist(ePlay)){
+			if(getStringPlayerLanguage(ePlay) == "Deu"){
+				ePlay.hudprint("Bleiben Sie eine Weile zum entspannen...\n");
+			}
+			else{
+				ePlay.hudprint("Stay a while and relax...\n");
+			}
+		}
+	}	
+	float fTime=0;
+	while(fTime<fGymOrSaunaUseTime){
+		if(globalCoop_check_playerInRange($saunaFx,200)){
+			wait(1);
+			fTime++;
+			ePlay.hudprint("time: "+fTime+"\n");
+		}else{
+			wait(1);
+		}
+	}
+	thread readyUpForNextMission();	
+}
+
+//====================================================
+void readyUpForNextMission()
+//====================================================
+{
+	if(fReadyUpForNxtMiss){
+		return;
+	}
+	fReadyUpForNxtMiss=1;
+	
+	//hzm coop chrissstrahl - added missing objective complete
+	globalCoop_objectives_update("complete" , 5 , 1 );//sauna or gym
+
+	//we don't want players to spawn in turbolift now anymore
+	//make sure the transporter sequence is done before
+	if(!fTransporterSequenceDone){
+		thread transporterroomBeamIn();
+		wait(3);
+	}
+
+	//move spawns to transporter pad
+	thread spawnsMoveTransporter();
+	
+	$showerToggleTrigger.missionObjective(1);
+	$showerToggleTrigger.triggerable();
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//take shower and get ready for next mission
+}
+
+//====================================================
+void readyForNextMission()
+//====================================================
+{
+	$showerToggleTrigger.nottriggerable(); //make sure it can't be turned on for a moment
+	$showerToggleTrigger.missionObjective(0); //remove from radar
+	if($showerSpray.getFloatVar("isOn")){
+		$showerSpray.setFloatVar("isOn",0);
+		$showerSpray.forceAlpha(1);
+		$showerSpray.fade(.2,0);
+		$showerSpray.stopLoopSound();
+	}
+
+	globalCoop_objectives_update("complete" , 6 , 0 );//take shower and get ready for next mission
+	globalCoop_objectives_update("incomplete" , 7 , 1 );//go turbo to save the universe again
+	
+	$turbolift_origin.missionObjective(1); //show on radar
+
+	wait(2);
+
+	$turboliftExitTrigger.triggerable(); //show mission exit
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,$turboliftGatherTrigger.getMaxs(),$turbolift_origin.getOrigin());
+	
+	//i know you want to play in the shower...
+	wait(4);
+	$showerToggleTrigger.triggerable();
+}
+
+//====================================================
+void sequenceShuttle()
+//====================================================
+//a shuttle is returning
+{
+	entity e;
+	e = spawn("Object","model","fx/fx-warpflash-federation.tik","origin",""+$shuttle.getOrigin(),"scale","3");
+	wait(0.5);
+	float fScale;
+	$shuttle.show();
+	for(fScale=0.5;fScale<1;fScale += 0.1){
+		wait(0.1);
+		$shuttle.scale(fScale);
+	}
+	$shuttleOrigin.moveForward(3400);
+	$shuttleOrigin.moveDown(1000);
+	$shuttleOrigin.time(30);
+	wait(3);
+	if(doesEntityExist(e)){
+		e.remove();
+	}
+	
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//credits, and history of map
+	globalCoop_main_globalCommand("nodamage");
+	globalCoop_huds_AddAll("coop_tobecontinued");
+	wait(5);
+	globalCoop_huds_RemoveAll("coop_tobecontinued");
+	wait(1);
+	//credits, and history of map
+	globalCoop_huds_AddAll("coop_rotec_credits");
+	wait(10);
+	
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath1");
+}
+

@@ -1,0 +1,4839 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m9l2-klingon_base	  
+//  Script By:    Benson R., Brian E., Adam B., Jerry K.
+//  Geometry By:  Richard H., Jerry K., Benson R., Adam B.
+//  Created on:   1/24/2003
+//
+//  Last Edited By: Benson R
+//
+//-----------------------------------------------------------------
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  DEFINE SCRIPT
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void main();
+
+//--- setup routines
+void setupArena();
+void setupBoss();
+void setupVariables();
+void setupArmatureCinematics();
+
+//--- arena functions
+void arenaVent_Damage();
+void arenaVent_Fire();
+void arenaSwitchMoveBoss_Execute();
+void arenaSwitchMoveBoss_Display_BossInControl();
+void arenaSwitchMoveBoss_Display_CanPosition();
+void arenaSwitchMoveBoss_Display_MoveToVent();
+void arenaSwitchFireVent_Execute();
+void arenaSwitchFireVent_Display_Ready();
+void arenaSwitchFireVent_Display_Firing();
+void arenaSwitchFireVent_Display_Charging();
+void arenaScan_Damage();
+void arenaScan_ShowBeam();
+void arenaScan_DoScan();
+void arenaScan_HideBeam();
+float arenaAirlock_PickAirlock();
+entity arenaAirlock_GetADoor( float intAirlock );
+entity arenaAirlock_GetBDoor( float intAirlock );
+void arenaAirlock_OpenAirlock( float intAirlock );
+void arenaFlameburst_Activate();
+void arenaFlameburst_DoDamage();
+void arenaFlameburst_OpenDoors();
+void arenaFlameburst_Fire();
+void arenaFlameburst_CloseDoors();
+void arenaBossDock_CinematicRetract();
+void arenaBossDock_ExtendPhase1();
+void arenaBossDock_ExtendPhase2();
+void arenaBossDock_RetractPhase1();
+void arenaBossDock_RetractPhase2();
+
+//--- boss think functions
+void bossThink_StateEvalLoop();
+void bossThink_AttackEvalLoop();
+float bossThink_AttackEval_Boost();
+void bossThink_AttackEval_BoostReset();
+float bossThink_AttackEval_Scan();
+void bossThink_AttackEval_ScanReset();
+float bossThink_AttackEval_Flameburst();
+void bossThink_AttackEval_FlameburstReset();
+float bossThink_AttackEval_Airlock();
+void bossThink_AttackEval_AirlockReset();
+void bossThink_MercDeath();
+
+//--- boss action functions
+float bossAction_MoveRequest( vector vecGoal, float intAngularTolerance );
+void bossAction_MoveStop();
+void bossAction_Taunt( float fltAttack );
+float bossAction_TauntChoose( float fltPrevious );
+void bossAction_TauntSay( string strDialog );
+void bossAction_PhaseChangeState_Start();
+void bossAction_PhaseChangeState_Cinematic();
+void bossAction_PhaseChangeState_Post();
+void bossAction_BrokenState_Start();
+void bossAction_BrokenState_MoveToVent();
+void bossAction_BrokenState_Wait();
+void bossAction_BrokenState_AtVent();
+void bossAction_BrokenState_Post();
+void bossAction_ScanState_Start();
+void bossAction_ScanState_MoveToSafety();
+void bossAction_ScanState_AtSafety();
+void bossAction_ScanState_Post();
+void bossAction_BoostState_Start();
+void bossAction_BoostState_MoveToGoal();
+void bossAction_BoostState_AtGoal();
+void bossAction_BoostState_Post();
+
+//--- boss get functions
+void bossGet_WhileUpdating();
+float bossGet_VentDamageAllowed();
+float bossGet_PlayerCanPosition();
+float bossGet_CanAttack();
+float bossGet_MoveToVent();
+float bossGet_AtVent();
+float bossGet_State();
+float bossGet_StatePhaseChange();
+float bossGet_StateBroken();
+float bossGet_StateScan();
+float bossGet_StateBoost();
+
+//--- boss set functions
+void bossSet_Updating();
+void bossSet_UpdatingDone();
+void bossSet_VentDamageAllowed(float boolStateToSet );
+void bossSet_PlayerCanPosition( float boolStateToSet );
+void bossSet_CanAttack( float boolStateToSet );
+void bossSet_MoveToVent( float boolStateToSet );
+void bossSet_AtVent( float boolStateToSet );
+void bossSet_State( float fltStateToSet );
+void bossSet_StatePhaseChange( float fltStateToSet );
+void bossSet_StateBroken( float fltStateToSet );
+void bossSet_StateScan( float fltStateToSet );
+void bossSet_StateBoost( float fltStateToSet );
+
+//--- AI initiated functions
+void bossAI_EnterRepairState();
+void bossAI_ExitRepairState();
+void bossAI_EnterPhase2();
+void bossAI_EnterPhase3();
+void bossAI_EnterPhase4();
+
+//--- common functions
+float commonGet_AngularDistance( vector vecTarget, vector vecStart );
+float commonGet_WithinAngularTolerance( float intAngularDistance, float intAngularTolerance );
+
+//--- cinematic functions
+void cinematicArm_Intro_Start();
+void cinematicArm_Intro_ArmEnd();
+void cinematicArm_Intro_OmagAirlock();
+
+void cinematicStageChange_Start();
+void cinematicStageChange_Skipthread();
+void cinematicStageChange_1To2();
+void cinematicStageChange_2To3();
+void cinematicStageChange_3To4();
+void cinematicStageChange_LurokGetup();
+void cinematicStageChange_LurokActivate();
+
+void cinematicArm_End_Start();
+void cinematicArm_End_ArmEnd();
+
+void cinematicDeathAirlock();
+void cinematicDeathAirlock_Skipthread();
+void cinematicDeathAirlock_LaunchMunro();
+
+//--- TEMP TEMP
+void tempYouLose();
+
+//--- test functions
+void testBroken();
+void testScan();
+void testBoost();
+void testAirlock();
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- constants
+//--- preset parameters that can be adjusted later
+
+//--- boss move parameter constants
+float BOSS_MOVE_SPEED_NORMAL = 8;			//normal movement speed in degrees /second
+float BOSS_MOVE_SPEED_SCAN = 50;			//moving to scan safety spot speed in degrees /second
+float BOSS_MOVE_SPEED_BOOST = 60;			//boost movement speed in degrees /second
+float BOSS_MOVE_SPEED_TO_VENT = 30;			//player moves rig to vent spot in degrees /second
+float BOSS_MOVE_THRESHOLD = 45;				//the distance the player needs to be away from
+											//the boss before the boss will attempt to move
+											//towards him again.  This is in degrees
+float BOSS_MOVE_TOLERANCE_NORMAL = 5;		//this is the tolerance for determining how close
+											//is considered close enough for reaching it's
+											//goal point while normal moving.  This is in degrees.
+
+float BOSS_MOVE_TOLERANCE_BOOST = 8;		//this is the tolerance for determining how close
+											//is considered close enough for reaching it's
+											//goal point while boost moving.  This is in degrees.
+
+float BOSS_MOVE_TOLERANCE_SCAN = 4;			//this is the tolerance for determining how close
+											//is considered close enough for reaching it's
+											//goal point while getting into the dock for a scan.  This is in degrees.
+											
+//--- evaluation cycle times
+float BOSS_EVAL_ATTACK_CYCLE_TIME = .25;	//the wait time in seconds between attack evaluation cycles
+float BOSS_EVAL_STATE_CYCLE_TIME = .1;		//the wait time in seconds between master evalutaion cycles
+
+//--- attack counter limits and reset times
+float BOSS_BOOST_COUNTER_LIMIT = 10;		//the counter to check how long the player is staying in
+											//a position that will make the boss perform a boost attack
+float BOSS_BOOST_RESET_TIME = 20;			//time in seconds of how long after a boost attack is
+											//finished before the boss can boost attack again
+
+float BOSS_FLAMEBURST_COUNTER_LIMIT = 20;	//the counter to check how long the player is staying in
+											//a position that will make the boss perform a flameburst attack
+float BOSS_FLAMEBURST_RESET_TIME = 45;		//time in seconds of how long after a flameburst attack
+											//is finished before the boss can flameburst attack again
+
+float BOSS_AIRLOCK_COUNTER_LIMIT = 10;		//the counter to check how long the player is staying in
+											//a position that will make the boss perform a airlock attack											
+float BOSS_AIRLOCK_RESET_TIME = 40;			//time in seconds of how long after an airlock
+											//attack has been finished before the boss can
+											//airlock attack again
+
+float BOSS_SCAN_COUNTER_LIMIT = 10;			//the counter to check how long the player is staying in
+											//a position that will make the boss perform a Scan attack																					
+float BOSS_SCAN_RESET_TIME = 45;			//time in seconds of how long after a Scan
+											//attack has been finished before the boss can
+											//Scan attack again
+
+//--- phase change constants
+float PHASE_CHANGE_ANIMATION_DELAY = 1.3;	//the amount of time to wait before turning the rig's AI off
+											//accounts for the animation being played
+
+float PHASE_CHANGE_BOSS_ACTIVATION_DISTANCE = 128;		//the distance the player has to be from lurok in stage 4
+														//for the boss to activate and become solid
+
+//--- boost parameter constants
+float BOOST_BLINDSPOT_TOLERANCE = 45;		//this is how many degrees +/- from the blindspot the player
+											//has to be to be considered within the blindspot.  The blindspot
+											//is 180 degrees around from whereever the rig is at that moment
+
+//--- vent parameter constants
+float VENT_ACTIVE_TIME = 2.5;				//time in seconds the vent stays active
+float VENT_CHARGE_TIME = 8;					//time in seconds that the vent needs to charge
+											//before it can be activated again
+float VENT_DAMAGE = 500;					//the amount of damage to do to the rig
+string VENT_DAMAGE_TYPE = "crush";			//the damage type to do to the rig
+
+float VENT_DISTANCE_TOLERANCE = 10;			//the number of degrees near the bossVentSpot the boss has to be
+											//to be considered close enough to get damaged when the vent's active
+
+//--- Scan parameter constants
+float SCAN_BEAM_DAMAGE = 50;				//the amount of damage to do per touch of the beam
+											//it checks for a touch every .05 seconds as the beam's moving
+string SCAN_BEAM_DAMAGE_TYPE = "electric";	//the type of damage to do
+float SCAN_BEAM_DAMAGE_TOLERANCE = 6;		//the number of degrees near the beam the player has to be
+											//to get damaged by it.  This is to account for the low
+											//granularity of position checks on the beam
+float SCAN_BEAM_TIME_PHASE2 = 10;			//the time it takes for the Scan beam to sweep all the
+											//way around the arena for Phase 2
+
+float SCAN_BEAM_TIME_PHASE3 = 8;			//the time it takes for the Scan beam to sweep all the
+											//way around the arena for Phase 3
+
+//--- airlock door parameter constants
+float AIRLOCK_DOOR_TIME = 8;				//the amount of time it takes an airlock door to open
+
+//--- flameburst parameter constants
+float FLAMEBURST_DOOR_TIME_PHASE1 = 5;			//time it takes for the flameburst doors to open on phase1
+float FLAMEBURST_DOOR_TIME_PHASE2 = 4;			//time it takes for the flameburst doors to open on phase2
+float FLAMEBURST_DOOR_TIME_PHASE3 = 3;			//time it takes for the flameburst doors to open on phase3
+float FLAMEBURST_DOOR_FIRE_DELAY_PHASE1 = 2;	//delay time from doors opening to firing on phase1
+float FLAMEBURST_DOOR_FIRE_DELAY_PHASE2 = 1;	//delay time from doors opening to firing on phase2
+float FLAMEBURST_DOOR_FIRE_DELAY_PHASE3 = .5;	//delay time from doors opening to firing on phase3
+float FLAMEBURST_FIRE_DURATION = 5;				//how long the burst goes for
+float FLAMEBURST_FIRE_DAMAGE_RADIUS = 392;		//how far out from the center of the map the flameburst damage goes
+float FLAMEBURST_FIRE_DAMAGE = 10;				//the amount of damage to do..damage is done every interval
+float FLAMEBURST_FIRE_DAMAGE_INTERVAL = .5;		//how often it will damage the player while he's in the fire
+string FLAMEBURST_FIRE_DAMAGE_TYPE = "fire";	//the type of damage to do
+
+//--- dock constants
+float BOSS_DOCK_BASE_TIME = 4;					//time to move the dock base
+float BOSS_DOCK_ARM_TIME = 5;					//time to move the dock arm
+float BOSS_DOCK_ARMLOCK_TIME = .5;				//time to move the arm locks
+float BOSS_DOCK_WALKWAY_TIME = 4;				//time to move the walkway
+float BOSS_DOCK_SCANNER_TIME = 1.5;				//time to move the scanner and arm lock segments
+float BOSS_DOCK_SCANNER_DISTANCE = 30;			//distance to move the scanner segments
+float BOSS_DOCK_ARMLOCK_DISTANCE = 8;			//distance to move the arm locks
+float BOSS_DOCK_BASE_DISTANCE = 58;				//distance to move the base
+float BOSS_DOCK_ARM_DISTANCE = 170;				//distance to move the arm
+float BOSS_DOCK_WALKWAY_DISTANCE = 80;			//distance to move the walkway
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- calculated value constants
+
+float BOOST_BLINDSPOT_UPPER_ANGLE;				//this is 180 plus the BOOST_BLINDSPOT_TOLERANCE
+float BOOST_BLINDSPOT_LOWER_ANGLE;				//this is 180 minus the BOOST_BLINDSPOT_TOLERANCE
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- enumerated list values
+
+//--- Boss states (order is important, 0 is the highest priority)
+float BOSS_STATE_DEATH = 0;
+float BOSS_STATE_PHASE_CHANGE = 1;
+float BOSS_STATE_BROKEN = 2;
+float BOSS_STATE_SCAN = 3;
+float BOSS_STATE_BOOST = 4;
+float BOSS_STATE_AIRLOCK = 5;
+float BOSS_STATE_FLAMEBURST = 6;
+float BOSS_STATE_CHASE_PLAYER = 7;
+float BOSS_STATE_RESET = 10;
+
+//--- sub states
+float BROKEN_STATE_NONE = 10;
+float BROKEN_STATE_START = 11;
+float BROKEN_STATE_WAIT = 12;
+float BROKEN_STATE_MOVE_TO_VENT = 13;
+float BROKEN_STATE_AT_VENT = 14;
+float BROKEN_STATE_POST = 15;
+
+float SCAN_STATE_NONE = 20;
+float SCAN_STATE_START = 21;
+float SCAN_STATE_MOVE_TO_SAFETY = 22;
+float SCAN_STATE_AT_SAFETY = 23;
+float SCAN_STATE_POST = 24;
+
+float BOOST_STATE_NONE = 30;
+float BOOST_STATE_START = 31;
+float BOOST_STATE_MOVE_TO_GOAL = 32;
+float BOOST_STATE_AT_GOAL = 33;
+float BOOST_STATE_POST = 34;
+
+float PHASE_CHANGE_STATE_NONE = 40;
+float PHASE_CHANGE_STATE_START = 41;
+float PHASE_CHANGE_STATE_CINEMATIC = 42;
+float PHASE_CHANGE_STATE_POST = 43;
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+float intBoss_CurrentPhase = 1;
+float intBossMove_Speed;
+float intBossAttack_BoostCounter = 0;
+float intBossAttack_FlameburstCounter = 0;
+float intBossAttack_AirlockCounter = 0;
+float intBossAttack_ScanCounter = 0;
+float intScanBeamTime;
+
+float fltFlameburst_DoorTime;
+float fltFlameburst_FireDelayTime;
+float fltTauntFlameburst_Previous;
+float fltTauntAirlock_Previous;
+float fltTauntScan_Previous;
+float fltTauntBoost_Previous;
+float fltCinematicStageChange_AngularDistanceFromBase;
+
+float boolBossState_IsUpdating;
+float boolBossDamage_VentAllowed;
+float boolBossMove_PlayerCanPosition;
+float boolBossMove_GoToVent;
+float boolBossMove_AtVent;
+float boolBossAttack_Available;
+float boolBossAttack_BoostAvailable;
+float boolBossAttack_FlameburstAvailable;
+float boolBossAttack_AirlockAvailable;
+float boolBossAttack_ScanAvailable;
+float boolVent_Active;
+float boolVent_Available = 1;
+float boolScan_Active;
+float boolPhaseCinematic_Active;
+float boolBossDock_BaseExtended;
+float boolBossDock_CinematicRetract = 0;
+
+vector vecBossPositionGoal;
+vector vecBossBoostGoal;
+vector vecCinematicMunroNodeOrigin;
+vector vecCinematicLurokNodeOrigin;
+
+float enumBossState_Current;
+float enumBossState_PhaseChange;
+float enumBossState_Broken;
+float enumBossState_Scan;
+float enumBossState_Boost;
+
+entity cinematicArm_Intro;
+entity cinematicArm_End;
+
+float g_boolFlameBurstActive;
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  INCLUDES
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+entity	coop_returnMeARandomPlayer();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  MAIN FUNCTION
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+void main()
+//---------------------
+{
+//hzm coop mod chrissstrahl - remove cinematic munro, we don't need it in coop
+	$deathMunro.remove();
+//hzm coop mod chrissstrahl - remove idryll shuttle, because it is not suppose to be there in teh first place, it is in the hangar
+	$shuttle_miniature.remove();
+
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;	
+
+//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_float_spawnAngle0 				= 270;
+	coop_vector_spawnOrigin8 			= '1257 2468 0';
+	coop_vector_spawnOrigin7 			= '1190 2468 0';
+	coop_vector_spawnOrigin6 			= '1130 2468 0';
+	coop_vector_spawnOrigin5 			= '1070 2468 0';
+	coop_vector_spawnOrigin4 			= '1257 2400 0';
+	coop_vector_spawnOrigin3 			= '1190 2400 0';
+	coop_vector_spawnOrigin2 			= '1130 2400 0';
+	coop_vector_spawnOrigin1 			= '1070 2400 0';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$DM9LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+
+	//--- setup sky portal
+	//$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 80000 );
+	
+	//--- set the soundtrack
+	soundtrack( "music/m9l2-klingon_base.mus" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m9l2_klingon_base" );
+	
+	//--- setup the boss
+	setupArena();
+	setupBoss();
+	setupVariables();
+	setupArmatureCinematics();
+	
+	//--- wait for player to spawn
+	waitForPlayer ();
+
+	//--- setup the player
+	freezeplayer();
+	wait( 1 );
+
+	//--- intro cinematic
+	thread cinematicArm_Intro_Start();
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  SETUP FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// setupArena
+// setup the arena
+//---------------------
+void setupArena()
+{
+	//--- spawn a cinematic cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+
+	//--- load camera paths
+	cam.load( "m9l2_end1" );
+	cam.load( "m9l2_end2" );
+	cam.load( "m9l2_end3" );
+
+	//--- AI
+	globalCommon_AiDummyHide( $munro );
+	$munro.useActorWeapon( "none" );
+	
+	//--- set the starting states of the arena switches
+	arenaSwitchMoveBoss_Display_BossInControl();
+	arenaSwitchFireVent_Display_Ready();
+	$switchMoveBoss_IndicatorLight.rotateY( 360 );
+	$switchMoveBoss_IndicatorLight.hide();
+	$switchActivateVent_IndicatorLight.rotateX( 360 );
+	$switchActivateVent_IndicatorLight.hide();
+	
+	//--- big vent flame damage stuff
+	$triggerVentFire_Damage.nottriggerable();
+	$ventFire.anim( "idle" );
+	
+	//--- flameburst attack stuff
+	$world.light_lightstyle( "doorFlameburst_WarningBeacon_LightRed" , "a" , 0 );
+	
+	thread globalAccelMove_RelativeY( $doorFlameburst_WarningBeacon, -8, .1, "none", "" );
+	
+	$ventFlameburst.anim( "idle" );
+	$ventFlameburst.hide();
+	
+	//--- Scan beam stuff
+	$scannerScan_Beam.bind( $scannerScan_Base );
+	$scannerScan_PositionMarker.bind( $scannerScan_Base );
+	$scannerScan_Beam.hide();
+
+	//--- airlock attack stuff
+	$world.light_lightstyle( "doorAirlock1_RimLights_LightRed" , "a" , 0 );
+	$world.light_lightstyle( "doorAirlock2_RimLights_LightRed" , "a" , 0 );
+	$world.light_lightstyle( "doorAirlock3_RimLights_LightRed" , "a" , 0 );
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed" , "a" , 0 );
+	
+	$doorAirlock1_RimLights_On.hide();
+	$doorAirlock2_RimLights_On.hide();
+	$doorAirlock3_RimLights_On.hide();
+	$doorAirlock4_RimLights_On.hide();
+
+	$doorAirlock1_AlertBeacon1_LightCone.hide();
+	$doorAirlock1_AlertBeacon1_LightCone.bind( $doorAirlock1_AlertBeacon1_Base );
+	$doorAirlock1_AlertBeacon2_LightCone.hide();
+	$doorAirlock1_AlertBeacon2_LightCone.bind( $doorAirlock1_AlertBeacon2_Base );
+	$doorAirlock2_AlertBeacon1_LightCone.hide();
+	$doorAirlock2_AlertBeacon1_LightCone.bind( $doorAirlock2_AlertBeacon1_Base );
+	$doorAirlock2_AlertBeacon2_LightCone.hide();
+	$doorAirlock2_AlertBeacon2_LightCone.bind( $doorAirlock2_AlertBeacon2_Base );
+	$doorAirlock3_AlertBeacon1_LightCone.hide();
+	$doorAirlock3_AlertBeacon1_LightCone.bind( $doorAirlock3_AlertBeacon1_Base );
+	$doorAirlock3_AlertBeacon2_LightCone.hide();
+	$doorAirlock3_AlertBeacon2_LightCone.bind( $doorAirlock3_AlertBeacon2_Base );
+	$doorAirlock4_AlertBeacon1_LightCone.hide();
+	$doorAirlock4_AlertBeacon1_LightCone.bind( $doorAirlock4_AlertBeacon1_Base );
+	$doorAirlock4_AlertBeacon2_LightCone.hide();
+	$doorAirlock4_AlertBeacon2_LightCone.bind( $doorAirlock4_AlertBeacon2_Base );
+	wait( .1 );
+	
+	thread globalAccelMove_RelativeY( $doorAirlock1_AlertBeacon1_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock1_AlertBeacon2_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock2_AlertBeacon1_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock2_AlertBeacon2_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock3_AlertBeacon1_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock3_AlertBeacon2_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon1_Base, -24, .1, "none", "" );
+	thread globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon2_Base, -24, .1, "none", "" );
+	
+	//--- onxxx objects
+	thread globalCommon_OnUse( $switchMoveBoss_Trigger, "arenaSwitchMoveBoss_Execute" );
+	thread globalCommon_OnUse( $switchActivateVent_Trigger, "arenaSwitchFireVent_Execute" );
+	
+	//--- setup archetypes
+	globalArchetype_Setup( $archetypeSwitchMoveBoss, "KlingonCraneManualOverride" );
+	globalArchetype_Setup( $archetypeSwitchActivateVent, "KlingonFireVentControl" );
+	
+	//--- hide the cinematic tetryon gun
+	$cinematicWeaponTetryon.hide();
+	$cinematicWeaponTetryon.notsolid();
+	
+	$bossRepairModeMovementClip.bind( $boss_rig );
+}
+
+
+//---------------------
+// setupBoss
+// setup the boss
+//---------------------
+void setupBoss()
+{
+	//--- turn off the rigs AI
+	$boss_rig.ai_off();
+	globalCommon_AiDummyHide( $boss_rig_cinematic );
+
+	//--- bind the boss together
+	$boss_rig.bind( $boss_rig_mover );
+	$boss_rig_top.bind( $boss_rig_mover );
+	$boss_rig_watch.bind( $boss_rig_mover );
+
+	//--- make the rig and top hidden and notsolid
+	$boss_rig.hide();
+	$boss_rig.notsolid();
+	$boss_rig_top.hide();
+	$boss_rig_top.notsolid();
+	
+	//--- make the script object not solid
+	$boss_rig_mover.notsolid();
+	
+	//--- setup the forcefield
+	$boss_rig_forcefield.notsolid();
+	$boss_rig_forcefield.hide();
+	
+	//--- bind together the docking clamp
+	$bossDock_RightScanner.bind( $bossDock_RightScanner_SubBase3 );
+	$bossDock_RightScanner_SubBase3.bind( $bossDock_RightScanner_SubBase2 );
+	$bossDock_RightScanner_SubBase2.bind( $bossDock_RightScanner_SubBase1 );
+	$bossDock_RightScanner_SubBase1.bind( $bossDock_RightScanner_Base2 );
+	$bossDock_RightScanner_Base2.bind( $bossDock_RightScanner_Base1 );
+	$bossDock_RightScanner_Base1.bind( $bossDock_Arm );
+
+	$bossDock_LeftScanner.bind( $bossDock_LeftScanner_SubBase3 );
+	$bossDock_LeftScanner_SubBase3.bind( $bossDock_LeftScanner_SubBase2 );
+	$bossDock_LeftScanner_SubBase2.bind( $bossDock_LeftScanner_SubBase1 );
+	$bossDock_LeftScanner_SubBase1.bind( $bossDock_LeftScanner_Base2 );
+	$bossDock_LeftScanner_Base2.bind( $bossDock_LeftScanner_Base1 );
+	$bossDock_LeftScanner_Base1.bind( $bossDock_Arm );
+	
+	$bossDock_ArmLock_Top.bind( $bossDock_Base );
+	$bossDock_ArmLock_Bottom.bind( $bossDock_Base );
+	
+	$bossDock_Walkway.bind( $bossDock_Arm );
+	$bossDock_Arm.bind( $bossDock_Base );
+
+	//--- put the scanners in their starting positions
+	$bossDock_RightScanner_SubBase3.time( .05 );
+	$bossDock_RightScanner_SubBase2.time( .05 );
+	$bossDock_RightScanner_SubBase1.time( .05 );
+	$bossDock_RightScanner_Base2.time( .05 );
+	$bossDock_RightScanner_Base1.time( .05 );
+	$bossDock_RightScanner.time( .05 );
+	$bossDock_LeftScanner_SubBase3.time( .05 );
+	$bossDock_LeftScanner_SubBase2.time( .05 );
+	$bossDock_LeftScanner_SubBase1.time( .05 );
+	$bossDock_LeftScanner_Base2.time( .05 );
+	$bossDock_LeftScanner_Base1.time( .05 );
+	$bossDock_LeftScanner.time( .05 );
+	$bossDock_ArmLock_Top.time( .05 );
+	$bossDock_ArmLock_Bottom.time( .05 );
+	
+	$bossDock_RightScanner_SubBase3.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	$bossDock_LeftScanner_SubBase3.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	waitFor( $bossDock_LeftScanner_SubBase3 );
+
+	$bossDock_RightScanner_SubBase2.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	$bossDock_LeftScanner_SubBase2.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	waitFor( $bossDock_LeftScanner_SubBase2 );
+
+	$bossDock_RightScanner_Base2.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	$bossDock_LeftScanner_Base2.moveBackward( BOSS_DOCK_SCANNER_DISTANCE );
+	waitFor( $bossDock_LeftScanner_Base2 );
+
+	//$bossDock_RightScanner_Base1.rotateYdown( 10 );
+	//$bossDock_LeftScanner_Base1.rotateYup( 10 );
+	$bossDock_ArmLock_Top.moveDown( BOSS_DOCK_ARMLOCK_DISTANCE );
+	$bossDock_ArmLock_Bottom.moveUp( BOSS_DOCK_ARMLOCK_DISTANCE );
+	$bossDock_RightScanner_SubBase1.rotateYup( 40 );
+	$bossDock_LeftScanner_SubBase1.rotateYdown( 40 );
+	waitFor( $bossDock_LeftScanner_SubBase1 );
+
+	//--- reset the times for the dock
+	$bossDock_RightScanner_SubBase3.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_SubBase2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_SubBase1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_Base2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_Base1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase3.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_Base2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_Base1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_Walkway.time( BOSS_DOCK_WALKWAY_TIME );
+	$bossDock_ArmLock_Top.time( BOSS_DOCK_ARMLOCK_TIME );
+	$bossDock_ArmLock_Bottom.time( BOSS_DOCK_ARMLOCK_TIME );
+	$bossDock_Arm.time( BOSS_DOCK_ARM_TIME );
+	$bossDock_Base.time( BOSS_DOCK_BASE_TIME );
+	
+	//--- setup the ground merc
+	globalCommon_AiDummyHide( $boss_merc );
+	$boss_merc.killthread( "bossThink_MercDeath" );
+	
+	//--- setup the cinematic merc
+	$cinematicMerc.ai_off();
+}
+
+
+//---------------------
+// setupVariables
+// setup the starting values on variables
+//---------------------
+void setupVariables()
+{
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;		//initialize his starting movement speed to normal
+	
+	boolBossState_IsUpdating = FALSE;
+	boolBossDamage_VentAllowed = FALSE;
+	boolBossMove_PlayerCanPosition = FALSE;
+	boolBossMove_GoToVent = FALSE;
+	boolBossMove_AtVent = FALSE;
+	boolBossAttack_Available = TRUE;
+	boolBossAttack_BoostAvailable = TRUE;			//becomes available in second phase
+	boolBossAttack_FlameburstAvailable = TRUE;		//available from the start
+	boolBossAttack_AirlockAvailable = FALSE;		//available in the third phase
+	boolBossAttack_ScanAvailable = FALSE;		//available in the second phase
+	boolVent_Active = FALSE;
+	boolScan_Active = FALSE;
+	boolPhaseCinematic_Active = FALSE;
+	boolBossDock_BaseExtended = FALSE;
+
+	fltFlameburst_DoorTime = FLAMEBURST_DOOR_TIME_PHASE1;
+	fltFlameburst_FireDelayTime = FLAMEBURST_DOOR_FIRE_DELAY_PHASE1;
+
+	enumBossState_Current = BOSS_STATE_CHASE_PLAYER;
+	enumBossState_PhaseChange = PHASE_CHANGE_STATE_NONE;
+	enumBossState_Broken = BROKEN_STATE_NONE;
+	enumBossState_Scan = SCAN_STATE_NONE;
+	enumBossState_Boost = BOOST_STATE_NONE;
+	
+	//--- calculated constants
+	BOOST_BLINDSPOT_UPPER_ANGLE = 180 + BOOST_BLINDSPOT_TOLERANCE;
+	BOOST_BLINDSPOT_LOWER_ANGLE = 180 - BOOST_BLINDSPOT_TOLERANCE;
+	
+	//--- store the node for munro for stage change cinematics
+	vecCinematicMunroNodeOrigin = $nodeMunro_StageCinematic.getOrigin();
+	vecCinematicLurokNodeOrigin = $nodeLurok_StageCinematic.getOrigin();
+}
+
+//---------------------
+// setupArmatureCinematics
+// setupt the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--- the intro armature
+	cinematicArm_Intro = createCinematic( "m9l2_klingboss" );
+	cinematicArm_Intro.setendthread( "cinematicArm_Intro_ArmEnd" );
+	
+	cinematicArm_End = createCinematic( "m9l2_munro" );
+	cinematicArm_End.setendthread( "cinematicArm_End_ArmEnd" );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  BOSS THINK FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// bossThink_StateEvalLoop
+// the master loop that evaluates the state the boss
+// is in and performs the desired actions based on
+// those states
+//---------------------
+void bossThink_StateEvalLoop()
+{
+	//--- local variables
+	float enumState;
+	float enumSubState;
+	float intAirlockDoor;
+	float temp;
+	
+	enumState = -1;
+	
+	//print( "STATE EVAL CYCLE: Starting cycle\n" );
+	
+	//--- cycle throught the state eval loop until the rig is dead
+	while( enumState != BOSS_STATE_DEATH )
+	{
+		//--- evaluate the state and perform the correct action
+		
+		//print( "STATE EVAL CYCLE: Current state: " + enumState + "\n" );
+		
+		//----------------------------------------
+		//--- Phase change state
+		//----------------------------------------
+		if( enumState == BOSS_STATE_PHASE_CHANGE )
+		{
+			//--- evaluate the substate
+			enumSubState = bossGet_StatePhaseChange();
+			
+			//--- run the corresponding function for the sub state
+			if( enumSubState == PHASE_CHANGE_STATE_NONE )
+			{
+				//--- set the state to chasing the player
+				bossSet_State( BOSS_STATE_RESET );
+			}
+			else if( enumSubState == PHASE_CHANGE_STATE_START )
+			{
+				//print( "STATE EVAL CYCLE: Start phase change\n" );
+				
+				//--- call the Phase change start function
+                bossAction_PhaseChangeState_Start();
+			}
+			else if( enumSubState == PHASE_CHANGE_STATE_CINEMATIC )
+			{
+				//--- call the Phase change cinematic function
+                bossAction_PhaseChangeState_Cinematic();
+			}
+			else if( enumSubState == PHASE_CHANGE_STATE_POST )
+			{
+				//--- call the Phase change pose function
+                bossAction_PhaseChangeState_Post();
+			}
+		}
+		//----------------------------------------
+		//--- Broken state
+		//----------------------------------------
+		else if( enumState == BOSS_STATE_BROKEN )
+		{
+			//--- evaluate the substate
+			enumSubState = bossGet_StateBroken();
+			
+			//--- run the corresponding function for the sub state
+			if( enumSubState == BROKEN_STATE_NONE )
+			{
+				//--- set the state to chasing the player
+				bossSet_State( BOSS_STATE_RESET );
+			}
+			else if( enumSubState == BROKEN_STATE_START )
+			{
+				//print( "STATE EVAL CYCLE: Start broken state\n" );
+				
+				//--- call the broken start function
+				bossAction_BrokenState_Start();
+			}
+			else if( enumSubState == BROKEN_STATE_WAIT )
+			{
+				//--- do nothing while waiting
+				bossAction_BrokenState_Wait();
+			}
+			else if( enumSubState == BROKEN_STATE_MOVE_TO_VENT )
+			{
+				//--- call the broken move to vent function
+				bossAction_BrokenState_MoveToVent();
+			}
+			else if( enumSubState == BROKEN_STATE_AT_VENT )
+			{
+				//--- call the broken at vent function
+				bossAction_BrokenState_AtVent();
+			}
+			else if( enumSubState == BROKEN_STATE_POST )
+			{
+				//--- call the broken post
+				bossAction_BrokenState_Post();
+			}
+		}
+		//----------------------------------------
+		//--- Scan state
+		//----------------------------------------
+		else if( enumState == BOSS_STATE_SCAN )
+		{
+			//--- evaluate the substate
+			enumSubState = bossGet_StateScan();
+			
+			//--- run the corresponding function for the sub state
+			if( enumSubState == SCAN_STATE_NONE )
+			{
+				//print( "STATE EVAL CYCLE: Start scan attack\n" );
+				
+				//--- set the state to chasing the player
+				bossSet_State( BOSS_STATE_RESET );
+			}
+			else if( enumSubState == SCAN_STATE_START )
+			{
+				//--- call the scan start function
+				bossAction_ScanState_Start();
+			}
+			else if( enumSubState == SCAN_STATE_MOVE_TO_SAFETY )
+			{
+				//--- call the scan move to saftey function
+				bossAction_ScanState_MoveToSafety();
+			}
+			else if( enumSubState == SCAN_STATE_AT_SAFETY )
+			{
+				//--- call the scan at safety function
+				bossAction_ScanState_AtSafety();
+			}
+			else if( enumSubState == SCAN_STATE_POST )
+			{
+				//--- call the scan post
+				bossAction_ScanState_Post();
+				
+			}			
+		}
+		//----------------------------------------
+		//--- Boost state
+		//----------------------------------------
+		else if( enumState == BOSS_STATE_BOOST )
+		{
+			//--- evaluate the substate
+			enumSubState = bossGet_StateBoost();
+			
+			//--- run the corresponding function for the sub state
+			if( enumSubState == BOOST_STATE_NONE )
+			{
+				//--- set the state to chasing the player
+				bossSet_State( BOSS_STATE_RESET );
+			}
+			else if( enumSubState == BOOST_STATE_START )
+			{
+				//print( "STATE EVAL CYCLE: Start boost attack\n" );
+				
+				//--- call the boost start function
+                bossAction_BoostState_Start();
+			}
+			else if( enumSubState == BOOST_STATE_MOVE_TO_GOAL )
+			{
+				//--- call the boost move to goal function
+                bossAction_BoostState_MoveToGoal();
+			}
+			else if( enumSubState == BOOST_STATE_AT_GOAL )
+			{
+				//--- call the boost at goal function
+                bossAction_BoostState_AtGoal();
+			}
+			else if( enumSubState == BOOST_STATE_POST )
+			{
+				//--- call the boost post
+                bossAction_BoostState_Post();				
+			}			
+		}
+		//----------------------------------------
+		//--- Airlock state
+		//----------------------------------------
+		else if( enumState == BOSS_STATE_AIRLOCK )
+		{
+			//print( "STATE EVAL CYCLE: Start airlock attack\n" );
+			
+			//-- SK:  Altering Boss flow -- Boss will no longer
+			// remove an airlock like this -- instead will drop 2 at stage 2
+			// and the other 2 at stage 3
+
+			//--- pick the airlock door to open
+			intAirlockDoor = arenaAirlock_PickAirlock();
+			
+			//--- call the airlock function
+			thread arenaAirlock_OpenAirlock( intAirlockDoor );
+
+        	//--- boss attack warning indicator taunt
+        	thread bossAction_Taunt( BOSS_STATE_AIRLOCK );
+
+			//--- set the state to chasing the player
+			bossSet_State( BOSS_STATE_RESET );
+		}
+		//----------------------------------------
+		//--- Flameburst state
+		//----------------------------------------
+		else if( enumState == BOSS_STATE_FLAMEBURST )
+		{
+			//print( "STATE EVAL CYCLE: Start flameburst attack\n" );
+			
+			//--- call the flameburst function
+			thread arenaFlameburst_Activate();
+
+        	//--- boss attack warning indicator taunt
+        	thread bossAction_Taunt( BOSS_STATE_FLAMEBURST );
+        	
+        	//--- tell the AI that a flameburst is starting
+        	$boss_rig.usebehaviorpackage( "rigboss_flame" );
+
+			//--- set the state to chasing the player
+			bossSet_State( BOSS_STATE_RESET );
+		}
+		//----------------------------------------
+		//--- Chase Player state
+		//----------------------------------------
+		else
+		{
+			//hzm coop mod chrissstrahl - use global variable to track current enemy of lurok
+		
+        	//--- move the boss
+			entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($boss_rig);
+			vector vOri;
+			vOri = entityPlayerGlobal.getOrigin();
+        	temp = bossAction_MoveRequest(vOri, BOSS_MOVE_TOLERANCE_NORMAL );
+		}
+		
+		wait( BOSS_EVAL_STATE_CYCLE_TIME );
+
+		//--- get the current state of the boss
+		enumState = bossGet_State();
+	}
+	
+	bossAction_MoveStop();
+	
+	//print( "BOSS STATE EVAL:  DEATH OF RIG!!\n" ); //hzm coop mod chrissstrahl - do not spam server console
+	//centerprint( "BOSS STATE EVAL:  DEATH OF RIG!!" );
+}
+
+
+//---------------------
+// bossThink_AttackEvalLoop
+// This loop evaluates which of the script controlled
+// attacks would be best to perform
+//---------------------
+void bossThink_AttackEvalLoop()
+{
+	//--- local variables
+	float enumState;
+	float boolDoAttack;
+	float boolSkipEvalCycle;	//because there's no frikkin' continue command in our scripting language, so....HACK HACK HACK!!!!
+	
+	enumState = -1;
+
+	//--- cycle throught the state eval loop until the rig is dead
+	while( enumState != BOSS_STATE_DEATH )
+	{
+		//--- get the current state of the boss
+		enumState = bossGet_State();
+	
+		//--- set the skip cycle flag to false
+		boolSkipEvalCycle = FALSE;
+		
+		//--- if the boss is allowed to attack, evaluate all attacks
+		if(	boolBossAttack_Available == TRUE )
+		{
+			//print( "ATTACK EVAL CYCLE: starting\n" );
+    		//print( "ATTACK EVAL: ************************************************\n" );
+    		//print( "ATTACK EVAL: **************   COUNTER CHECK   ***************\n" );
+			
+			//-------------------------------------------
+			//--- SCAN EVALUATION
+			//-------------------------------------------
+			if( boolBossAttack_ScanAvailable == TRUE )
+			{
+				//--- evaluate conditions for a scan attack
+				boolDoAttack = bossThink_AttackEval_Scan();
+
+				//print( "ATTACK EVAL: scan counter: " + intBossAttack_ScanCounter + "\n" );
+				
+				//--- if the evaluation came back as true, set the attack state
+				if( boolDoAttack == TRUE )
+				{
+					//--- set the substate and state
+					bossSet_StateScan( SCAN_STATE_START );
+					bossSet_State( BOSS_STATE_SCAN );
+					
+					//--- launch the reset function
+					thread bossThink_AttackEval_ScanReset();
+					
+					//--- set the set the skip cycle flag
+					boolSkipEvalCycle = TRUE;
+				}
+			}
+
+			if( boolSkipEvalCycle == FALSE )
+			{
+        		//-------------------------------------------
+        		//--- BOOST EVALUATION
+        		//-------------------------------------------
+        		if( boolBossAttack_BoostAvailable == TRUE )
+        		{
+        			//--- evaluate conditions for a boost attack
+    				boolDoAttack = bossThink_AttackEval_Boost();
+
+            		//print( "ATTACK EVAL: boost counter: " + intBossAttack_BoostCounter + "\n" );
+    				
+    				//--- if the evaluation came back as true, set the attack state
+    				if( boolDoAttack == TRUE )
+    				{
+    					//--- set the substate and state
+    					bossSet_StateBoost( BOOST_STATE_START );
+    					bossSet_State( BOSS_STATE_BOOST );
+    					
+    					//--- launch the reset function
+    					thread bossThink_AttackEval_BoostReset();
+    					
+    					//--- set the set the skip cycle flag
+    					boolSkipEvalCycle = TRUE;
+    				}
+        		}
+        	}
+
+			if( boolSkipEvalCycle == FALSE )
+			{
+    			//-------------------------------------------
+    			//--- FLAMEBURST EVALUATION
+    			//-------------------------------------------
+    			if( boolBossAttack_FlameburstAvailable == TRUE )
+    			{
+    				//--- evaluate conditions for a flameburst attack	
+    				boolDoAttack = bossThink_AttackEval_Flameburst();
+
+            		//print( "ATTACK EVAL: flameburst counter: " + intBossAttack_FlameburstCounter + "\n" );
+    				
+    				//--- if the evaluation came back as true, set the attack state
+    				if( boolDoAttack == TRUE )
+    				{
+    					//--- set the substate and state
+    					bossSet_State( BOSS_STATE_FLAMEBURST );
+    					
+    					//--- launch the reset function
+    					thread bossThink_AttackEval_FlameburstReset();
+
+    					//--- set the set the skip cycle flag
+    					boolSkipEvalCycle = TRUE;
+    				}
+    			}
+    		}
+
+			if( boolSkipEvalCycle == FALSE )
+			{
+    			//-------------------------------------------
+    			//--- AIRLOCK EVALUATION
+    			//-------------------------------------------
+    			if( boolBossAttack_AirlockAvailable == TRUE )
+    			{
+    				//--- evaluate conditions for a airlock attack	
+    				boolDoAttack = bossThink_AttackEval_Airlock();
+
+            		//print( "ATTACK EVAL: airlock counter: " + intBossAttack_AirlockCounter + "\n" );
+            		    				
+    				//--- if the evaluation came back as true, set the attack state
+    				if( boolDoAttack == TRUE )
+    				{
+    					//--- set the substate and state
+    					bossSet_State( BOSS_STATE_AIRLOCK );
+    					
+    					//--- launch the reset function
+    					thread bossThink_AttackEval_AirlockReset();
+    				}
+    			}
+    		}
+			
+		}
+		
+		//--- wait the cycle time
+		wait( BOSS_EVAL_ATTACK_CYCLE_TIME );	
+	}
+
+}
+
+
+//------------------------------------
+//--- SCAN EVALUATION
+//------------------------------------
+
+//---------------------
+// bossThink_AttackEval_Scan
+// returns - float, TRUE if an attack should be done, FALSE otherwise
+// Evaluate whether a scan should be done
+//---------------------
+float bossThink_AttackEval_Scan()
+{
+	//--- variables
+	float intDistance;
+
+	if( g_boolFlameBurstActive == TRUE )
+	{
+		return( FALSE );
+	}
+
+	//hzm coop mod chrissstrahl - use global enemy player entity
+	//--- get the angular distance between the rig and the player
+	intDistance = globalMath_GetXYDistance( entityPlayerGlobal.getorigin(), $center.getorigin() );
+
+	//--- check the angular distance against the upper and lower boost blindspot angles
+	if( intDistance >= 400 )
+	{
+		//--- the player falls within the blindspot
+		intBossAttack_ScanCounter ++;
+		
+		//--- check if the counter's been breached
+		if( intBossAttack_ScanCounter >= BOSS_SCAN_COUNTER_LIMIT )
+		{
+			//--- reset the counter and return true
+			intBossAttack_ScanCounter = 0;
+			return( TRUE );
+		}
+	}
+	
+	//--- return false otherwise		
+	return( FALSE );
+}
+
+
+//---------------------
+// bossThink_AttackEval_ScanReset
+// This function deactivates the scan attack
+// for the specified amount of time
+//---------------------
+void bossThink_AttackEval_ScanReset()
+{
+	//--- turn off the attack
+	boolBossAttack_ScanAvailable = FALSE;
+	wait( BOSS_SCAN_RESET_TIME );
+	
+	//--- turn on the attack
+	boolBossAttack_ScanAvailable = TRUE;
+}
+
+
+//------------------------------------
+//--- BOOST EVALUATION
+//------------------------------------
+
+//---------------------
+// bossThink_AttackEval_Boost
+// returns - float, TRUE if an attack should be done, FALSE otherwise
+// Evaluate whether a boost should be done
+//---------------------
+float bossThink_AttackEval_Boost()
+{
+	//--- variables
+	float intAngularDistance;
+	
+	//hzm coop mod chrissstrahl - use global enemy player entity
+	//--- get the angular distance between the rig and the player
+	intAngularDistance = commonGet_AngularDistance( entityPlayerGlobal.getorigin(), $boss_rig.getorigin() );
+
+	//--- check the angular distance against the upper and lower boost blindspot angles
+	if( intAngularDistance <= BOOST_BLINDSPOT_UPPER_ANGLE && intAngularDistance >= BOOST_BLINDSPOT_LOWER_ANGLE )
+	{
+		//--- the player falls within the blindspot
+		intBossAttack_BoostCounter ++;
+		
+		//--- check if the counter's been breached
+		if( intBossAttack_BoostCounter >= BOSS_BOOST_COUNTER_LIMIT )
+		{
+			//--- reset the counter and return true
+			intBossAttack_BoostCounter = 0;
+			return( TRUE );
+		}
+	}
+	
+	//--- return false otherwise		
+	return( FALSE );
+}
+
+
+//---------------------
+// bossThink_AttackEval_BoostReset
+// This function deactivates the boost attack
+// for the specified amount of time
+//---------------------
+void bossThink_AttackEval_BoostReset()
+{
+	//--- turn off the attack
+	boolBossAttack_BoostAvailable = FALSE;
+	wait( BOSS_BOOST_RESET_TIME );
+	
+	//--- turn on the attack
+	boolBossAttack_BoostAvailable = TRUE;
+}
+
+
+//float BOSS_AIRLOCK_COUNTER_LIMIT = 10;		//the counter to check how long the player is staying in
+
+
+//------------------------------------
+//--- FLAMEBURST EVALUATION
+//------------------------------------
+
+//---------------------
+// bossThink_AttackEval_Flameburst
+// returns - float, TRUE if an attack should be done, FALSE otherwise
+// Evaluate whether a flameburst should be done
+//---------------------
+float bossThink_AttackEval_Flameburst()
+{
+	//--- variables
+	float intDistance;
+	
+	//hzm coop mod chrissstrahl - use global enemy player entity	
+	//--- get the angular distance between the rig and the player
+	intDistance = globalMath_GetXYDistance( entityPlayerGlobal.getorigin(), $center.getorigin() );
+	
+	//print( "FLAMEBURST EVAL: distance: " + intDistance + "\n" );
+
+	//--- check the angular distance against the upper and lower boost blindspot angles
+	if( intDistance < 400 )
+	{
+		//print( "FLAMEBURST EVAL: upping counter\n" );
+		
+		//--- the player falls within the blindspot
+		intBossAttack_FlameburstCounter ++;
+		
+		//--- check if the counter's been breached
+		if( intBossAttack_FlameburstCounter >= BOSS_FLAMEBURST_COUNTER_LIMIT )
+		{
+			//--- reset the counter and return true
+			intBossAttack_FlameburstCounter = 0;
+			return( TRUE );
+		}
+	}
+	
+	//--- return false otherwise		
+	return( FALSE );
+}
+
+
+//---------------------
+// bossThink_AttackEval_FlameburstReset
+// This function deactivates the flameburst attack
+// for the specified amount of time
+//---------------------
+void bossThink_AttackEval_FlameburstReset()
+{
+	//--- turn off the attack
+	boolBossAttack_FlameburstAvailable = FALSE;
+	wait( BOSS_FLAMEBURST_RESET_TIME );
+	
+	//--- turn on the attack
+	if( intBoss_CurrentPhase < 3 )
+	{
+		boolBossAttack_FlameburstAvailable = TRUE;
+	}
+}
+
+
+//------------------------------------
+//--- AIRLOCK EVALUATION
+//------------------------------------
+
+//---------------------
+// bossThink_AttackEval_Airlock
+// returns - float, TRUE if an attack should be done, FALSE otherwise
+// Evaluate whether a airlock should be done
+//---------------------
+float bossThink_AttackEval_Airlock()
+{
+	//--- variables
+	float intDistance;
+	
+	//hzm coop mod chrissstrahl - use global enemy player entity
+	//--- get the angular distance between the rig and the player
+	intDistance = globalMath_GetXYDistance( entityPlayerGlobal.getorigin(), $center.getorigin() );
+
+	//--- check the angular distance against the upper and lower boost blindspot angles
+	if( intDistance >= 800 )
+	{
+		//--- the player falls within the blindspot
+		intBossAttack_AirlockCounter ++;
+		
+		//--- check if the counter's been breached
+		if( intBossAttack_AirlockCounter >= BOSS_AIRLOCK_COUNTER_LIMIT )
+		{
+			//--- reset the counter and return true
+			intBossAttack_AirlockCounter = 0;
+			return( TRUE );
+		}
+	}
+	
+	//--- return false otherwise		
+	return( FALSE );
+}
+
+
+//---------------------
+// bossThink_AttackEval_AirlockReset
+// This function deactivates the airlock attack
+// for the specified amount of time
+//---------------------
+void bossThink_AttackEval_AirlockReset()
+{
+	//--- turn off the attack
+	boolBossAttack_AirlockAvailable = FALSE;
+	wait( BOSS_FLAMEBURST_RESET_TIME );
+	
+	//--- turn on the attack
+	boolBossAttack_AirlockAvailable = TRUE;
+}
+
+
+//---------------------
+// bossThink_MercDeath
+// When the merc out of the rig dies
+//---------------------
+void bossThink_MercDeath()
+{
+	//--- set objective
+	$player.setobjectivecomplete( "DefeatKlingonBoss", 1 );
+	$boss_merc.missionobjective( 0 );
+	wait( 2 );
+	
+	//--- dialog to enterprise
+	$munro.playdialog("localization/sound/dialog/m9l2/munro_omagleft.mp3", 1, 20000, 1); //Munro to Enterprise. Omag just left the station. 
+	waitForDialog( $munro );
+	wait( .2 );
+		
+	$picard.playdialog("localization/sound/dialog/m9l2/picard_locked.mp3", 1, 20000, 1); //Thank you, Lieutenant. We just locked on him. We're tracking him. 
+	waitForDialog( $picard );
+	wait( .2 );
+	
+	$munro.playdialog("localization/sound/dialog/m9l2/munro_pickimm.mp3", 1, 20000, 1); //Munro to Sydney. Pick me up immediately!
+	waitForDialog( $munro );
+	wait( .2 );
+
+	$sydney.playdialog("localization/sound/dialog/m9l2/syd_rightnow.mp3", 1, 20000, 1); //Coming right now!
+	waitForDialog( $sydney );
+	wait( .2 );
+	
+	//--- call the end cinematic
+	thread cinematicArm_End_Start();
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  BOSS ACTION FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// bossAction_MoveRequest
+// vecGoal - vector, the point in space to move to
+// intAngularTolerance - float, the angle tolerance used to figure
+//						 out if the boss is at the desired location
+// returns - boolean, whether or not the boss is currently there
+//			 TRUE means that the boss is there
+// takes the passed in point, calculates it's angular position
+// compares the distance and returns whether the boss is already
+// there or if it has to move.  If it's there, it will stop the rig
+// if it has to move, it will figure out the fastest way there
+// and move him in that direction
+//---------------------
+float bossAction_MoveRequest( vector vecGoal, float intAngularTolerance )
+{
+	//--- variables
+	float intAngularDistance;
+	
+	//--- set the Z value to 0
+	vecGoal = vectorsetz( vecGoal, 0 );
+
+	//--- get the angular distance between the passed in goal and the current position of the rig
+	intAngularDistance = commonGet_AngularDistance( vecGoal, $boss_rig.getorigin() );
+   	
+	//--- is the angular distance within the passed in angluar tolerance zone
+	if( commonGet_WithinAngularTolerance( intAngularDistance, intAngularTolerance ) == TRUE )
+	{
+		//--- the rig is already at the desired location, stop him
+		bossAction_MoveStop();
+		return( TRUE );
+	}
+
+	//--- store the goal as the boss' current goal
+	vecBossPositionGoal = vecGoal;
+		
+	//--- evaluate which angluar direction is faster
+	if( intAngularDistance >= 0 )
+	{
+		//--- counter clockwise
+		$boss_rig_mover.rotateY( (-1 * intBossMove_Speed) );
+	}
+	else
+	{
+		//--- clockwise
+		$boss_rig_mover.rotateY( intBossMove_Speed );
+	}
+
+	return( FALSE );
+}
+
+
+//---------------------
+// bossAction_MoveStop
+// stop the rig
+//---------------------
+void bossAction_MoveStop()
+{
+	$boss_rig_mover.rotateY( 0 );
+}
+
+//---------------------------------------------------------------------------------------------
+//---  TAUNT FUNCTIONS
+//---------------------------------------------------------------------------------------------
+
+//---------------------
+// 	bossAction_Taunt
+//	fltAttack - float, the type of attack to pick a taunt for, based off of the state constants
+// 	the boss randomly picks a taunt for the passed in type of attack
+//---------------------
+void bossAction_Taunt( float fltAttack )
+{
+	string strDialog;
+
+	//--- determine the type of attack to pick a taunt for
+	//---------------------------------
+	//--- boost taunts
+	if( fltAttack == BOSS_STATE_BOOST )
+	{
+		//--- pick a taunt that wasn't used last time
+		fltTauntBoost_Previous = bossAction_TauntChoose( fltTauntBoost_Previous );
+		
+		//--- pick the appropriate line based on the choice
+		if( fltTauntBoost_Previous == 0 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_canrun.mp3";	//You cannot run, human veQ!
+		}
+		else if( fltTauntBoost_Previous == 1 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_elude.mp3";	//You try and elude me, Starfleet k'pekt!?
+		}
+		else
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_coming.mp3";	//I am coming for you, human!
+		}
+	}
+	//---------------------------------
+	//--- flameburst taunts
+	else if( fltAttack == BOSS_STATE_FLAMEBURST )
+	{
+		//--- pick a taunt that wasn't used last time
+		fltTauntFlameburst_Previous = bossAction_TauntChoose( fltTauntFlameburst_Previous );
+		
+		//--- pick the appropriate line based on the choice
+		if( fltTauntFlameburst_Previous == 0 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_taste.mp3";	//Taste fire, Federation dog!
+		}
+		else if( fltTauntFlameburst_Previous == 1 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_burntarg.mp3";	//You will burn like a Targ in a pit!
+		}
+		else
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_flame.mp3";	//Then surrender to flame, k'pekt!
+		}	
+	}
+	//---------------------------------
+	//--- scan taunts
+	else if( fltAttack == BOSS_STATE_SCAN )
+	{
+		//--- pick a taunt that wasn't used last time
+		fltTauntScan_Previous = bossAction_TauntChoose( fltTauntScan_Previous );
+		
+		//--- pick the appropriate line based on the choice
+		if( fltTauntScan_Previous == 0 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_scanfind.mp3";	//My scan will find you out, weak yIntagh!
+		}
+		else if( fltTauntScan_Previous == 1 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_tohpah.mp3";	//Toh-pah!
+		}
+		else
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_escape.mp3";	//You cannot escape the uD'a', human!
+		}		
+	}
+	//---------------------------------
+	//--- airlock taunts
+	else if( fltAttack == BOSS_STATE_AIRLOCK )
+	{
+		//--- pick a taunt that wasn't used last time
+		fltTauntAirlock_Previous = bossAction_TauntChoose( fltTauntAirlock_Previous );
+		
+		//--- pick the appropriate line based on the choice
+		if( fltTauntAirlock_Previous == 0 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_cold.mp3";	//Space is cold, Starfleet qoH!
+		}
+		else if( fltTauntAirlock_Previous == 1 )
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_vent.mp3";	//Time to vent this piece of Bak'tagh!
+		}
+		else
+		{
+			strDialog = "localization/sound/dialog/m9l2/klingcomm_breathe.mp3";	//Can you breathe in a vacuum, taHqeq!?
+		}			
+	}
+	
+	bossAction_TauntSay( strDialog );
+}
+
+//---------------------
+// 	bossAction_TauntChoose
+//	fltPrevious - float, the previous choice used
+//	RETURN - float, the new choice
+// 	picks a random integer between 0 and 2, will keep picking until it picks
+//	a different choice than what was passed into the function
+//---------------------
+float bossAction_TauntChoose( float fltPrevious )
+{
+	//--- set the choice variable equal to the passed in choice so it will generate the first random choice
+	float intChoice;
+	intChoice = fltPrevious;
+	
+	//--- loop until a new choice is picked
+	while( intChoice == fltPrevious )
+	{
+		intChoice = randomInt( 3 );
+	}
+	
+	//--- return the new choice
+	return( intChoice );
+}
+
+//---------------------
+// 	bossAction_TauntSay
+//	strDialog - string, the passed in path to the dialog .mp3 file
+// 	makes the boss say the passed in dialog file
+//---------------------
+void bossAction_TauntSay( string strDialog )
+{
+	//--- stop whatever he was saying before
+	$cinematicMerc.stopdialog();
+	
+	//--- say the choosen line
+	$cinematicMerc.playdialog( strDialog, 1, 20000, 1 );
+}
+
+
+//---------------------------------------------------------------------------------------------
+//---  PHASE CHANGE STATE FUNCTIONS
+//---------------------------------------------------------------------------------------------
+
+//---------------------
+// bossAction_PhaseChangeState_Start
+// function called to initiate a phase change
+//---------------------
+void bossAction_PhaseChangeState_Start()
+{
+	//print( "PHASE CHANGE: start\n" );
+	
+	//--- stop the rig
+	bossAction_MoveStop();
+
+	//--- set that the boss can attack
+	bossSet_CanAttack( FALSE );
+
+	//--- set that the player can position
+	bossSet_PlayerCanPosition( FALSE );
+
+   	//--- set that the boss can be damaged by the vent
+	bossSet_VentDamageAllowed( FALSE );
+
+	//--- set the move boss switch display, which will set all the other rig states
+	arenaSwitchMoveBoss_Display_BossInControl();
+
+	//--- give enough time for the animation to finish
+	wait( PHASE_CHANGE_ANIMATION_DELAY );
+
+	//--- turn off the rigs AI
+	$boss_rig.ai_off();
+	
+	//--- set the new substate
+	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_CINEMATIC );
+}
+
+
+//---------------------
+// bossAction_PhaseChangeState_Cinematic
+// function called to start the phase change cinematic
+//---------------------
+void bossAction_PhaseChangeState_Cinematic()
+{
+	string strAssemble;
+	
+	//--- stage change music
+	//music( "surprise" );
+	
+	//--- set the flag that the cinematic started
+	boolPhaseCinematic_Active = TRUE;
+
+	//--- launch the stage cinematic start function
+	thread cinematicStageChange_Start();
+
+	//--- wait until the cinematic thread is over
+	while( boolPhaseCinematic_Active == TRUE )
+	{
+		wait( .1 );
+	}
+
+	//--- set the new substate
+	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_POST );	
+}
+
+
+//---------------------
+// bossAction_PhaseChangeState_Post
+// function called to wrap up the phase change cinematics
+//---------------------
+void bossAction_PhaseChangeState_Post()
+{
+	//print( "PHASE CHANGE: post\n" );
+	
+	//--- if the boss is entering phase 4, set the death state
+	if( intBoss_CurrentPhase == 4 )
+	{
+        //--- set the death state to kill the rig's think threads
+        bossSet_State( BOSS_STATE_DEATH );
+    }
+    //--- else set all the other states on the boss back to normal
+    else
+    {
+    	//--- turn on the rigs AI
+    	wait( 1.5 );
+    	$boss_rig.ai_on();
+    	
+    	//--- set that the player can position
+    	bossSet_PlayerCanPosition( FALSE );
+    
+       	//--- set that the boss can be damaged by the vent
+    	bossSet_VentDamageAllowed( FALSE );
+    
+    	//--- set the move boss switch display, which will set all the other rig states
+    	arenaSwitchMoveBoss_Display_BossInControl();
+    
+    	//--- set that the boss can attack
+    	bossSet_CanAttack( TRUE );
+    
+    	//--- set the new substate
+    	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_NONE );
+    	
+    	//--- activate the boss
+    	//$boss_rig.attack( $player );
+    }
+}
+	
+	
+//---------------------------------------------------------------------------------------------
+//---  BROKEN STATE FUNCTIONS
+//---------------------------------------------------------------------------------------------
+
+//---------------------
+// bossAction_BrokenState_Start
+// function called to initiate the broken state
+//---------------------
+void bossAction_BrokenState_Start()
+{
+	//--- stop the rig
+	bossAction_MoveStop();
+
+	//--- set that the boss can't attack to hault his attack eval loop
+	bossSet_CanAttack( FALSE );
+
+   	//--- set that the boss can be damaged by the vent
+	bossSet_VentDamageAllowed( TRUE );
+
+	//--- launch the damage thread
+	thread arenaVent_Damage();
+
+	//--- set that the player can position
+	bossSet_PlayerCanPosition( TRUE );
+
+	//--- set the move boss switch display, which will set all the other rig states
+	arenaSwitchMoveBoss_Display_CanPosition();
+
+	//--- set the new substate
+	bossSet_StateBroken( BROKEN_STATE_WAIT );
+}
+
+
+//---------------------
+// bossAction_BrokenState_Wait
+// function called while waiting for the player to position the boss
+//---------------------
+void bossAction_BrokenState_Wait()
+{
+	//--- wait until the player has pressed the switch
+	if( bossGet_MoveToVent() == TRUE )
+	{
+    	//--- set that the player can position
+    	bossSet_PlayerCanPosition( FALSE );
+
+		//--- set the move boss switch display, which will set all the other rig states
+		arenaSwitchMoveBoss_Display_MoveToVent();
+
+		//--- set the broken substate
+		bossSet_StateBroken( BROKEN_STATE_MOVE_TO_VENT );
+	}
+}
+
+
+//---------------------
+// bossAction_BrokenState_MoveToVent
+// function called to move the boss to the vent
+//---------------------
+void bossAction_BrokenState_MoveToVent()
+{
+	float boolBossAtVent;
+
+	//--- set the bosses move speed
+	intBossMove_Speed = BOSS_MOVE_SPEED_TO_VENT;
+	
+	//--- move the boss
+	boolBossAtVent = bossAction_MoveRequest( $bossVentSpot.getorigin(), BOSS_MOVE_TOLERANCE_NORMAL );
+	
+	//--- check if the rig is at the vent
+	if( boolBossAtVent == TRUE )
+	{
+    	//--- set the new substate
+    	bossSet_StateBroken( BROKEN_STATE_AT_VENT );
+    }
+}
+
+//---------------------
+// bossAction_BrokenState_AtVent
+// function called when the boss is at the vent
+//---------------------
+void bossAction_BrokenState_AtVent()
+{
+	//--- set the at vent flag
+	bossSet_AtVent( TRUE );
+	wait( .01 );
+}
+
+
+//---------------------
+// bossAction_BrokenState_Post
+// function called when the broken state is over
+//---------------------
+void bossAction_BrokenState_Post()
+{
+	//--- stop the rig
+	bossAction_MoveStop();
+
+	//--- set that the player can position
+	bossSet_PlayerCanPosition( FALSE );
+
+   	//--- set that the boss can be damaged by the vent
+	bossSet_VentDamageAllowed( FALSE );
+
+	//--- set that the boss is not at the vent anymore
+	bossSet_AtVent( FALSE );
+
+	//--- set the move boss switch display, which will set all the other rig states
+	arenaSwitchMoveBoss_Display_BossInControl();
+
+	//--- set that the boss can attack
+	bossSet_CanAttack( TRUE );
+
+	//--- set the new substate
+	bossSet_StateBroken( BROKEN_STATE_NONE );
+}
+
+
+//---------------------------------------------------------------------------------------------
+//---  SCAN STATE FUNCTIONS
+//---------------------------------------------------------------------------------------------
+
+//---------------------
+// bossAction_ScanState_Start
+// function called when the scan state is to be started
+//---------------------
+void bossAction_ScanState_Start()
+{
+	//--- stop the rig
+	bossAction_MoveStop();
+
+	//--- set that the boss can't attack to hault his attack eval loop
+	bossSet_CanAttack( FALSE );
+
+	//--- tell the boss to attack the central pillar so he's lined up properly
+	//$boss_rig.attack( $boss_rig_mover );
+	
+	//--- set the behavior package on the boss rig
+	$boss_rig.setbehaviorpackage( "rigboss_startscan" );
+	
+	//--- set the rigs angles
+	$boss_rig.angles( '0 180 0' );
+	//$boss_rig.turnTowardsEntity( $ventFire );
+	
+	//--- boss attack warning indicator taunt
+	thread bossAction_Taunt( BOSS_STATE_SCAN );
+
+	//--- start the boss dock extending
+	thread arenaBossDock_ExtendPhase1();
+
+	//--- set the new substate
+	bossSet_StateScan( SCAN_STATE_MOVE_TO_SAFETY );
+}
+
+
+//---------------------
+// bossAction_ScanState_MoveToSafety
+// function called to move the rig to safety
+//---------------------
+void bossAction_ScanState_MoveToSafety()
+{
+	float boolBossAtSafety;
+	
+	//--- set the bosses move speed
+	intBossMove_Speed = BOSS_MOVE_SPEED_SCAN;
+	
+	//--- move the boss
+	boolBossAtSafety = bossAction_MoveRequest( $bossScanPortSpot.getorigin(), BOSS_MOVE_TOLERANCE_SCAN );
+	
+	//--- check if the rig is at the vent
+	if( boolBossAtSafety == TRUE )
+	{
+    	//--- set the new substate
+    	bossSet_StateScan( SCAN_STATE_AT_SAFETY );
+    }	
+}
+
+
+//---------------------
+// bossAction_ScanState_AtSafety
+// function called when the boss is at his safety spot
+//---------------------
+void bossAction_ScanState_AtSafety()
+{
+	//--- make the boss rig notsolid
+	$boss_rig.notsolid();
+
+	//--- snap the boss into position
+	$boss_rig_mover.angles( '0 0 0' );
+
+	//--- wait until the dock is extended
+	while( boolBossDock_BaseExtended == FALSE )
+	{
+		wait( .1 );
+	}
+		
+	//--- activate the forcefield
+	arenaBossDock_ExtendPhase2();
+	wait( .25 );
+	
+	//--- show the beam and make it hurtable
+	arenaScan_ShowBeam();
+	wait( 1 );
+	
+	//--- sweep the beam
+	arenaScan_DoScan();
+	wait( 1 );
+
+	//--- hide the beam
+	arenaScan_HideBeam();
+	
+	//--- remove the forcefield
+	arenaBossDock_RetractPhase1();
+	
+	//--- set the scan state
+	bossSet_StateScan( SCAN_STATE_POST );
+}
+
+
+//---------------------
+// bossAction_ScanState_Post
+// function called to wrap up the scan attack
+//---------------------
+void bossAction_ScanState_Post()
+{
+	//--- make the boss rig notsolid
+	$boss_rig.solid();
+
+	//--- retract the dock
+	thread arenaBossDock_RetractPhase2();
+
+	//--- set the bosses move speed
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+
+	//--- set that the boss can't attack to hault his attack eval loop
+	bossSet_CanAttack( TRUE );
+	
+	//--- set the behavior package on the boss rig
+	$boss_rig.setbehaviorpackage ( "rigboss_endscan" );
+
+	//--- set the new substate
+	bossSet_StateScan( SCAN_STATE_NONE );
+	
+	//--- activate the boss
+	//$boss_rig.attack( $player );
+}
+
+
+//---------------------------------------------------------------------------------------------
+//---  BOOST STATE FUNCTIONS
+//---------------------------------------------------------------------------------------------
+
+//---------------------
+// bossAction_BoostState_Start
+// function called when the boost state is to be started
+//---------------------
+void bossAction_BoostState_Start()
+{
+	//--- stop the rig
+	bossAction_MoveStop();
+
+	//--- set that the boss can't attack to hault his attack eval loop
+	bossSet_CanAttack( FALSE );
+	
+	//hzm coop mod chrissstrahl - use global enemy player entity
+	//--- set the boost goal
+	vecBossBoostGoal = entityPlayerGlobal.getorigin();
+	
+	//print( "BOOST START: boost goal: " + vecBossBoostGoal + "\n" );
+	
+	//--- set the rigs speed to boost speed
+	intBossMove_Speed = BOSS_MOVE_SPEED_BOOST;
+
+	//--- set the bosses behavior package.......THE PACKAGE!!!!!	
+	$boss_rig.setbehaviorpackage ( "rigboss_startboost" );
+
+	//--- boss attack warning indicator taunt
+	thread bossAction_Taunt( BOSS_STATE_BOOST );
+
+
+	//--- set the new substate
+	bossSet_StateBoost( BOOST_STATE_MOVE_TO_GOAL );
+}
+
+
+//---------------------
+// bossAction_BoostState_MoveToGoal
+// function called for the boost state to move to the goal position
+//---------------------
+void bossAction_BoostState_MoveToGoal()
+{
+	//--- variables
+	float boolBossAtGoal;
+	
+	//--- move the boss
+	//print( "BOOST MOVE TO GOAL: boost goal: " + vecBossBoostGoal + "\n" );
+	boolBossAtGoal = bossAction_MoveRequest( vecBossBoostGoal, BOSS_MOVE_TOLERANCE_BOOST );
+
+	//print( "BOOST MOVE TO GOAL: boss at goal: " + boolBossAtGoal + "\n" );
+	
+	//--- check if the rig is at the vent
+	if( boolBossAtGoal == TRUE )
+	{
+    	//--- set the new substate
+    	bossSet_StateBoost( BOOST_STATE_AT_GOAL );
+    }
+}
+
+
+//---------------------
+// bossAction_BoostState_AtGoal
+// function called for the boost state when the rig's at the goal
+//---------------------
+void bossAction_BoostState_AtGoal()
+{
+	//--- perform homing rocket attack, SET THE PACKAGE!!!!
+	$boss_rig.setbehaviorpackage ( "rigboss_endboost" );
+	wait( 2 );
+
+	//--- set the new substate
+	bossSet_StateBoost( BOOST_STATE_POST );
+}
+
+
+//---------------------
+// bossAction_BoostState_Post
+// function called to wrap up the boost attack
+//---------------------
+void bossAction_BoostState_Post()
+{
+	//--- set that the boss can't attack to hault his attack eval loop
+	bossSet_CanAttack( TRUE );
+	
+	//--- set the rigs speed to boost speed
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+	
+	//--- set the new substate
+	bossSet_StateBoost( BOOST_STATE_NONE );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  BOSS AI CALLED FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// bossAI_EnterRepairState
+// tell the logic the boss has entered the repair state
+//---------------------
+void bossAI_EnterRepairState()
+{
+	//print( "ENTER REPAIR STATE\n" );
+    music("surprise");
+
+	//--- set the speed of the rig back to normal
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+	
+	//--- set the broken sub-state
+	bossSet_StateBroken( BROKEN_STATE_START );
+
+	//--- set the broken state on the boss
+	bossSet_State( BOSS_STATE_BROKEN );
+
+	$bossRepairModeMovementClip.solid();
+}
+
+
+//---------------------
+// bossAI_ExitRepairState
+// tell the logic the boss has exited the repair state
+//---------------------
+void bossAI_ExitRepairState()
+{
+	//print( "EXITING REPAIR STATE\n" );
+
+	//--- set the speed of the rig back to normal
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+
+	//--- set the broken state on the boss
+	bossSet_StateBroken( BROKEN_STATE_POST );
+
+	$bossRepairModeMovementClip.notsolid();
+	
+}
+
+
+//---------------------
+// bossAI_EnterPhase2
+// tell the logic that the boss is transitioning to phase 2
+//---------------------
+void bossAI_EnterPhase2()
+{
+	//centerprint( "ENTER PHASE2: starting\n" );
+	//print( "ENTER PHASE2: starting\n" );
+
+	//--- set the phase of the boss
+	intBoss_CurrentPhase = 2;
+
+	//--- set the speed of the rig back to normal
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+
+	//--- set the flameburst door and fire delay times
+	fltFlameburst_DoorTime = FLAMEBURST_DOOR_TIME_PHASE2;
+	fltFlameburst_FireDelayTime = FLAMEBURST_DOOR_FIRE_DELAY_PHASE2;
+
+	//--- set the speed of the scan beam
+	intScanBeamTime = SCAN_BEAM_TIME_PHASE2;
+
+	//--- set the scan attack to active
+	boolBossAttack_ScanAvailable = TRUE;
+	
+	//--- set the Phase change substate
+	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_START );
+
+	//--- set the Phase change state on the boss
+	bossSet_State( BOSS_STATE_PHASE_CHANGE );
+}
+
+
+//---------------------
+// bossAI_EnterPhase3
+// tell the logic that the boss is transitioning to phase 3
+//---------------------
+void bossAI_EnterPhase3()
+{
+	//centerprint( "ENTER PHASE3: starting\n" );
+	//print( "ENTER PHASE3: starting\n" );
+
+	//--- set the phase of the boss
+	intBoss_CurrentPhase = 3;
+
+	//--- set the speed of the rig back to normal
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+
+	//--- set the flameburst door and fire delay times
+	fltFlameburst_DoorTime = FLAMEBURST_DOOR_TIME_PHASE3;
+	fltFlameburst_FireDelayTime = FLAMEBURST_DOOR_FIRE_DELAY_PHASE3;
+
+	//--- set the speed of the scan beam
+	intScanBeamTime = SCAN_BEAM_TIME_PHASE3;
+
+	//--- set the airlock attack to active
+	//boolBossAttack_AirlockAvailable = TRUE;
+	boolBossAttack_AirlockAvailable = FALSE;
+
+	//--- set the flameburst to in-active
+	boolBossAttack_FlameburstAvailable = FALSE;
+
+	//--- set the Phase change substate
+	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_START );
+
+	//--- set the Phase change state on the boss
+	bossSet_State( BOSS_STATE_PHASE_CHANGE );
+}
+
+
+//---------------------
+// bossAI_EnterPhase4
+// tell the logic that the boss is transitioning to phase 4
+//---------------------
+void bossAI_EnterPhase4()
+{
+	//centerprint( "ENTER PHASE4: starting\n" );
+	//print( "ENTER PHASE4: starting\n" );
+
+	//--- set the speed of the rig back to normal
+	intBossMove_Speed = BOSS_MOVE_SPEED_NORMAL;
+
+	//--- set the phase of the boss
+	intBoss_CurrentPhase = 4;
+
+	//--- set the Phase change substate
+	bossSet_StatePhaseChange( PHASE_CHANGE_STATE_START );
+
+	//--- set the Phase change state on the boss
+	bossSet_State( BOSS_STATE_PHASE_CHANGE );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  BOSS SETTER FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// bossSet_Updating
+// sets the updating flag of the boss state to true
+//---------------------
+void bossSet_Updating()
+{
+	boolBossState_IsUpdating = TRUE;
+}
+
+
+//---------------------
+// bossSet_UpdatingDone
+// sets the updating flag of the boss state to false
+//---------------------
+void bossSet_UpdatingDone()
+{
+	boolBossState_IsUpdating = FALSE;
+}
+
+
+//---------------------
+// bossSet_State
+// fltStateToSet - float, the state to set
+// sets the state of the boss
+//---------------------
+void bossSet_State( float fltStateToSet )
+{
+	//--- if the boss state is currently updating, wait
+	bossGet_WhileUpdating();
+	
+	//--- set the updating flag
+	bossSet_Updating();
+	
+	//print( "SET STATE: State to set: " + fltStateToSet + "\n" );
+	//print( "SET STATE: Current state: " + enumBossState_Current + "\n" );
+	
+	//--- compare the requested state with his current, if higher priority or a reset command then set it
+	if( fltStateToSet < enumBossState_Current || fltStateToSet == BOSS_STATE_RESET )
+	{
+		//--- set the state to the passed in state
+		enumBossState_Current = fltStateToSet;
+	}
+	
+	//--- relinquish the updating
+	bossSet_UpdatingDone();
+}
+
+
+//---------------------
+// bossSet_StatePhaseChange
+// fltStateToSet - float, the sub state to set
+// sets the Phase change sub state
+//---------------------
+void bossSet_StatePhaseChange( float fltStateToSet )
+{
+	enumBossState_PhaseChange = fltStateToSet;
+}
+
+
+//---------------------
+// bossSet_StateBroken
+// fltStateToSet - float, the sub state to set
+// sets the broken sub state
+//---------------------
+void bossSet_StateBroken( float fltStateToSet )
+{
+	enumBossState_Broken = fltStateToSet;
+}
+
+
+//---------------------
+// bossSet_StateScan
+// fltStateToSet - float, the sub state to set
+// sets the scan sub state
+//---------------------
+void bossSet_StateScan( float fltStateToSet )
+{
+	enumBossState_Scan = fltStateToSet;
+}
+
+
+//---------------------
+// bossSet_StateBoost
+// fltStateToSet - float, the sub state to set
+// sets the boost sub state
+//---------------------
+void bossSet_StateBoost( float fltStateToSet )
+{
+	enumBossState_Boost = fltStateToSet;
+}
+
+
+//---------------------
+// bossSet_VentDamageAllowed
+// sets whether the vent can damage the boss
+//---------------------
+void bossSet_VentDamageAllowed( float boolStateToSet )
+{
+	boolBossDamage_VentAllowed = boolStateToSet;
+}
+
+
+//---------------------
+// bossSet_PlayerCanPosition
+// sets that whether the player can position the boss
+//---------------------
+void bossSet_PlayerCanPosition( float boolStateToSet )
+{
+	//--- set the flag that the player can position
+	boolBossMove_PlayerCanPosition = boolStateToSet;
+}
+
+
+//---------------------
+// bossSet_CanAttack
+// sets whether or not the boss can attack
+//---------------------
+void bossSet_CanAttack( float boolStateToSet )
+{
+	boolBossAttack_Available = boolStateToSet;
+}
+
+
+//---------------------
+// bossSet_MoveToVent
+// sets whether or not to move the boss to the vent
+//---------------------
+void bossSet_MoveToVent( float boolStateToSet )
+{
+	boolBossMove_GoToVent = boolStateToSet;
+}
+
+
+//---------------------
+// bossSet_AtVent
+// sets whether or not the boss is at the vent
+//---------------------
+void bossSet_AtVent( float boolStateToSet )
+{
+	boolBossMove_AtVent = boolStateToSet;
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  BOSS GETTER FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// bossGet_WhileUpdating
+// while the boss is updating, wait
+//---------------------
+void bossGet_WhileUpdating()
+{
+	//--- while the boss state is updating, wait
+	while( boolBossState_IsUpdating == TRUE )
+	{
+		//print( "UPDATING: BOSS IS UPDATING\n" );
+		wait( .1 );
+	}
+}
+
+
+//---------------------
+// bossGet_State
+// returns - float, the state of the boss
+// checks and returns the current state of the boss
+//---------------------
+float bossGet_State()
+{
+	return( enumBossState_Current );
+}
+
+
+//---------------------
+// bossGet_StatePhaseChange
+// returns - float, the Phase change sub state of the boss
+// checks and returns the current Phase change sub state of the boss
+//---------------------
+float bossGet_StatePhaseChange()
+{
+	return( enumBossState_PhaseChange );
+}
+
+
+//---------------------
+// bossGet_StateBroken
+// returns - float, the broken sub state of the boss
+// checks and returns the current broken sub state of the boss
+//---------------------
+float bossGet_StateBroken()
+{
+	return( enumBossState_Broken );
+}
+
+
+//---------------------
+// bossGet_StateScan
+// returns - float, the scan sub state of the boss
+// checks and returns the current scan sub state of the boss
+//---------------------
+float bossGet_StateScan()
+{
+	return( enumBossState_Scan );
+}
+
+
+//---------------------
+// bossGet_StateBoost
+// returns - float, the boost sub state of the boss
+// checks and returns the current boost sub state of the boss
+//---------------------
+float bossGet_StateBoost()
+{
+	return( enumBossState_Boost );
+}
+
+
+//---------------------
+// bossGet_VentDamageAllowed
+// gets the value of if the vent can damage the boss
+//---------------------
+float bossGet_VentDamageAllowed()
+{
+	return( boolBossDamage_VentAllowed );
+}
+
+
+//---------------------
+// bossGet_PlayerCanPosition
+// gets the value of if the player can position the boss
+//---------------------
+float bossGet_PlayerCanPosition()
+{
+	return( boolBossMove_PlayerCanPosition );
+}
+
+
+//---------------------
+// bossGet_CanAttack
+// gets the value of if the boss can attack
+//---------------------
+float bossGet_CanAttack()
+{
+	return( boolBossAttack_Available );
+}
+
+
+//---------------------
+// bossGet_MoveToVent
+// gets the value of whether or not to move the boss to the vent
+//---------------------
+float bossGet_MoveToVent()
+{
+	return( boolBossMove_GoToVent );
+}
+
+
+//---------------------
+// bossGet_AtVent
+// gets the value of whether or not the boss is at the vent
+//---------------------
+float bossGet_AtVent()
+{
+	return( boolBossMove_AtVent );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  ARENA FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// arenaSwitchMoveBoss_Execute
+// the player hit the switch to move the boss to the vent
+//---------------------
+void arenaSwitchMoveBoss_Execute()
+{
+	$switchMoveBoss_Trigger.nouse();
+	
+	//--- if the boss is in a player moveable state then set the flag to move the boss
+	if( bossGet_PlayerCanPosition() == TRUE )
+	{
+		//--- set the variable to move to vent
+		bossSet_MoveToVent( TRUE );
+		
+		//--- play acknowledge sound
+		$switchMoveBoss_Trigger.playsound( "sound/ships/klingon/kling_beepalarm.wav", 1, 2, 64 );
+	}
+	else
+	{
+		//--- play an error beep
+		$switchMoveBoss_Trigger.playsound( "sound/ships/klingon/kling_beep1.wav", 1, 2, 64 );
+	}
+	
+	wait( 1 );
+	thread globalCommon_OnUse( $switchMoveBoss_Trigger, "arenaSwitchMoveBoss_Execute" );
+}
+
+
+//---------------------
+// arenaSwitchMoveBoss_Display_BossInControl
+// changes the move boss switch display to boss in control
+//---------------------
+void arenaSwitchMoveBoss_Display_BossInControl()
+{
+	//--- show and hide the proper displays
+	$switchMoveBoss_PlayerCanUse.hide();
+	$switchMoveBoss_BossInControl.show();
+	$switchMoveBoss_MovingToVent.hide();
+
+	//--- hide the light indicator
+	$switchMoveBoss_IndicatorLight.hide();
+	$world.light_lightstyle( "switchMoveBoss_IndicatorLight_Light", "a", 0 );
+
+	//--- hide the light indicator
+	$switchActivateVent_IndicatorLight.hide();
+	$world.light_lightstyle( "switchActivateVent_IndicatorLight_Light", "a", 0 );
+	
+	//--- set the variable to move to vent
+	bossSet_MoveToVent( FALSE );
+}
+
+
+//---------------------
+// arenaSwitchMoveBoss_Display_CanPosition
+// changes the move boss switch display to can position
+//---------------------
+void arenaSwitchMoveBoss_Display_CanPosition()
+{
+	//--- show and hide the proper displays
+	$switchMoveBoss_PlayerCanUse.show();
+	$switchMoveBoss_BossInControl.hide();
+	$switchMoveBoss_MovingToVent.hide();
+	
+	//--- show the light indicator
+	$switchMoveBoss_IndicatorLight.show();
+	$world.light_lightstyle( "switchMoveBoss_IndicatorLight_Light", "zzzaaaaaaaaaaaaaaa", 0 );
+}
+
+
+//---------------------
+// arenaSwitchMoveBoss_Display_MoveToVent
+// changes the move boss switch display to moving to vent
+//---------------------
+void arenaSwitchMoveBoss_Display_MoveToVent()
+{
+	//--- show and hide the proper displays
+	$switchMoveBoss_PlayerCanUse.hide();
+	$switchMoveBoss_BossInControl.hide();
+	$switchMoveBoss_MovingToVent.show();
+
+	//--- hide the light indicator
+	$switchMoveBoss_IndicatorLight.hide();
+	$world.light_lightstyle( "switchMoveBoss_IndicatorLight_Light", "a", 0 );
+
+	//--- show the vent light indicator
+	$switchActivateVent_IndicatorLight.show();
+	$world.light_lightstyle( "switchActivateVent_IndicatorLight_Light", "zzzaaaaaaaaaaaaaaa", 0 );
+
+	//--- set the variable to move to vent
+	bossSet_MoveToVent( FALSE );
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// arenaSwitchFireVent_Execute
+// activates the vent blast to damage the rig
+//---------------------
+void arenaSwitchFireVent_Execute()
+{
+	$switchActivateVent_Trigger.nouse();
+	
+	//--- if the boss is in a player moveable state then set the flag to move the boss
+	if( boolVent_Available == TRUE )
+	{
+		//--- play acknowledge sound
+		$switchActivateVent_Trigger.playsound( "sound/ships/klingon/kling_beepalarm.wav", 1, 2, 64 );
+		
+		//--- blast the vent
+		thread arenaVent_Fire();
+	}
+	else
+	{
+		//--- play an error beep
+		$switchActivateVent_Trigger.playsound( "sound/ships/klingon/kling_beep1.wav", 1, 2, 64 );
+	}
+	
+	wait( 1 );
+	thread globalCommon_OnUse( $switchActivateVent_Trigger, "arenaSwitchFireVent_Execute" );
+}
+
+
+//---------------------
+// arenaSwitchFireVent_Display_Ready
+// changes the vent switch display to ready
+//---------------------
+void arenaSwitchFireVent_Display_Ready()
+{
+	$switchActivateVent_Usable.show();
+	$switchActivateVent_InUse.hide();
+	$switchActivateVent_Charging.hide();
+
+	//--- hide the light indicator
+	$switchActivateVent_IndicatorLight.hide();
+	$world.light_lightstyle( "switchActivateVent_IndicatorLight_Light", "a", 0 );
+}
+
+
+//---------------------
+// arenaSwitchFireVent_Display_Firing
+// changes the vent switch display to firing
+//---------------------
+void arenaSwitchFireVent_Display_Firing()
+{
+	$switchActivateVent_Usable.hide();
+	$switchActivateVent_InUse.show();
+	$switchActivateVent_Charging.hide();
+
+	//--- hide the light indicator
+	$switchActivateVent_IndicatorLight.hide();
+	$world.light_lightstyle( "switchActivateVent_IndicatorLight_Light", "a", 0 );
+}
+
+
+//---------------------
+// arenaSwitchFireVent_Display_Charging
+// changes the vent switch display to charging
+//---------------------
+void arenaSwitchFireVent_Display_Charging()
+{
+	$switchActivateVent_Usable.hide();
+	$switchActivateVent_InUse.hide();
+	$switchActivateVent_Charging.show();
+
+	//--- hide the light indicator
+	$switchActivateVent_IndicatorLight.hide();
+	$world.light_lightstyle( "switchActivateVent_IndicatorLight_Light", "a", 0 );
+}
+
+
+//---------------------
+// arenaVent_Fire
+// logic that controls the actual blasting of the vent
+//---------------------
+void arenaVent_Fire()
+{
+	//--- set the flag
+	boolVent_Available = FALSE;
+
+	//--- make the trigger hurt for the player active
+	$triggerVentFire_Damage.triggerable();
+
+	//--- change out the panels
+	arenaSwitchFireVent_Display_Firing();
+
+	//--- activate the fire
+	$ventFire.anim( "burn" );
+	
+	//--- mark the vent as active
+	boolVent_Active = TRUE;
+
+	//--- wait for the amount of time it's supposed to stay active
+	wait( VENT_ACTIVE_TIME );
+	
+	//--- deactivate the fire
+	$ventFire.anim( "idle" );
+		
+	//--- mark the vent as inactive
+	boolVent_Active = FALSE;
+
+	//--- make the trigger hurt for the player inactive
+	$triggerVentFire_Damage.nottriggerable();
+
+	//--- change out the panels
+	arenaSwitchFireVent_Display_Charging();
+	
+	//--- wait the charge up time
+	wait( VENT_CHARGE_TIME );
+	
+	//--- change out the panels
+	arenaSwitchFireVent_Display_Ready();
+	
+	//--- set the flag
+	boolVent_Available = TRUE;
+}
+
+
+//---------------------
+// arenaVent_Damage
+// damage the rig with the flame burst
+//---------------------
+void arenaVent_Damage()
+{
+	float intAngularDistance;
+	
+	while( 	bossGet_VentDamageAllowed() == TRUE )
+	{
+		//--- get the angular distance between the boss rig and the vent spot
+		intAngularDistance = commonGet_AngularDistance( $boss_rig.getOrigin(), $bossVentSpot.getOrigin() );
+
+    	//--- check to see if the flame is active, and if the boss is in a position to be damaged by it
+    	//if( boolVent_Active == TRUE && bossGet_AtVent() == TRUE )
+    	if( boolVent_Active == TRUE && (commonGet_WithinAngularTolerance( intAngularDistance, VENT_DISTANCE_TOLERANCE ) == TRUE) )
+    	{
+    		//centerprint( "DAMAGE RIG MASSIVELY" );
+    		//print( "DAMAGE RIG MASSIVELY\n" );
+    		//$boss_rig.setdamage( "high" );
+    		$boss_rig.hurt( VENT_DAMAGE, VENT_DAMAGE_TYPE );
+    		bossSet_VentDamageAllowed( FALSE );
+    	}
+    	else
+    	{
+    		//print( "RIG IS NOT ALLOWED TO BE DAMAGED\n" );
+    		//print( "VENT DAMAGE: boolVent_Active: " + boolVent_Active + " : VentDamageAllowed: " + bossGet_VentDamageAllowed() + "\n" );
+    		//print( "VENT DAMAGE TRIGGER: vent is not active\n" );
+    		wait( .2 );
+    	}
+    }
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// arenaScan_Damage
+// damage function for anything that touches the Scan beam
+//---------------------
+void arenaScan_Damage()
+{
+	float intAngularDistance;
+	
+	//--- cycle while the beam is active is active to see if the beam touches the player
+	while( boolScan_Active == TRUE )
+	{
+		//hzm coop mod chrissstrahl - handle each player in coop
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					if(ePlayer.getHealth() > 0){
+						//--- get the angular distance between the Scan beam and the player
+						intAngularDistance = commonGet_AngularDistance( ePlayer.getorigin(), $scannerScan_PositionMarker.getorigin() );
+
+						//--- check if the beam is on top of the player by comparing their angles
+						//--- if the beams angle falls within the desired tolerance range, then it's touching the player
+						if( commonGet_WithinAngularTolerance( intAngularDistance, SCAN_BEAM_DAMAGE_TOLERANCE ) == TRUE )
+						{
+							//print( "SCAN DAMAGE: touched player\n" );
+							
+							if( ePlayer.getFloatVar("deadlyForcefieldIgnoreMe") != 1 ){
+								//--- damage the player
+								ePlayer.hurt( SCAN_BEAM_DAMAGE, SCAN_BEAM_DAMAGE_TYPE );						
+							}
+						}
+					}
+				}
+			}
+		}
+    	wait( .05 );
+    }
+}
+
+
+//---------------------
+// arenaScan_ShowBeam
+// show the Scan beam
+//---------------------
+void arenaScan_ShowBeam()
+{
+	$scannerScan_Beam.show();
+	$scannerScan_Beam.playsound ( "sound/ships/klingon/kling_scanstart.wav", 2, 1, 1000 );
+	$scannerScan_Beam.loopsound ( "sound/ships/klingon/kling_scan.wav", 3, 300 );
+
+	//$scannerScan_Beam.solid();
+	
+	//--- set the flag that the scan is active
+	boolScan_Active = TRUE;
+	
+	//--- activate the damage thread for the beam
+	thread arenaScan_Damage();
+}
+
+
+//---------------------
+// arenaScan_HideBeam
+// hide the Scan beam
+//---------------------
+void arenaScan_HideBeam()
+{
+	$scannerScan_Beam.hide();
+	//$scannerScan_Beam.notsolid();
+	$scannerScan_Beam.playsound ( "sound/ships/klingon/kling_scanstop.wav", 2, 1, 1000 );
+	$scannerScan_Beam.stoploopsound();
+	//--- set the flag that the scan is not active
+	boolScan_Active = FALSE;
+}
+
+
+//---------------------
+// arenaScan_DoScan
+// perform the scan
+//---------------------
+void arenaScan_DoScan()
+{
+	//--- variables
+	float intAngularDistance;
+	
+	//--- set the move time on the beam
+	$scannerScan_Base.time( intScanBeamTime );
+	
+	//hzm coop mod chrissstrahl - handle each player in coop
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				//--- get the angular distance between the Scan beam and the player
+				intAngularDistance = commonGet_AngularDistance( ePlayer.getorigin(), $scannerScan_PositionMarker.getorigin() );
+			}
+		}
+	}
+   	
+	//--- evaluate which angluar direction is closer to the player
+	if( intAngularDistance >= 0 )
+	{
+		//--- counter clockwise
+		$scannerScan_Base.rotateYdown( 360 );
+	}
+	else
+	{
+		//--- clockwise
+		$scannerScan_Base.rotateYup( 360 );
+	}
+	
+	waitFor( $scannerScan_Base );
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// arenaAirlock_PickAirlock
+// pick which airlock to open based on which quad the player's in
+//---------------------
+float arenaAirlock_PickAirlock()
+{
+	vector vecPlayerPosition;
+	vector vecCenter;
+	
+	float boolXSide;		//true means he's on the west half
+	float boolYSide;		//true means he's on the north half
+	
+	//hzm coop mod chrissstrahl - make this work in coop, grab any random player
+	entity ePlayer;
+	ePlayer				= coop_returnMeARandomPlayer();
+	vecPlayerPosition	= ePlayer.getorigin();
+	
+	vecCenter			= $center.getorigin();
+
+	//--- first check the x axis
+	if( vecPlayerPosition_x < vecCenter_x )
+	{
+		//--- the player's on the west half
+		boolXSide = TRUE;
+	}
+	else
+	{
+		//--- the player's on the east half
+		boolXSide = FALSE;
+	}
+	
+	//--- check the y axis
+	if( vecPlayerPosition_y > vecCenter_y )
+	{
+		//--- the player's on the north half
+		boolYSide = TRUE;
+	}
+	else
+	{
+		//--- the player's on the south half
+		boolYSide = FALSE;
+	}
+	
+	//--- return which quad the player's in
+	if( boolXSide == TRUE && boolYSide == TRUE )
+	{
+		//--- he's in the north west quadrant
+		//print( "AIRLOCK PICK: choosen airlock 1\n" );
+		return( 1 );
+	}
+	else if( boolXSide == TRUE && boolYSide == FALSE )
+	{
+		//--- he's in the south west quadrant
+		//print( "AIRLOCK PICK: choosen airlock 4\n" );
+		return( 4 );
+	}
+	else if( boolXSide == FALSE && boolYSide == TRUE )
+	{
+		//--- he's in the north east quadrant
+		//print( "AIRLOCK PICK: choosen airlock 2\n" );
+		return( 2 );
+	}
+	else if( boolXSide == FALSE && boolYSide == FALSE )
+	{
+		//--- he's in the south east quadrant
+		//print( "AIRLOCK PICK: choosen airlock 3\n" );
+		return( 3 );
+	}
+}
+
+
+
+//---------------------
+// arenaAirlock_OpenAirlock
+// intAirlock - float, the airlock number to open
+// opens the passed in airlock
+//---------------------
+void arenaAirlock_OpenAirlock( float intAirlock )
+{
+	entity entAirlock_DoorA, entAirlock_DoorB;
+	entity entAirlock_RimLights_On, entAirlock_RimLights_Off;
+	entity entAirlock_AlertBeacon1_Base, entAirlock_AlertBeacon1_LightCone;
+	entity entAirlock_AlertBeacon2_Base, entAirlock_AlertBeacon2_LightCone;
+	
+	string strAirlock_DoorA_OpenDirection, strAirlock_DoorB_OpenDirection;
+	string strAirlock_RimLights_Normal, strAirlock_RimLights_Red;
+	
+	//--- get the light entities
+	entAirlock_RimLights_On = getEntity( ("doorAirlock" + intAirlock + "_RimLights_On") );
+	entAirlock_RimLights_Off = getEntity( ("doorAirlock" + intAirlock + "_RimLights_Off") );
+	
+	//--- get the alert beacons
+	entAirlock_AlertBeacon1_Base = getEntity( ("doorAirlock" + intAirlock + "_AlertBeacon1_Base") );
+	entAirlock_AlertBeacon2_Base = getEntity( ("doorAirlock" + intAirlock + "_AlertBeacon2_Base") );
+	entAirlock_AlertBeacon1_LightCone = getEntity( ("doorAirlock" + intAirlock + "_AlertBeacon1_LightCone") );
+	entAirlock_AlertBeacon2_LightCone = getEntity( ("doorAirlock" + intAirlock + "_AlertBeacon2_LightCone") );
+	
+	//--- assemble the light group name strings
+	strAirlock_RimLights_Normal = "doorAirlock" + intAirlock + "_RimLights_LightNormal";
+	strAirlock_RimLights_Red = "doorAirlock" + intAirlock + "_RimLights_LightRed";
+
+	//--- activate the airlock attack warning indicators
+	//--- turn off the normal lights and turn on the flashing red lights
+	entAirlock_RimLights_On.show();
+	entAirlock_RimLights_Off.hide();
+	
+	$world.light_lightstyle( strAirlock_RimLights_Normal, "a", 0 );
+	$world.light_lightstyle( strAirlock_RimLights_Red, "zzzzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaaaaa", 0 );
+	
+	//--- activate the warning beacons
+	thread globalAccelMove_RelativeY( entAirlock_AlertBeacon1_Base, 24, 1, "rampup", "" );
+	globalAccelMove_RelativeY( entAirlock_AlertBeacon2_Base, 24, 1, "rampup", "" );
+	wait( .25 );
+
+	entAirlock_AlertBeacon1_LightCone.show();
+	entAirlock_AlertBeacon2_LightCone.show();
+	
+	//--- rotate the beacons based on the stored axis value in uservar1
+	if( entAirlock_AlertBeacon1_LightCone.getStringVar( "uservar1" ) == "x" )
+	{
+		entAirlock_AlertBeacon1_LightCone.rotateX( 360 );
+	}
+	else
+	{
+		entAirlock_AlertBeacon1_LightCone.rotateZ( 360 );
+	}
+
+	if( entAirlock_AlertBeacon2_LightCone.getStringVar( "uservar1" ) == "x" )
+	{
+		entAirlock_AlertBeacon2_LightCone.rotateX( 360 );
+	}
+	else
+	{
+		entAirlock_AlertBeacon2_LightCone.rotateZ( 360 );
+	}
+
+	wait( 1.5 );
+
+	//--- capture the A door
+	entAirlock_DoorA = arenaAirlock_GetADoor( intAirlock );
+
+	//--- capture the B door
+	entAirlock_DoorB = arenaAirlock_GetBDoor( intAirlock );
+	
+	//--- open the doors with acceleration
+	thread globalAccelMove_RelativeY( entAirlock_DoorA, 1024, AIRLOCK_DOOR_TIME, "rampupdown", "" );
+	globalAccelMove_RelativeY( entAirlock_DoorB, 1024, AIRLOCK_DOOR_TIME, "rampupdown", "" );
+
+	//--- set the red lights to permanent on	
+	$world.light_lightstyle( strAirlock_RimLights_Red , "z" , 0 );
+}
+
+
+//---------------------
+// arenaAirlock_GetADoor
+// intAirlock - float, the airlock door to get
+// returns an entity reference to the A door of the passed airlock
+//---------------------
+entity arenaAirlock_GetADoor( float intAirlock )
+{
+	string strAssemble;
+	
+	strAssemble = "doorAirlock" + intAirlock + "_A";
+	//print( "AIRLOCK DOOR A TARGETNAME ASSEMBLE: " + strAssemble + "\n" );
+	
+	return( getentity( strAssemble ) );
+}
+
+
+//---------------------
+// arenaAirlock_GetBDoor
+// intAirlock - float, the airlock door to get
+// returns an entity reference to the B door of the passed airlock
+//---------------------
+entity arenaAirlock_GetBDoor( float intAirlock )
+{
+	string strAssemble;
+	
+	strAssemble = "doorAirlock" + intAirlock + "_B";
+	//print( "AIRLOCK DOOR B TARGETNAME ASSEMBLE: " + strAssemble + "\n" );
+	
+	return( getentity( strAssemble ) );
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// arenaFlameburst_Activate
+// do a flameburst attack
+//---------------------
+void arenaFlameburst_Activate()
+{
+	//--- let the scan know the flameburst is starting
+	g_boolFlameBurstActive = TRUE;
+	
+	//--- boss attack warning indicator
+	globalAccelMove( $doorFlameburst_WarningBeacon_Door, '0 0 -8', .75, "rampup", "" );
+	globalAccelMove_RelativeY( $doorFlameburst_WarningBeacon, 8, .75, "rampup", "" );
+	wait( .25 );
+	
+	$world.light_lightstyle( "doorFlameburst_WarningBeacon_LightRed", "zzzzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaaaaa", 0 );
+
+	//--- open the doors and wait for the specified firedelay time
+	arenaFlameburst_OpenDoors();
+	
+	//--- show the flame jets
+	$ventFlameburst.show();
+	$ventFlameburst.playsound ( "sound/ships/klingon/kling_flamejet.wav", 10, 1, 500 );
+	wait( fltFlameburst_FireDelayTime );
+
+	//--- activate the flame jets and the damage checking function
+	thread arenaFlameburst_DoDamage();
+	arenaFlameburst_Fire();
+	wait( 1 );
+	
+	//--- hide the flamejets
+	$ventFlameburst.hide();
+	$ventFlameburst.playsound ( "sound/ships/klingon/kling_flamejetstop.wav", 10, 1, 500 );	
+
+	//--- close the doors
+	thread arenaFlameburst_CloseDoors();
+	
+	$world.light_lightstyle( "doorFlameburst_WarningBeacon_LightRed", "a", 0 );
+	wait( .25 );
+	
+	globalAccelMove_RelativeY( $doorFlameburst_WarningBeacon, -8, .75, "rampup", "" );
+	globalAccelMove( $doorFlameburst_WarningBeacon_Door, '0 0 8', .75, "rampup", "" );
+	wait( 3 );
+
+	//--- let the scan know the flameburst is finished
+	g_boolFlameBurstActive = FALSE;
+}
+
+
+//---------------------
+// arenaFlameburst_OpenDoors
+// open the flameburst doors
+//---------------------
+void arenaFlameburst_OpenDoors()
+{
+	//--- set the door times
+	$doorFlameburst_North.time( fltFlameburst_DoorTime );
+	$doorFlameburst_NorthEast.time( fltFlameburst_DoorTime );
+	$doorFlameburst_NorthWest.time( fltFlameburst_DoorTime );
+	$doorFlameburst_East.time( fltFlameburst_DoorTime );
+	$doorFlameburst_West.time( fltFlameburst_DoorTime );
+	$doorFlameburst_South.time( fltFlameburst_DoorTime );
+	$doorFlameburst_SouthEast.time( fltFlameburst_DoorTime );
+	$doorFlameburst_SouthWest.time( fltFlameburst_DoorTime );
+	
+	//--- tell the doors to move
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_01.wav", 4, 1, 500 );
+	$doorFlameburst_North.moveNorth( 144 );
+	$doorFlameburst_NorthEast.moveSouth( 144 );
+	$doorFlameburst_NorthEast.moveWest( 144 );
+	$doorFlameburst_NorthWest.moveSouth( 144 );
+	$doorFlameburst_NorthWest.moveEast( 144 );
+	$doorFlameburst_East.moveEast( 144 );
+	$doorFlameburst_West.moveWest( 144 );
+	$doorFlameburst_South.playsound ( "sound/doors/drull_smldoor_01.wav", 3, 1, 500 );
+	$doorFlameburst_South.moveSouth( 144 );
+	$doorFlameburst_SouthEast.moveNorth( 144 );
+	$doorFlameburst_SouthEast.moveWest( 144 );
+	$doorFlameburst_SouthWest.moveNorth( 144 );
+	$doorFlameburst_SouthWest.moveEast( 144 );
+	waitFor( $doorFlameburst_SouthWest );
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 4, 1, 500 );
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+
+}
+
+
+//---------------------
+// arenaFlameburst_OpenDoors
+// burst the flame jets....roast some weenies
+//---------------------
+void arenaFlameburst_Fire()
+{
+	float i;
+
+	//--- turn on the vents
+	$ventFlameburst.anim( "burn" );
+	
+	//--- cycle the wait time
+	for( i = 0 ; i <= FLAMEBURST_FIRE_DURATION ; i++ )
+	{
+		//--- if in cinematic, end the attack
+		if( boolPhaseCinematic_Active == FALSE )
+		{
+			wait( 1 );
+		}
+		else
+		{
+			i = FLAMEBURST_FIRE_DURATION;
+		}
+	}
+	
+	//--- turn off the vents
+	$ventFlameburst.anim( "idle" );
+}
+
+
+//---------------------
+// arenaFlameburst_DoDamage
+// check if the player's in the radius of the fire
+// if he is, damage him
+//---------------------
+void arenaFlameburst_DoDamage()
+{
+	float i;
+	float fltDistance;
+	
+	for( i = 0 ; i <= FLAMEBURST_FIRE_DURATION ; i += FLAMEBURST_FIRE_DAMAGE_INTERVAL )
+	{
+		//--- if in cinematic, don't damage the player
+		if( boolPhaseCinematic_Active == FALSE )
+		{
+		//hzm coop mod chrissstrahl - make this work in coop
+			entity ePlayer;
+			float fPlayerIdInUse;
+			for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+				ePlayer = getentity("player"+fPlayerIdInUse);
+				if(doesEntityExist(ePlayer)){
+					if(globalCoop_check_playerSpectator(ePlayer) == 0){
+						//--- get the distance between them
+						fltDistance = globalMath_GetXYDistance( ePlayer.getorigin(), $center.getorigin() );
+						
+						//print( "FLAMEBURST DAMAGE: distance: " + fltDistance + "\n" );
+						
+						//--- check if the distance to see if he's in or near the flames
+						if( fltDistance < FLAMEBURST_FIRE_DAMAGE_RADIUS )
+						{
+							if(ePlayer.getHealth() > 0){
+								//print( "FLAMEBURST DAMAGE: damaging the player\n" );
+								
+								//--- damage the player
+								//$player.setdamage( "Low" );
+								ePlayer.hurt( FLAMEBURST_FIRE_DAMAGE, FLAMEBURST_FIRE_DAMAGE_TYPE );
+							}
+						}
+					}
+				}
+			}
+    	}
+		
+		wait( FLAMEBURST_FIRE_DAMAGE_INTERVAL );
+	}
+}
+
+
+//---------------------
+// arenaFlameburst_CloseDoors
+// close the doors
+//---------------------
+void arenaFlameburst_CloseDoors()
+{	
+	//--- tell the doors to move
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_01.wav", 4, 1, 500 );
+	$doorFlameburst_North.moveSouth( 144 );
+	$doorFlameburst_NorthEast.moveNorth( 144 );
+	$doorFlameburst_NorthEast.moveEast( 144 );
+	$doorFlameburst_NorthWest.moveNorth( 144 );
+	$doorFlameburst_NorthWest.moveWest( 144 );
+	$doorFlameburst_East.moveWest( 144 );
+	$doorFlameburst_West.moveEast( 144 );
+	$doorFlameburst_South.playsound ( "sound/doors/drull_smldoor_01.wav", 3, 1, 500 );
+	$doorFlameburst_South.moveNorth( 144 );
+	$doorFlameburst_SouthEast.moveSouth( 144 );
+	$doorFlameburst_SouthEast.moveEast( 144 );
+	$doorFlameburst_SouthWest.moveSouth( 144 );
+	$doorFlameburst_SouthWest.moveWest( 144 );
+	waitFor( $doorFlameburst_SouthWest );
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 4, 1, 500 );
+	$doorFlameburst_North.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+/*
+float BOSS_DOCK_SCANNER_DISTANCE = 30;
+float BOSS_DOCK_ARMLOCK_DISTANCE = 8;
+float BOSS_DOCK_BASE_DISTANCE = 50;
+float BOSS_DOCK_ARM_DISTANCE = 144; 112
+float BOSS_DOCK_WALKWAY_DISTANCE = 80;
+
+	$bossDock_RightScanner_SubBase3.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_SubBase2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_SubBase1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_Base2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner_Base1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_RightScanner.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase3.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_SubBase1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_Base2.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner_Base1.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_LeftScanner.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_Walkway.time( BOSS_DOCK_WALKWAY_TIME );
+	$bossDock_ArmLock_Top.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_ArmLock_Bottom.time( BOSS_DOCK_SCANNER_TIME );
+	$bossDock_Arm.time( BOSS_DOCK_ARM_TIME );
+	$bossDock_Base.time( BOSS_DOCK_BASE_TIME );
+*/	
+//---------------------
+// arenaBossDock_CinematicRetract
+// retract the boss dock for the opening cinematic
+//---------------------
+void arenaBossDock_CinematicRetract()
+{
+	if( boolBossDock_CinematicRetract == TRUE )
+	{
+		return;
+	}
+	
+	boolBossDock_CinematicRetract = TRUE;
+
+	//--- retract the walkway
+	thread globalAccelMoveX( $bossDock_Walkway, BOSS_DOCK_WALKWAY_DISTANCE , BOSS_DOCK_WALKWAY_TIME, "rampupdown", "" );
+	wait( .5 );
+	
+	//--- release the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	wait( .3 );
+	
+	//--- move the base and arm out
+	thread globalAccelMoveX( $bossDock_Arm, 112, BOSS_DOCK_ARM_TIME, "rampupdown", "" );
+	thread globalAccelMoveX( $bossDock_Base, BOSS_DOCK_BASE_DISTANCE , BOSS_DOCK_BASE_TIME, "rampupdown", "" );
+	wait( 1 );
+	
+	//--- rotate the scanners
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_Base1, -70, 1.25, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_Base1, 70, 1.25, "rampup", "" );
+	wait( 4.7 );
+	
+	//--- lock the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+}
+
+
+//---------------------
+// arenaBossDock_ExtendPhase1
+// extend the arm out waiting for the rig to get into scan position
+//---------------------
+void arenaBossDock_ExtendPhase1()
+{
+	//--- set the flag
+	boolBossDock_BaseExtended = FALSE;
+	
+	//--- release the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	wait( .3 );
+
+        //**** ZAK ****
+	$bossDock_Arm.playsound ( "sound/ships/klingon/kling_dockmove.wav" , 4 , 2 , 4384 );
+
+	//--- move the base and arm out
+	thread globalAccelMoveX( $bossDock_Arm, (-1 * BOSS_DOCK_ARM_DISTANCE), BOSS_DOCK_ARM_TIME, "rampupdown", "" );
+	thread globalAccelMoveX( $bossDock_Base, (-1 * BOSS_DOCK_BASE_DISTANCE), BOSS_DOCK_BASE_TIME, "rampupdown", "" );
+	wait( 2.75 );
+	
+
+        //**** ZAK ****
+	$bossDock_RightScanner_Base1.playsound ( "sound/ships/klingon/kling_scanrot.wav" , 3 , .7 , 4384 );
+
+	//--- rotate the scanners
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_Base1, 70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_Base1, -70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_SubBase1, -70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_SubBase1, 70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_SubBase2, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_SubBase2, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_RightScanner, 40, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner, -40, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	wait( 1.75 );
+	
+	//--- lock the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	
+	//--- set the flag
+	boolBossDock_BaseExtended = TRUE;
+}
+
+
+//---------------------
+// arenaBossDock_ExtendPhase2
+// position the scanners around the boss and emit the shields
+//---------------------
+void arenaBossDock_ExtendPhase2()
+{
+        //**** ZAK ****
+	$bossDock_RightScanner_Base1.playsound ( "sound/ships/klingon/kling_scanrot.wav" , 2 , .7 , 4384 );
+
+	//--- rotate the scanners
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_Base1, 21, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_Base1, -21, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_SubBase3, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_SubBase3, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_Base2, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_Base2, BOSS_DOCK_SCANNER_DISTANCE, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	
+	thread globalAccelMove_RotateY( $bossDock_RightScanner, 41, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	globalAccelMove_RotateY( $bossDock_LeftScanner, -41, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	wait( .25 );
+	
+        //**** ZAK ****
+	$boss_rig_forcefield.playsound ( "sound/ships/klingon/kling_ffstart.wav" , 5 , 1 , 4384 );
+	$boss_rig_forcefield.loopsound ( "sound/ships/enterprise/ent_forcefield.wav" , .7 , 2384 );
+
+	//--- activate the forcefield
+	$boss_rig_forcefield.show();
+	$boss_rig_forcefield.solid();
+}
+
+
+//---------------------
+// arenaBossDock_RetractPhase1
+// lower the forcefield and position the scanners
+//---------------------
+void arenaBossDock_RetractPhase1()
+{
+	//--- activate the forcefield
+
+        //**** ZAK ****
+	$boss_rig_forcefield.playsound ( "sound/ships/klingon/kling_ffstart.wav" , 5 , 1 , 4384 );
+	$boss_rig_forcefield.stoploopsound ();
+
+	$boss_rig_forcefield.hide();
+	$boss_rig_forcefield.notSolid();
+	wait( .25 );
+	
+
+        //**** ZAK ****
+	$bossDock_RightScanner_Base1.playsound ( "sound/ships/klingon/kling_scanrot.wav" , 3 , .7 , 4384 );
+
+	//--- rotate the scanners
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_Base1, -21, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_Base1, 21, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_SubBase3, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_SubBase3, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_Base2, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_Base2, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	
+	thread globalAccelMove_RotateY( $bossDock_RightScanner, -41, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	globalAccelMove_RotateY( $bossDock_LeftScanner, 41, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+}
+
+
+//---------------------
+// arenaBossDock_RetractPhase2
+// retact the arm and base
+//---------------------
+void arenaBossDock_RetractPhase2()
+{
+	//--- set the flag
+	boolBossDock_BaseExtended = FALSE;
+	
+	//--- release the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	wait( .3 );
+
+
+        //**** ZAK ****
+	$bossDock_Arm.playsound ( "sound/ships/klingon/kling_dockmove.wav" , 4 , 1 , 4384 );
+
+	//--- move the base and arm in
+	thread globalAccelMoveX( $bossDock_Arm, BOSS_DOCK_ARM_DISTANCE, BOSS_DOCK_ARM_TIME, "rampupdown", "" );
+	thread globalAccelMoveX( $bossDock_Base, BOSS_DOCK_BASE_DISTANCE, BOSS_DOCK_BASE_TIME, "rampupdown", "" );
+	wait( 2.75 );
+	
+	//--- rotate the scanners
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_Base1, -70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_Base1, 70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_RightScanner_SubBase1, 70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner_SubBase1, -70, BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RelativeY( $bossDock_RightScanner_SubBase2, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RelativeY( $bossDock_LeftScanner_SubBase2, (-1 * BOSS_DOCK_SCANNER_DISTANCE), BOSS_DOCK_SCANNER_TIME, "rampup", "" );
+	thread globalAccelMove_RotateY( $bossDock_RightScanner, -40, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	thread globalAccelMove_RotateY( $bossDock_LeftScanner, 40, BOSS_DOCK_SCANNER_TIME, "rampupdown", "" );
+	wait( 2 );
+	
+	//--- lock the arm locks
+	thread globalAccelMoveZ( $bossDock_ArmLock_Top, (-1 * BOSS_DOCK_ARMLOCK_DISTANCE), BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );
+	globalAccelMoveZ( $bossDock_ArmLock_Bottom, BOSS_DOCK_ARMLOCK_DISTANCE, BOSS_DOCK_ARMLOCK_TIME, "rampup", "" );	
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+// COMMON FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// commonGet_AngularDistance
+// vecTarget - vector, the target point
+// vecStart - vector, the starting point
+// returns - float, the angular distance from the start point, to the target point
+// calculates the angular distance between two points
+//---------------------
+float commonGet_AngularDistance( vector vecTarget, vector vecStart )
+{
+	//--- variables
+	float intTargetAngle;
+	float intStartAngle;
+	float intAngularDistance;
+	
+	//--- get the angles for the starting point and the target point
+	intTargetAngle = globalMath_GetXYAngleForPointAboutCenter( vecTarget, $boss_rig_mover.getorigin() );
+	intStartAngle = globalMath_GetXYAngleForPointAboutCenter( vecStart, $boss_rig_mover.getorigin() );
+
+	//--- get the angular distance from the starting point, to the target point
+	intAngularDistance = globalMath_GetCircularDistanceInDegrees( intTargetAngle, intStartAngle );
+	
+	return( intAngularDistance );
+}
+
+
+
+
+//---------------------
+// commonGet_WithinAngularTolerance
+// intAngularDistance - float, the angular distance between two points
+// intAngularTolerance - float, the tolerance used to determine
+//						 if the angular distance falls within (plus and minus)
+// returns - float, TRUE if it does, FALSE if it does not
+// determines if a passed in angular distance falls within the passed in angular tolerance
+//---------------------
+float commonGet_WithinAngularTolerance( float intAngularDistance, float intAngularTolerance )
+{
+	
+	//--- is the angular distance within the passed in angluar tolerance zone
+	if( intAngularDistance <= intAngularTolerance && intAngularDistance >= (-1 * intAngularTolerance) )
+	{
+		return( TRUE );
+	}
+
+	return( FALSE );
+}
+
+
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+// CINEMATIC FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicArm_Intro_Start
+// intro cinematic with omag, the merc, and munro
+//---------------------
+void cinematicArm_Intro_Start()
+{
+	//--- setup the cinematic
+	globalCommon_AiDummyHide( $cinematicMerc );
+	globalCommon_AiDummyHide( $munro );
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	wait(1);
+	
+	//--- start the armature
+	cinematicArm_Intro.beginCinematic( "m9l2_klingboss" );
+	wait( .2 );
+	
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_Intro_ArmEnd" );
+	wait( 40 );
+	
+	//--- retract the rig
+	thread arenaBossDock_CinematicRetract();
+	thread cinematicArm_Intro_OmagAirlock();
+}
+
+
+//---------------------
+// cinematicArm_Intro_ArmEnd
+// skipthread for cinematic
+//---------------------
+void cinematicArm_Intro_ArmEnd()
+{
+	//--- set the skipthread and kill the cinematic
+	skipthread( "null" );
+		
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_Intro.endCinematic( FALSE );
+
+	killthread( "cinematicArm_Intro_Start" );
+
+	//--- show and solidify the top and rig
+	$boss_rig.show();
+	$boss_rig.solid();
+	$boss_rig_top.show();
+	$boss_rig_top.solid();
+	
+	//--- set the player
+
+	//$player.warp( $nodeMunro_PostChellCinematic.getOrigin() );
+	//$player.turntowardsentity( $chell );
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .5 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	
+	//--- set the stage one music
+	music( "aux1" );
+	
+	//--- set objective
+	$boss_rig.missionobjective( 1 );
+	
+	//--- initally retract the dock
+	thread arenaBossDock_CinematicRetract();
+	wait( .5 );
+
+	//--- activate the boss
+	$boss_rig.ai_on();
+	
+	
+	//hzm coop mod chrissstrahl - select a player to be attacked
+	$boss_rig.attack(globalCoop_return_playerClosestPreferActive($boss_rig));
+	
+	//--- start his master think loop
+	thread bossThink_StateEvalLoop();
+	thread bossThink_AttackEvalLoop();
+}
+
+//---------------------
+// cinematicArm_Intro_OmagAirlock
+// open and close the airlock doors for omags shuttle
+//---------------------
+void cinematicArm_Intro_OmagAirlock()
+{
+	//--- activate the airlock attack warning indicators
+	//--- turn off the normal lights and turn on the flashing red lights
+	$doorAirlock4_RimLights_On.show();
+	$doorAirlock4_RimLights_Off.hide();
+	
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightNormal", "a", 0 );
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed", "zzzzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaaaaa", 0 );
+	
+	//--- activate the warning beacons
+	thread globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon1_Base, 24, 1, "rampup", "" );
+	globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon2_Base, 24, 1, "rampup", "" );
+	wait( .25 );
+
+	$doorAirlock4_AlertBeacon1_LightCone.show();
+	$doorAirlock4_AlertBeacon2_LightCone.show();
+	
+	//--- rotate the beacons based on the stored axis value in uservar1
+	if( $doorAirlock4_AlertBeacon1_LightCone.getStringVar( "uservar1" ) == "x" )
+	{
+		$doorAirlock4_AlertBeacon1_LightCone.rotateX( 360 );
+	}
+	else
+	{
+		$doorAirlock4_AlertBeacon1_LightCone.rotateZ( 360 );
+	}
+
+	if( $doorAirlock4_AlertBeacon2_LightCone.getStringVar( "uservar1" ) == "x" )
+	{
+		$doorAirlock4_AlertBeacon2_LightCone.rotateX( 360 );
+	}
+	else
+	{
+		$doorAirlock4_AlertBeacon2_LightCone.rotateZ( 360 );
+	}
+
+	//--- open airlock door
+	thread globalAccelMove_RelativeY( $doorAirlock4_A, 1024, 5, "rampupdown", "" );
+	globalAccelMove_RelativeY( $doorAirlock4_B, 1024, 5, "rampupdown", "" );
+	wait( 4 );
+	
+	//--- close airlock door
+	thread globalAccelMove_RelativeY( $doorAirlock4_A, -1024, 5, "rampupdown", "" );
+	globalAccelMove_RelativeY( $doorAirlock4_B, -1024, 5, "rampupdown", "" );
+	
+	//--- stop the rotation
+	$doorAirlock4_AlertBeacon1_LightCone.rotateX( 0 );
+	$doorAirlock4_AlertBeacon1_LightCone.rotateZ( 0 );
+	$doorAirlock4_AlertBeacon2_LightCone.rotateX( 0 );
+	$doorAirlock4_AlertBeacon2_LightCone.rotateZ( 0 );
+	
+	//--- hide the lightcones
+	$doorAirlock4_AlertBeacon1_LightCone.hide();
+	$doorAirlock4_AlertBeacon2_LightCone.hide();
+	
+	//--- retract the warning beacons
+	thread globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon1_Base, -24, 1, "rampup", "" );
+	globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon2_Base, -24, 1, "rampup", "" );
+
+	//--- turn off the red lights and turn on the normal lights
+	$doorAirlock4_RimLights_On.hide();
+	$doorAirlock4_RimLights_Off.show();
+	
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightNormal", "z", 0 );
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed", "a", 0 );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//--- STAGE CHANGE CINEMATICS
+
+void testStart()
+{
+	globalCommon_AiDummy( $boss_rig, "" );
+	
+	//--- initally retract the dock
+	thread arenaBossDock_CinematicRetract();
+	wait( .5 );
+
+	//--- activate the boss
+	$boss_rig.ai_on();
+	
+	//hzm coop mod chrissstrahl - select a player to be attacked
+	$boss_rig.attack(globalCoop_return_playerClosestPreferActive($boss_rig));
+	
+	//--- start his master think loop
+	thread bossThink_StateEvalLoop();
+	thread bossThink_AttackEvalLoop();
+}
+
+void testSetup()
+{
+	globalCommon_AiDummy( $munro, "idle" );
+	globalCommon_AiDummy( $boss_rig, "idle" );
+	
+	$munro.turnTowardsEntity( $boss_rig );
+	$boss_rig.turnTowardsEntity( $munro );
+	
+	$munro.headWatch( $boss_rig_watch );
+}
+
+void testSetup2()
+{
+	cam.load( "m9l2_Stage3To4_Shot1a" );
+	globalCommon_AiDummy( $boss_rig, "" );
+	globalCommon_AiDummy( $boss_merc, "" );
+	$boss_merc.origin( $nodeLurok_StageCinematic.getOrigin() );
+	wait( .1 );
+	
+	//--- set the lurok's angles
+	$boss_merc.angles( $nodeLurok_StageCinematic.getAngles() );	
+	
+	//--- setup the rig
+	$boss_rig.turnTowardsEntity( $boss_rig_mover );
+	wait( .5 );
+	
+	$boss_rig.anim( "stage4_idle" );
+}
+
+void testLurokAnim()
+{
+	globalCommon_AiDummy( $boss_merc, "" );
+	$boss_merc.anim( "boss_getup" );
+	waitForAnimation( $boss_merc, "boss_getup" );
+	
+	$boss_merc.anim( "idle" );
+
+}
+
+void test1()
+{
+	globalCommon_AiDummy( $boss_rig, "idle" );
+	globalCommon_AiDummyHide( $cinematicMerc );
+
+	$bossDock_RightScanner.hide();
+	$bossDock_RightScanner_SubBase3.hide();
+	$bossDock_RightScanner_SubBase2.hide();
+	$bossDock_RightScanner_SubBase1.hide();
+	$bossDock_RightScanner_Base2.hide();
+	$bossDock_RightScanner_Base1.hide();
+
+	$bossDock_LeftScanner.hide();
+	$bossDock_LeftScanner_SubBase3.hide();
+	$bossDock_LeftScanner_SubBase2.hide();
+	$bossDock_LeftScanner_SubBase1.hide();
+	$bossDock_LeftScanner_Base2.hide();
+	$bossDock_LeftScanner_Base1.hide();
+	
+	$bossDock_ArmLock_Top.hide();
+	$bossDock_ArmLock_Bottom.hide();
+	
+	$bossDock_Walkway.hide();
+	$bossDock_Arm.hide();
+	$bossDock_Base.hide();
+		
+	bossAI_EnterPhase2();
+
+	thread cinematicStageChange_Start();
+}
+
+void test2()
+{
+	globalCommon_AiDummy( $boss_rig, "idle" );
+	globalCommon_AiDummyHide( $cinematicMerc );
+
+	$bossDock_RightScanner.hide();
+	$bossDock_RightScanner_SubBase3.hide();
+	$bossDock_RightScanner_SubBase2.hide();
+	$bossDock_RightScanner_SubBase1.hide();
+	$bossDock_RightScanner_Base2.hide();
+	$bossDock_RightScanner_Base1.hide();
+
+	$bossDock_LeftScanner.hide();
+	$bossDock_LeftScanner_SubBase3.hide();
+	$bossDock_LeftScanner_SubBase2.hide();
+	$bossDock_LeftScanner_SubBase1.hide();
+	$bossDock_LeftScanner_Base2.hide();
+	$bossDock_LeftScanner_Base1.hide();
+	
+	$bossDock_ArmLock_Top.hide();
+	$bossDock_ArmLock_Bottom.hide();
+	
+	$bossDock_Walkway.hide();
+	$bossDock_Arm.hide();
+	$bossDock_Base.hide();
+			
+	bossAI_EnterPhase3();
+
+	thread cinematicStageChange_Start();
+}
+
+void test3()
+{
+	globalCommon_AiDummy( $boss_rig, "idle" );
+	globalCommon_AiDummyHide( $cinematicMerc );
+
+	$bossDock_RightScanner.hide();
+	$bossDock_RightScanner_SubBase3.hide();
+	$bossDock_RightScanner_SubBase2.hide();
+	$bossDock_RightScanner_SubBase1.hide();
+	$bossDock_RightScanner_Base2.hide();
+	$bossDock_RightScanner_Base1.hide();
+
+	$bossDock_LeftScanner.hide();
+	$bossDock_LeftScanner_SubBase3.hide();
+	$bossDock_LeftScanner_SubBase2.hide();
+	$bossDock_LeftScanner_SubBase1.hide();
+	$bossDock_LeftScanner_Base2.hide();
+	$bossDock_LeftScanner_Base1.hide();
+	
+	$bossDock_ArmLock_Top.hide();
+	$bossDock_ArmLock_Bottom.hide();
+	
+	$bossDock_Walkway.hide();
+	$bossDock_Arm.hide();
+	$bossDock_Base.hide();
+			
+	bossAI_EnterPhase4();
+
+	thread cinematicStageChange_Start();
+}
+
+//---------------------
+//	cinematicStageChange_Start
+//	called when the boss enters a stage change
+//	sets up the common stuff for the stage change cinematics then calls the right cinematic
+//---------------------
+void cinematicStageChange_Start()
+{
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	letterbox( .1 );
+
+	//--- change the music
+	//music( "suspense", "mystery" );
+
+	//--- reset munro's and lurok's stage cinematic node
+	$nodeMunro_StageCinematic.origin( vecCinematicMunroNodeOrigin );
+	$nodeLurok_StageCinematic.origin( vecCinematicLurokNodeOrigin );
+	wait( .05 );
+
+	//--- get the angular distance from where the boss is now, to the base reference for stage cinematics
+	fltCinematicStageChange_AngularDistanceFromBase = globalMath_GetXYAngleForPointAboutCenter( $boss_rig.getOrigin(), $boss_rig_mover.getOrigin() );
+
+	//--- transform and position munro's and lurok's on the ground point
+	globalCineFX_CameraPathRotate( $nodeMunro_StageCinematic, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $nodeLurok_StageCinematic, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	wait( .1 );
+	
+	//--- place munro at his node and show him
+	globalCommon_AiDummy( $munro, "idle" );
+	globalCommon_AiDummyHide( $boss_merc );
+	$munro.origin( $nodeMunro_StageCinematic.getOrigin() );
+	$boss_merc.origin( $nodeLurok_StageCinematic.getOrigin() );
+	wait( .1 );
+	
+	//--- set the lurok's angles
+	$boss_merc.angles( $nodeLurok_StageCinematic.getAngles() );
+	
+	if ( intBoss_CurrentPhase != 4 )
+	{
+    	//--- hide the real rig and place the cinematic rig
+    	globalCommon_AiDummyHide( $boss_rig );
+    	globalCommon_AiDummy( $boss_rig_cinematic, "idle" );
+    	$boss_rig_cinematic.origin( $boss_rig.getOrigin() );
+    	wait( .1 );
+    	
+    	//--- make the boss and munro look at each other
+    	$boss_rig_cinematic.turnTowardsEntity( $munro );
+    	$munro.turnTowardsEntity( $boss_rig_cinematic );
+    	$munro.headwatch( $boss_rig_watch );
+    	wait( .5 );
+
+    	//--- set the boss rig to it's idle animation
+    	$boss_rig_cinematic.anim( "idle" );
+    }
+	
+	//--- call the dialog sequence based on the stage transition
+	if( intBoss_CurrentPhase == 2 )
+	{
+		thread cinematicStageChange_1To2();
+	}
+	else if( intBoss_CurrentPhase == 3 )
+	{
+		thread cinematicStageChange_2To3();
+	}
+	else if( intBoss_CurrentPhase == 4 )
+	{
+		thread cinematicStageChange_3To4();
+	}
+}
+
+
+//---------------------
+//	cinematicStageChange_1To2
+//	1 to 2 stage change cinematic
+//---------------------
+void cinematicStageChange_1To2()
+{
+	//--- load the camera paths
+	cam.load( "m9l2_Stage1To2_Shot1" );
+	cam.load( "m9l2_Stage1To2_Shot2" );
+	cam.load( "m9l2_Stage1To2_Shot3" );
+	cam.load( "m9l2_Stage1To2_Shot4" );
+	cam.load( "m9l2_Stage1To2_Shot5" );
+	cam.load( "m9l2_Stage1To2_Shot6" );
+	wait( .1 );
+	
+	//--- orient the paths and position them relative to the bosses location
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot1, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot2, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot3, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot4, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot5, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage1To2_Shot6, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+
+	//--------------------------------------------------------
+	//shot 1 - dolly right around boss as he beats on the rig
+	
+	//--- next paths
+	$cam1.fov( 80 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage1To2_Shot1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	cam_fadein( .5, 1, 1, 1, 1, 0 );
+	wait( .5 );
+
+	//--- zoom the camera in
+	thread globalCineFX_CameraFOVLerp( $cam1, 80, 50, 3, "rampupdown" );
+	
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_wrong.mp3", 1, 20000, 0 ); //Hu’tegh! What’s wrong with this piece of baktag?
+    waitForDialog( $boss_rig_cinematic );
+
+	//--------------------------------------------------------
+	//shot 2 - dolly right from behind the boss to show munro
+	
+	//--- next paths
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage1To2_Shot2 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( 2 );
+
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_aarg.mp3", 1, 20000, 0 ); //Aaargh!
+    waitForDialog( $boss_rig_cinematic );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 3 - slow push in on munro
+	
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage1To2_Shot3 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+    $munro.playdialog( "localization/sound/dialog/m9l2/munro_ferengi.mp3", 1, 20000, 0 ); //Why are you protecting that honorless Ferengi k'pekt?
+    waitForDialog( $munro );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 4 - slight push on merc
+	
+	//--- next paths
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage1To2_Shot4 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_mybus.mp3", 1, 20000, 0 ); //That’s my business.
+    waitForDialog( $boss_rig_cinematic );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 5 - slow dolly left behind munro, up at boss
+	
+	//--- next paths
+	$cam1.fov( 30 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage1To2_Shot5 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+    $munro.playdialog( "localization/sound/dialog/m9l2/munro_business.mp3", 1, 20000, 0 ); //Business is right! Klingon’s aren’t supposed to fight for latinum!
+    waitForDialog( $munro );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 6 - fast pullout on boss as he screams
+	
+	//--- next paths
+	$cam2.fov( 10 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage1To2_Shot6 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	//--- zoom the camera out
+	thread globalCineFX_CameraFOVLerp( $cam2, 10, 180, 1.5, "rampup" );
+	
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_die.mp3", 1, 20000, 0 ); //Die!
+	wait( 1 );
+	
+	thread cinematicStageChange_Skipthread();
+}
+
+
+//---------------------
+//	cinematicStageChange_2To3
+//	2 to 3 stage change cinematic
+//---------------------
+void cinematicStageChange_2To3()
+{
+	//--- load the camera paths
+	cam.load( "m9l2_Stage2To3_Shot1" );
+	cam.load( "m9l2_Stage2To3_Shot2" );
+	cam.load( "m9l2_Stage2To3_Shot3" );
+	cam.load( "m9l2_Stage2To3_Shot4" );
+	cam.load( "m9l2_Stage2To3_Shot5" );
+	wait( .1 );
+	
+	//--- orient the paths and position them relative to the bosses location
+	globalCineFX_CameraPathRotate( $m9l2_Stage2To3_Shot1, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage2To3_Shot2, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage2To3_Shot3, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage2To3_Shot4, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+	globalCineFX_CameraPathRotate( $m9l2_Stage2To3_Shot5, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+
+	//--------------------------------------------------------
+	//shot 1 - whip around on the rig
+	
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage2To3_Shot1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	cam_fadein( .5, 1, 1, 1, 1, 0 );
+	wait( .5 );
+
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_workprop.mp3", 1, 20000, 0 ); //Guy’cha! Work properly!
+    waitForDialog( $boss_rig_cinematic );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 2 - dolly in on munro
+	
+	//--- next paths
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage2To3_Shot2 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+    $munro.playdialog( "localization/sound/dialog/m9l2/munro_latinum.mp3", 1, 20000, 0 ); //Klingons don't fight for latinum!
+    waitForDialog( $munro );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 3 - dolly up onto boss
+	
+	//--- next paths
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage2To3_Shot3 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_latinum.mp3", 1, 20000, 0 ); //You dare insult my honor?
+    waitForDialog( $boss_rig_cinematic );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 4 - over the shoulder at munro
+	
+	//--- next paths
+	$cam2.fov( 40 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage2To3_Shot4 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+    $munro.playdialog( "localization/sound/dialog/m9l2/munro_lie.mp3", 1, 20000, 0 ); //What honor? You’re a lying k’pekt.
+    wait( .75 );
+ 
+ 	//--------------------------------------------------------
+	//shot 5 - push in on munro
+	
+	//--- next paths
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage2To3_Shot2 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	 
+	//--- wait for munro to finish speaking
+    waitForDialog( $munro );
+    wait( .2 );
+
+	//--------------------------------------------------------
+	//shot 6 - zoom in on the merc
+	
+	//--- next paths
+	$cam2.fov( 90 );
+	$cam2.cut();
+	$cam2.follow( $m9l2_Stage2To3_Shot5 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+    $boss_rig_cinematic.playdialog( "localization/sound/dialog/m9l2/klingcomm_arr.mp3", 1, 20000, 0 ); //Arrr!
+	
+	//--- zoom the camera
+	thread globalCineFX_CameraFOVLerp( $cam2, 90, 10, .8, "rampup" );
+	wait( .5 );
+	
+	thread cinematicStageChange_Skipthread();
+}
+
+
+//---------------------
+//	cinematicStageChange_3To4
+//	3 to 4 stage change cinematic
+//---------------------
+void cinematicStageChange_3To4()
+{
+	//--- load the camera paths
+	cam.load( "m9l2_Stage3To4_Shot1a" );
+	wait( .1 );
+	
+	//--- orient the paths and position them relative to the bosses location
+	globalCineFX_CameraPathRotate( $m9l2_Stage3To4_Shot1a, fltCinematicStageChange_AngularDistanceFromBase, $boss_rig_mover.getOrigin(), $boss_rig_mover.getOrigin() );
+
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+
+	//--------------------------------------------------------
+	//shot 1 - whip around on the rig
+	
+	//--- next paths
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $m9l2_Stage3To4_Shot1a );
+	wait( .2 );
+
+	thread cinematicStageChange_LurokGetup();
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	cam_fadein( .5, 1, 1, 1, 1, 0 );
+	wait( 5.75 );
+
+	//--- end the cinematic	
+	thread cinematicStageChange_Skipthread();
+}
+
+//---------------------
+//	cinematicStageChange_LurokGetup
+//	lurok getting up
+//---------------------
+void cinematicStageChange_LurokGetup()
+{
+	//--- show and setup the boss
+	$boss_merc.show();
+	$boss_merc.anim( "boss_getup" );
+	waitForAnimation( $boss_merc, "boss_getup" );
+	
+	$boss_merc.anim( "boss_getup_idle" );
+	//$boss_merc.setFrame( 80, "boss_getup" );
+}
+
+//---------------------
+//	cinematicStageChange_Skipthread
+//	skipthread for stagechange cinematics
+//---------------------
+void cinematicStageChange_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicStageChange_1To2" );
+	killthread( "cinematicStageChange_2To3" );
+	killthread( "cinematicStageChange_3To4" );
+	
+	//--- fade to black
+	cam_fadeout( .5, 1, 1, 1, 1);
+	wait( .6 );
+
+	//--- stop all dialog
+	$boss_rig_cinematic.stopdialog();
+	$munro.stopdialog();
+	
+	//--- hide munro
+	globalCommon_AiDummyHide( $munro );
+	$munro.resetHead();
+	
+	//--- return the cinematic boss rig
+	globalCommon_AiDummyHide( $boss_rig_cinematic );
+	$boss_rig_cinematic.origin( $nodeRig_CinematicAway.getOrigin() );
+	
+	//--- show the real rig
+	globalCommon_AiDummyShow( $boss_rig );
+	
+	//--- position and set the player
+	//$player.origin( $munro.getOrigin() );
+	//wait( .05 );
+	
+	//$player.turnTowardsEntity( $boss_rig );
+	
+	$boss_merc.notSolid();
+	
+	//--- end the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .5 );
+
+
+	if ( intBoss_CurrentPhase == 2 )
+	{
+		//SK -- Open 2 airlocks
+		string strDialog;
+		strDialog = "localization/sound/dialog/m9l2/klingcomm_breathe.mp3";	//Can you breathe in a vacuum, taHqeq!?		
+		bossAction_TauntSay( strDialog );
+				
+		thread arenaAirlock_OpenAirlock( 1 );
+		thread arenaAirlock_OpenAirlock( 3 );
+	}
+
+	if ( intBoss_CurrentPhase == 3 )	
+	{
+		//SK -- Open 2 airlocks
+		string strDialog;		
+		strDialog = "localization/sound/dialog/m9l2/klingcomm_cold.mp3";	//Space is cold, Starfleet qoH!
+		bossAction_TauntSay( strDialog );
+				
+		thread arenaAirlock_OpenAirlock( 2 );
+		thread arenaAirlock_OpenAirlock( 4 );
+	}
+
+	if( intBoss_CurrentPhase == 4 )
+	{
+		//--- but the rig in it's busted state
+		$boss_rig.anim( "stage4_idle" );
+	
+    	//--- wake up the merc boss on the ground
+    	//$boss_merc.solid();
+    	//$boss_merc.show();
+    	//$boss_merc.ai_on();
+    	
+		//hzm coop mod chrissstrahl - select a player to be attacked
+		$boss_merc.attack(globalCoop_return_playerClosestPreferActive($boss_merc));
+    	$boss_merc.turnTowardsEntity( globalCoop_return_playerClosestPreferActive($boss_merc) );
+    	
+    	thread cinematicStageChange_LurokActivate();
+    			
+    	$boss_rig.missionobjective( 0 );
+    	$boss_merc.missionobjective( 1 );
+    	wait( .5 );
+    }
+	
+	//--- fade in
+	cam_fadein( .5, 1, 1, 1, 1, 0 );
+	wait( .3 );
+	
+	//--- release the cinematic
+	boolPhaseCinematic_Active = FALSE;
+
+	//--- set the phase 2 music
+	music( "aux2" );
+}
+
+//---------------------
+//	cinematicStageChange_LurokActivate
+//	waits for the player to move far enough away from lurok and will then activate him
+//---------------------
+void cinematicStageChange_LurokActivate()
+{
+	float fltDistance = 0;
+	wait( 1 );
+	
+	//--- activate the boss
+	$boss_merc.ai_on();
+	
+	//hzm coop mod chrissstrahl - make sure no player gets stuck inside lurok
+	thread globalCoop_player_makeSolidASAP($boss_merc);	
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//--- END CINEMATIC
+
+//---------------------
+// cinematicArm_End_Start
+// entering End cinematic
+//---------------------
+void cinematicArm_End_Start()
+{
+	//--- check if the player's alive
+
+	
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- setup the cinematic
+	globalCommon_AiDummyHide( $boss_merc );
+	globalCommon_AiDummyHide( $munro );
+	globalCommon_AiDummyHide( $boss_rig );
+
+	//--- show the tetryon gun
+	$cinematicWeaponTetryon.show();
+		
+	//--- start the armature
+	cinematicArm_End.beginCinematic( "m9l2_munro" );
+	wait( .2 );
+	
+	//--- set the music
+	music ("aux4");
+	
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_End_ArmEnd" );
+	wait( 3 );
+	
+	//--- hide the tetryon gun
+	$cinematicWeaponTetryon.hide();
+	wait( 6 );
+	
+	$doorAirlockPortal.hide();
+	$doorAirlockPortal.notSolid();
+	$doorAirlockPortal.openPortal();
+	thread globalAccelMoveZ( $doorAirlockTop, 160, 1.5, "rampupdown", "" );
+	thread globalAccelMoveZ( $doorAirlockBottom, -40, 1.5, "rampupdown", "" );
+	
+}
+
+//---------------------
+// cinematicArm_End_ArmEnd
+// entering End cinematic skipthread
+//---------------------
+void cinematicArm_End_ArmEnd()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//--level transition
+	
+	//--fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .5 );
+
+	//--- tell the game to not translate the player's orientation
+	dontSaveOrientation();
+
+	//--- release the cinematic
+	noncinematic();
+	clearLetterbox( .1 );
+	
+	thread coop_endLevel();
+	
+	/*
+	//--send player to IGM 7  
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "ent-deck1_bridge" );
+	setfloatvar ( "game.globalMissionEnterprise", 7 );
+	wait ( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void coop_spacePlayer(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("deadlyForcefieldIgnoreMe",1.0);
+		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1.0);
+		ePlayer.setFloatVar("coop_respawnAtReset",1.0);
+		thread globalCoop_armory_putAwayWeapon(ePlayer);
+		ePlayer.scale(.07);//was 0.1
+		ePlayer.gravity(0.4);
+		ePlayer.notsolid();
+		ePlayer.warp('4575 738 -122');
+		ePlayer.playerviewangles('180 0 0');
+		ePlayer.setVelocity('0 0 -10');
+		globalCoop_level_triggerEntity($poopyIce);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.stopfire( "dual" );
+			ePlayer.killAttach();
+			ePlayer.addHud("coop_iceing");
+		}
+		vector vvv = '4575 738 0';
+		float fCountDwn = 3;
+		while(fCountDwn > 0)
+		{
+			fCountDwn--;
+			wait(0.5);
+			if(!doesEntityExist(ePlayer)){
+				return;
+			}
+			ePlayer.playerviewangles('180 0 0');
+			//vvv_z = vectorGetZ(ePlayer.getOrigin());
+			//vvv_z += 1;
+			//ePlayer.warp( vvv );
+			//ePlayer.setVelocity('0 0 -55');
+		}
+		if(doesEntityExist(ePlayer)){
+			ePlayer.removeHud("coop_iceing");
+			ePlayer.immortal(0);
+			ePlayer.health(0);
+			ePlayer.kill();
+			wait(1);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.scale(1);
+				ePlayer.gravity(1);
+				ePlayer.setFloatVar("deadlyForcefieldIgnoreMe",0.0);
+			}
+		}
+	}
+}
+
+//---------------------
+// cinematicDeathAirlock
+// player falls into an airlock and dies
+//---------------------
+void cinematicDeathAirlock()
+{
+//space the play that had the odessity to question the coop mod its scripting mastery
+	if(cvar_bool_multiplayer)
+	{
+		entity e,ePlayer;
+		e = getCurrentEntity();
+		if(doesEntityExist(e)){
+		
+			//space the player
+			ePlayer = e.getLastActivatingEntity();
+			thread coop_spacePlayer(ePlayer);
+			
+			if( e.getFloatVar("coopIsTrigger") != 1.0 ){
+				vector vMins, vMaxs, vOrigin;
+				vOrigin = e.getOrigin();
+				vMins = e.getMins();
+				vMaxs = e.getMaxs();
+				
+				entity eNew;
+				eNew = spawn("trigger_multiple","origin",""+vOrigin,"wait","0.1","targetname","bitch");
+				wait(0.05);//wait for the trigger to spawn and be ready
+				eNew.setFloatVar("coopIsTrigger",1.0);
+				eNew.thread("cinematicDeathAirlock");
+				eNew.setSize(vMins,vMaxs);
+			}
+		}
+	}
+	
+	//hzm coop mod mod chrissstrahl - dissable in coop
+	return;
+	
+    //--- set the death state to kill the rig's think threads
+    //bossSet_State( BOSS_STATE_DEATH ); //hzm coop mod chrissstrahl - leave active in coop
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+	
+	cam.load( "m9l2_DeathAirlock_Shot1" );
+	cam.load( "m9l2_DeathAirlock_Shot2" );
+	wait( .1 );
+
+	//--------------------------------------------------------
+	//shot1 inside airlock opening
+	
+	//--- set the camera on the first path
+	$cam1.follow( $m9l2_DeathAirlock_Shot2 );
+	$cam1.cut();
+	$cam1.fov( 80 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+
+    //--- fade in
+    cam_fadein( 1, 0, 0, 0, 1, 0 );
+    
+    //--- open airlock doors
+    thread globalAccelMove_RelativeY( $doorCinematic_AirlockSouth, 1024, 5, "rampup", "sound/ships/klingon/kling_dockmove.wav" );
+    thread globalAccelMove_RelativeY( $doorCinematic_AirlockWest, 1024, 5, "rampup", "" );
+    wait( 2.5 );
+
+	//--------------------------------------------------------
+	//shot2 murno.......in.......spaaaaaaaace.....
+	
+	//--- set the camera on the first path
+	$cam2.follow( $m9l2_DeathAirlock_Shot1 );
+	$cam2.cut();
+	$cam2.fov( 75 );
+	wait( .3 );
+	
+	cuecamera( $cam2 );
+	wait( 2 );
+	    
+    //--- munro gets launched into space
+    thread cinematicDeathAirlock_LaunchMunro();
+    wait( 1 );
+	
+	$deathMunro.anim( "m6-death" );
+	wait( 2 );
+	
+	thread cinematicDeathAirlock_Skipthread();
+}
+
+
+//---------------------
+// cinematicDeathAirlock_Skipthread
+// skipthread
+//---------------------
+void cinematicDeathAirlock_Skipthread()
+{
+	//hzm coop mod mod chrissstrahl - dissable in coop
+	return;
+	
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicDeathAirlock" );
+
+	//--- fade to black
+	cam_fadeout( .2, 0, 0, 0, 1, 0 );
+	wait( .2 );
+
+	//--- fail the mission
+	$player.missionfailed();
+}
+
+//---------------------
+// munro gets launched into space
+void cinematicDeathAirlock_LaunchMunro()
+{
+	//--- spawn an ice effect for the airlock
+	spawn( "func_spawn", "targetname", "poopyIce" );
+	wait( .1 );
+	
+	$poopyIce.origin( $deathMunro.getOrigin() );
+	$poopyIce.modelName( "fx/fx-explosion-ice-gas-large.tik" );
+	$poopyIce.angles( '90 0 0' );
+	$poopyIce.scale( .08 );
+	wait( .1 );
+	
+	triggerEntity( $poopyIce );
+	
+	//--- animate the death munro
+	$deathMunro.anim( "m6_death" );
+	
+	//--- move the death munro
+    $deathMunro.time( 10 );
+    $deathMunro.moveDown( 512 );
+    $deathMunro.moveSouth( 128 );
+    $deathMunro.moveWest( 64 );
+    waitFor( $deathMunro );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+// TEST FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void tempYouLose()
+{
+	return;
+	//--- fade out and set the level up
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	$player.missionfailed();
+}
+
+//bossThink_StateEvalLoop
+
+void testBroken()
+{
+	bossSet_StateBroken( BROKEN_STATE_START );
+	bossSet_State( BOSS_STATE_BROKEN );
+}
+
+void testScan()
+{
+	intScanBeamTime = SCAN_BEAM_TIME_PHASE2;
+	bossSet_StateScan( SCAN_STATE_START );
+	bossSet_State( BOSS_STATE_SCAN );
+}
+
+void testBoost()
+{
+	bossSet_StateBoost( BOOST_STATE_START  );
+	bossSet_State( BOSS_STATE_BOOST );
+}
+
+void testAirlock()
+{
+	bossSet_State( BOSS_STATE_AIRLOCK );
+}
+
+void testRigDeath()
+{
+	$boss_rig.ai_off();
+	bossSet_State( BOSS_STATE_DEATH );
+	wait( 1 );
+	
+	$boss_merc.suicide();
+}
+
+void testAirlockWarning()
+{
+	$doorAirlock4_RimLights_On.show();
+	//$doorAirlock4_RimLights_On.rendereffects( "+betterlighting" );
+	$doorAirlock4_RimLights_Off.hide();
+	//$doorAirlock4_RimLights_Off.rendereffects( "+betterlighting" );
+	
+	//turn off the normal lights and turn on the red lights
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightNormal" , "a" , 0 );
+	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed" , "zzzzzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaaaaa" , 0 );
+	
+	globalAccelMove_RelativeY( $doorAirlock4_AlertBeacon1_Base, 24, 1, "rampup", "" );
+	wait( .25 );
+		
+	$doorAirlock4_AlertBeacon1_LightCone.rotateZ( 360 );
+	$doorAirlock4_AlertBeacon1_LightCone.show();
+/*
+	$doorAirlock4_AlertBeacon1_Light1.lightRed( 1 );
+	$doorAirlock4_AlertBeacon1_Light1.lightGreen( 0 );
+	$doorAirlock4_AlertBeacon1_Light1.lightBlue( 0 );
+	$doorAirlock4_AlertBeacon1_Light1.lightRadius( 128 );
+	$doorAirlock4_AlertBeacon1_Light1.lightOn();
+	
+	$doorAirlock4_AlertBeacon1_Light2.lightRed( 1 );
+	$doorAirlock4_AlertBeacon1_Light2.lightGreen( 0 );
+	$doorAirlock4_AlertBeacon1_Light2.lightBlue( 0 );
+	$doorAirlock4_AlertBeacon1_Light2.lightRadius( 128 );
+	$doorAirlock4_AlertBeacon1_Light2.lightOn();
+	
+	
+	$doorAirlock4_RimLights_Light1.lightRed( 1 );
+	$doorAirlock4_RimLights_Light1.lightGreen( 0 );
+	$doorAirlock4_RimLights_Light1.lightBlue( 0 );
+	$doorAirlock4_RimLights_Light1.lightRadius( 128 );
+	$doorAirlock4_RimLights_Light1.lightOn();
+
+	$doorAirlock4_RimLights_Light2.lightRed( 1 );
+	$doorAirlock4_RimLights_Light2.lightGreen( 0 );
+	$doorAirlock4_RimLights_Light2.lightBlue( 0 );
+	$doorAirlock4_RimLights_Light2.lightRadius( 128 );
+	$doorAirlock4_RimLights_Light2.lightOn();
+	
+	$doorAirlock4_RimLights_Light3.lightRed( 1 );
+	$doorAirlock4_RimLights_Light3.lightGreen( 0 );
+	$doorAirlock4_RimLights_Light3.lightBlue( 0 );
+	$doorAirlock4_RimLights_Light3.lightRadius( 128 );
+	$doorAirlock4_RimLights_Light3.lightOn();
+	
+	$doorAirlock4_RimLights_Light4.lightRed( 1 );
+	$doorAirlock4_RimLights_Light4.lightGreen( 0 );
+	$doorAirlock4_RimLights_Light4.lightBlue( 0 );
+	$doorAirlock4_RimLights_Light4.lightRadius( 128 );
+	$doorAirlock4_RimLights_Light4.lightOn();
+	
+	$doorAirlock4_RimLights_Light5.lightRed( 1 );
+	$doorAirlock4_RimLights_Light5.lightGreen( 0 );
+	$doorAirlock4_RimLights_Light5.lightBlue( 0 );
+	$doorAirlock4_RimLights_Light5.lightRadius( 128 );
+	$doorAirlock4_RimLights_Light5.lightOn();
+
+
+	while( 1 )
+	{
+		print( "airlock4 rimlights on\n" );
+    	//$doorAirlock4_RimLights_Light1.lightOn();
+    	//$doorAirlock4_RimLights_Light2.lightOn();
+    	//$doorAirlock4_RimLights_Light3.lightOn();
+    	//$doorAirlock4_RimLights_Light4.lightOn();
+    	//$doorAirlock4_RimLights_Light5.lightOn();
+    	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed" , "z" , 0 );
+    	wait( 1 );
+    	
+    	print( "airlock4 rimlights off\n" );
+    	//$doorAirlock4_RimLights_Light1.lightOff();
+    	//$doorAirlock4_RimLights_Light2.lightOff();
+    	//$doorAirlock4_RimLights_Light3.lightOff();
+    	//$doorAirlock4_RimLights_Light4.lightOff();
+    	//$doorAirlock4_RimLights_Light5.lightOff();
+    	$world.light_lightstyle( "doorAirlock4_RimLights_LightRed" , "a" , 0 );
+    	wait( 1 );
+    }
+   */
+}
+
+void testFlameburst()
+{
+	//bossSet_State( BOSS_STATE_FLAMEBURST );
+	thread arenaFlameburst_Activate();
+}
+
+void testDeathMunro()
+{
+    $deathMunro.time( 20 );
+    $deathMunro.moveDown( 512 );
+    $deathMunro.moveSouth( 128 );
+    $deathMunro.moveWest( 64 );
+    waitFor( $deathMunro );
+}
+
+entity coop_returnMeARandomPlayer()
+//------------------------------------------------------------------------------
+//returns a random player - used for the blitz to impact upon the player
+//------------------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("hatoria_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	for(fTries=6;fTries>0;fTries--){
+		fRandom = randomint(fExistingPlayers);
+		fPlayerIdInUse = $world.getFloatVar("hatoria_activeplayer"+fRandom);
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fTries = 0;
+				eRandomPlayer = ePlayer;
+			}
+		}
+	}
+	
+	//return the world if no player could be found
+	if(!doesEntityExist(eRandomPlayer)){
+		eRandomPlayer = $world;
+	}
+	return eRandomPlayer;
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	//eof HZM
+
+	setfloatvar("game.globalMissionEnterprise",7);
+	
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("m10l1-romulan_installation");
+			return;
+		}
+	}
+	//eof hzm
+	
+	thread globalCoop_mission_completed("ent-deck1_bridge");
+}
+
+
+

@@ -1,0 +1,411 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck7a - Enterprise Deck 7a
+//  Script By:    Luke W, Kenny T
+//  Geometry By:  Adam B., Kenny T., Benson R.
+//  Created on:   07/08/2002
+//	Last Edited:  09/22/2002 - Benson R
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+void checkMissionNumber();
+void justLoadedDeckThread();
+
+void tricorderPuzzelCancled();
+void tricorderPuzzelUsed();
+void tricorderPuzzelUsedMunro();
+void tricorderPuzzelUsedJurot();
+void tricorderPuzzelSolved();
+void tricorderPuzzelSolvedJurot();
+void tricorderPuzzelSolvedMunro();
+
+void killAllTalking();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float missionEnterprise = 0;
+float currentDeck = 71;
+string currentPuzzel;
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+
+string	coop_igm_mapToLoad;
+entity	ePlayerCinematic;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/igm_dialog.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderKeypad.scr"
+
+#include "coop_mod/maps/igm_common/igm_turbolift.script"
+
+#include "coop_mod/maps/igm_common/coop_parameter.script"
+#include "coop_mod/maps/igm1/ent-deck7a-mission1.script"
+#include "coop_mod/maps/igm2/ent-deck7a-mission2.script"
+#include "coop_mod/maps/igm3/ent-deck7a-mission3.script"
+#include "coop_mod/maps/igm4/ent-deck7a-mission4.script"
+#include "coop_mod/maps/igm5/ent-deck7a-mission5.script"
+#include "coop_mod/maps/igm6/ent-deck7a-mission6.script"
+#include "coop_mod/maps/igm7/ent-deck7a-mission7.script"
+#include "coop_mod/maps/igm8/ent-deck7a-mission8.script"
+
+//===================================================================================================================
+// Main Stuff 
+//===================================================================================================================
+//---------------------
+// main	
+// do start up stuff
+//---------------------
+void main()
+{
+	globalCoop_igm_parameter_main();
+//hzm coop mod chrissstrahl, definie weapons
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	
+//hzm coop mod chrissstrahl,set story
+	coop_string_story = "$$IGMLoadingText$$";
+	
+//hzm coop mod chrissstrahl, Spawn Players on those locations, at map start
+	/*coop_float_spawnAngle0 				= 270;*/
+	coop_float_spawnAngle0 				= 223;
+	coop_float_spawnAngle1 				= 134;
+	coop_float_spawnAngle2 				= 163;
+	coop_float_spawnAngle3 				= 105;
+	coop_vector_spawnOrigin1 			= '-9900 730 0';
+	coop_vector_spawnOrigin2 			= '-9891 802 0';
+	coop_vector_spawnOrigin3 			= '-9968 745 0';
+	coop_vector_spawnOrigin4 			= '-9952 1080 0';
+	coop_vector_spawnOrigin5 			= '-9902 1030 0';
+	coop_vector_spawnOrigin6 			= '-9849 1084 0';
+	coop_vector_spawnOrigin7 			= '-9895 1128 0';
+	coop_vector_spawnOrigin8 			= '-9823 1201 0';
+
+	//--- set the sky portal
+	$sky.rendereffects( "+skyorigin" );
+	dontSaveOrientation();
+	init();
+	
+	waitforplayer();
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode( "none" );
+}
+
+//---------------------
+// init	
+// nonthread init stuff
+//---------------------
+void init()
+{
+	float x;
+	entity e;
+
+	//Turn Exit Triggers Off
+	$triggerExit.nottriggerable();
+	
+	//Lock Secret Door. Unlocked In appropreiate IGM
+	$secretDoor.lock();
+	
+	entTurboLiftSetup();
+	//ent_turboliftInit();
+	
+	checkMissionNumber();
+
+	//Archetypes
+	globalArchetype_Setup ( $elevatorButtonArchetype, "TurboLiftControls" );
+
+	for( x = 1; x <= 10; x++ )
+	{
+		globalArchetype_Setup ( getentity( "lockerDoorArchetype" + x ), "HazardLocker" );
+		
+		e = getentity( "lockerDoorPuzzel" + x );
+		
+		e.puzzleobject_canceledthread( "tricorderPuzzelCancled" );
+		e.puzzleobject_failedthread( "tricorderPuzzelCancled" );
+		e.puzzleobject_itemusedthread( "tricorderPuzzelUsed" );
+		e.puzzleobject_solvedthread( "tricorderPuzzelSolved" );
+		e.puzzleobject_itemtouse( "Tricorder" );
+	}
+	
+	globalArchetype_Setup ( $lockerDoorArchetypeMunro, "HazardLocker" );
+	$lockerDoorPuzzelMunro.puzzleobject_canceledthread( "tricorderPuzzelCancled" );
+	$lockerDoorPuzzelMunro.puzzleobject_failedthread( "tricorderPuzzelCancled" );
+	$lockerDoorPuzzelMunro.puzzleobject_itemusedthread( "tricorderPuzzelUsedMunro" );
+	$lockerDoorPuzzelMunro.puzzleobject_solvedthread( "tricorderPuzzelSolvedMunro" );
+	$lockerDoorPuzzelMunro.puzzleobject_itemtouse( "Tricorder" );
+	
+	globalArchetype_Setup ( $lockerDoorArchetypeJurot, "HazardLocker" );
+	$lockerDoorPuzzelJurot.puzzleobject_canceledthread( "tricorderPuzzelCancled" );
+	$lockerDoorPuzzelJurot.puzzleobject_failedthread( "tricorderPuzzelCancled" );
+	$lockerDoorPuzzelJurot.puzzleobject_itemusedthread( "tricorderPuzzelUsedJurot" );
+	$lockerDoorPuzzelJurot.puzzleobject_solvedthread( "tricorderPuzzelSolvedJurot" );
+	$lockerDoorPuzzelJurot.puzzleobject_itemtouse( "Tricorder" );
+	
+	//Hide this in all missions, only show in first mission
+	$jurotCodeTablet.hide();
+	$jurotCodeTablet.notsolid();
+	
+	//Make Telsia's Lock Display, only in first mission hide();
+	$lockerPanelBlank.hide();
+	
+	//--- hide the briefing screen images
+	$briefingScreen_Border.hide();
+	$briefingScreen_Blank.hide();
+	$briefingScreen_IGM8_Plate1.hide();
+	$briefingScreen_IGM8_Plate2.hide();
+	$briefingScreen_IGM8_Plate3.hide();
+	$briefingScreen_IGM8_Plate4.hide();
+}
+
+void checkMissionNumber()
+{
+	//hzm coop mod Chrissstrahl, grab mission number, useing cvars as fallback
+	missionEnterprise = getfloatvar( "game.globalMissionEnterprise" );
+	if(missionEnterprise != 0){
+		setfloatvar ( "game.globalMissionEnterprise", missionEnterprise );
+	}
+	else{
+		setfloatvar ( "game.globalMissionEnterprise", 1 );
+	}
+
+	
+	if( missionEnterprise == 1 )
+	{
+		thread setupMission1Deck7a();
+	}
+	if( missionEnterprise == 2 )
+	{
+		thread setupMission2Deck7a();
+	}
+	if( missionEnterprise == 3 )
+	{
+		thread setupMission3Deck7a();
+	}
+	if( missionEnterprise == 4 )
+	{
+		thread setupMission4Deck7a();
+	}
+	if( missionEnterprise == 5 )
+	{
+		thread setupMission5Deck7a();
+	}
+	if( missionEnterprise == 6 )
+	{
+		thread setupMission6Deck7a();
+	}
+	if( missionEnterprise == 7 )
+	{
+		thread setupMission7Deck7a();
+	}
+	if( missionEnterprise == 8 )
+	{
+		thread setupMission8Deck7a();
+	}
+	
+	string stringSoundTrack;
+	
+	stringSoundTrack = "music/igm" + missionEnterprise + ".mus";
+	//--- set the soundtrack
+ 	soundtrack( stringSoundTrack );
+}
+
+//---------------------
+// justLoadedDeckThread	
+// creats a trigger to call the approiate deckJustLoadedThreadIGMx thread
+//---------------------
+void justLoadedDeckThread()
+{
+	string deckJustLoadedThread;
+	
+	deckJustLoadedThread = ( "justLoadedDeckThreadIGM" + missionEnterprise );
+	
+	thread entTurboLiftCheck();
+
+	waitforplayer();
+	
+	
+	/*
+	if( missionEnterprise == 4 )
+	{
+	
+		if( getfloatvar( "game.IGM4GoToJurot" ) >= 1 )
+		{
+			$player.loadobjectives("IGM4alt");		
+		}
+		else
+		{
+			$player.loadobjectives("IGM4");
+		}
+	}
+	else if( missionEnterprise == 6 )
+	{
+		if( getfloatvar( "game.IGM6MeetJurot" ) >= 1 )
+		{
+			$player.loadobjectives("IGM6alt");
+		}
+		else
+		{
+			$player.loadobjectives("IGM6");
+		}
+	}
+	else $player.loadobjectives( "IGM" + missionEnterprise );
+	*/
+	
+	if( missionEnterprise == 1 ) thread justLoadedDeckThreadIGM1();
+	//if( missionEnterprise == 2 ) thread justLoadedDeckThreadIGM2();
+	if( missionEnterprise == 3 ) thread justLoadedDeckThreadIGM3();
+	//if( missionEnterprise == 4 ) thread justLoadedDeckThreadIGM4();
+	//if( missionEnterprise == 5 ) thread justLoadedDeckThreadIGM5();
+	//if( missionEnterprise == 6 ) thread justLoadedDeckThreadIGM6();
+	if( missionEnterprise == 7 ) thread justLoadedDeckThreadIGM7();
+	//if( missionEnterprise == 8 ) thread justLoadedDeckThreadIGM8();
+}
+
+void tricorderPuzzelCancled()
+{
+	entity e;
+	e = getentity( currentPuzzel );
+	e.puzzleobject_reset();
+}
+
+void tricorderPuzzelUsed()
+{
+	float a,b,c,d,x,f,g,h,i;
+	entity e;
+	e = getcurrententity();
+	
+	currentPuzzel = e.getrawtargetname();
+	
+	a = randomint( 9 ) + 1;
+	b = randomint( 9 ) + 1;
+	c = randomint( 9 ) + 1;
+	d = randomint( 9 ) + 1;
+	x = randomint( 9 ) + 1;
+	f = randomint( 9 ) + 1;
+	g = randomint( 9 ) + 1;
+	h = randomint( 9 ) + 1;
+	i = randomint( 9 ) + 1;
+	
+	globalTricorderKeypad_SetSecretCode( a,b,c,d,x,f,g,h,i );
+	globalTricorderKeypad_SetScannedCodeFlag( FALSE );
+	thread globalTricorderKeypad_Run( e, 0, 1 );	
+}
+
+void tricorderPuzzelUsedMunro()
+{
+	entity e;
+	e = getcurrententity();
+	currentPuzzel = e.getrawtargetname();
+
+	globalTricorderKeypad_SetSecretCode( 2,1,6,0,0,0,0,0,0 );
+	globalTricorderKeypad_SetScannedCodeFlag( TRUE );
+	thread globalTricorderKeypad_Run( e, 0, 1 );	
+}
+
+void tricorderPuzzelUsedJurot()
+{
+	entity e;
+	e = getcurrententity();
+	currentPuzzel = e.getrawtargetname();
+
+	globalTricorderKeypad_SetSecretCode( 7,4,6,0,0,0,0,0,0 );
+	globalTricorderKeypad_SetScannedCodeFlag( FALSE );
+	thread globalTricorderKeypad_Run( e, 0, 1 );	
+}
+
+void tricorderPuzzelSolved()
+{
+	centerprint( "$$WowSecret$$" );
+}
+
+void tricorderPuzzelSolvedJurot()
+{
+	$lockerDoor1Jurot.bind( $lockerDoor1JurotOrigin );
+	
+	//Sound open
+	$lockerDoor2Jurot.time( 2 );
+	$lockerDoor2Jurot.moveDown( 40 );
+	
+	$lockerDoor1JurotOrigin.time( 2 );
+	$lockerDoor1JurotOrigin.rotateZup( 90 );
+	//Sound stop
+	
+	waitfor( $lockerDoor2Jurot );
+	
+	if( missionEnterprise == 1 ) thread imodWait();
+}
+
+
+void tricorderPuzzelSolvedMunro()
+{
+	$lockerDoor1Munro.bind( $lockerDoor1MunroOrigin );
+	
+	//Sound open
+	$lockerDoor2Munro.time( 2 );
+	$lockerDoor2Munro.moveDown( 40 );
+	
+	$lockerDoor1MunroOrigin.time( 2 );
+	$lockerDoor1MunroOrigin.rotateZup( 90 );
+	//Sound stop
+	
+	waitfor( $lockerDoor2Munro );
+}
+
+//---------------------
+// killAllTalking
+// This stops all talking on the level
+//------------------------
+void killAllTalking()
+{
+	//hzm coop mod chrissstrahl - make all dialog sounds stop for all the players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.killalldialog();
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("ent-deck7b");
+			return;
+		}
+	}
+	//eof hzm
+	
+	thread globalCoop_mission_completed(coop_igm_mapToLoad);
+}
+
+

@@ -1,0 +1,212 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2007.09.29
+// E-Mail:		chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// CONTAINING ACTOR RELATED FUNCTIONS FOR THE HZM CO-OP MOD
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2012 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+
+// setTargetType( Integer set_target_type )
+// setvalidtarget( Boolean valid_target )
+// targetable( Boolean should_target )
+// turnspeed( Float turnspeed )
+// warpto( String node_name )
+// addcustomthread( String threadType, String threadName )
+//death_pain : CHECK_VAR ( "special_death" , "true" )
+// followrange 384
+// followrangemin 256
+// followcombatrange 512
+// followcombatrangemin 384
+//MoveDirectlyToPoint
+
+
+void globalCoop_actor_aiOff(entity eActor)
+//----------------------------------------------------------------------
+// Turn off Actor AI, ensure they use the propper idle animation
+//----------------------------------------------------------------------
+{
+	if(globalCoop_check_existingLivingEntity(eActor)){
+		string sWeaponName;
+		//return; //HZM fixme restoreme - this is here only because we have bug in the dll, that returns health for entities that should not have any health!
+		sWeaponName = eActor.getActiveWeaponName();
+		if(eActor.doesVarExist("aiState")){
+			eActor.setFloatVar("aiStateWas",eActor.getFloatVar("aiState"));
+		}
+		eActor.ai_off();
+		if(sWeaponName != "None"){
+			eActor.anim(sWeaponName+"_idle");
+		}
+	}
+}
+
+void globalCoop_actor_aiReactivate(entity eActor)
+//----------------------------------------------------------------------
+// Turn Actor AI on again, if it was turned off by the co-op mod
+//----------------------------------------------------------------------
+{
+	if(globalCoop_level_getFloatVar(eActor,"aiStateWas") == 1){
+		eActor.ai_on();
+//reset AI STATE RECORD
+		globalCoop_level_setFloatVar(eActor,"aiStateWas",0);
+	}
+}
+
+void globalCoop_actor_animateWaitForAnimation(entity eActor,string sAnimation)
+//----------------------------------------------------------------------
+//animate, and wait for this animation
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		globalCoop_actor_aiOff(eActor);
+		eActor.anim(sAnimation);
+		waitForAnimation(eActor,sAnimation);
+	}
+}
+
+
+void globalCoop_actor_useWeapon(entity eActor,string sWeaponToUse)
+//----------------------------------------------------------------------
+// Makes the actor use this weapon if he/she exists, and makes sure the actor
+// Can use that weapon by giving it to him/her before...
+//----------------------------------------------------------------------
+{
+/* Wapon tikis:
+actorprojectiledata
+actorweapondata
+andorian-grenadelauncher
+andorian-photon
+attrex-pistol
+attrex-rifle
+attrex-security-pistol
+fed-datapad
+fed-fieldassaultrifle
+fed-compressionrifle
+fed-grenadelauncher
+fed-hypospray
+fed-IMod
+fed-phaser
+fed-phaser-STX
+fed-photon
+fed-tricorder
+fed-tricorder-STX
+idryll-gauntlet-elite-shield
+idryll-gauntlet-rebel-machinegun
+idryll-gauntlet-rebel-mortar
+idryll-gauntlet-rebel-shield
+idryll-gauntlet-saboteur
+idryll-m6-elite-rifle-shield
+idryll-m6-rebel-pistol-shield
+idryll-m6-rebel-rifle-noshield
+idryll-m6-rebel-rifle-shield
+klingon-batleth
+klingonboss-tetryon
+klingon-disruptor-rifle
+klingon-knife
+klingon-tetryon
+merc-pistol
+merc-shotgun
+nausicaan-knife
+rigboss-tetryon
+romulan-disruptor
+romulan-disruptor-lance
+romulan-disruptor-M2
+romulan-disruptor-rifle
+romulan-disruptor-STX
+romulan-grenadelauncher
+romulan-handgrenade
+romulan-informant-rifle
+romulan-photon
+romulan-sniper-rifle
+*/
+
+	if(globalCoop_check_existingLivingEntity(eActor)){
+		string	currentWeapon,animname;
+//AI must be off for this to work
+		globalCoop_actor_aiOff(eActor);
+		currentWeapon = eActor.getActiveWeaponName();
+		eActor.giveActorWeapon("actorweapons/"+sWeaponToUse+".tik");	
+		globalCoop_armory_putAwayWeapon(eActor);
+		currentWeapon = eActor.getActiveWeaponName();
+// make the actor uses the weapon he is suppose to use
+		if( currentWeapon != sWeaponToUse ){
+			eActor.useactorweapon("actorweapons/"+sWeaponToUse+".tik");
+//Correct name if needed
+			if(	sWeaponToUse == "fed-tricorder" || sWeaponToUse == "fed-tricorder-STX")
+				sWeaponToUse = "tricorder";
+//Combine animation name
+			animname = sWeaponToUse+"_draw";
+//let the actor animate
+			eActor.anim( animname );
+			waitforanimation( eActor, animname );
+			if(globalCoop_check_existingLivingEntity(eActor)){	
+				animname = sWeaponToUse + "_calm_idle";
+				eActor.anim( animname );
+			}
+		}
+		globalCoop_actor_aiReactivate(eActor);
+	}
+}
+
+void globalCoop_actor_walkToVector(entity eActor, vector vOrigin,string sAnimName)
+//----------------------------------------------------------------------
+// let the ai walk to a sepecified origin
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		string sNodeName,sTargetname;
+		entity eNode;
+		vector vOldPosition;
+		vOldPosition = eActor.getOrigin();
+		sTargetname = eActor.getRawTargetname();
+		coop_integer_actorWalktoVectorIndex++;
+		vOrigin_z += 2;
+		sNodeName	= "walkToNode"+sTargetname+coop_integer_actorWalktoVectorIndex;
+		eNode		= spawn("info_notnull","targetname",sNodeName,"origin",vectorToString(vOrigin));
+		globalCoop_main_waitAFrame();
+		eNode.dropToFloor();
+		globalCoop_main_waitAFrame();
+		vOrigin = eNode.getOrigin();
+		eNode.setFloatVar("deleteMe",1);
+		globalCoop_actor_walkTo(eActor,sNodeName,sAnimName);
+	}
+}
+
+
+void globalCoop_actor_walkTo(entity eActor,string sEntityRawTargetname,string sAnimName)
+//----------------------------------------------------------------------
+// let the ai walk to a entity
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		vector vOrigin;
+		vector vOldPosition;
+		vOldPosition = eActor.getOrigin();
+		if(sAnimName == ""){
+			sAnimName="walk";
+		}
+		globalCoop_actor_aiOff(eActor);
+		if(sEntityRawTargetname != ""){
+			eActor.walkTo(sEntityRawTargetname,sAnimName);
+			waitfor(eActor);
+		}else{
+			vOrigin = eActor.getVectorVar("globalCoop_walktoVector");
+			if(vOrigin != '0 0 0'){
+				globalCoop_actor_walkToVector(eActor,vOrigin,sAnimName);
+				globalCoop_level_warpEntityToVectorSafty(eActor,vOrigin);
+			}
+		}
+	}
+}
+

@@ -1,0 +1,306 @@
+//all objectives are listed here, makes the map script better to read
+void objectiveWarehouseEntering()
+//player has entred the room with the bat'leth
+{
+//handle enter sequence
+	thread warehouseEnter();
+//objectives marker
+	$warehouseBatlethLookAtMe.missionobjective(1);
+	$t214.missionobjective(0);
+
+	legacy_savegame();
+//update Objectives
+	thread globalCoop_objectives_update("inComplete",2,1);//State,Item,ShowIt
+	
+//set missionobjective marker on radar - update 02.02.2018
+	$warehouseBatlethLookAtMe.missionobjective(1);
+}
+
+void objectiveWarehouseTakenBathlet()
+//player has taken the bat'leth
+{
+//remove missionobjective marker from radar - update 02.02.2018
+	$warehouseBatlethLookAtMe.missionobjective(0);
+
+//delete the fake bath'leth
+	$warehouseBatleth.remove();
+//move the indicator some where else, and re use it (shuttle pad light console)
+	$batlethSymbol.origin('5928 -629 110');
+	$batlethSymbol.hide();
+//update Objectives - Found weapon
+	thread globalCoop_objectives_update("complete",2,1);//State,Item,ShowIt
+//WEAPONS - sort them right before globalCoop_player_giveAll registers it in a different order
+	coop_string_weapon1			= "models/weapons/worldmodel-Batleth.tik";
+	coop_string_weapon2			= "models/weapons/worldmodel-Tricorder-stx.tik";
+//give bat'leth to all players
+	globalCoop_player_giveAll("models/weapons/worldmodel-Batleth.tik",.5);//give bath'leth (SP)
+}
+
+void objectiveWarehouseExitDoor()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($warehouseExitDoor);
+//play dialog - but only if a player is close to the door - player could allready be in the tunnel
+	if(ePlayer.isWithinDistanceOf($warehouseExitDoor,196) ){
+		ePlayer.simpleplaydialog( "localization/sound/dialog/m7l1/munro_doornot.mp3", 1, 500);
+		wait(1);
+	}
+	
+//update Objectives - bypass locked door
+	thread globalCoop_objectives_update("inComplete",3,1);//State,Item,ShowIt
+	
+//set missionobjective marker on radar - update 02.02.2018
+	$warehouseExitDoorTriggerUsableSymbol.missionobjective(1);
+}
+
+
+void objectiveWarehouseLeft()
+{
+//update Objectives - Bypassed locked door
+	thread globalCoop_objectives_update("complete",3,1);//State,Item,ShowIt
+	
+//remove missionobjective marker from radar - update 02.02.2018
+	$warehouseExitDoorTriggerUsableSymbol.missionobjective(0);
+	$doorFedOutpost_symbol.missionobjective(1);
+}
+
+void objectiveFedoutpostEntering()
+//player has entred the federation outpost
+{
+//remove missionobjective marker from radar - update 02.02.2018
+	$doorFedOutpost_symbol.missionobjective(0);
+	
+//set missionobjective marker on radar - update 02.02.2018
+	$laptop.missionobjective(1);
+	$doorTopFedOutpost.missionobjective(1);
+
+	legacy_savegame();
+//update Objectives - go to fedoutpost
+	globalCoop_objectives_update("complete",1,0);//State,Item,ShowIt
+//update Objectives - replicate
+	globalCoop_objectives_update("inComplete",4,0);//State,Item,ShowIt
+//update Objectives - Activate landing Platform Lights
+	thread globalCoop_objectives_update("inComplete",5,1);//State,Item,ShowIt
+}
+
+void objectiveFedoutpostRoofEntered()
+{
+//set missionobjective marker on radar - update 02.02.2018
+	$doorTopFedOutpost.missionobjective(0);
+	$symbolTriggerLandingpadTowerFrontFedOutpost.missionobjective(1);
+}
+
+void objectiveFedoutpostReplicated()
+{
+	if(!float_approachedReplicatorSolvedPuzzle){
+		float_approachedReplicatorSolvedPuzzle = 1;
+	//Remove security clearance update puzzle
+		globalCoop_level_remove($Security_Clearance);
+		
+	//set missionobjective marker on radar - update 02.02.2018
+		$replicatorLeft_symbol.missionobjective(0);
+		$replicatorRight_symbol.missionobjective(0);
+		
+	//update Objectives - replicate
+		thread globalCoop_objectives_update("complete",4,1);//State,Item,ShowIt
+	//put weapons into inventory
+		globalCoop_player_giveAll("models/weapons/worldmodel-phaser-STX.tik",-1);//(-1)->do not use(take in hands)
+		globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",-1);//(-1)->do not use(take in hands)
+	//update weapons manually to sort by best weapon
+		coop_string_weapon1			= "models/weapons/worldmodel-compressionrifle.tik";
+		coop_string_weapon2			= "models/weapons/worldmodel-Batleth.tik";
+		coop_string_weapon3			= "models/weapons/worldmodel-phaser-STX.tik";
+		coop_string_weapon4			= "models/weapons/worldmodel-Tricorder-stx.tik";
+	}
+}
+
+void objectiveFedoutpostLandingPadRoutePannelOpen()
+{
+//set missionobjective marker on radar - update 02.02.2018
+	$landingplatformpowerPuzzle.missionobjective(1);
+	$symbolTriggerLandingpadTowerFrontFedOutpost.missionobjective(0);
+
+//the pannel is open now!
+	float_landingPlatformPowerPannel=1;
+	
+	cam_fadeOut( 0.1, 0, 0,0, 1 );
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	
+	$munro.show();
+	$munro.origin('3193.80 -289.20 784.00');
+	$munro.anim("ent-curvedconsole-gesture1");
+	$munro.angle(0);
+	$munro.scale(0.8);
+	
+	
+	$cam1.follow($cin_tower_munro);
+	wait(0.1);
+	$cam1.cut();
+	cuecamera($cam1);
+	cam_fadeIn( 1, 0, 0,0, 0 );
+	$doorTowerFrontFedOutpost.open($world);
+	wait(4);
+	$munro.anim("ent-curvedconsole-gesture1");
+	wait(1);
+	$munro.playdialog( "localization/sound/dialog/m11l2/munro_toent2.mp3", 1, 50000,0);
+	
+	$cam2.follow($cin_tower_toLandingpad);
+	wait(0.1);
+	$cam2.cut();
+	cuecamera($cam2);
+	
+	/*
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			//play dialog - munro to enterprise
+			ePlayer.simpleplaydialog( "localization/sound/dialog/m11l2/munro_toent2.mp3", 1, 500);
+			wait(2);
+		}
+	}
+	*/
+
+//update objectives
+	//thread objectiveFedoutpostLandingPadRoutePannel();
+	
+	//see func "objectiveFedoutpostLandingPadRoutePannel" for cin end
+}
+
+
+void objectiveFedoutpostLandingPadRoutePannel()
+{
+//player has found the route pannel, now set objective to open it from tower
+	if(!float_landingPlatformPowerPannel){//open pannel
+		thread globalCoop_objectives_update("inComplete",6,1);//State,Item,ShowIt
+	}else{//player has opened the pannel from inside the tower allready
+		globalCoop_objectives_update("inComplete",6,0);//State,Item,ShowIt
+		thread globalCoop_objectives_update("complete",6,1);//State,Item,ShowIt
+	}
+	
+//remove trigger now - Player shall not trigger the objectives twiche
+	globalCoop_level_remove($triggerObjectiveFedoutpostLandingPadRoutePannel);
+	
+	noncinematic();
+	releaseplayer();
+	clearLetterbox(0.1);
+	$munro.hide();
+	$munro.notsolid();
+	$munro.scale(1);
+	
+//wait a moment for the power pannels to open
+	wait(5);
+//ACTIVATE PUZZLE NOW
+	$landingplatformpowerPuzzle.puzzleobject_activate();
+}
+
+
+void objectiveFedoutpostLandingPadActivate()
+{
+	cam_fadeOut( 0.1, 0, 0,0, 1 );
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	
+	$munro.origin('6235.00 -1197.00 -167.00');
+	$munro.angle(90);
+	$munro.scale(1);
+	$munro.show();
+	
+	$cam1.follow($cin_landingpad_consoleUp);
+	wait(0.1);
+	$cam1.cut();
+	cuecamera($cam1);
+	cam_fadeIn( 1, 0, 0,0, 0 );
+
+//set missionobjective marker on radar - update 02.02.2018
+	$landingplatformpowerPuzzle.missionobjective(0);
+	$landingplatformLightsPannel.missionobjective(1);
+
+//update objectives - Route Power for the Landingpad Lights
+	thread globalCoop_objectives_update("complete",7,1);//State,Item,ShowIt
+	$padMSymbol.remove();
+//close pannel again
+	globalCoop_level_triggerEntity($landingplatformPowerDoor);
+//wait a moment 
+	wait(5);
+//Trigger the lights pannel, make it move up and accesable for the player
+	globalCoop_level_triggerEntity($landingplatformLightsPannel);
+//wait a moment for the pannel to move up
+	wait(5);
+//enable the trigger to turn on lights
+	$batlethSymbol.show();
+	$triggerLandingpadFedOutpostPower.triggerable();
+	
+	noncinematic();
+	releaseplayer();
+	clearLetterbox(0.1);
+	$munro.hide();
+	$munro.notsolid();
+	$munro.scale(1);
+}
+
+
+void objectiveFedoutpostLandingPadLights()
+{
+//set missionobjective marker on radar - update 02.02.2018
+	$landingplatformLightsPannel.missionobjective(0);
+
+//move symbol to shuttle pad
+	$batlethSymbol.origin('7594 -323 130');
+	$batlethSymbol.hide();
+	legacy_savegame();
+//update objectives - Route Power for the Landingpad Lights
+	thread globalCoop_objectives_update("complete",5,1);//State,Item,ShowIt
+//Trigger the lights pannel, make it move DOWN again
+	globalCoop_level_triggerEntity($landingplatformLightsPannel);
+//when sequence is near end, then inizial objective
+	thread objectiveFedoutpostEvacuateToShuttle();
+	thread globalCoop_level_callReliably("globalCoop_mission_accomplished");
+//make shuttle come down and start landing sequence
+	float fMaxTime,fDepatureTime=120;
+	fMaxTime=getCvarInt("mp_timelimit");
+	if(fMaxTime == 0){
+		fMaxTime=40;
+	}
+	fMaxTime = (fMaxTime * 60);
+	if(fMaxTime - getLevelTime() < 200){
+		fDepatureTime=90;
+		if(fMaxTime - getLevelTime() < 120){
+			fDepatureTime=30;
+			if(fMaxTime - getLevelTime() < 60){
+				fDepatureTime=5;
+			}
+		}
+	}
+	wait(fDepatureTime);
+	thread shuttleLandingSequence();
+}
+
+void objectiveFedoutpostEvacuateToShuttle()
+{	
+	thread globalCoop_objectives_update("inComplete",8,1);//State,Item,ShowIt
+}
+
+void objectiveFedoutpostEvacuateToShuttleComplete()
+{
+//remove missionobjective marker from radar - update 02.02.2018
+	$batlethSymbol.missionobjective(0);
+	$batlethSymbol.remove();
+	
+	thread globalCoop_objectives_update("complete",8,1);//State,Item,ShowIt
+}
+
+void objectiveFedoutpostEvacuateToShuttleLanded()
+{
+//set missionobjective marker on radar - update 02.02.2018
+	$batlethSymbol.missionobjective(1);
+	$batlethSymbol.show();
+}
+
+
+

@@ -1,0 +1,262 @@
+void rotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir, vector endRotation);
+void moveTripWire ( string basename , string pathname);
+void toggleTripWire ( string basename , float _time , float variance);
+void runTraceLoop ( entity emitter);
+float doTraces = 0;
+
+void initM10L2Tripwires ()
+{
+	thread rotateTripWire ( "area1Beam1" , 2   , 1 , '0 270 0' , '0 0 60' );
+	thread rotateTripWire ( "area1Beam2" , 2   , 1 , '0 90 0'  , '0 0 -60' );
+	thread rotateTripWire ( "area1Beam3" , 1.5 , 1 , '0 180 0' , '-60 0 0' );
+	thread rotateTripWire ( "area1Beam4" , 1.5 , 1 , '0 0 0'   , '60 0 0' );
+
+	thread moveTripWire ( "area2Beam1" , "area2Path1" );
+	thread moveTripWire ( "area2Beam2" , "area2Path2" );
+	thread rotateTripWire ( "area2Beam3" , 2 , 2 , '60 0 0'   , '-60 0 0' );
+
+	thread moveTripWire ( "area3Beam1" , "area3Path1" );
+	thread moveTripWire ( "area3Beam2" , "area3Path2" );
+	thread moveTripWire ( "area3Beam3" , "area3Path3" );
+	thread moveTripWire ( "area3Beam4" , "area3Path4" );
+
+/*
+	thread rotateTripWire ( "area3Beam8" , 1 , 1 , '45 90 0' , '0 0 90' );
+	thread rotateTripWire ( "area3Beam9" , 1.25 , 1.25 , '45 90 0'   , '0 0 90' );
+
+	thread rotateTripWire ( "area4Beam1" , 1 , 1 ,       '70 0 0' , '0 180 0' );
+	thread rotateTripWire ( "area4Beam1_2" , 1 , 1 ,     '70 0 0' , '0 -180 0' );
+	thread rotateTripWire ( "area4Beam1_3" , 1 , 1 ,     '80 0 0' , '0 360 0' );
+
+	thread rotateTripWire ( "area4Beam2" , 1.25 , 1.25 ,   '70 0 0' , '0 180 0' );
+	thread rotateTripWire ( "area4Beam2_2" , 1.25 , 1.25 , '70 0 0' , '0 -180 0' );
+	thread rotateTripWire ( "area4Beam2_3" , 1.25 , 1.25 , '80 0 0' , '0 360 0' );
+
+	thread rotateTripWire ( "area4Beam3" , 1.5 , 1.5 ,   '70 0 0' , '0 180 0' );
+	thread rotateTripWire ( "area4Beam3_2" , 1.5 , 1.5 , '70 0 0' , '0 -180 0' );
+	thread rotateTripWire ( "area4Beam3_3" , 1.5 , 1.5 , '80 0 0' , '0 360 0' );
+
+	thread toggleTripWire ( "area4Beam1_3" , 2 , 2 );
+	thread toggleTripWire ( "area4Beam2_3" , 2 , 3 );
+	thread toggleTripWire ( "area4Beam3_3" , 2 , 2.5 );
+*/
+}
+
+void rotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir , vector endRotation)
+{
+	entity wire,beamOrigin;
+
+	float flipX,flipY,flipZ;
+
+	threadname ( basename + "_thread" );
+	wire = getentity ( basename );
+	beamOrigin = getentity ( basename + "_origin" );
+	wire.angles ( startDir );
+
+	beamOrigin.loopsound ( "sound/ships/romulan/rom_search_hi.wav", .45, 75);
+
+	if ( doesEntityExist ( beamOrigin ))
+		wire.bind ( beamOrigin );
+
+	if ( endRotation_x < 0 )
+	{
+		flipX = 1;
+		endRotation_x *= -1;
+	}
+
+	if ( endRotation_y < 0 )
+	{
+		flipY = 1;
+		endRotation_y *= -1;
+	}
+
+	if ( endRotation_z < 0 )
+	{
+		flipZ = 1;
+		endRotation_z *= -1;
+	}
+
+	while ( 1 )
+	{
+		beamOrigin.time ( rotateSpeedUp );
+
+		if ( flipX == 1 )
+			beamOrigin.rotateXup ( endRotation_x );
+		else
+			beamOrigin.rotateXdown ( endRotation_x );
+
+		if ( flipY == 1 )
+			beamOrigin.rotateYup ( endRotation_y );
+		else
+			beamOrigin.rotateYdown ( endRotation_y );
+
+		if ( flipZ == 1 )
+			beamOrigin.rotateZup ( endRotation_z );
+		else
+			beamOrigin.rotateZdown ( endRotation_z );
+
+
+		waitfor ( beamOrigin );
+		beamOrigin.time ( rotateSpeedDown );
+
+		if ( flipX == 1 )
+			beamOrigin.rotateXdown ( endRotation_x );
+		else
+			beamOrigin.rotateXup ( endRotation_x );
+
+		if ( flipY == 1 )
+			beamOrigin.rotateYdown ( endRotation_y );
+		else
+			beamOrigin.rotateYup ( endRotation_y );
+
+		if ( flipZ == 1 )
+			beamOrigin.rotateZdown ( endRotation_z );
+		else
+			beamOrigin.rotateZup ( endRotation_z );
+
+		waitfor ( beamOrigin );
+	}
+}
+
+void moveTripWire ( string basename , string pathname)
+{
+	entity o,path,wire;
+	wire = getentity ( basename );
+	o    = getentity ( basename + "_origin" );
+	path = getentity ( pathname );
+
+	wire.bind ( o );
+
+//	o.speed ( 200 );
+	o.followpath ( path , "loop" );
+	o.loopsound ( "sound/ships/romulan/rom_search_hi.wav", .45, 75);
+}
+
+void stopTripWire ( string basename )
+{
+	entity wire,beamOrigin;
+
+	wire = getentity ( basename );
+	beamOrigin = getentity ( basename + "_origin" );
+
+	wire.remove ();
+	beamOrigin.remove();
+
+	killthread ( basename + "_thread" );
+}
+
+void disableGrid ()
+{
+	entity caller;
+	float groupNum,numInGroup,i;
+	string indicator;
+
+	caller = getcurrententity();
+	groupNum   = caller.getfloatvar ( "uservar1" );
+	numInGroup = caller.getfloatvar ( "uservar2" );
+	indicator  = caller.getstringvar ( "uservar3" );
+
+
+	for ( i = 1 ; i <= numInGroup; i++ )
+		stopTripWire ( "area" + groupNum + "Beam" + i );
+	caller.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 4, .3, 10000 );
+
+	if ( groupNum == 1 )
+		$modPanel1Archetype.remove ();
+	else // if ( groupNum == 2 )
+		$modPanel2Archetype.remove ();
+}
+
+void toggleTripWire ( string basename , float _time , float variance)
+{
+	entity wire;
+	float waitTime = 0;
+	wire = getentity ( basename );
+
+	if ( variance > 0 )
+		waitTime = randomfloat ( variance );
+
+	while ( 1 )
+	{
+		wire.hide ();
+		wait ( _time + waitTime );
+
+		wire.show ();
+		wait ( _time + waitTime );
+	}
+}
+
+
+void startGroup1 ()
+{
+	doTraces = 1;
+	thread runTraceLoop ( $area1Beam1 );
+	thread runTraceLoop ( $area1Beam2 );
+	thread runTraceLoop ( $area1Beam3 );
+	thread runTraceLoop ( $area1Beam4 );
+}
+
+void stopGroup1 ()
+{
+	doTraces = 0;
+}
+
+void startGroup2 ()
+{
+	doTraces = 1;
+	thread runTraceLoop ( $area2Beam1 );
+	thread runTraceLoop ( $area2Beam2 );
+	thread runTraceLoop ( $area2Beam3 );
+}
+
+void stopGroup2 ()
+{
+	doTraces = 0;
+}
+
+void startGroup3 ()
+{
+	doTraces = 1;
+	thread runTraceLoop ( $area3Beam1 );
+	thread runTraceLoop ( $area3Beam2 );
+	thread runTraceLoop ( $area3Beam3 );
+	thread runTraceLoop ( $area3Beam4 );
+}
+
+void stopGroup3 ()
+{
+	doTraces = 0;
+}
+
+void runTraceLoop ( entity tagEmitter)
+{
+	if ( doesEntityExist ( tagEmitter ))
+	{
+		//hzm coop mod chrissstrahl - make compatible to multiplayer, check every existing player
+		entity ePlayer;
+		float fPlayerIdInUse;
+	
+		while ( doTraces )
+		{
+			for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+				ePlayer = getentity("player"+ fPlayerIdInUse);
+				if(globalCoop_check_existingLivingEntity(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0){
+					if ( tagEmitter.traceHitsEntity ( "tag_horizontal" , 300 , ePlayer ) ){
+						if(alarmsActive == 0 || ePlayer.getFloatVar("coopLastDetectedInfoMsg") < getLevelTime() ){
+							ePlayer.hudprint("^5INFO: ^3You have been detected...\n");
+							ePlayer.setFloatVar("coopLastDetectedInfoMsg",(getLevelTime() + 2));
+						}
+						triggerAlarmFromTrace();
+					}
+				}
+			}
+			wait ( .25 );	//wait a quarter second
+		}
+	}
+}
+
+
+
+
+
+

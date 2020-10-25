@@ -1,0 +1,1702 @@
+//-------------------------------------------
+// EF2 Level Script File
+//
+// Level: m7l2c-attrexian_colony
+// Script by: Jerry K, Benson R, R. 'Charon' Heath
+// Geometry by: Jerry K, Todd R
+// Created on: 18 July, 2002
+//
+// Last Edited: R. 'Charon' Heath
+//--------------------------------------------
+
+void main();
+void init();
+
+void setupShuttle();
+void setupArchetypes();
+
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection );
+
+void factory_backdoor_switch_wait();
+void factory_backdoor_action();
+void factory_backdoor_piston_up();
+void factory_backdoor_piston_down();
+
+void platformLift_wait();
+void platformLift_move();
+void platformLift_downWait();
+void platformLift_reject();
+
+void platformShuttle_takeoff();
+void platformQuad_hitShuttle();
+void platformQuad_land();
+void platformQuad_death();
+
+void factory_elevator_switch1_check();
+void factory_elevator_up();
+void factory_elevator_door1_open();
+void factory_elevator_switch2_wait();
+void factory_elevator_door1_close();
+void factory_elevator_down();
+void factory_elevator_door2_open();
+
+void gdoor_open();
+void gdoor_close();
+void gdoor_closed_switch_wait();
+void gdoor_open_switch_wait();
+
+void citydoor1_switch_wait();
+void citydoor1_open();
+void citydoor1_close();
+void citydoor2_switch_wait();
+void citydoor2_open();
+void citydoor2_close();
+void crashSiteAliens();
+void endAliensDeath();
+
+void shuttle_flyby_thread();
+void shuttle_explosion_thread();
+void crash_site_dialog();
+
+void levelEnding();
+void levelEnding_ShuttleFlyBy();
+void levelEnding_skipThread();
+void levelEnding_ShuttleFlyBy_ScaleShuttleUp();
+void levelEnding_ShuttleFlyBy_ScaleShuttleDown();
+
+void randomLightningFlash();
+void randomExplosionSound();
+
+void attrexianDoorBeepAccept();
+void attrexianDoorBeepReject();
+void attrexianAutoSave();
+
+void attrexianDeathFallOff();
+void attrexianDeathFallOn();
+
+float shuttleIsHit = 0;
+float endAliensKilled = 0;
+
+//--- cinematic armature
+entity cinematicArm_Shuttle;
+
+
+//==========================================================================================
+// Includes
+//==========================================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_platformLiftCallLift();
+void	coop_endLevel();
+void	coop_waitForTeam();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_flyin.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_transporter.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+
+//==========================================================================================
+// Main Stuff
+//==========================================================================================
+//---------------------
+// Function: main
+// Comments:
+// main thread called at the start of the level
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl - don't use this in coop (used to avoid player leaving lift in sp)
+	$platformLift_clip.remove();
+
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 			= 270;
+	coop_vector_spawnOrigin1 		= '-1710 4070 1380';
+	//coop_vector_spawnOrigin1 		= '-1398 -38404 200';
+	coop_vector_spawnOrigin2 		= '-1790 4070 1380';
+	coop_vector_spawnOrigin3 		= '-1640 4160 1380';
+	coop_vector_spawnOrigin4 		= '-1710 4160 1380';
+	coop_vector_spawnOrigin5 		= '-1790 4160 1380';
+	coop_vector_spawnOrigin6 		= '-1640 4250 1380';
+	coop_vector_spawnOrigin7 		= '-1710 4250 1380';
+	coop_vector_spawnOrigin8 		= '-1790 4250 1380';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$AColonyLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+	soundtrack( "music/m7l1-attrexian_colony.mus" );
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 6000 );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane ( 4000 );
+
+	$world.weather( "rain", 400 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m7l2c_attrexian_colony" );
+
+	thread init();
+
+	waitForPlayer();
+
+	wait( .1 );
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindElderlyIdryll$$","incomplete",1,0);
+	globalCoop_objectives_set("$$EnterFactory$$","complete",2,0);
+	globalCoop_objectives_set("$$ExploreFactory$$","complete",3,0);
+	globalCoop_objectives_set("$$RestoreLiftPower$$","complete",4,0);
+	
+	//hzm coop mod chrissstrahl - make it a quick kill
+	$factory_backdoor.dmg( 16384 );
+	$citydoor1_top.dmg( 16384 );
+	$citydoor1_bottom.dmg( 16384 );
+	$citydoor2_top.dmg( 16384 );
+	$citydoor2_bottom.dmg( 16384 );
+	$gdoor_el.dmg( 16384 );
+	$gdoor_wl.dmg( 16384 );
+	$gdoor_main.dmg( 16384 );
+	$gdoor_eu.dmg( 16384 );
+	$gdoor_wu.dmg( 16384 );
+	
+	
+	//hzm coop mod chrissstrahl - set kill message
+	$factory_backdoor.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$citydoor1_top.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$citydoor2_top.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$citydoor1_bottom.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$citydoor2_bottom.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$gdoor_el.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$gdoor_wl.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$gdoor_main.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$gdoor_eu.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$gdoor_wu.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	//let the server pause for a frame
+	wait(0.05);
+	//hzm coop mod chrissstrahl - set kill message deutsch (german)
+	$factory_backdoor.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$citydoor1_top.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$citydoor2_top.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$citydoor1_bottom.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$citydoor2_bottom.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$gdoor_el.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$gdoor_wl.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$gdoor_main.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$gdoor_eu.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	$gdoor_wu.setStringVar("uservar2","killmessage_de  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+	
+	//hzm coop mod chrissstrahl - make sure it shows a propper death message
+	$deathfall.damagetype("falling");
+	
+	//hzm coop mod chrissstrahl - spawn triggers for the lift, so that it goes up and down when needed
+	spawn("trigger_multiple","thread","coop_platformLiftCallLift","targetname","coop_liftTriggerTop","origin","-1710 3401 1400","nottriggerable","1");
+	spawn("trigger_multiple","thread","coop_platformLiftCallLift","targetname","coop_liftTriggerBottom","origin","-1719 3111 900","nottriggerable","1");	
+}
+
+//---------------------
+// Function: init
+// Comments:
+// initilization thread called by main
+//---------------------
+void init()
+{
+	thread setupShuttle();
+	thread setupArchetypes();
+
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	wait( .1 );
+	cam.load( "m7l2b_endCam1" );
+
+	//setup the cinematic characters
+	$cinematicMunro.ai_off();
+	$cinematicMunro.hide();
+	$cinematicMunro.notsolid();
+
+	$sydney.ai_off();
+	$inigor.ai_off();
+	$picard.ai_off();
+
+	$sydney.hide();
+	$inigor.hide();
+	$picard.hide();
+
+	$sydney.notsolid();
+	$inigor.notsolid();
+	$picard.notsolid();
+	
+	//hzm coop mod chrissstrahl - server needs more pausecyles in multi
+	wait(0.05);
+
+	//--- setup the shuttle ending armature
+    cinematicArm_Shuttle = createCinematic( "m7-end" );
+    cinematicArm_Shuttle.setEndThread( "levelEnding_ShuttleFlyBy" );
+
+	//--- setup sky stuff
+	$starDome.hide();
+	$starDome.angles ( '45 0 0' );
+
+	//--- setup the cinematic shuttles
+	$shuttleSpace_Body.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Door.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Body.scale( .01 );
+	$shuttleSpace_Door.scale( .01 );
+
+	//setup the doors and lifts
+	$factory_elevator_leftdoor.bind ( $factory_elevator0 );
+	$factory_elevator_rightdoor.bind ( $factory_elevator0 );
+	$factory_elevator_switch2.bind ( $factory_elevator0 );
+	$arch_elevator.bind( $factory_elevator0 );
+
+	$platformLift_gate.bind( $platformLift );
+	$platformLift_switch.bind( $platformLift );
+	$platformLift_clip.bind( $platformLift );
+	$arch_platformLift.bind( $platformLift );
+
+	$platformQuadFlame.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pausecyles in multi
+	wait(0.05);
+
+	$factory_backdoor_portal.hide();
+	$citydoor1_portalblock.notsolid();
+	$citydoor1_portalblock.hide();
+	$citydoor2_portalblock.notsolid();
+	$citydoor2_portalblock.hide();
+	$warning_trigger.nottriggerable();
+	$shuttle_landing.nottriggerable();
+	$end_trigger.nottriggerable();
+
+	$crashSiteTrigger.nottriggerable();
+
+	thread platformLift_wait();
+	thread factory_elevator_door2_open();
+	thread gdoor_closed_switch_wait();
+//	thread factory_backdoor_switch_wait();
+	thread citydoor1_switch_wait();
+	thread citydoor2_switch_wait();
+	
+	//hzm coop mod chrissstrahl - server needs more pausecyles in multi
+	wait(0.05);
+
+	thread randomExplosionSound();
+	thread randomLightningFlash();
+
+	wait( 1 );
+
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	thread factory_backdoor_action();
+}
+
+
+//==========================================================================================
+// Setup Functions
+//==========================================================================================
+//---------------------
+// Function: setupShuttle
+// Comments:
+// setups the shuttle
+//---------------------
+void setupShuttle()
+{
+	$drull_shuttle_clip.solid();
+	$drull_shuttle.notsolid();
+	$drull_shuttle_int.bind( $drull_shuttle );
+	$drull_shuttle_int.anim( "closed" );
+	$drullShuttleClip.bind( $drull_shuttle );
+	$drull_shuttle.bind( $platformShuttle_origin );
+
+	$shuttle_flyby_door.bind( $shuttle_flyby );
+	$shuttle_flyby.notsolid();
+	$shuttle_flyby_door.notsolid();
+	$shuttle_flyby.hide();
+	$shuttle_flyby_door.hide();
+
+	$shuttle_end.hide();
+	$shuttle_end.notsolid();
+	$shuttle_end_clip.notsolid();
+	$shuttle_end_door_open.hide();
+	$shuttle_end_door_open.notsolid();
+	$shuttle_end_door_open.bind( $shuttle_end );
+	$shuttle_end_clip.bind( $shuttle_end_clip_org );
+
+	$end_shuttle_mover_door.bind( $end_shuttle_mover );
+	$end_shuttle_mover.notsolid();
+	$end_shuttle_mover_door.notsolid();
+	$end_shuttle_mover.hide();
+	$end_shuttle_mover_door.hide();
+
+	$idryllshuttle_int.anim( "closed" );
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	$arch_doorpanel1.contents( "targetable" );
+	$arch_doorpanel1.archetype( "AttrexianDoorPanel" );
+
+	$arch_platformLift.contents( "targetable" );
+	$arch_platformLift.archetype( "AttrexianLiftControl" );
+
+	$arch_elevator.contents( "targetable" );
+	$arch_elevator.archetype( "AttrexianLiftControl" );
+}
+
+
+//==========================================================================================
+// Generic
+//==========================================================================================
+//------------------------------------------------------------------
+// Function: moveAxisAlignedEntity
+// Comments:
+// moves an entity with acceleration and deceleration.
+//
+// Parameters:
+//   entity name - targetname of entity .
+//
+//   totalTime - A floating point value that represents the
+//   the total time it takes the door to move the specified distance.
+//
+//   totalDistance - The total distance the door will move.
+//
+//   moveDirection - The direction the door will move. Valid values are:
+//       up
+//       down
+//		 north
+//		 south
+//       east
+//       west
+//------------------------------------------------------------------
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection )
+{
+	entity entityReference;
+	entityReference = getEntity( entityName );
+
+	//
+	// IMPORTANT timeStep should be about .1 seconds.
+	// Otherwise, you may get jerks at low frame rates (fps < 20).
+	//
+
+	float iterations = 100;		// Number of iterations
+	float halfDistance;			// Distance at which transition occurs
+	float transitionStep;		// Step at which transition from acceleration to deceleration occurs
+	float timeStep;				// Time duration for a single step
+	timeStep = totalTime / iterations;
+	transitionStep = iterations / 2;
+	halfDistance = totalDistance / 2;
+
+	float sum;
+	float distanceInc;
+	sum = (transitionStep * (transitionStep + 1)) / 2;
+	distanceInc = halfDistance / sum;
+
+	float moveDir = 0;
+	if ( moveDirection == "up" )
+	{
+		moveDir = 0;
+	}
+
+	else if ( moveDirection == "down" )
+	{
+		moveDir = 1;
+	}
+	else if ( moveDirection == "west" )
+	{
+		moveDir = 2;
+	}
+	else if ( moveDirection == "east" )
+	{
+		moveDir = 3;
+	}
+	else if ( moveDirection == "north" )
+	{
+		moveDir = 4;
+	}
+
+	else
+	{
+		centerprint( "Invalid move direction" );
+	}
+
+	float idx;
+	float moveInc = 0;
+	for ( idx = 0; idx < iterations; idx += 1)
+	{
+	 	if ( idx < transitionStep )
+	 	{
+	 		moveInc += distanceInc;
+	 	}
+	 	else
+	 	{
+	 	    moveInc -= distanceInc;
+	 	}
+		entityReference.time( timeStep );
+		if ( moveDir == 0 )
+		{
+			entityReference.moveUp( moveInc );
+		}
+		else if ( moveDir == 1 )
+		{
+			entityReference.moveDown( moveInc );
+		}
+		else if ( moveDir == 2 )
+		{
+			entityReference.moveWest( moveInc );
+		}
+		else if ( moveDir == 3 )
+		{
+			entityReference.moveEast( moveInc );
+		}
+		else
+		{
+			entityReference.moveNorth( moveInc );
+		}
+		waitfor ( entityReference );
+	}
+}
+
+
+//==========================================================================================
+// entrance door functions
+//==========================================================================================
+//---------------------
+// Function: factory_backdoor_switch_wait
+// Comments:
+// wait thread for the entrance door
+//---------------------
+void factory_backdoor_switch_wait()
+{
+	$factory_backdoor_switch.onuse( "factory_backdoor_action" );
+	pause();
+}
+
+//---------------------
+// Function: factory_backdoor_action
+// Comments:
+// entrance door move
+//---------------------
+void factory_backdoor_action()
+{
+	$factory_backdoor_switch.nouse();
+
+	// move door up
+	float threadNum;
+	wait ( .1 );
+
+	$factory_backdoor_portal.openportal();
+
+	$factory_backdoor.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$factory_backdoor.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread moveAxisAlignedEntity( "factory_backdoor" , 2, 160, "up" );
+	thread factory_backdoor_piston_up();
+	wait ( 8 );
+
+	// move door down
+	$factory_backdoor.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	threadNum = thread moveAxisAlignedEntity( "factory_backdoor" , 2, 160, "down" );
+	thread factory_backdoor_piston_down();
+	waitforthread( threadNum );
+
+	$factory_backdoor_portal.closeportal();
+	wait ( .1 );
+
+	thread factory_backdoor_switch_wait();
+
+}
+
+//---------------------
+// Function: factory_backdoor_piston_up
+// Comments:
+// entrance door pistons move up
+//---------------------
+void factory_backdoor_piston_up()
+{
+	wait ( .5 );
+	float threadNum;
+	thread moveAxisAlignedEntity( "factory_backdoor_piston" , 1, 80, "up" );
+	threadNum = thread moveAxisAlignedEntity( "factory_backdoor_piston2" , 1, 80, "up" );
+	waitforthread( threadNum );
+}
+
+//---------------------
+// Function: factory_backdoor_piston_down
+// Comments:
+// entrance door pistons move down
+//---------------------
+void factory_backdoor_piston_down()
+{
+	wait ( .5 );
+	float threadNum;
+	thread moveAxisAlignedEntity( "factory_backdoor_piston" , 1, 80, "down" );
+	threadNum = thread moveAxisAlignedEntity( "factory_backdoor_piston2" , 1, 80, "down" );
+	waitforthread( threadNum );
+}
+
+
+//==========================================================================================
+// drull shuttle and quad functions
+//==========================================================================================
+//---------------------
+// Function: platformShuttle_takeoff
+// Comments:
+// drull shuttle on the plaform takes off and is struck by a quad
+//---------------------
+void platformShuttle_takeoff()
+{
+	float shuttleShrinking , shuttleScale , shuttleSomething;
+
+	shuttleShrinking = 1;
+	shuttleScale = 1;
+	shuttleSomething = 0;
+
+	$drull_shuttle.playsound ( "sound/vehicles/shuttlecraft/shuttle_accelerate.wav", 16, 1, 2048 );
+	$platformShuttle_origin.followpath( $platformShuttle_path1 );
+
+	$drull_shuttle_clip.time( 8 );
+	$drull_shuttle_clip.moveUp( 256 );
+
+	wait( 8 );
+
+	$drull_shuttle_clip.remove();
+
+	thread globalFlyin_SpawnLaunch( $platformQuad_launcher ,"char/alien-type3-quad.tik" , 0 , "" , "" , 1 );
+
+	$platformQuadFlame.show();
+	$platformQuadFlame.followpath( $platformQuadFlame_path );
+
+	wait( 1.25 );
+
+	thread platformQuad_hitShuttle();
+
+	wait( 1.75 ); // make it 11 seconds after shuttle takes off
+
+	while( shuttleShrinking == 1 )
+	{
+		shuttleScale = shuttleScale * .9625;
+		$drull_shuttle.scale( shuttleScale );
+		$drull_shuttle_int.scale( shuttleScale );
+
+		shuttleSomething++;
+		wait( .1 );
+		if( shuttleSomething >= 100 )
+		{
+			shuttleShrinking = 0;
+			wait( 1 );
+		}
+	}
+
+	$drull_shuttle.remove();
+	$drull_shuttle_int.remove();
+}
+
+//---------------------
+// Function: platformQuad_hitShuttle
+// Comments:
+// Quad hits the shuttle
+//---------------------
+void platformQuad_hitShuttle()
+{
+	shuttleIsHit++;
+
+	if( shuttleIsHit <= 1 )
+	{
+		$platformQuad_shipExplosion.spawntargetname( "platformQuad_shipExploder" );
+		trigger( "$platformQuad_shipExplosion" );
+
+		wait( 1 );
+
+		$drull_shuttle.playsound ( "sound/impact/explosion/expl_drullship.wav", 0, 1.5, 2048 );
+		$inigor.playdialog("localization/sound/dialog/m7l2/inigor_beenhit.mp3", 1, 20000, 1); //By the fates!  We've been hit!  Losing altitude fast.  We're going down…
+		wait( 2 );
+
+		$platformQuad_horizonExplosion.spawntargetname( "platformQuad_horizonExploder" );
+		trigger( "$platformQuad_horizonExplosion" );
+
+		wait( 2 );
+
+		$platformQuad_shipExploder.remove();
+		$platformQuad_horizonExploder.remove();
+	}
+}
+
+//---------------------
+// Function: platformQuad_land
+// Comments:
+// Quad hits the ground
+//---------------------
+void platformQuad_land()
+{
+	//hzm coop mod chrissstrahl - originate earhquake from script object, rather than from $player
+	$platformQuad.earthquake( 1.25 , 2048 );
+	$platformQuad.playsound ( "sound/impact/explosion/explo_wall1.wav", 0, 1.5, 2048 );
+
+	wait( .40 );
+	$platformQuad.ai_off();
+	$platformQuadFlame.remove();
+
+	$platformQuad.anim( "crash" );
+	waitForAnimation( $platformQuad, "crash", 0 );
+
+	trigger( "$platformQuad_groundExplosion" );
+
+	$platformQuad.ai_on();
+
+	//hzm coop mod chrissstrahl - let the ai pick a player
+	/*$platformQuad.attackplayer();*/
+	wait( .1 );
+
+	$platformQuad.killthread( "platformQuad_death" );
+
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$InvestigateCrash$$","incomplete",5,1);
+
+	$idryllshuttle.missionobjective( 1 );
+}
+
+//---------------------
+// Function: platformQuad_death
+// Comments:
+// killthread for the quad on the platform
+//---------------------
+void platformQuad_death()
+{
+	wait( 7 );
+
+	$sydney.playdialog("localization/sound/dialog/m7l2/syd_myouok.mp3", 1, 20000, 1); //Munro?  Are you ok?
+	waitForDialog( $sydney );
+	$cinematicMunro.playdialog("localization/sound/dialog/m7l2/munro_finesyd.mp3", 1, 80000, 1); //I'm fine Syd.  I'm about to investigate the crash site, stay on the comm.
+	waitForDialog( $cinematicMunro );
+	$sydney.playdialog("localization/sound/dialog/m7l2/syd_willdo.mp3", 1, 20000, 1); //Will do, sir!
+	waitForDialog( $sydney );
+
+	globalCommon_Autosave();
+}
+
+
+//==========================================================================================
+// platform lift functions
+//==========================================================================================
+//---------------------
+// Function: platformLift_wait
+// Comments:
+// wait thread for the switch on the lift
+//---------------------
+void platformLift_wait()
+{
+	$platformLift_switch.onuse( "platformLift_move" );
+	pause();
+}
+
+//---------------------
+// Function: platformLift_move
+// Comments:
+// moves the lift downward
+//---------------------
+void platformLift_move()
+{
+	//hzm coop mod chrissstrahl - have oour own lift up and down handle script here
+	//so that players can go up and down, insdeat of just going down
+	if($platformLift.getFloatVar("liftBussy")){
+		return;
+	}
+	$platformLift.setFloatVar("liftBussy",1);
+
+	$platformLift_switch.nouse();
+	$platformLift_switch.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+
+	float threadNum = 0;
+	float fLiftState;
+	fLiftState = $platformLift.getFloatVar("liftState");
+	if(!fLiftState){
+		$coop_liftTriggerBottom.notTriggerable();
+		$platformLift.bind( $platformLift_support );
+		$platformLift.playsound ( "sound/environment/machine/lift4.wav", 3, 1, 500 );
+		threadNum = thread moveAxisAlignedEntity( "platformLift_support" , 2, 416, "down" );
+		waitforthread ( threadNum );
+
+		$platformLift.playsound ( "sound/environment/machine/lift4stop.wav", 3, 1, 500 );
+		$platformLift.unbind();
+		$platformLift.playsound ( "sound/environment/machine/mech_move2.wav", 2, 2, 500 );
+		threadNum = thread moveAxisAlignedEntity( "platformLift" , 1, 72, "down" );
+		waitforthread ( threadNum );
+
+		$platformLift.playsound ( "sound/environment/machine/mech_stop1.wav", .5, 2, 500 );
+		$platformLift_gate.playsound ( "sound/environment/machine/mech_move2.wav", 2, 2, 500 );
+		$platformLift_gate.time( 2 );
+		$platformLift_gate.rotateYup( 90 );
+		waitfor( $platformLift_gate );
+		$platformLift.setFloatVar("liftState",1);
+		$coop_liftTriggerTop.triggerable();
+	}
+	else{
+		$coop_liftTriggerTop.nottriggerable();
+		$platformLift.playsound ( "sound/environment/machine/mech_stop1.wav", .5, 2, 500 );
+		$platformLift_gate.playsound ( "sound/environment/machine/mech_move2.wav", 2, 2, 500 );
+		$platformLift_gate.time( 2 );
+		$platformLift_gate.rotateYdown( 90 );
+		waitfor( $platformLift_gate );
+		
+		$platformLift.bind( $platformLift_support );
+		$platformLift.playsound ( "sound/environment/machine/lift4.wav", 3, 1, 500 );
+		threadNum = thread moveAxisAlignedEntity( "platformLift_support" , 2, 416, "up" );
+		waitforthread ( threadNum );
+
+		$platformLift.unbind();
+ 		$platformLift.playsound ( "sound/environment/machine/lift4stop.wav", 3, 1, 500 );
+		$platformLift.playsound ( "sound/environment/machine/mech_move2.wav", 2, 2, 500 );
+		threadNum = thread moveAxisAlignedEntity( "platformLift" , 1, 72, "up" );
+		waitforthread ( threadNum );
+		$platformLift.setFloatVar("liftState",0);
+		$coop_liftTriggerBottom.triggerable();
+	}
+	$platformLift_gate.playsound ( "sound/environment/machine/mech_stop1.wav", .5, 2, 500 );
+	$platformLift.setFloatVar("liftBussy",0);
+	
+	//thread platformLift_downWait();
+	thread platformLift_wait();
+	//eof hzm
+}
+
+//---------------------
+// Function: platformLift_downWait
+// Comments:
+// wait thread for the lift when it is at the bottom of its path
+//---------------------
+void platformLift_downWait()
+{
+	$platformLift_switch.onuse( "platformLift_reject" );
+	pause();
+}
+
+//---------------------
+// Function: platformLift_reject
+// Comments:
+// reject sound played when the lift is at the bottom of its path
+//---------------------
+void platformLift_reject()
+{
+	$platformLift_switch.nouse();
+	
+	//hzm coop mod chrissstrahl - let the sound originare from button, rather than $player
+	$platformLift_switch.playsound ( "sound/ships/attrexian/att-beepreject.wav", 0, .7, 500 );
+	
+	wait( 3 );
+
+	thread platformLift_downWait();
+}
+
+
+//==========================================================================================
+// factory elevator functions
+//==========================================================================================
+//---------------------
+void factory_elevator_switch1_check()
+//---------------------
+{
+	$factory_elevator_switch1.onuse( "factory_elevator_up" );
+	$factory_elevator_switch2.onuse( "factory_elevator_up" );
+	pause();
+
+}
+
+//---------------------
+void factory_elevator_up()
+//---------------------
+{
+	//closes lower doors before moving elevator up
+	$factory_elevator_switch1.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$factory_elevator_switch2.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$factory_elevator_switch1.nouse();
+	$factory_elevator_switch2.nouse();
+	$factory_elevator_switch3.nouse();
+	float threadNum = 0;
+	$factory_elevator_screendoorbtm.playsound ( "sound/ships/attrexian/att-elevat_door.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "factory_elevator_screendoorbtm" , 2, 196, "down" );
+	thread  moveAxisAlignedEntity( "factory_elevator_rightdoor" , 2, 96, "west" );
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator_leftdoor" , 2, 96, "east" );
+	waitforthread ( threadNum );
+  	$factory_elevator_screendoorbtm.playsound ( "sound/ships/attrexian/att-elevat_door_stp.wav", 4, 1, 500 );
+
+	float threadNum;
+	$factory_elevator0.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator0" , 6, 782, "up" );
+	//NOTE: the actual travel unit distance of the elevator is 768, this number is tweaked to 782 due to inaccuracy
+	waitforthread( threadNum );
+
+	$factory_elevator.playsound ( "sound/ships/attrexian/att-elevat_stop.wav", 3, 1, 500 );
+
+	wait ( 1.0 ); //pause before opening door
+
+	thread factory_elevator_door1_open();
+}
+
+//---------------------
+void factory_elevator_door1_open()
+//---------------------
+{
+	float threadNum = 0;
+	$factory_elevator_screendoortop.playsound ( "sound/ships/attrexian/att-elevat_door.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "factory_elevator_screendoortop" , 2, 196, "up" );
+	thread  moveAxisAlignedEntity( "factory_elevator_rightdoor" , 2, 96, "east" );
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator_leftdoor" , 2, 96, "west" );
+	waitforthread ( threadNum );
+	$factory_elevator_screendoortop.playsound ( "sound/ships/attrexian/att-elevat_door_stp.wav", 4, 1, 500 );
+	thread factory_elevator_switch2_wait();
+}
+
+//---------------------
+void factory_elevator_switch2_wait()
+//---------------------
+{
+	$factory_elevator_switch2.onuse ( "factory_elevator_door1_close" );
+	$factory_elevator_switch3.onuse ( "factory_elevator_door1_close" );
+	pause();
+}
+
+//---------------------
+void factory_elevator_door1_close()
+//---------------------
+{
+	$factory_elevator_switch1.nouse();
+	$factory_elevator_switch2.nouse();
+	$factory_elevator_switch3.nouse();
+	$factory_elevator_switch2.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$factory_elevator_switch3.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	float threadNum;
+	thread  moveAxisAlignedEntity( "factory_elevator_screendoortop" , 2, 196, "down" );
+	thread  moveAxisAlignedEntity( "factory_elevator_rightdoor" , 2, 96, "west" );
+
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator_leftdoor" , 2, 96, "east" );
+	waitforthread( threadNum );
+	thread factory_elevator_down();
+}
+
+//---------------------
+void factory_elevator_down()
+//---------------------
+{
+	float threadNum = 0;
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator0" , 8, 782, "down" );
+	$factory_elevator0.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+	//NOTE: the actual travel unit distance of the elevator is 768, this number is tweaked to 782 due to inaccuracy
+	waitforthread( threadNum );
+	$factory_elevator0.playsound ( "sound/ships/attrexian/att-elevat_stop.wav", 3, 1, 500 );
+	thread factory_elevator_door2_open();
+}
+
+//---------------------
+void factory_elevator_door2_open()
+//---------------------
+{
+	float threadNum = 0;
+	$factory_elevator_screendoorbtm.playsound ( "sound/ships/attrexian/att-elevat_door.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "factory_elevator_screendoorbtm" , 2, 196, "up" );
+	thread  moveAxisAlignedEntity( "factory_elevator_rightdoor" , 2, 96, "east" );
+	threadNum = thread  moveAxisAlignedEntity( "factory_elevator_leftdoor" , 2, 96, "west" );
+	waitforthread ( threadNum );
+  	$factory_elevator_screendoorbtm.playsound ( "sound/ships/attrexian/att-elevat_door_stp.wav", 4, 1, 500 );
+	thread factory_elevator_switch1_check();
+}
+
+
+//==========================================================================================
+// garage door functions
+//==========================================================================================
+//---------------------
+void gdoor_closed_switch_wait()
+//---------------------
+{
+	$gdoor_switch.onuse ( "gdoor_open" );
+	pause();
+}
+
+//---------------------
+void gdoor_open()
+//---------------------
+{
+	$gdoor_switch.nouse();
+	$gdoor_main.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	float threadNum = 0;
+
+	$gdoor_main.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "gdoor_el" , 6, 240, "east" );
+	thread  moveAxisAlignedEntity( "gdoor_wl" , 6, 240, "west" );
+	thread  moveAxisAlignedEntity( "gdoor_main" , 6, 248, "up" );
+	wait( 1 );
+	thread  moveAxisAlignedEntity( "gdoor_eu" , 3.75, 152, "east" );
+	threadNum = thread  moveAxisAlignedEntity( "gdoor_wu" , 3.75, 152, "west" );
+	waitforthread ( threadNum );
+	thread gdoor_open_switch_wait();
+}
+
+//---------------------
+void gdoor_open_switch_wait()
+//---------------------
+{
+	$gdoor_switch.onuse ( "gdoor_close" );
+	pause();
+}
+
+//---------------------
+void gdoor_close()
+//---------------------
+{
+	$gdoor_switch.nouse();
+	$gdoor_main.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	float threadNum = 0;
+	$gdoor_main.playsound( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "gdoor_main" , 6, 248, "down" );
+	thread  moveAxisAlignedEntity( "gdoor_el" , 6, 240, "west" );
+	thread  moveAxisAlignedEntity( "gdoor_wl" , 6, 240, "east" );
+	wait( 1 );
+	thread  moveAxisAlignedEntity( "gdoor_eu" , 4.5, 152, "west" );
+	threadNum = thread  moveAxisAlignedEntity( "gdoor_wu" , 4.5, 152, "east" );
+	waitforthread ( threadNum );
+	thread gdoor_closed_switch_wait();
+}
+
+
+//==========================================================================================
+// city functions
+//==========================================================================================
+//---------------------
+void citydoor1_switch_wait()
+//---------------------
+{
+	$citydoor1_switch.onuse ( "citydoor1_open" );
+	pause();
+}
+
+//---------------------
+void citydoor1_open()
+//---------------------
+{
+
+	$citydoor1_switch.nouse();
+	$citydoor1_top.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$citydoor1_portalblock.openportal();
+	float threadNum = 0;
+	$citydoor1_top.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "citydoor1_top" , 3, 144, "up" );
+	threadNum = thread  moveAxisAlignedEntity( "citydoor1_bottom" , 3, 104, "down" );
+	waitforthread ( threadNum );
+	thread citydoor1_close();
+}
+
+//---------------------
+void citydoor1_close()
+//---------------------
+{
+	wait( 5 );
+	float threadNum = 0;
+	$citydoor1_top.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "citydoor1_top" , 3, 144, "down" );
+	threadNum = thread  moveAxisAlignedEntity( "citydoor1_bottom" , 3, 104, "up" );
+	waitforthread ( threadNum );
+	$citydoor1_portalblock.closeportal();
+	thread citydoor1_switch_wait();
+}
+
+//---------------------
+void citydoor2_switch_wait()
+//---------------------
+{
+	$citydoor2_switch.onuse ( "citydoor2_open" );
+	pause();
+}
+
+
+//---------------------
+void citydoor2_open()
+//---------------------
+{
+
+	$citydoor2_switch.nouse();
+	$citydoor2_top.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$citydoor2_portalblock.openportal();
+	float threadNum = 0;
+	$citydoor2_top.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "citydoor2_top" , 3, 144, "up" );
+	threadNum = thread  moveAxisAlignedEntity( "citydoor2_bottom" , 3, 104, "down" );
+	waitforthread ( threadNum );
+	thread citydoor2_close();
+}
+
+//---------------------
+void citydoor2_close()
+//---------------------
+{
+	wait( 5 );
+	float threadNum = 0;
+	$citydoor2_top.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread  moveAxisAlignedEntity( "citydoor2_top" , 3, 144, "down" );
+	threadNum = thread  moveAxisAlignedEntity( "citydoor2_bottom" , 3, 104, "up" );
+	waitforthread ( threadNum );
+	$citydoor2_portalblock.closeportal();
+	thread citydoor2_switch_wait();
+}
+
+//---------------------
+// Function: crashSiteAliens
+// Comments:
+// sets a death thread on the aliens at the crash site
+//---------------------
+void crashSiteAliens()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 			= 1;
+	coop_float_spawnAngle1 			= 1;
+	coop_float_spawnAngle2 			= 1;
+	coop_float_spawnAngle3 			= 1;
+	coop_float_spawnAngle4 			= 1;
+	coop_float_spawnAngle5 			= 1;
+	coop_float_spawnAngle6 			= 1;
+	coop_float_spawnAngle7 			= 1;
+	coop_float_spawnAngle8 			= 1;
+	coop_vector_spawnOrigin1 			= '-1137 -1929 109';
+	coop_vector_spawnOrigin2 			= '-1137 -1830 109';
+	coop_vector_spawnOrigin3 			= '-1137 -1760 109';
+	coop_vector_spawnOrigin4 			= '-1137 -1690 109';
+	coop_vector_spawnOrigin5 			= '-1137 -1620 109';
+	coop_vector_spawnOrigin6 			= '-1137 -1550 109';
+	coop_vector_spawnOrigin7 			= '-1137 -1480 109';
+	coop_vector_spawnOrigin8 			= '-1137 -1410 109';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	wait( .1 );
+	$endAlien1.killthread( "endAliensDeath" );
+	$endAlien2.killthread( "endAliensDeath" );
+	$endAlien3.killthread( "endAliensDeath" );
+	$endAlien4.killthread( "endAliensDeath" );
+
+	$world.weather( "rain", 0 );
+}
+
+//---------------------
+// Function: endAliensDeath
+// Comments:
+// after the aliens at the end die you can then trigger the end cinematic
+//---------------------
+void endAliensDeath()
+{
+	endAliensKilled++;
+	if( endAliensKilled >= 4 )
+	{
+		$crashSiteTrigger.triggerable();
+	}
+}
+
+
+//==========================================================================================
+// end shuttle functions
+//==========================================================================================
+//--------------------------
+void shuttle_flyby_thread()
+//--------------------------
+{
+	$shuttle_flyby.show();
+	$shuttle_flyby_door.show();
+	float threadNum;
+	$shuttle_flyby.playsound ( "sound/vehicles/shuttlecraft/shuttle_decelerate.wav", 6, 1, 1024 );
+	threadNum = thread  moveAxisAlignedEntity( "shuttle_flyby" , 6, 1688, "north" );
+	waitforthread( threadNum );
+}
+
+//--------------------------
+void shuttle_flyby_continue()
+//--------------------------
+{
+	float threadNum;
+	$shuttle_flyby.playsound ( "sound/vehicles/shuttlecraft/shuttle_flyby_slow.wav", 10, 1, 1024 );
+	threadNum = thread  moveAxisAlignedEntity( "shuttle_flyby" , 15, 9600, "north" );
+	waitforthread( threadNum );
+	wait( 3 );
+	$shuttle_flyby.remove();
+	$shuttle_flyby_door.remove();
+}
+
+
+//-----------------------
+void shuttle_explosion_thread()
+//------------------------
+{
+	$shuttle_explosion.spawnnow();
+}
+
+
+//==========================================================================================
+// dialog and cinematic functions
+//==========================================================================================
+//---------------------
+// Function: crash_site_dialog
+// Comments:
+// dialog at the crash site
+//---------------------
+void crash_site_dialog()
+{
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindElderlyIdryll$$","complete",1,0);
+	globalCoop_objectives_set("$$InvestigateCrash$$","complete",5,1);
+	
+	$idryllshuttle.missionobjective( 0 );
+	wait( 2 );
+
+	$cinematicMunro.playdialog("localization/sound/dialog/m7l2/munro_scanlife.mp3", 1, 80000, 1); //Sydney, scan for lifesigns around the Idryll Shuttle crash site.
+	waitForDialog( $cinematicMunro );
+
+	$sydney.playdialog("localization/sound/dialog/m7l2/syd_scannow.mp3", 1, 20000, 1); //Scanning now, sir
+	waitForDialog( $sydney );
+
+	$sydney.playdialog("localization/sound/dialog/m7l2/syd_notread.mp3", 1, 20000, 1); //I'm not reading anything sir, either he's dead or he has left the area.
+	waitForDialog( $sydney );
+
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_waitForTeam",100,'1100 1100 2000','2641 -3257 233');
+	
+	/*
+	$cinematicMunro.playdialog("localization/sound/dialog/m7l2/munro_okbeam.mp3", 1, 80000, 1); //Ok, there is nothing more we can do here.  One to beam up.
+	waitForDialog( $cinematicMunro );
+	wait( 4 );
+	
+	thread shuttle_flyby_continue();
+	thread levelEnding();
+	*/
+}
+
+void testSetup()
+{
+	cam.load( "m7l2c_FlyBy_Shuttle" );
+	cam.load( "m7l2c_FlyBy_Shot1" );
+
+	//--- turn off the fog and the rain
+	$world.entity_fade_dist( 50000 );
+	$world.farplane_cull( 0 );
+	$world.farplane_color ( '.5 .5 .5' );
+	$world.farplane ( 0 );
+	$world.weather( "rain", 0 );
+
+	//--- setup the skybox
+	killthread( "randomExplosionSound" );
+	killthread( "randomLightningFlash" );
+	$lightning1.hide();
+	$lightning2.hide();
+	$lightning3.hide();
+	$lightning4.hide();
+	$lightning5.hide();
+	$lightning6.hide();
+	$lightning7.hide();
+	$lightning8.hide();
+	$lightning9.hide();
+	$explosionFlash1.hide();
+	$explosionFlash2.hide();
+	$explosionFlash3.hide();
+	$explosionFlash4.hide();
+	$explosionFlash5.hide();
+	$explosionFlash6.hide();
+	$skyGround.hide();
+	$starDome.show();
+}
+
+void testFly()
+{
+
+	$cam1.fov( 55 );
+	$shuttleSpace_Origin.followPath( $m7l2c_FlyBy_Shuttle );
+
+	thread levelEnding_ShuttleFlyBy_ScaleShuttleUp();
+	$cam1.follow( $m7l2c_FlyBy_Shot1 );
+
+	cuecamera( $cam1 );
+	wait( 9 );
+
+	killthread( "levelEnding_ShuttleFlyBy_ScaleShuttleUp" );
+	thread levelEnding_ShuttleFlyBy_ScaleShuttleDown();
+	wait( 4 );
+
+	cueplayer();
+}
+
+
+//---------------------
+// Function: levelEnding
+// Comments:
+// ends the level
+//---------------------
+void levelEnding()
+{
+	//$player.setobjectivecomplete( "FindElderlyIdryll", 1 );
+	//$player.setobjectivecomplete( "InvestigateCrash", 1 );
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- stop the random explosions and lightning functions
+	killthread( "randomExplosionSound" );
+	killthread( "randomLightningFlash" );
+
+	//--- turn off the fog and the rain
+	$world.entity_fade_dist( 50000 );
+	$world.farplane_cull( 0 );
+	$world.farplane_color ( '.5 .5 .5' );
+	$world.farplane ( 0 );
+	$world.weather( "rain", 0 );
+
+	//--- load camera paths
+	cam.load( "m7l2c_FlyBy_Shuttle" );
+	cam.load( "m7l2c_FlyBy_Shot1" );
+
+	//--- setup the skybox
+	$lightning1.hide();
+	$lightning2.hide();
+	$lightning3.hide();
+	$lightning4.hide();
+	$lightning5.hide();
+	$lightning6.hide();
+	$lightning7.hide();
+	$lightning8.hide();
+	$lightning9.hide();
+	$explosionFlash1.hide();
+	$explosionFlash2.hide();
+	$explosionFlash3.hide();
+	$explosionFlash4.hide();
+	$explosionFlash5.hide();
+	$explosionFlash6.hide();
+	$skyGround.hide();
+	$starDome.show();
+
+	//$cinematicMunro.show();
+	//$cinematicMunro.origin( '2656 -3008 104' );
+	//$cinematicMunro.angles( '0 90 0' );
+	wait( .5 );
+
+	//--- set the skipthread
+	skipthread( "levelEnding_skipThread");
+
+
+	allowmusicducking ( 0 );
+	music ( "aux4" );
+
+	//--- launch the armature
+	cinematicArm_Shuttle.beginCinematic( "m7-end" );
+}
+
+//---------------------
+// Function: levelEnding_ShuttleFlyBy
+// Comments: cinematic showing the shuttle flying away from the planet
+//---------------------
+void levelEnding_ShuttleFlyBy()
+{
+	cam_fadeout( .05, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- set camera
+	$cam1.fov( 55 );
+	$cam1.cut();
+	$cam1.follow( $m7l2c_FlyBy_Shot1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	allowmusicducking ( 0 );
+	music ( "aux6" );
+
+	$cam1.pause();
+
+	$shuttleSpace_Origin.followPath( $m7l2c_FlyBy_Shuttle );
+	thread levelEnding_ShuttleFlyBy_ScaleShuttleUp();
+	wait( .2 );
+
+	$cam1.continue();
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 5 );
+
+	//print ( "ASDF\n" ); //hzm coop mod chrissstrahl - um, no
+	$shuttleSpace_Origin.playsound( "sound/vehicles/shuttlecraft/shuttle_flyby_fast.wav", 10 , 2 ,10000 );
+
+	wait ( 3 );
+
+	killthread( "levelEnding_ShuttleFlyBy_ScaleShuttleUp" );
+	thread levelEnding_ShuttleFlyBy_ScaleShuttleDown();
+	wait( 3.5 );
+
+	//--- end the level
+	thread levelEnding_skipThread();
+}
+
+
+//---------------------
+// Function: levelEnding_skipThread
+// Comments:
+// skipthread for the ending of the level cinematic
+//---------------------
+void levelEnding_skipThread()
+{
+	skipthread( "null" );
+	killthread( "levelEnding" );
+	killthread( "levelEnding_ShuttleFlyBy" );
+	killthread( "levelEnding_ShuttleFlyBy_ScaleShuttleUp" );
+	killthread( "levelEnding_ShuttleFlyBy_ScaleShuttleDown" );
+
+	noncinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	clearletterbox( .1 );
+
+	//--- end the armature
+	cinematicArm_Shuttle.endCinematic( FALSE );
+
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();	
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m8l1a-drull_ruins2" );
+	wait ( .5 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+//---------------------
+// 	levelEnding_ShuttleFlyBy_ScaleShuttleUp
+// 	scale the shuttle up on the first part of it's path
+//---------------------
+void levelEnding_ShuttleFlyBy_ScaleShuttleUp()
+{
+	float i;
+
+	for( i = .01 ; i <= .15 ; i += .0005 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .05 );
+    }
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn_ScaleShuttleDown
+// 	scale the shuttle down on the last part of it's path
+//---------------------
+void levelEnding_ShuttleFlyBy_ScaleShuttleDown()
+{
+	float i;
+
+	for( i = .095 ; i >= .01 ; i -= .0007 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .05 );
+    }
+}
+
+//==========================================================================================
+// random functions
+//==========================================================================================
+//---------------------
+// Function: randomExplosionSound
+// Comments:
+// randomly picks an explosion sound to play and then randomly waits
+//---------------------
+void randomExplosionSound()
+{
+	float choice;
+
+	$explosionFlash1.hide();
+	$explosionFlash2.hide();
+	$explosionFlash3.hide();
+	$explosionFlash4.hide();
+	$explosionFlash5.hide();
+	$explosionFlash6.hide();
+	
+	while( 1 )
+	{
+		choice = randomint( 6 );
+		
+		
+		//hzm coop mod chrissstrahl - play earthquake for all players
+		thread globalCoop_player_earthquake( .15 , .75, 60 );
+		
+		if( choice == 0 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_lowfreq.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash1.show();
+			$explosionFlash1.fadein( .05 );
+			$explosionFlash1.alpha ( 1 );
+			$explosionFlash1.fade( 2 );
+		}
+		else if( choice == 1 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle1.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash2.show();
+			$explosionFlash2.fadein( .05 );
+			$explosionFlash2.alpha ( 1 );
+			$explosionFlash2.fade( 2 );
+		}
+		else if( choice == 2 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle2.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash3.show();
+			$explosionFlash3.fadein( .05 );
+			$explosionFlash3.alpha ( 1 );
+			$explosionFlash3.fade( 2 );
+		}
+		else if( choice == 3 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle3.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash4.show();
+			$explosionFlash4.fadein( .05 );
+			$explosionFlash4.alpha( 1 );
+			$explosionFlash4.fade( 2 );
+		}		
+		else if( choice == 4 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_lowfreq.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash5.show();
+			$explosionFlash5.fadein( .05 );
+			$explosionFlash5.alpha ( 1 );
+			$explosionFlash5.fade( 2 );
+		}
+		else if( choice == 5 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle1.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash6.show();
+			$explosionFlash6.fadein( .05 );
+			$explosionFlash6.alpha ( 1 );
+			$explosionFlash6.fade( 2 );
+		}
+		wait( randomint (11) +10 );
+
+	}
+}
+
+//---------------------
+// Function: randomLightningFlash
+// Comments:
+// flashes lighting in the skybox every so often
+//---------------------
+void randomLightningFlash()
+{
+	float LightningTime;
+	float LightningBrightness;
+	float LightningCountFlashes;
+	float LightningWait;
+	float LightningVisualIndex;
+	float MAX_lightningFlashObjects;
+	float i;
+	float LightningLastFlash;
+	string lightningFlashName;
+	entity lightningFlashObject;
+
+	LightningVisualIndex = 1;
+	MAX_lightningFlashObjects = 8;
+
+	for( i = MAX_lightningFlashObjects; i >= 0; i-- )
+		{
+			lightningFlashName = "lightning" + LightningVisualIndex;
+			lightningFlashObject = getentity( lightningFlashName );
+			lightningFlashObject.hide();
+			LightningVisualIndex += 1;
+		}
+
+	LightningVisualIndex = 1;
+
+	while( 1 )
+	{
+		LightningWait = randomint( 10 );
+		LightningWait += 5;
+		wait ( LightningWait );
+
+		LightningCountFlashes = randomint( 5 );
+		LightningCountFlashes += 3;
+
+		while(( LightningCountFlashes >= 1 ))
+		{
+			LightningTime = randomfloat( 0.15 );
+			LightningTime += .05;
+			LightningBrightness = randomfloat( 0.3 );
+			LightningBrightness += .2;
+
+			lightningFlashName = "lightning" + LightningVisualIndex;
+
+			lightningFlashObject = getentity( lightningFlashName );
+
+			lightningFlashObject.show();
+			lightningFlashObject.fadein( .05 );
+			lightningFlashObject.alpha ( 1 );
+
+			if( LightningCountFlashes <= 1 )
+			{
+				if( LightningBrightness >= .4 )
+				{
+					$world.playsound( "sound/environment/nature/thunder3.wav", 0, 1.5, 1000000 );
+				}
+				else if( LightningBrightness == .3 )
+				{
+					$world.playsound( "sound/environment/nature/thunder2.wav", 0, 1.5, 1000000 );
+				}
+				else if( LightningBrightness <= .2 )
+				{
+					$world.playsound( "sound/environment/nature/thunder1.wav", 0, 1.5, 1000000 );
+				}
+			}
+
+			lightningFlashObject.fade( LightningTime );
+			wait( LightningTime );
+
+			lightningFlashObject.hide();
+
+			LightningCountFlashes -= 1;
+			LightningLastFlash = LightningVisualIndex;
+			LightningVisualIndex = randomint( MAX_lightningFlashObjects );
+			LightningVisualIndex ++;
+
+			if( LightningLastFlash == LightningVisualIndex )
+			{
+				LightningVisualIndex ++;
+			}
+		}
+	}
+}
+
+
+//==========================================================================================
+// other functions
+//==========================================================================================
+//---------------------
+// Function: attrexianDoorBeepAccept
+// Comments:
+// plays a confirmation beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepAccept()
+{
+	$world.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 0, .7, 500000 );
+}
+
+//---------------------
+// Function: attrexianDoorBeepReject
+// Comments:
+// plays a rejection beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepReject()
+{
+	$world.playsound ( "sound/ships/attrexian/att-beepreject.wav", 0, .7, 500000 );
+}
+
+//---------------------
+// Function: attrexianAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void attrexianAutoSave()
+{
+	globalCommon_Autosave();
+}
+
+//---------------------
+// Function: attrexianDeathFallOff
+// Comments:
+// deathfall trigger turns off
+//---------------------
+void attrexianDeathFallOff()
+{
+	$deathfall.nottriggerable();
+}
+
+//---------------------
+// Function: attrexianDeathFallOn
+// Comments:
+// deathfall trigger turns on
+//---------------------
+void attrexianDeathFallOn()
+{
+	$deathfall.triggerable();
+}
+
+
+void coop_platformLiftCallLift()
+//------------------------------------------------------------------------------
+//calls lift up or down
+//------------------------------------------------------------------------------
+{
+entity eTrigger;
+eTrigger = getCurrentEntity();
+	if($platformLift.getFloatVar("liftBussy")){
+		return;
+	}
+	/*
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			ePlayer.hudPrint("^5INFO: ^8Calling Lift, please stand by...\n");
+		}
+	}
+	*/
+	platformLift_move();
+}
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{	
+	$cinematicMunro.playdialog("localization/sound/dialog/m7l2/munro_okbeam.mp3", 1, 80000, 1); //Ok, there is nothing more we can do here.  One to beam up.
+	waitForDialog( $cinematicMunro );
+	wait( 4 );
+	
+	thread shuttle_flyby_continue();
+	thread levelEnding();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m8l1a-drull_ruins2");
+}
+
+
+
+

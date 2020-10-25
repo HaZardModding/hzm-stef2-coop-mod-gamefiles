@@ -1,0 +1,519 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck11 - MISSION 8
+//  Script By:    K.Thompson
+//  Created on:   08/12/2002
+//	Last Edited:  08/12/2002 - kt
+//-----------------------------------------------------------------
+
+void setupMission8Deck11();
+void justLoadedDeckThreadIGM8();
+
+void cinematicKleeyaIGM8();
+void cinematicKleeyaIGM8Skipthread();
+void cinematicKleeyaIGM8End();
+
+void munroToHazardBreifingIGM8();
+
+void ambientActorsIGM8();
+
+void stockmankatchersideTalkIGM8();
+
+void stockman_workIGM8();
+void stockmanDialog8_1();
+void stockmanDialog8_2();
+void stockmanDialog8_3();
+
+void katcherside_workIGM8();
+void katchersideDialog8_1();
+
+void sydney_workIGM8();
+void sydneyDialog8_1();
+void sydneyDialog8_2();
+
+void miyamoto_workIGM8();
+void miyamotoDialog8_1();
+void miyamotoDialog8_2();
+
+//-----------------------------
+//--- variables
+
+entity cinematicArm_IGM8_Kleeya;
+
+
+//===================================================================================================================
+// Setup 
+//===================================================================================================================
+
+//---------------------
+// setupMission8Deck11	
+// does all the setup stuff for the mission
+//---------------------
+void setupMission8Deck11()
+{
+	globalCommon_SpawnActor( "char/kleeya-noweapon.tik", "kleeya", '-11104 1800 24', 90 );
+	globalCommon_AiActorUseWeapon( $kleeya, "none" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '-11072 1320 24', 90 );
+	globalCommon_AiActorUseWeapon( $scriptmunro, "none" );
+	$scriptmunro.hide();
+	$scriptmunro.notsolid();
+	
+	$triggerAstrometrics.thread( "cinematicKleeyaIGM8" );
+
+	ambientActorsIGM8();
+	
+	//Increase Kleeya Float Var
+	globalCommon_LoveChoice_Kleeya();
+	
+	//--- armature setup
+	cinematicArm_IGM8_Kleeya = createCinematic( "igm8_kleeya" );
+	cinematicArm_IGM8_Kleeya.setendthread( "cinematicKleeyaIGM8End" );
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$IGM8RemoveImplants$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM8MeetWithPicard$$","complete",2,0);
+	globalCoop_objectives_set("$$IGM8MeetTelsiaOrKleeya$$","incomplete",3,1);
+}
+
+//---------------------
+// munroHereToSeePicardIGM8
+// Triggered and check to see if A cinematic should happen.
+//------------------------
+void justLoadedDeckThreadIGM8()
+{
+	return;//hzm coop mod chrissstrahl - we handle objectives differently in coop
+	if( getfloatvar( "game.IGM8RemoveImplants" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8RemoveImplants", 1 );		
+	}
+	if( getfloatvar( "game.IGM8RemoveImplants" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8RemoveImplants", 1 );			
+	}
+	if( getfloatvar( "game.IGM8MeetWithPicard" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8MeetWithPicard", 1 );		
+	}
+	if( getfloatvar( "game.IGM8MeetWithPicard" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8MeetWithPicard", 1 );			
+	}
+	
+	if( getfloatvar( "game.IGM8MeetTelsiaOrKleeya" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM8MeetTelsiaOrKleeya", 1 );		
+	}
+	if( getfloatvar( "game.IGM8MeetTelsiaOrKleeya" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM8MeetTelsiaOrKleeya", 1 );			
+	}
+}
+
+//---------------------
+// cinematic
+// setup and begin cinematic
+//---------------------
+void cinematicKleeyaIGM8()
+{
+	$triggerAstrometrics.thread( "" );
+
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+	
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	letterbox( .1 );
+
+	//--- hide the player and AI
+	globalCommon_AiDummyHide( $scriptmunro );
+	globalCommon_AiDummyHide( $kleeya );
+	
+	//--- start the armature
+	cinematicArm_IGM8_Kleeya.beginCinematic( "igm8_kleeya" );
+	wait( .2 );
+	
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--- set the skipthread
+	skipthread( "cinematicKleeyaIGM8End" );
+}
+
+//---------------------
+// cinematicSkipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicKleeyaIGM8Skipthread()
+{
+	//--- kill the cinematic thread
+	skipthread( "Null" );
+	killthread( "cinematicKleeyaIGM8" );
+	thread cinematicKleeyaIGM8End();
+}
+
+//---------------------
+// cinematicEnd
+// wrapup the cinematic
+//------------------------
+void cinematicKleeyaIGM8End()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_IGM8_Kleeya.endCinematic( FALSE );
+
+	killthread( "cinematicKleeyaIGM8" );
+
+	//--- IGM stuff
+	setfloatvar( "game.IGM8MeetTelsiaOrKleeya", 2 );
+	justLoadedDeckThreadIGM8();
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$IGM8MeetTelsiaOrKleeya$$","complete",3,1);
+	
+	//--- set the player
+	//$player.warp( '-11124 -1244 16' );
+	//$player.turnTowardsEntity( $stevenson );
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .5 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	coop_igm_mapToLoad = "ent-deck7a";
+	thread coop_endLevel();
+
+	/*
+	spawn ( "trigger_changelevel", "targetname", "triggerChangeToDeck7", "map", "ent-deck7a" );
+	wait( .1 );
+	trigger ( "$triggerChangeToDeck7" );
+	*/
+
+	//setfloatvar( "game.checkEntMission8RoomsVisited", 3 );
+	
+	//$triggerAstrometrics.thread( "munroToHazardBreifingIGM8" );
+	
+	//wait( 10 );
+	
+	//thread munroToHazardBreifingIGM8();
+}
+
+//---------------------
+// Call Munro To Breifing
+//---------------------
+void munroToHazardBreifingIGM8()
+{
+	$triggerAstrometrics.thread( "" );
+	killthread( "cinematicKleeyaIGM8End" );	
+	
+	centerprint( "Picard: \nMunro to Hazard Breifing" );
+}
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM8	
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM8()
+{
+	globalCommon_SpawnActor( "char/hazardteam_sf-sydney.tik", "sydney", '-9580.00 -924.00  0.00', 0 );
+	thread randomlyAnimateActor( $sydney, "ent-library-stand" );
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-female2.tik", "miyamoto", '-9804.00 -836.00  4.00', 0 );	
+	thread randomlyAnimateActor( $miyamoto, "ent-library-seat" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt3.tik", "stockman", '-9299.61 -147.61  0.00', 210 );
+	$stockman.pushable( 0 );
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt5.tik", "katcherside", '-9382.45 -199.83  0.00', 30 );
+	$katcherside.pushable( 0 );
+	
+	thread sydney_workIGM8();
+	thread miyamoto_workIGM8();
+	
+	$hallwayTrigger.thread( "stockmankatchersideTalkIGM8" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-chell.tik", "chell", '-9640 596 0', 0 );
+	$chell.setnodeid( 50 );
+	$chell.alias( "chellIGMA1", "localization/sound/dialog/ent_m8/chell_behind.mp3" ); //Well we’ve finally figured out who’s behind all this.
+	$chell.alias( "chellIGMA2", "localization/sound/dialog/ent_m8/chell_hatead.mp3" ); //I hate to admit it, but I’m looking forward to the fight.
+	$chell.alias( "chellIGMA3", "localization/sound/dialog/ent_m8/chell_kickb.mp3" ); //Time to kick some Romulan butt!  Um, yeah, heh.
+	$chell.dialog( "chellIGMA" );
+	$chell.ai_on();
+}
+
+////////////////////////////
+// stockmankatcherside Talk
+/////////////////////////////
+void stockmankatchersideTalkIGM8()
+{
+	$hallwayTrigger.thread( "" );
+
+	$stockman.playdialog("localization/sound/dialog/ent_m8/htm1_timeto.mp3", 1, 128, 0); //Time to take out the trash…
+	waitForDialog( $stockman );
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/htm2_waytoo.mp3", 1, 128, 0); //No no… WAY too cliché
+	waitForDialog( $katcherside );
+	$stockman.playdialog("localization/sound/dialog/ent_m8/htm1_thison.mp3", 1, 128, 0); //Okay, how about this one… Time to bring the pain
+	waitForDialog( $stockman );
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/htm2_time.mp3", 1, 128, 0); //What is it with you and time?  It's always "Time to do this" or "Time to do that…"
+	waitForDialog( $katcherside );
+	$stockman.playdialog("localization/sound/dialog/ent_m8/htm1_bringpain.mp3", 1, 128, 0); //What's wrong with "Time to bring the pain"?
+	waitForDialog( $stockman );
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/htm2_kidding.mp3", 1, 128, 0); //You're kidding right?
+	waitForDialog( $katcherside );
+	$stockman.playdialog("localization/sound/dialog/ent_m8/htm1_what.mp3", 1, 128, 0); //What?
+	waitForDialog( $stockman );
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/htm2_notwrong.mp3", 1, 128, 0); //Man, what's NOT wrong with that?
+	waitForDialog( $katcherside );
+	$stockman.playdialog("localization/sound/dialog/ent_m8/htm1_fine.mp3", 1, 128, 0); //Fine…
+	waitForDialog( $stockman );
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/htm2_yourc.mp3", 1, 128, 0); //Look, it's YOUR catch phrase, man, you want it to suck, that's your business…
+	waitForDialog( $katcherside );
+	
+	thread randomlyAnimateActor( $stockman, "conv" );
+	thread randomlyAnimateActor( $katcherside, "conv" );	
+	
+	//$stockman.pushable( 1 );
+	//$katcherside.pushable( 1 );
+	
+	thread stockman_workIGM8();
+	thread katcherside_workIGM8();
+}
+
+///////////////////////////
+// stockmanOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void stockman_workIGM8()
+{
+	setNextDialog( $stockman, 1 );
+	setDialogFunction( $stockman, "stockmanDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $stockman, "", "", 0 );
+		talkUntilDone( $stockman );
+	}
+}
+
+///////////////////////////
+// stockmanDialog4_1
+// Player and actor talk
+///////////////////////////
+void stockmanDialog8_1()
+{
+	$stockman.headwatch( $player, 10 );
+	
+	$stockman.playdialog("localization/sound/dialog/ent_m8/dev_congrat.mp3", 1, 128, 0); //Hey, Munro. Welcome back!
+	waitForDialog( $stockman );
+
+	setNextDialog( $stockman, 2 );
+	$stockman.headwatchtarget( "katcherside", 5 );
+	setDialogFinished( $stockman );
+}
+
+///////////////////////////
+// stockmanDialog4_2
+// Player and actor talk
+///////////////////////////
+void stockmanDialog8_2()
+{
+	$stockman.headwatch( $player, 10 );
+	
+	$stockman.playdialog("localization/sound/dialog/ent_m8/dev_kinda.mp3", 1, 128, 0); //Your Romulan outfit and surgical alteration made my skin crawl.
+	waitForDialog( $stockman );
+
+	setNextDialog( $stockman, 3 );
+	$stockman.headwatchtarget( "katcherside", 5 );
+	setDialogFinished( $stockman );
+}
+
+///////////////////////////
+// stockmanDialog4_3
+// Player and actor talk
+///////////////////////////
+void stockmanDialog8_3()
+{
+	$stockman.headwatch( $player, 10 );
+	
+	$stockman.playdialog("localization/sound/dialog/ent_m8/dev_inf.mp3", 1, 128, 0); //It's nice to have you back...as a human.
+	waitForDialog( $stockman );
+
+	setNextDialog( $stockman, 1 );
+	$stockman.headwatchtarget( "katcherside", 5 );
+	setDialogFinished( $stockman );
+}
+
+///////////////////////////
+// katchersideOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void katcherside_workIGM8()
+{
+	setNextDialog( $katcherside, 1 );
+	setDialogFunction( $katcherside, "katchersideDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $katcherside, "", "", 0 );
+		talkUntilDone( $katcherside );
+	}
+}
+
+///////////////////////////
+// katchersideDialog4_1
+// Player and actor talk
+///////////////////////////
+void katchersideDialog8_1()
+{
+	$katcherside.headwatch( $player, 10 );
+	
+	$katcherside.playdialog("localization/sound/dialog/ent_m8/crewm_chat4.mp3", 1, 128, 0); //No time for chit chat, Munro
+	waitForDialog( $katcherside );
+
+	setNextDialog( $katcherside, 1 );
+	$katcherside.headwatchtarget( "stockman", 5 );
+	setDialogFinished( $katcherside );
+}
+
+///////////////////////////
+// sydneyOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void sydney_workIGM8()
+{
+	setNextDialog( $sydney, 1 );
+	setDialogFunction( $sydney, "sydneyDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $sydney, "", "", 0 );
+		talkUntilDone( $sydney );
+	}
+}
+
+///////////////////////////
+// sydneyDialog4_1
+// Player and actor talk
+///////////////////////////
+void sydneyDialog8_1()
+{
+	$sydney.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$sydney.anim( "ent-library-stand-scan" );
+	$sydney.headwatch( $player, 10 );
+	
+	$sydney.playdialog("localization/sound/dialog/ent_m8/syd_poorg.mp3", 1, 128, 0); //Poor Gonzales… I only knew him for a little while.
+	waitForDialog( $sydney );
+
+	setNextDialog( $sydney, 2 );
+	$sydney.resethead();
+	setDialogFinished( $sydney );
+	$sydney.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// sydneyDialog4_2
+// Player and actor talk
+///////////////////////////
+void sydneyDialog8_2()
+{
+	$sydney.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$sydney.anim( "ent-library-stand-scan" );
+	$sydney.headwatch( $player, 10 );
+	
+	$sydney.playdialog("localization/sound/dialog/ent_m8/syd_ihope.mp3", 1, 128, 0); //I hope everyone comes back from this mission.
+	waitForDialog( $sydney );
+
+	setNextDialog( $sydney, 1 );
+	$sydney.resethead();
+	setDialogFinished( $sydney );
+	$sydney.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// miyamotoOnUseWaitIGM8
+// Wait for player to talk to actor
+///////////////////////////
+void miyamoto_workIGM8()
+{
+	setNextDialog( $miyamoto, 1 );
+	setDialogFunction( $miyamoto, "miyamotoDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $miyamoto, "", "", 0 );
+		talkUntilDone( $miyamoto );
+	}
+}
+
+///////////////////////////
+// miyamotoDialog8_1
+// Player and actor talk
+///////////////////////////
+void miyamotoDialog8_1()
+{
+	$miyamoto.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$miyamoto.anim( "ent-library-seat-scan" );
+	$miyamoto.headwatch( $player, 10 );
+	
+	$miyamoto.playdialog("localization/sound/dialog/ent_m8/miyamoto_empty.mp3", 1, 128, 0); //I am currently researching the possible consequences to the Federation should the Empty Crown succeed.
+	waitForDialog( $miyamoto );
+
+	setNextDialog( $miyamoto, 2 );
+	$miyamoto.resethead();
+	setDialogFinished( $miyamoto );
+	$miyamoto.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// miyamotoDialog8_2
+// Player and actor talk
+///////////////////////////
+void miyamotoDialog8_2()
+{
+	$miyamoto.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$miyamoto.anim( "ent-library-seat-scan" );
+	$miyamoto.headwatch( $player, 10 );
+
+	$miyamoto.playdialog("localization/sound/dialog/ent_m8/miyamoto_results.mp3", 1, 128, 0); //The results would not be to our advantage, rest assured.  We must stop them.
+	waitForDialog( $miyamoto );
+
+	setNextDialog( $miyamoto, 1 );
+	$miyamoto.resethead();
+	setDialogFinished( $miyamoto );
+	$miyamoto.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM8	
+//---------------------
+void checkForDeckChangeIGM8()
+{
+	if( getfloatvar( "game.checkEntMission7RoomsVisited" ) == 3 )
+	{
+		setfloatvar(  "level.deckToChangeToIGM", 71 );
+
+		$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_dhazaps.mp3", 1, 10000, 0); //Hazard Operations
+	}
+}
+
+
+

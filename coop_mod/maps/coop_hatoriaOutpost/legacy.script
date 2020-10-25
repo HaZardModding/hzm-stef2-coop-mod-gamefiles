@@ -1,0 +1,515 @@
+//for 4.3 compatibility!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+//-----------------------------------------------------------------------------------
+// Script By:		Christian Sebastian Strahl (Chrissstrahl)
+// Created on:		2008.27.08
+// E-Mail:			chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// CALLVOLUME REPLACEMENT - INCLUDE IF YOU NEED IT'S FEATURES; INCLUDE ONLY TO THE CURRENT LEVEL SCRIPT!!
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2009 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////////////
+//DECLARATIONS
+////////////////////////////////////////////////////////////////////////////////
+void legacy_trigger();
+void legacy_replace(entity eTrigger,string sThread);
+void legacy_addRequiredEntity(entity eTrigger,string sReqEntity);
+void legacy_add(vector vOrigin,vector vBbMins,vector vBbMaxs,string sTargetname,string sThread);
+void legacy_putAwayWeapon(entity ePlayer);
+float legacy_teamInsideArea(vector vOrigin,vector vMins,vector vMaxs);
+void legacy_forcefield_makeInteractive( entity eMakeInteractiveFF );
+void legacy_forcefield_setOnTouch(entity eOnTouch,string sThread);
+void legacy_forcefield_setOnDamage(entity eOnDamage,string sThread);
+void legacy_forcefield_onDamage();
+void legacy_forcefield_touched();
+void legacy_forcefield_playSound(entity eForceField);
+void legacy_forcefield_disable(entity eForceField);
+void legacy_savegame();
+
+////////////////////////////////////////////////////////////////////////////////
+//FUNCTIONS
+////////////////////////////////////////////////////////////////////////////////
+void legacy_add(vector vOrigin,vector vBbMins,vector vBbMaxs,string sTargetname,string sThread)
+{
+	entity e;
+	string sClass;
+	string sThreadToSet;
+	sThreadToSet	= "legacy_trigger";
+	sClass			= "trigger_multiple";
+//THIS IS A REAL TRIGGER_CALLVOLUME IN SP
+	if(!cvar_bool_multiplayer){
+		sClass			= "trigger_callVolume";
+		sThreadToSet	= sThread;
+	}
+	e =	spawn(sClass,"targetname",sTargetname,"origin",""+vOrigin);
+	globalCoop_main_wait1DotZero();
+	e.setSize(vBbMins,vBbMaxs);
+	e.thread(sThreadToSet);
+	e.setStringVar("globalCoop_callVolumeTriggerThread",sThread);
+}
+
+void legacy_trigger()
+//----------------------------------------------------------------------
+//Call a the thread for this trigger call volume replacement
+//----------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		float fRounds;
+		float fAllInclusive=1;
+		string sThread;
+		eTrigger.notTriggerable();
+		globalCoop_main_waitZeroDot5();
+//CHECK ALL PLAYERS INSIDE
+		while(fRounds < 3)
+		{
+			fRounds++;
+			globalCoop_main_wait1DotZero();
+			if(!legacy_teamInsideArea(eTrigger.getOrigin(),eTrigger.getMins(),eTrigger.getMaxs())){
+				fAllInclusive=0;
+				fRounds=665;//was 665, has moved to 666
+			}
+		}
+//ENGAGE
+		if(fAllInclusive){
+			sThread = eTrigger.getStringVar("globalCoop_callVolumeTriggerThread");
+			if(sThread != ""){
+				thread globalCoop_level_callReliably(sThread);
+			}
+			globalCoop_level_triggerEntity(getEntity(eTrigger.getStringVar("coop_callVolumeTriggerTarget")));
+			globalCoop_level_remove(eTrigger);
+		}
+		else{
+			eTrigger.triggerable();
+		}
+	}
+}
+
+
+void legacy_replace(entity eTrigger,string sThread)
+//----------------------------------------------------------------------
+//Replace a trigger callvolume with a STABLE trigger script Hybrid
+//----------------------------------------------------------------------
+{
+//Do only if at multiplayer
+	//if(cvar_bool_multiplayer){
+		entity eTarget;
+		vector vOrigin;
+		vector vMins;
+		vector vMaxs;
+		vector vAngles;
+		string sTargetname;
+		string sTargetTargetname;
+		eTarget			= eTrigger.getTargetEntity();
+		vOrigin			= eTrigger.getOrigin();
+		sTargetname		= eTrigger.getRawTargetname();
+		vMins = eTrigger.getMins();
+		vMaxs = eTrigger.getMaxs();
+		vAngles = eTrigger.getAngles();
+		if(doesEntityExist(eTarget)){
+			sTargetTargetname = eTarget.getRawTargetname();
+		}
+		globalCoop_level_remove(eTrigger);
+		eTrigger = spawn("trigger_multiple","targetname",sTargetname,"origin",""+vOrigin);
+		globalCoop_main_waitAFrame();
+		if(vAngles != '0 0 0'){//in case trigger has facing side
+			eTrigger.angles(vAngles);
+		}
+		if(sTargetTargetname != ""){
+			eTrigger.setStringVar("coop_callVolumeTriggerTarget",sTargetTargetname);
+		}
+		eTrigger.setSize(vMins,vMaxs);	
+		eTrigger.setStringVar("globalCoop_callVolumeTriggerThread",sThread);
+		
+		eTrigger.thread("legacy_trigger");
+	//}
+}
+
+
+void legacy_addRequiredEntity(entity eTrigger,string sReqEntity)
+//----------------------------------------------------------------------
+//Add a required entity to the callVolume replacment trigger Script-Hybrid
+//----------------------------------------------------------------------
+{
+//ADD ENTITY TO THE TRIGGER CALLVOLUME-LISTING
+	if(doesEntityExist(eTrigger)){
+		if(cvar_bool_multiplayer){
+			float fRounds;
+			string sEnlisted;
+			while(fRounds<4){
+				fRounds++;
+				sEnlisted = globalCoop_level_getStringVar(eTrigger,"coop_requiredEntity"+fRounds);
+//NOT WORLD
+				if(sReqEntity != "world"){
+//ENTITY IS INSIDE THE TRIGGER ALLREADY
+					if(sEnlisted == ""){
+						globalCoop_level_setStringVar(eTrigger,"coop_requiredEntity"+fRounds,sReqEntity);
+						fRounds=4;
+					}else if(sReqEntity == sEnlisted){
+						fRounds=4;
+					}
+				}
+			}
+		}
+		else{
+			eTrigger.requiredentity(sReqEntity);
+		}
+	}
+}
+
+void legacy_putAwayWeapon(entity ePlayer)
+//----------------------------------------------------------------------
+// put away weapon of the given player, or actor
+//----------------------------------------------------------------------
+{
+	if(!cvar_bool_multiplayer){
+		$player.safeholster(1);
+		wait(.5);
+		return;
+	}
+	if(doesEntityExist(ePlayer)){
+		string sActiveWeapon,sAnimname;
+		sActiveWeapon = ePlayer.getActiveWeaponName();
+		if( globalCoop_return_integerPlayerId(ePlayer) > -1 )
+		{			
+			ePlayer.give("models/weapons/worldmodel-knife.tik");
+			ePlayer.use("models/weapons/worldmodel-knife.tik");
+			globalCoop_main_waitZeroDot5();
+			ePlayer.take("models/weapons/worldmodel-knife.tik");
+		}
+		else{
+			// put away current weapon
+			ePlayer.useActorWeapon(sActiveWeapon);
+			sAnimname = sActiveWeapon+"_putaway";
+			ePlayer.anim( sAnimname );
+			waitforanimation(ePlayer,sAnimname);
+			ePlayer.anim("Idle");
+			ePlayer.useActorWeapon("none");
+		}
+	}
+}
+
+float legacy_teamInsideArea(vector vOrigin,vector vMins,vector vMaxs)
+{
+if(!cvar_bool_multiplayer){//SINGLEPLAYER
+	if(globalCoop_check_isBoundingBox2InsideOfBoundingBox1(
+	$player.getOrigin(),//ORIGIN BBOX1
+	'-22 -22 0',//e.getMins()
+	'22 22 96',//e.getMaxs()
+	vOrigin,//ORIGIN BBOX2
+	vMins,//e.getMins()
+	vMaxs,//e.getMaxs()
+	0)
+	){
+		return 1;
+	}
+	return 0;
+}
+
+float fPlayersInside;
+float fPlayerIdInUse;
+float fPlayerQuantity = 0;
+entity ePlayer;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				if(globalCoop_check_isBoundingBox2InsideOfBoundingBox1(
+					ePlayer.getOrigin(),//ORIGIN BBOX1
+					'-22 -22 0',//e.getMins()
+					'22 22 96',//e.getMaxs()
+					vOrigin,//ORIGIN BBOX2
+					vMins,//e.getMins()
+					vMaxs,//e.getMaxs()
+					0)
+				){
+					fPlayersInside++;
+				}
+				fPlayerQuantity++;
+			}
+		}
+	}
+//1 player, require only 1
+	if(fPlayerQuantity == 1){
+		fPlayerIdInUse=0;//recycle
+	}
+//2 players require 2
+	else if(fPlayerQuantity == 2){
+		fPlayerIdInUse = 2;//recycle
+	}
+//more than 2 players require half, at least 2!
+	else{
+		fPlayerIdInUse = (fPlayerQuantity / 2);//recycle
+		fPlayerIdInUse = ceil(fPlayerIdInUse);//recycle					
+	}
+//CHECK IF ALL ARE INSIDE
+	if(fPlayersInside >= fPlayerIdInUse){//recycle
+		return 1;
+	}
+	return 0;
+}
+
+void legacy_forcefield_enable( entity eFF )
+//----------------------------------------------------------------------
+// Make this entity to a interactive forcefield (save type work :P )
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eFF)){
+		float fWait;
+		eFF.setFloatVar("coop_ffIsOffline",-1);		
+		do{
+			fWait=0;
+			if(globalCoop_check_isEntityInsideOfPlayer(eFF,10)){
+				fWait=1;
+				globalCoop_main_waitAFrame();
+			}
+		}while(fWait);
+		if(doesEntityExist(eFF)){
+			if(eFF.getFloatVar("coop_ffIsOffline") != 1){
+				eFF.setFloatVar("coop_ffIsOffline",0);
+				globalCoop_level_showAndSolid(eFF);
+				if(eFF.getFloatvar("coop_doloopsound")){
+					eFF.loopSound("sound/ships/enterprise/ent_forcefield.wav",1,64);
+				}
+				legacy_forcefield_makeInteractive(eFF);
+			}
+		}
+	}
+}
+
+void legacy_forcefield_setOnTouch(entity eOnTouch,string sThread)
+//----------------------------------------------------------------------
+// Set thread to start if this entity gets Touchd
+//----------------------------------------------------------------------
+{
+//CHECK IF ENTITY EXISTS, DO NOTHING IF NOT
+	if(doesEntityExist(eOnTouch)){
+		eOnTouch.noTouch();
+		globalCoop_main_waitAFrame();
+		eOnTouch.onTouch(sThread);
+		pause();
+	}
+}
+
+void legacy_forcefield_setOnDamage(entity eOnDamage,string sThread)
+//----------------------------------------------------------------------
+// Set thread to start if this entity gets Damaged
+//----------------------------------------------------------------------
+{
+//CHECK IF ENTITY EXISTS, DO NOTHING IF NOT
+	if(doesEntityExist(eOnDamage)){
+		eOnDamage.noDamage();
+		globalCoop_main_waitAFrame();
+		eOnDamage.onDamage(sThread);
+		pause();
+	}
+}
+
+void legacy_forcefield_makeInteractive( entity eMakeInteractiveFF )
+//----------------------------------------------------------------------
+// Make this entity to a interactive forcefield (save type work :P )
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eMakeInteractiveFF)){
+		if(eMakeInteractiveFF.getFloatVar("coop_ffIsOffline") != 1){
+			eMakeInteractiveFF.setFloatVar("coop_ffIsOffline",0);			
+			string sTargetname;
+			sTargetname = eMakeInteractiveFF.getRawTargetname();
+			if( sTargetname == "" ){
+				globalCoop_main_print( "ERROR: legacy_forcefield_makeInteractive NO_TARGETNAME_SET" );
+				return;
+			}
+			sTargetname = (sTargetname + "_trigger");
+			if(!doesEntityExist(getEntity(sTargetname))){
+				entity eTrigger;
+				//"spawnflags","8" //dont hurt ai
+				eTrigger = spawn("trigger_hurt","targetname",sTargetname,"damage","5","origin",""+eMakeInteractiveFF.getOrigin());
+				wait(coop_float_oneFrameTime);
+				if(!doesEntityExist(eMakeInteractiveFF)){
+					eTrigger.remove();
+					return;
+				}
+				eTrigger.bind(eMakeInteractiveFF);
+				eTrigger.setSize(eMakeInteractiveFF.getMins(),eMakeInteractiveFF.getMaxs());
+				eTrigger.damagetype("electric");
+				eTrigger.wait( 0.21 );
+				eTrigger.setStringVar("uservar1","" + eMakeInteractiveFF.getStringvar("uservar1"));
+				eTrigger.setStringVar("uservar2","" + eMakeInteractiveFF.getStringvar("uservar2"));
+				eTrigger.setStringVar("uservar3","" + eMakeInteractiveFF.getStringvar("uservar3"));
+				eTrigger.setStringVar("uservar4","" + eMakeInteractiveFF.getStringvar("uservar4"));
+				eTrigger.setStringVar("coop_legacyForceFieldName",""+eMakeInteractiveFF.getRawTargetname());
+				eTrigger.thread("legacy_forcefield_touched");
+			}
+			thread legacy_forcefield_setOnDamage(eMakeInteractiveFF,"legacy_forcefield_onDamage");
+		}
+	}
+}
+
+
+void legacy_forcefield_onDamage()
+//----------------------------------------------------------------------
+// On Damage the InterActive FF Calls This Thread
+//----------------------------------------------------------------------
+{
+	entity eForceField;
+//Exit If entity is missing
+	if(doesEntityExist(eForceField)){
+		eForceField.noDamage();	
+		globalCoop_level_hide(eForceField);
+		globalCoop_main_waitAFrame();
+		if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+			globalCoop_level_show(eForceField);
+			legacy_forcefield_playSound( eForceField );
+		}
+		globalCoop_main_waitZeroDotZero5();
+		if(eForceField.getFloatVar("coop_ffIsOffline") != 1){
+			thread legacy_forcefield_setOnDamage( eForceField ,"legacy_forcefield_onDamage");
+		}
+	}
+}
+
+
+void legacy_forcefield_touched()
+//----------------------------------------------------------------------
+// On Touch the InterActive FF Calls This Thread
+//----------------------------------------------------------------------
+{
+	entity eTrigger;
+	entity eFfield;
+	
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	
+	eFfield = getEntity(eTrigger.getStringVar("coop_legacyForceFieldName"));
+	if(!doesEntityExist(eFfield)){
+		return;
+	}
+	
+	//Exit if ff is about to shutdown
+	if(eFfield.getFloatVar("coop_ffIsOffline") == 1){
+		legacy_forcefield_disable(eFfield);
+		return;
+	}
+	
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+//IF PLAYER IS ACTIVE
+	if(!globalCoop_check_playerSpectator(ePlayer)){
+//MAKE PLAYER SEAM TO ACT ON THE EVENT
+		//ePlayer.jump(20);
+		//display electric effect on player
+		//ePlayer.setCustomshader("electric");
+		//push player away from the force field
+		vector vSize;
+		vector vPush;
+		vector vP;
+		vector vT;
+		vT = ePlayer.getOrigin();
+		vP = eTrigger.getOrigin();
+		
+		
+		if(vT_x > vP_x){
+			vPush_x = 100;
+		}else{	
+			vPush_x = -100;
+		}		
+		if(vT_y > vP_y){
+			vPush_y = 100;
+		}else{
+			vPush_y = -100;
+		}
+		
+		//if the player is on ground, we need more force
+		if( ePlayer.isplayeronground() ){
+			vPush_x = (vPush_x * 5);
+			vPush_y = (vPush_y * 5);
+		}
+		
+		vPush_z = vectorGetZ(ePlayer.getVelocity());
+		ePlayer.setVelocity(vPush);
+//animate force field
+		legacy_forcefield_playSound(eFfield);
+		globalCoop_level_hide(eFfield);		
+	}
+	globalCoop_main_waitAFrame();
+//SHOW FF AGAIN IF IT IS NOT DISABLED
+	if(eFfield.getFloatVar("coop_ffIsOffline") != 1){
+		globalCoop_level_show(eFfield);
+		//remove effect from player
+		//if(doesEntityExist(ePlayer)){
+			//ePlayer.clearcustomshader("electric");
+		//}
+		wait(.2);
+//SET TOUCH THREAD AGAIN; TO MAKE IT RESPONDE AGAIN IF IT IS NOT DISABLED
+		if(eFfield.getFloatVar("coop_ffIsOffline") != 1){
+			eTrigger.triggerable();
+		}
+	}
+}
+
+
+void legacy_forcefield_playSound(entity eForceField)
+//----------------------------------------------------------------------
+// Force Field Interactions thread
+//----------------------------------------------------------------------
+{
+//Exit if entity is missing
+	if(doesEntityExist(eForceField)){
+		eForceField.playsound( "sound/ships/enterprise/ent_forcefield_down.wav",50,1.5,256);
+	}
+}
+
+
+void legacy_forcefield_disable(entity eForceField)
+//----------------------------------------------------------------------
+// Disable this force Field
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eForceField)){
+	//Make sure this ff will not be triggerd again
+		eForceField.setFloatVar("coop_ffIsOffline",1);
+		globalCoop_main_waitAFrame();//wait for onuse/ontouch/ondamage threads
+		if(doesEntityExist(eForceField)){
+			entity eTrigger;
+			string sTargetname;
+			
+			sTargetname = "" + eForceField.getRawTargetName() + "_trigger";
+			
+			eTrigger = getEntity(sTargetname);
+			if(doesEntityExist(eTrigger)){
+				eTrigger.nottriggerable();
+			}
+			globalCoop_level_hideAndNotSolid(eForceField);
+			eForceField.noUse();
+			eForceField.noDamage();
+			eForceField.stoploopsound();
+		}
+	}
+}
+
+
+void legacy_savegame()
+//----------------------------------------------------------------------
+// Disable this force Field
+//----------------------------------------------------------------------
+{
+	if(!cvar_bool_multiplayer){
+		stuffcmd("ui_savegamewithname \"^5H'atoria Outpost^8 with ^5HZM Co-op Mod^8\"\n");
+	}
+}
+

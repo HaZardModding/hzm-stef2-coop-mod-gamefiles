@@ -1,0 +1,226 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2007.09.29
+// E-Mail:		chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// CONTAININS ALL MISSION RUTINES USED BY THE CO-OP MOD
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2015 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////Functions
+////////////////////////////////////////////////////////////////////////////////
+void globalCoop_mission_accomplished()
+//----------------------------------------------------------------------
+// Mission can now end sucessfully, even if time runs out
+//----------------------------------------------------------------------
+{
+	coop_vector_linuxForcerebootTransporting_y=1;
+}
+
+void globalCoop_mission_setCeckpoint(string sParanoia)
+{
+	coop_string_checkpointParameters = sParanoia;
+}
+
+void globalCoop_mission_completed(string coop_nextmap)
+//----------------------------------------------------------------------
+// do this stuff at levelend
+//----------------------------------------------------------------------
+{
+//do not allow multiplePlayercalls on this thread
+	if(coop_vector_mainisactiveLevelcompleteLmslevelend_y != 1){
+		coop_vector_mainisactiveLevelcompleteLmslevelend_y=1;
+		coop_vector_svnextmaporrebootDoloadnextmimapWaitingForTeam_y=1;//allow loading next mission on timeranout;
+//Do Multiplayer End Rutine
+////////////////////////////////////////////////////////////////////////////////
+		if(cvar_bool_multiplayer){
+//level check routine
+			if(cvar_bool_coop_developer){
+				if(getCvarInt("coop_diag") == 1){
+					if(coop_nextmap == "secret1"){
+						stuffcmd("seta coop_diag 0\n");
+					}
+					globalCoop_main_print("NEXT MAP TO CHECK: " + coop_nextmap);
+				}
+			}
+			
+//Set next map to be loadad, FAILSAVE!!!
+			globalCoop_main_wait1DotZero();
+//If we don't have faild the Mission, show success
+			if(coop_nextmap != "failure"){
+				coop_bool_nextMapIsSet=1;
+				stuffCMD("seta coop_map \""+coop_nextmap+"\"\n");
+//Do LevelEnd Rutine(pause script,nodamage,immobilize)
+				globalCoop_level_endProcedur();				
+//Notifie Observer
+				globalCoop_main_print("================ MISSION Complete ====================");
+				globalCoop_main_print("LOADING NEXT MAP: "+coop_nextmap);
+//REMOVE OBJECTIVE NOTIFIE HUD
+				globalCoop_huds_RemoveAll("coop_notify");
+//ADD MISSION SUCESS HUD
+				if(coop_bool_showMissionSucessHud){
+					cam_fadeout(1,0,0,0,1);
+					globalCoop_player_transmittToAll("exec coop_mod/cfg/removeformission.cfg");
+					globalCoop_huds_AddAll("missionsuccess");
+					wait(6);
+				}
+//INFORM PLAYERS
+//REMOVE HUDS, ADD LOADING HUD			
+				else{
+					thread globalCoop_huds_AddAll("sublevelLoading");
+					globalCoop_main_wait2DotZero();					
+				}
+			}
+//Wait a moment
+			else{
+				globalCoop_main_wait2DotZero();	
+			}
+		}
+		//[b607] chrissstrahl - do just this - code cleaned up and moved it where it belongs
+		globalCoop_server_loadGivenMapNow(coop_nextmap);
+	}
+}
+
+
+void globalCoop_mission_fail()
+//----------------------------------------------------------------------
+// Do simple mission failure
+//----------------------------------------------------------------------
+{
+	thread globalCoop_mission_failWithReason("default");
+}
+
+
+void globalCoop_mission_failCivilianKilled()
+//----------------------------------------------------------------------
+// Do mission failure with reason "CivilianKilled"
+//----------------------------------------------------------------------
+{
+	thread globalCoop_mission_failWithReason("CivilianKilled");
+}
+
+void globalCoop_mission_germanText(string sTranslation)
+{
+	coop_string_failureGerman = sTranslation;
+}
+
+void globalCoop_mission_failWithReason(string sReason)
+//----------------------------------------------------------------------
+// do this on mission FailurePlayer//setobjectivefailed(String namePlayer, Boolean failed)
+// This function need more attention later
+//----------------------------------------------------------------------
+{
+//Do not call this thread Multiple Times!
+	if($world.getFloatVar("globalCoop_mission_failWithReason_isRunning") != 1){
+		$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",1);
+		
+		float fNoLocalString;
+		fNoLocalString = $world.getFloatVar("globalCoop_missionFailedUserString");
+	
+//Set empty string for sp and mp
+		if(sReason == "default" || sReason == ""){
+			fNoLocalString = 0;
+			sReason = "DefaultFailure";
+		}
+		
+//Singeplayer - EXIT
+////////////////////////////////////////////////////////////////////////////////	
+////////////////////////////////////////////////////////////////////////////////
+		if(!cvar_bool_multiplayer){
+			globalCoop_main_wait2DotZero();
+			$player.missionfailed( sReason );
+			return;
+		}
+//Multiplayer - CONTINUE
+////////////////////////////////////////////////////////////////////////////////	
+////////////////////////////////////////////////////////////////////////////////
+//have letterbox gone away, or else players will not see HUD text!
+		clearletterbox( .1 );
+//Check for dialog
+		if(sReason == "CivilianKilled"){
+			thread globalCoop_dialog_playSimple($world,"combat/picard_court.mp3",3,444444);
+		}
+
+//Add Hud; ui_failureReason
+		if(fNoLocalString != 1){
+			sReason = "$$"+sReason+"$$";
+		}
+			
+		//post to server console
+		globalCoop_main_print("============ Co-Op = Mission Failure =================");
+		globalCoop_main_print(sReason);
+		
+		
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(getIntPlayerHasCoop(ePlayer) == 0)
+				{
+					if(fNoLocalString == 0 && coop_string_failureGerman != "")
+					{
+						if( getStringPlayerLanguage(ePlayer) == "Deu" )
+						{
+							ePlayer.hudprint(coop_string_failureGerman + "\n");
+						}
+						else
+						{
+							ePlayer.hudprint(sReason + "\n");
+						}					
+					}
+					else
+					{
+						ePlayer.hudprint(sReason + "\n");
+					}
+				}
+				else
+				{
+					thread globalCoop_player_transmitter(ePlayer,"set ui_failureReason "+sReason +";ui_addhud coop_failure\n");
+				}
+			}
+		}
+//Do LevelEnd Rutine
+		thread globalCoop_level_endProcedur();
+		globalCoop_main_wait2DotZero();
+//Remove failure hud
+		globalCoop_huds_RemoveAll("coop_failure");
+//End Game
+		
+		if(cvar_float_dedicated != 0){
+			globalCoop_level_triggerLevelChange();
+		}
+		if(!globalCoop_server_reboot()){
+			wait(10);
+		}
+		
+		if(coop_string_checkpointParameters == ""){
+			stuffCMD("restart\n");
+			return;
+		}
+		
+		//clean mapname, then add new parameter
+		string sMapname;
+		float fFind;
+		sMapname = getCvar("mapname");
+		fFind = getIntStringFind(sMapname,"$");
+		if(fFind>0){
+			sMapname = getStringFromStringWithLengt(sMapname,0,fFind);
+		}
+		stuffCMD("gamemap "+sMapname+"$"+coop_string_checkpointParameters);
+	}
+}
+

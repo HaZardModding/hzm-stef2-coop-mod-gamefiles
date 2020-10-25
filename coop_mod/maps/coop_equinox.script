@@ -1,0 +1,1190 @@
+//created 2015.10.22 chrissstrahl, Germany, Ulm
+//
+//general note:
+//you may use this script as you see fit
+//i really don't care if you copy and use it
+//if it helps you at your project you are welcome
+
+float float_alertIsOn = 1;
+float fSpawned=0;
+float fShipInRange=0;
+float fTorpedoOffline=0;
+float fBoardingPartyKilledNum=0;
+
+void main();
+void boardingPartyKilled();
+void startRedAlert(entity e);
+void startMission();
+void missionDropOutOfWarp();
+void missionBeamIn();
+void bridgeRandomDamage();
+void makeAiFriendCombatReady(entity eActor,string sWeapon, float fHealth);
+void makeAiEnemyCombatReady(entity eActor,string sWeapon, float fHealth);
+void enhancedWarp();
+
+
+//[b607] hzm coop mod chrissstrahl - after waiting for over 4 years, I am now invoking my right to publish this map
+//as we agreed as a addition to the hzm coop mod.
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//include additional scripts
+#include "maps/global_scripts/global_archetype.scr"
+/*
+//THIS IS SOME OF THE LOCAL STRINGS TEXT FROM: locpak50.pk3\loc\Eng\stringresource\
+//KEYWORD STRINGS WITH $$ WILL BE TRANSLATED BY THE CLEINT INTO ITS GAME LANGAUGE
+-LOCALSTRING KEYWORD-				-ENGLISH-
+$$MissionObjectives$$ 				"Mission Objectives"
+$$Cancel$$							"Cancel"
+$$OK$$							"OK"
+$$Apply$$							"Apply"
+$$Yes$$							"Yes"
+$$No$$							"No"
+$$Empty$$                                 "Empty"
+$$On$$                                    "On"
+$$Off$$                                   "Off"
+$$Configure$$					      "Configure"
+$$Exit$$							 "Exit"
+$$AreYouSure$$                            "Are you sure?"
+$$LoadingMissionObjectives$$    		" MISSION INFORMATION"
+$$ResumeButton$$                          "Resume"
+$$ObjectiveComplete$$                     "COMPLETE"
+$$ObjectiveIncomplete$$                   "ACTIVE"
+$$ObjectiveFailed$$                       "FAILED"
+$$objectivesUpdated$$                     "MISSION OBJECTIVES UPDATED"
+$$TriPuz_KeypadHelpText$$				"Enter the code."
+$$WARNING$$                              "WARNING"
+$$ExitingArea$$                          "Exiting Area"
+EquipmentRoom					     "Equipment Room"
+$$Engage$$							"Engage"
+*/
+
+/*
+//SYMBOLS THAT CAN BE USED AS MISSION MARKERS
+e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin","1200 -1621 50","scale","0.5");//arrow red
+e = spawn("Object","model","sysimg/icons/items/armor.spr","origin","1300 -1621 50","scale","0.5");//armor
+e = spawn("Object","model","sysimg/icons/items/holdableitem_transporter.spr","origin","1400 -1621 50","scale","0.5");//transporter
+e = spawn("Object","model","sysimg/icons/items/powerup_speed.spr","origin","1500 -1621 50","scale","0.5");//boots
+e = spawn("Object","model","sysimg/icons/items/powerup_strength.spr","origin","1600 -1621 50","scale","0.5");//glove
+e = spawn("Object","model","sysimg/icons/mp/actionhero.spr","origin","1700 -1721 50","scale","0.5");//star (yellow or blue)
+e = spawn("Object","model","sysimg/icons/mp/actionhero_icon.spr","origin","1700 -1621 50","scale","0.5");//star (yellow or blue)
+e = spawn("Object","model","sysimg/icons/mp/award_demolitionist.spr","origin","1800 -1621 50","scale","0.5");//
+e = spawn("Object","model","sysimg/icons/mp/diffusion_bombOnground.spr","origin","1900 -1621 50","scale","0.5");//bomb
+e = spawn("Object","model","sysimg/icons/mp/team_blue.spr","origin","1900 -1700 50","scale","0.5");//arrow blue
+*/
+
+//entities that are on this map and can be used
+/*
+$skyboxWarpStarsBend
+$skyorigin
+$skyorigin2
+$skyvoyager
+$skyvoyager2
+$skyvoyager2_torpedo1
+$skyvoyager2_torpedo_projectile
+$skyvoyager2_torpedo_projectile_origin
+$bridgeViewScreenPortal1
+$surfaceViewscreenPortal
+$cameraViewscreenPortalRear
+$spawnerBridgeHelmLeft
+$triggerCommandConsoleTorpedo
+$bridgeFloorUndamaged
+$bridgeFloorDamaged
+$bridgeFloorDamagedPipe0
+$bridgeFloorDamagedPipe1
+$bridgeFloorDamagedSteam
+$redalertTextures
+$normalTextures
+$archetypeHelmConsole
+$triggerHelmConsole
+//ACTORS
+$helm1
+$tac1
+$sci1
+$ops1
+$eng1
+$jen1
+*/
+
+
+
+void main()
+//=================================================
+//this function is started by the game automatically, once the level is loaded
+//=================================================
+{
+	//show different skybox
+	$skyorigin.rendereffects("+skyorigin");//enable
+	$skyorigin2.rendereffects("-skyorigin");//disable
+	
+	
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "???";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Voyager will be attacking us as soon as she is in torpedo range!";
+	coop_string_objectiveItem2 = "Man the Battlestations on the Bridge";
+	coop_string_objectiveItem3 = "Return the favour and Fire on Voyager";
+	coop_string_objectiveItem4 = "We are being borded, repell the invaders";
+	coop_string_objectiveItem5 = "Activate the enhanced warp drive";
+	coop_string_objectiveItem6 = "Watch from the Conference room windows the arival at Earth";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Die Voyager hat aufgeholt und wird in kürze anggreifen!";
+	coop_string_objectiveItem2_deu = "Gehen Sie zur Brücke und besetzen Sie die Kampfstationen";
+	coop_string_objectiveItem3_deu = "Erwiedern Sie den Gefallen und feuern Sie";
+	coop_string_objectiveItem4_deu = "Eindringlingsalarm, schlagen Sie die Eindringlinge zurück";
+	coop_string_objectiveItem5_deu = "Aktivieren Sie den verbesserten Warpantrieb";
+	coop_string_objectiveItem6_deu = "Beobachten Sie die Ankunft zur Erde vom Konferenzraum aus";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Star Trek Voyager - Equinox alternative Expiriance";
+	coop_string_story_deu = "Star Trek Voyager - Equinox alternatives Erlebnis";
+	
+//hzm coop mod chrissstrahl - give weapons to players
+	//coop_string_weapon3 = "models/weapons/worldmodel-CompressionRifle.tik";
+	//coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	
+//hzm coop mod chrissstrahl - remove or set different archetypes
+	$helm1.archetype("");
+	$tac1.archetype("");
+	$sci1.archetype("");
+	$ops1.archetype("");
+	$eng1.archetype("");
+	$jen1.archetype("");
+
+	///////////////////////////
+	//setup the ACTORS
+	///////////////////////////
+	//make sure player can not push actors
+	$helm1.pushable(0);
+	$tac1.pushable(0);
+	$sci1.pushable(0);
+	$ops1.pushable(0);
+	$eng1.pushable(0);
+	$jen1.pushable(0);
+
+	//set animations, ai needs to be off for each ACTOR for this to work
+	$helm1.anim("ent-frontchair-idle-look");
+	$tac1.anim("ent-sidechairs-gesture1");
+	$sci1.anim("ent-transporter-rear-gesture");
+	$ops1.anim("ent-sidechairs-gesture1");
+	$eng1.anim("ent-transporter-rear-gesture");
+	$jen1.anim("ent-mainchair-idle");
+
+	///////////////////////////
+	//setup level objects
+	///////////////////////////
+
+	//hide warp stars effect
+	$skyboxWarpStarsBend.hide();
+
+	//hide leaking plasma effect
+	$plasmaLeakEngines.scale(0.01);
+
+	$skyvoyager3Plasma0.hide();
+	$skyvoyager3Plasma1.hide();
+
+	$earth.hide();
+
+	//hide voyager in skybox (from viewscreen)
+	$skyvoyager.hide();
+	$skyvoyager2.hide();
+	$skyvoyager3.hide();
+
+	//scale voyager
+	$skyvoyager2.scale(0.1);
+
+	//turn off redalert light
+	$world.light_intensity( "alert" , 0 );
+
+	//setup archetypes, indicators for usable objects
+	globalArchetype_Setup ( $archetypeStartMission , "Usable" );//IdryllLiftPanel
+	globalArchetype_Setup ( $archetypeConsoleMiddleTorpedo , "Usable" );//IdryllLiftPanel
+
+	//hide the archetype of torpedo fiering trigger, because it is not yet active
+	wait(0.5);
+	$archetypeConsoleMiddleTorpedo.hide();
+
+	//hide damage effects
+	$bridgeFloorDamagedSteam.hide();
+
+	$eng1.immortal(0);
+	$eng1.health(80);
+	$jen1.immortal(0);
+	$jen1.health(80);
+	$sci1.immortal(0);
+	$sci1.health(80);
+	$ops1.immortal(0);
+	$ops1.health(80);
+	$helm1.immortal(0);
+	$helm1.health(80);
+	$tac1.immortal(0);
+	$tac1.health(80);
+
+	$brigCrew0.anim("cin-m8_foward");
+
+	//wait for the player to spawn
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("incomplete" , 1 , 1 );//Voyager will be attacking us as soon as she is in torpedo range!
+
+	//set thread to run when player dies
+	playerDeathThread("cinematicBrig");
+	
+	//spawn a arrow pointing to the mission objective (only visible when you are on teh bridge)
+	entity e;
+	vector v;
+	v = $archetypeStartMission.getOrigin();
+	v_z += 10;
+	//e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin",""+v,"targetname","startMissionHint","scale","0.3");
+	e = spawn("Object","model","sysimg/icons/items/powerup_strength.spr","origin",""+v,"targetname","startMissionHint","scale","0.3");
+}
+
+void startRedAlert(entity e)
+//=================================================
+//this function is started by the player
+//- starts the redalert routine
+//- sets the trigger to fire torpedos
+//=================================================
+{
+	//disable trigger
+	entity e;
+	e = getCurrentEntity();
+	e.nottriggerable();
+	
+	//turn on redalert lights, basically light that is just making the textures red
+	$world.light_intensity( "alert" , 1 );
+	
+	//get every redalert and normal light texture and hide/show them
+	float fTextures;
+	entity e;
+	for(fTextures=17;fTextures>-1;fTextures--){
+		e = getEntity("normalTextures"+fTextures);
+		if(doesEntityExist(e)){
+			e.hide();
+		}
+		e = getEntity("redalertTextures"+fTextures);
+		if(doesEntityExist(e)){
+			e.show();
+		}
+	}
+	
+	//this plays a redalert sound and repeats it 
+	float fAlertTimes = 7;
+	while(float_alertIsOn == 1 && fAlertTimes > 0)
+	{
+		//count down
+		fAlertTimes--;
+		
+		//playsound
+		$world.playsound( "sound/ships/enterprise/ent_redalert.wav" , 0 , 2 , 100000 );
+		wait(2.5);
+	}
+}
+
+void fireTorpedo()
+//=================================================
+//this function is started by the player
+//- fires a torpedo
+//=================================================
+{	
+	//grab the trigger from the map that started this script function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//disable trigger, one torpedo at a time
+	eTrigger.notTriggerable();
+	
+	if(getcvarint("g_gametype") == 1){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(fTorpedoOffline){
+			ePlayer.hudprint("^1ERROR:^5 Torpedos are ^3offline^5!\n");
+			wait(1);
+			eTrigger.triggerable();
+			return;
+		}
+		if(!fShipInRange){
+			ePlayer.hudprint("^1ERROR:^5 Target is out of ^3Range^5!\n");
+			wait(1);
+			eTrigger.triggerable();
+			return;
+		}
+	}else{
+		if(fTorpedoOffline){
+			centerprint("^1ERROR:^5 Torpedos are ^3offline^5!\n");
+			wait(1);
+			eTrigger.triggerable();
+			return;
+		}
+		if(!fShipInRange){
+			centerprint("^1ERROR:^5 Target is out of ^3Range^5!\n");
+			wait(1);
+			eTrigger.triggerable();
+			return;
+		}
+	}
+	
+	
+	if($world.getFloatVar("returnedFireObjectiveComplete") == 0){
+		$world.setFloatVar("returnedFireObjectiveComplete",1);
+		globalCoop_objectives_update("complete" , 3 , 1 );//Return the favour and Fire on Voyager
+	}
+	
+	//.playsound( "sound/ships/enterprise/ent_qfire.wav" , 0 , 1.5 , 100000 );
+	eTrigger.playsound( "sound/ships/klingon/kling_photon.wav" , 0 , 3 , 100000 );
+	
+	//spawn if it is not there allready
+	if(!doesEntityExist($skyequinox_torpedo_projectile)){
+		//spawn voyager torpedo, and its script_origin (required to work right)
+		spawn("script_model","model","models/weapons/projectile_photon_enterprise.tik","targetname","skyequinox_torpedo_projectile");
+		//spawn("script_model","model","models/projectile/projectile-photonball-voyager.tik","targetname","skyequinox_torpedo_projectile");
+		spawn("script_origin","targetname","skyequinox_torpedo_projectile_origin");
+		
+		//wait for the spawned objects to be accessible via script (usually 1 frame)
+		wait(0.05);
+		
+		//setup the torpedo
+		$skyequinox_torpedo_projectile_origin.origin($skyequinox2_torpedo.getOrigin());
+		$skyequinox_torpedo_projectile.origin($skyequinox2_torpedo.getOrigin());
+		$skyequinox_torpedo_projectile.bind($skyequinox_torpedo_projectile_origin);
+		
+		$skyequinox_torpedo_projectile.scale(0.0);
+		$skyequinox_torpedo_projectile.hide();
+	}
+
+	//show torpedo and move it towards the ship
+	$skyequinox_torpedo_projectile.scale(0.5); //0.5
+	$skyequinox_torpedo_projectile.show();	
+	$skyequinox_torpedo_projectile_origin.time(3);
+	$skyequinox_torpedo_projectile_origin.moveEast(-240);
+	waitfor($skyequinox_torpedo_projectile_origin);
+	
+	$skyvoyager2_shield0.show();
+	$skyvoyager2_shield1.show();
+	
+	//hide torpedo now
+	$skyequinox_torpedo_projectile.scale(0.0);
+	$skyequinox_torpedo_projectile.hide();
+	wait(0.05);
+	
+	//return torpedo to equinox
+	$skyequinox_torpedo_projectile_origin.time(0.5);
+	$skyequinox_torpedo_projectile_origin.moveEast(240);
+	wait(0.5);
+	
+	$skyvoyager2_shield0.hide();
+	$skyvoyager2_shield1.hide();
+	
+	//enable trigger again, allow fireing of torpedos
+	eTrigger.triggerable();
+}
+
+void startMission()
+//=================================================
+//this function is started by the player
+//- starts the mission...
+//=================================================
+{
+	//objective - update and display
+	//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//Voyager will be attacking us as soon as she is in torpedo range!
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//Man the Battlestations on the Bridge
+	
+	//grab the trigger from the map that started this script function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//disable trigger, one torpedo at a time
+	eTrigger.notTriggerable();
+	
+	thread startRedAlert(eTrigger);
+	
+	//remove archetype
+	$archetypeStartMission.remove();
+	
+	//remove arrow that points to the mission start
+	$startMissionHint.remove();
+	
+	//allow now to fire torpedos
+	$triggerCommandConsoleTorpedo.triggerable();
+	
+	//wait for the player to get into position
+	wait(3);
+	
+	//show warp effect on viewscreen
+	$skyboxWarpStarsBend.show();
+	
+	wait(0.25);
+	
+	//hide skymodel
+	$skyboxmodel2.hide();	
+	
+	//wait a moment
+	wait(4);
+	
+	//show different skybox
+	$skyorigin.rendereffects("-skyorigin");//disable
+	$skyorigin2.rendereffects("+skyorigin");//enable
+	
+	//show voyager
+	$skyvoyager.show();
+	
+	//wait a moment
+	wait(2);
+	
+	//hide/show viewscreens for rear and front view
+	$surfaceViewscreenProjector.target("cameraViewscreenPortalRear");
+	$surfaceViewscreenProjector.locatecamera();
+
+	
+	//show the voyager in the skybox
+	$skyvoyager2.show();
+	
+	//make tuvok contact munro
+	//$tuvok.playdialog("localization/sound/dialog/eqMi/tuvok_voyTo.mp3", 1, 20000, 1);
+	
+	//scale voyager up, so it will look like the ship is getting closer
+	float fDistanceScale = 0.1;
+	while(fDistanceScale < 0.5)
+	{
+		fDistanceScale += 0.001;//regular speed
+		//fDistanceScale += 0.1;//make it fast for testing
+		$skyvoyager2.scale(fDistanceScale);
+		wait(0.05);
+	}
+	
+	//spawn a arrow pointing to the mission objective (only visible when you are on teh bridge)
+	entity e;
+	vector v;
+	v = $archetypeConsoleMiddleTorpedo.getOrigin();
+	v_z += 12;
+	//e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin",""+v,"targetname","fireTorpedoHint","scale","0.3");
+	e = spawn("Object","model","sysimg/icons/items/powerup_strength.spr","origin",""+v,"targetname","fireTorpedoHint","scale","0.3");
+	
+	//objective - update
+	globalCoop_objectives_update("complete" , 2 , 0 );//Man the Battlestations on the Bridge
+	globalCoop_objectives_update("incomplete" , 3 , 1 );//Return the favour and Fire on Voyager
+	
+	//ship is now in range, allow torpedo fiering by player
+	fShipInRange = 1;
+	
+	//if voyager seams close , make it start fiering
+	//if voyager seams close , make it start fiering
+	//if voyager seams close , make it start fiering
+	//if voyager seams close , make it start fiering
+	//spawn earthquake entity
+	entity quake;
+	quake = spawn ( "func_earthquake" , "targetname" , "earthquake","origin",""+$bridgeViewScreenPortal1.getOrigin());
+	
+	//spawn voyager torpedo, and its script_origin (required to work right)
+	spawn("script_model","model","models/projectile/projectile-photonball-voyager.tik","targetname","skyvoyager2_torpedo_projectile");
+	spawn("script_origin","targetname","skyvoyager2_torpedo_projectile_origin");
+	
+	//wait for the spawned objects to be accessible via script (usually 1 frame)
+	wait(0.05);
+	
+	//setup the torpedo
+	$skyvoyager2_torpedo_projectile_origin.origin($skyvoyager2_torpedo1.getOrigin());
+	$skyvoyager2_torpedo_projectile.origin($skyvoyager2_torpedo_projectile_origin.getOrigin());
+	$skyvoyager2_torpedo_projectile.bind($skyvoyager2_torpedo_projectile_origin);
+	
+	wait(1);
+	
+	//voyager fiering on the ship
+	float fHitsBeforeDropOutOfWarp;
+	
+	//hits should be 7, is now 3 for testing purpose
+	for(fHitsBeforeDropOutOfWarp=7;fHitsBeforeDropOutOfWarp>0;fHitsBeforeDropOutOfWarp--)
+	{
+		//show torpedo and move it towards the ship
+		$skyvoyager2_torpedo_projectile.scale(0.2); //0.5
+		$skyvoyager2_torpedo_projectile.show();	
+		$skyvoyager2_torpedo_projectile_origin.time(7);
+		$skyvoyager2_torpedo_projectile_origin.moveEast(372); //363
+		waitfor($skyvoyager2_torpedo_projectile_origin);
+		
+		//hide torpedo now
+		$skyvoyager2_torpedo_projectile.hide();
+		$skyvoyager2_torpedo_projectile.scale(0.0);
+		
+		//make earthquake
+		float ramdomQuakeIntensity;
+		float randomQuakeLength;
+		ramdomQuakeIntensity = randomFloat( .5 ) + .1;
+		randomQuakeLength = randomFloat( .4 ) + .4;
+		quake.duration( ramdomQuakeIntensity );
+		quake.magnitude( ramdomQuakeIntensity );
+		trigger ( "" + quake.getTargetName() );
+		
+		//play random impact sound
+		string sImpactSound;
+		float fRandom;
+		fRandom = randomint(3);
+		if(fRandom == 0){
+			sImpactSound = "sound/impact/explosion/expl_lowfreq.wav";
+		}else{
+			sImpactSound = "sound/impact/explosion/expl_muffle"+fRandom+".wav";
+		}
+		$bridgeViewScreenPortal1.playsound( sImpactSound , 0 , 3 , 10000 );
+		$bridgeViewScreenPortal1.hide();
+		$bridgeViewScreenStatic.show();
+		
+		thread bridgeRandomDamage();
+		
+		//ship drops now out of warp
+		if(fHitsBeforeDropOutOfWarp == 1){
+			
+			//make ship drop out of warp
+			thread missionDropOutOfWarp();
+			
+			//exit this function here
+			return;
+		}
+		
+		//while  torpedo travels back, we have some fireing pause
+		
+		//return currently invisible torpedo to voyager
+		$skyvoyager2_torpedo_projectile_origin.time(0.25); //traveltime
+		$skyvoyager2_torpedo_projectile_origin.moveEast(-372); //363
+		waitfor($skyvoyager2_torpedo_projectile_origin);
+		
+		$bridgeViewScreenPortal1.show();
+		$bridgeViewScreenStatic.hide();
+		wait(0.15);
+		$bridgeViewScreenPortal1.hide();
+		$bridgeViewScreenStatic.show();
+		wait(0.1);
+		$bridgeViewScreenPortal1.show();
+		$bridgeViewScreenStatic.hide();
+		
+		wait(2);
+	}	
+}
+
+void missionDropOutOfWarp()
+//ship drops out of warp
+{
+	//do not allow to fire torpedos
+	fTorpedoOffline=1;
+	
+	$fireTorpedoHint.remove();
+
+	//show bend warp stars
+	$skyboxWarpStarsBend.show();
+	
+	//show plasma leak fire on the warp necal
+	$plasmaLeakEngines.scale(6.0);
+	
+	//hide space/sky, voyager and its shield
+	$skyboxmodel2.hide();
+	$skyvoyager3_shield.hide();
+	$skyvoyager3.hide();
+	
+	//show different skybox
+	$skyorigin.rendereffects("+skyorigin");//enable
+	$skyorigin2.rendereffects("-skyorigin");//disable
+
+	//hide/show viewscreens for rear and front view
+	$surfaceViewscreenProjector.target("cameraViewscreenPortalFront");
+	$surfaceViewscreenProjector.locatecamera();
+	
+	//wait a moment
+	wait(2);
+	
+	//hide bend warp stars, show model
+	$skyboxWarpStarsBend.hide();
+	$skyboxWarpStarsBend.hide();
+	$skyboxmodel2.show();
+	
+	//scale voyager up, so it will look like the ship is getting closer
+	float fDistanceScale = 0.1;
+	$skyvoyager3.scale(fDistanceScale);//scale down first
+	$skyvoyager3.show(); //show the voyager now
+	while(fDistanceScale < 0.5)
+	{
+		fDistanceScale += 0.002;//regular speed
+		//fDistanceScale += 0.1;//make it fast for testing
+		$skyvoyager3.scale(fDistanceScale);
+		wait(0.05);
+	}
+	
+	//ship is now range, start beaming in
+	thread missionBeamIn();
+}
+
+void makeAiFriendCombatReady(entity eActor,string sWeapon, float fHealth)
+{
+	if(doesEntityExist(eActor)){
+		if(sWeapon != ""){
+			eActor.giveactorweapon(sWeapon,9999);
+			wait(0.05);
+			eActor.useactorweapon(sWeapon);			
+		}
+		//eActor.aggressive(1);
+		//eActor.actortype("enemy");
+		eActor.immortal(0);
+		if(fHealth > 0){
+			eActor.health(fHealth);
+		}
+		eActor.ai_on();
+	}
+}
+void makeAiEnemyCombatReady(entity eActor,string sWeapon, float fHealth)
+//makes actor to enemy, gives weapon if specified, makes use weapon, sets new health, makes mortal, actor can now be killed
+{
+	if(doesEntityExist(eActor)){
+		if(sWeapon != ""){
+			eActor.giveactorweapon(sWeapon,9999);
+			wait(0.05);
+			eActor.useactorweapon(sWeapon);			
+		}
+		eActor.aggressive(1);
+		eActor.actortype("enemy");
+		eActor.immortal(0);
+		if(fHealth > 0){
+			eActor.health(fHealth);
+		}
+	}
+}
+
+void beamInAsap(entity eActor,float fHealth)
+{
+	if(doesEntityExist(eActor)){
+		eActor.actortype("enemy");
+		//make sure that the player is not standing at the spot where ai wants to beam in
+		if(getcvarint("g_gametype") == 0){
+			while(eActor.iswithinDistanceOf($player,50)){
+				wait(0.25);//wait, and then check again if player is no longer in the way
+			}
+			eActor.solid();
+		}else{
+			thread globalCoop_player_makeSolidASAP(eActor);
+		}
+
+		eActor.displayEffect("TransportIn","Federation");
+		wait(0.05);
+		eActor.show();
+		wait(0.25);
+		
+		thread makeAiEnemyCombatReady(eActor,"actorweapons/fed-compressionrifle.tik",fHealth);
+		
+		string sTargetname;
+		sTargetname = "$attackLocation_" + eActor.getRawTargetName();
+		eActor.walkto(sTargetname,"run");
+		wait(3.5);
+		eActor.ai_on();
+	}
+}
+
+void tuvokClearTheDeck()
+{
+	$tuvok.attack($sci1);
+	
+	//we don't want to use this anymore
+	return;
+	
+	entity eEnemy;
+	float fEnemies=0;
+	while(doesEntityExist($tuvok))
+	{	
+		eEnemy = $sci1;
+		if(doesEntityExist(eEnemy)){
+			if($sci1.getHealth() > 0){
+				$tuvok.turntowardsentity(eEnemy);
+				$tuvok.attack(eEnemy);
+				wait(2);
+				fEnemies++;
+				$tuvok.ai_off();
+			}
+		}
+		
+		eEnemy = $ops1;
+		if(doesEntityExist(eEnemy)){
+			if($sci1.getHealth() > 0){
+				$tuvok.turntowardsentity(eEnemy);
+				$tuvok.attack(eEnemy);
+				wait(2);
+				fEnemies++;
+				$tuvok.ai_off();
+			}
+		}
+		
+		eEnemy = $helm1;
+		if(doesEntityExist(eEnemy)){
+			if($sci1.getHealth() > 0){
+				$tuvok.turntowardsentity(eEnemy);
+				$tuvok.attack(eEnemy);
+				wait(2);
+				fEnemies++;
+				$tuvok.ai_off();
+			}
+		}
+		
+		eEnemy = $tac1;
+		if(doesEntityExist(eEnemy)){
+			if($sci1.getHealth() > 0){
+				$tuvok.turntowardsentity(eEnemy);
+				$tuvok.attack(eEnemy);
+				wait(2);
+				fEnemies++;
+				$tuvok.ai_off();
+			}
+		}
+		wait(0.05);
+		
+		if(fEnemies < 1){
+			return;
+		}
+	}
+}
+
+void missionBeamIn()
+{
+	//objective - update
+	globalCoop_objectives_update("complete" , 3 , 0 );//Return the favour and Fire on Voyager
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//We are being borded, repell the invaders
+	
+	//make playerresistent to a certain degree against weapon fire from ai, otherise he dies in a moment
+	if(getcvarInt("g_gametype") == 0){
+		$player.resistance("comp_rifle",85);
+		$player.give("models/weapons/worldmodel-Phaser.tik");
+		wait(0.1);
+		$player.use("models/weapons/worldmodel-Phaser.tik");
+	}else{
+		//hzm coop mod chrissstrahl - register and distribute the weapons
+		globalCoop_armory_weaponRegister("models/weapons/worldmodel-Phaser-stx.tik");
+		globalCoop_armory_useTiki("models/weapons/worldmodel-Phaser-stx.tik");
+	}
+	
+	//open door
+	$bridgeDoorRight.open($tuvok);//open door for tuvok and his party
+	$bridgeDoorRight.wait(-1);//keep door open forever
+	beamInAsap($tuvok,300);
+	
+	//make tuvok immortal, untill all others are dead
+	$tuvok.immortal(1);
+	
+	thread tuvokClearTheDeck();
+	
+	//make enemy ai notice these passive actors
+	$helm1.aggressive(1);
+	$tac1.aggressive(1);
+	$sci1.aggressive(1);
+	$ops1.aggressive(1);
+	$helm1.hurt(1);
+	$tac1.hurt(1);
+	$sci1.hurt(1);
+	$ops1.hurt(1);
+
+	//the other crew are eighter in a specific location or do not work with weapons
+	thread makeAiFriendCombatReady($jen1,"actorweapons/fed-compressionrifle.tik",80);
+	thread makeAiFriendCombatReady($eng1,"actorweapons/fed-compressionrifle.tik",80);
+	
+	wait(1);
+	
+	beamInAsap($attack0,80);
+	beamInAsap($attack1,80);
+	beamInAsap($attack2,80);
+	
+	/* NOTES, dialog that might be usable or editable to be used
+	borg01/tuvok_wegothim.mp3	//bla bla, continue on your primary objective
+	borg01/tuvok_beamout.mp3	//beam them out
+	borg01/tuvok_wecannot.mp3 //we can not beam him out, you need to dissable near by sources of interfier
+	m4l2/tuvok_beamout2.mp3	//
+	train1/tuvok_contact.mp3	//
+	train7/tuvok_winscen.mp3	//bla bla good mastred this szenario
+	train7/tuvok_losescen.mp3 //your performancfe has fallen under a acceptable level
+	m2l1/tuvok_persist.mp3	//lu. bumping into me can best be summed up as illogical
+	borg03\tuvok_tomunro.mp3 //voyager to munro
+	ent_m8\tuvok_torpedo4.mp3 //we are expecting heavy resistance from the romulan renagade
+	train2\tuvok_yourrec.mp3 //NOW Lt. your records states that...
+	*/
+	
+}
+
+void bridgeRandomDamage()
+//select a random location to spawn a explosion and then show damage
+{
+	float fRandomLocations = 0;
+	
+	fRandomLocations = randomInt(2);
+	
+	if(fRandomLocations == 0){
+		//check if we spawned to much
+		fSpawned++;
+	
+		//spawn a random explosion effect
+		string sImpactModel;
+		float fRandom;
+		fRandom = randomint(1);
+		if(fRandom == 0){
+			sImpactModel = "models/fx/fx-explosion-sparks-blue.tik";
+		}else if(fRandom == 1){
+			sImpactModel = "models/fx/fx-pop-sparks-orange-medium.tik";
+		}else if(fRandom == 2){
+			sImpactModel = "models/fx/fx-explosion-sparkshower-enterprise.tik";
+		}else if(fRandom == 3){
+			sImpactModel = "models/fx/fx-explosion-sparks-green.tik";
+		}else if(fRandom == 4){
+			sImpactModel = "models/fx/fx-explosion-sparks-yellow.tik";
+		}
+		
+		//centerprint("Spawned: "+fSpawned+"\n");
+		//print("Spawned: "+fSpawned+"\n");
+		//if(getCvarInt("g_gametype") == 0){
+			//stuffcmd("echo Spawned: "+fSpawned+"\n");
+		//}
+		
+		$spawnerBridgeHelmLeft.modelName(sImpactModel);
+		$spawnerBridgeHelmLeft.spawnTargetName("impactEffect");
+		trigger( "$spawnerBridgeHelmLeft" );
+	}else if(fRandomLocations == 1)
+	{
+		//check if this damage is allready visible
+		if($world.getFloatVar("bridgeFloorUndamaged") == 1){return;}
+		$world.setFloatVar("bridgeFloorUndamaged",1);
+			
+		$bridgeFloorSpawnEffect.modelName("models/fx/fx-explosion-impact-enterprise.tik");
+		$bridgeFloorSpawnEffect.spawnTargetName("bridgeFloorExplosion");
+		trigger("$bridgeFloorSpawnEffect");
+		
+		//damage on bridge floor close to command seats
+		$bridgeFloorUndamaged.hide();
+		$bridgeFloorDamaged.show();
+		$bridgeFloorDamagedPipe0.show();
+		$bridgeFloorDamagedPipe1.show();
+		$bridgeFloorDamagedSteam.show();
+		
+		//remove explosion effect after a moment, if it really is still there
+		wait(2);
+		if(doesEntityExist($bridgeFloorExplosion)){
+			$bridgeFloorExplosion.remove();
+		}
+	}
+}
+void playerWatching()
+//called while the player stands in one of the triggers of the conference room
+{
+	float fTime;
+	fTime = $world.getFloatVar("playerWatching");	
+	fTime++;
+	$world.setFloatVar("playerWatching",fTime);
+	
+	if(fTime != 7){
+		return;
+	}
+	globalCoop_objectives_update("complete" , 6 , 1 );//watch...
+	
+	$conferenceWatchTrigger0.remove();
+	$conferenceWatchTrigger1.remove();
+	
+	//remove the red arrow
+	$watchMarker.remove();
+	$watchMarker2.remove();
+	
+	//when the video is over the cinematic starts
+	spawn("camera","targetname","cam2");
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait ( 2 );
+	
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );	
+	
+	$conferenceRoomCrew0.show();
+	$skyboxWarpStars.hide();
+	$skyboxWarpStarsBend.hide();
+	$skyboxmodel2.show();
+	
+	$earth.show();
+	$cam2.follow($cinematicEarth);
+	$cam2.cut();
+	cuecamera($cam2);
+	
+	wait ( 0.1 );
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	wait(5);
+	
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait ( 2 );
+	
+	$conferenceRoomCrew0.hide();
+	
+	noncinematic();
+	releaseplayer ();
+	cueplayer ();
+	clearletterbox ( 0 );
+	
+	thread coop_endLevel();
+}
+
+void boardingPartyKilled()
+//called each time a enemy is killed
+{
+	fBoardingPartyKilledNum++;
+	if(fBoardingPartyKilledNum == 3){
+		//make tuvok mortal again, all others are dead
+		$tuvok.immortal(0);
+	}
+	else if(fBoardingPartyKilledNum == 4){
+	
+		//close door
+		$bridgeDoorRight.close();
+		$bridgeDoorRight.wait(2);
+		
+		if(getcvarInt("g_gametype") == 0){
+			$player.putawayweapon("dual");
+			wait(0.2);
+			$player.take("models/weapons/worldmodel-Phaser.tik");		
+		}else{
+			globalCoop_armory_weaponUnregister("models/weapons/worldmodel-Phaser.tik");
+			
+			entity ePlayer;
+			float fPlayerIdInUse,fInside;
+			for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+				ePlayer = getentity("player"+fPlayerIdInUse);				
+				if(globalCoop_check_existingLivingEntity(ePlayer)){
+					ePlayer.putawayweapon("dual");
+					wait(0.1);
+					ePlayer.take("models/weapons/worldmodel-Phaser.tik");
+				}
+			}
+		}
+	
+		//objective - update and display
+		globalCoop_objectives_update("complete" , 4 , 1 );//repell invaders
+		
+		wait(2);
+		
+		//make sure he is really gone, this is to make sure a certain bug does not happen again
+		$tuvok.remove();
+		
+		//objective - update and display
+		globalCoop_objectives_update("incomplete" , 5 , 1 );//activate the enhanced warp drive
+		
+		//spawn mission marker arrow at helm
+		entity e;
+		vector vHelm;
+		vHelm = $triggerHelmConsole.getOrigin();
+		vHelm_z += 16;//move it above the actual trigger
+		e = spawn("Object","model","sysimg/icons/items/powerup_strength.spr","origin",""+vHelm,"targetname","helmMarker","scale","0.3");
+		//spawn archetype for helm, mak it as usable
+		globalArchetype_Setup ( $archetypeHelmConsole , "Usable" );//IdryllLiftPanel
+		$triggerHelmConsole.triggerable();
+	}
+}
+
+void enhancedWarp()
+{
+	//disable the current trigger, accepting no more input
+	entity e;
+	e = getCurrentEntity();
+	e.nottriggerable();
+	
+	$archetypeHelmConsole.remove();
+	$helmMarker.remove();
+	
+	//update objective
+	globalCoop_objectives_update("complete" , 5 , 1 );//activate the enhanced warp drive
+	
+	wait(2);
+
+	spawn("camera","targetname","cam1");
+	wait(1);
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait(2);
+	
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );	
+	$cam1.follow($cinematicFinal);
+	$cam1.cut();
+	cuecamera($cam1);		
+	wait(0.05);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	$skyvoyager3.show();
+	wait(3);
+	
+	//setup final torpedo
+	spawn("script_model","model","models/weapons/projectile_photon_enterprise.tik","targetname","skyFinalequinox_torpedo_projectile","scale","0.5");
+	spawn("script_origin","targetname","skyFinalequinox_torpedo_projectile_origin");		
+	wait(0.05);
+	$skyFinalequinox_torpedo_projectile_origin.origin('-320 438 101');
+	$skyFinalequinox_torpedo_projectile.origin('-320 438 101');
+	$skyFinalequinox_torpedo_projectile.bind($skyFinalequinox_torpedo_projectile_origin);
+	
+	$cam1.playsound( "sound/ships/klingon/kling_photon.wav" , 0 , 3 , 100000 );
+	$skyFinalequinox_torpedo_projectile_origin.time(3);
+	$skyFinalequinox_torpedo_projectile_origin.moveEast(-200);
+	waitfor($skyFinalequinox_torpedo_projectile_origin);
+	$skyFinalequinox_torpedo_projectile.remove();
+	
+	vector v,v2;
+	//v = $skyvoyager3.getOrigin();
+	v2 = '-9028 1036 -200';
+	v = '-9028 1036 76';
+	
+	spawn("fx/fx-explosion-fire-directional-metaldebris.tik","origin",""+v2 ,"scale","5");
+	spawn("fx/fx-explosion-fire-directional-metaldebris.tik","origin",""+v ,"scale","10");
+	
+	$skyvoyager3Plasma0.show();
+	$skyvoyager3Plasma1.show();
+	
+	//we don't want voy destroyed, just damaged
+	/*
+	spawn("fx/fx-explosion-enterprise-huge.tik",""+v ,"scale","1");
+	spawn("fx/fx-explosion-warpcore.tik","origin",""+v ,"scale","8");
+	wait(0.1);
+	spawn("fx/fx-explosion-warpcore.tik","origin",""+v ,"scale","8");
+	$skyvoyager3.scale(0.51);//make bigger to suggest it is torn appart
+	spawn("fx/fx-explosion-fire-directional-metaldebris.tik","origin",""+v ,"scale","10");
+	wait(0.1);
+	$skyvoyager3.scale(0.52);//make bigger to suggest it is torn appart
+	spawn("fx/fx-explosion-warpcore.tik","origin",""+v2 ,"scale","3");
+	wait(0.1);
+	$skyvoyager3.scale(0.54);//make bigger to suggest it is torn appart
+	spawn("fx/fx-explosion-fire-directional-metaldebris.tik","origin",""+v2 ,"scale","5");
+	wait(0.1);
+	$skyvoyager3.scale(0.56);//make bigger to suggest it is torn appart
+	spawn("fx/fx-explosion-warpcore.tik","origin",""+v2 ,"scale","3");
+	wait(0.1);
+	$skyvoyager3.hide();//hide ship now
+	spawn("fx/fx-explosion-warpcore.tik","origin",""+v2 ,"scale","3");
+	*/
+	
+	wait(3);
+	
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait ( 2 );
+	
+	noncinematic();
+	releaseplayer ();
+	cueplayer ();
+	clearletterbox ( 0 );
+	
+	//after the video the script continues here (yes, it is waiting)
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//hide plasma leak fire on the warp necal
+	$plasmaLeakEngines.scale(0.01);
+	
+	//show different skybox
+	$skyorigin.rendereffects("+skyorigin");//enable
+	$skyorigin2.rendereffects("-skyorigin");//disable
+
+	//hide/show viewscreens for rear and front view
+	$surfaceViewscreenProjector.target("cameraViewscreenPortalFront");
+	$surfaceViewscreenProjector.locatecamera();
+	
+	$skyboxmodel2.hide();
+	
+	//$skyboxWarpStars.show();
+	$skyboxWarpStarsBend.show();
+	
+	wait(1);
+	
+	//play equinox warp video, and display hud
+	stuffCmd("exec cfg/equinox_mission_orig.cfg\n");
+	
+	//continue here after the cinematic video
+	$bridgeViewScreenPortal1.show();
+	$bridgeViewScreenStatic.hide();
+	
+	//objective - update and display
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//Watch from the Conference room windows the arival at Earth...
+
+	//spawn mission marker arrow in conference room
+	entity e;
+	//e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin","-1330.03 1285.97 132","targetname","watchMarker");
+	e = spawn("Object","model","sysimg/icons/items/powerup_speed.spr","origin","-1330.03 1285.97 120","targetname","watchMarker","scale","0.3");
+	e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin","-1330.03 1285.97 150","targetname","watchMarker2","scale","0.3");
+
+	
+	//eable triggers
+	$conferenceWatchTrigger0.triggerable();
+	$conferenceWatchTrigger1.triggerable();
+}
+
+void cinematicBrig()
+//cinematic sequence when player was killed
+{
+	//play equinox warp video, and display hud
+	if($world.getFloatVar("cinematicBrig")){
+		return;
+	}
+	$world.setFloatVar("cinematicBrig",1);
+	
+
+	spawn("camera","targetname","cam3");
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );
+
+	if(getCvarInt("g_gametype") == 1){
+		$player.hide();
+	}
+	
+	$cam3.follow($cinematicBrig);
+	$cam3.cut();
+	cuecamera($cam3);		
+	wait(0.05);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	wait(6);
+	
+	$brigCrew0.headwatch($brigTuvok,1.5);
+	wait(3);
+	
+	$brigCrew0.headwatch($brigPointOfShame,3);
+	wait(3);
+	
+	cam_fadeout( 3, 0, 0, 0, 1, 0 );
+	wait ( 3 );	
+	//load this map again
+	
+	if(getCvarInt("g_gametype") == 1){
+		stuffcmd("map "+ getCvar("mapname") +"\n");
+	}
+	else{
+		globalCoop_mission_fail();
+	}
+}
+
+void coop_endLevel()
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+//credits, and history of map
+	globalCoop_main_globalCommand("nodamage");
+	globalCoop_huds_AddAll("coop_equinox_credits");
+	wait(20);
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+	}else{
+	//load next map
+		thread globalCoop_mission_completed("coop_gbs1");
+	}
+}

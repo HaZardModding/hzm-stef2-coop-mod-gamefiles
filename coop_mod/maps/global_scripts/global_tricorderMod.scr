@@ -1,0 +1,1015 @@
+//[b607] chrissstrahl - this was changed to suite only multiplayer needs
+//do not include this file directly!
+//include the file from maps/global_scripts/
+//the coop mod dll will detect and select the right file for single or multiplayer
+
+//=============================================================================
+// Prototypes
+//=============================================================================
+// Public
+void globalTricorderMod_Run( entity entPuzzleObject, float timeLimit );
+void globalTricorderMod_SetAllRandomParms();
+void globalTricorderMod_SetNumWaves( float numWaves );
+
+// Private
+void _tricorderMod_initVars();
+void _tricorderMod_updateWaveWidget( string widgetName, string colorString );
+void _tricorderMod_updateWaveWidgets();
+float _tricorderMod_getCenterX( string widgetName );
+float _tricorderMod_getOffs( string widgetName );
+float _tricorderMod_getFreq( string widgetName );
+float _tricorderMod_getAmpl( string widgetName );
+void _tricorderMod_adjustParm( float sign );
+void tricorderMod_sel1();
+void tricorderMod_ampl();
+//hzm coop mod chrissstrahl - we need this here, in order to make this work in multiplayer
+//because it is now called from a different location of this script
+void _tricorderMod_disableWaveSelector( float number );
+
+//=============================================================================
+// Constants
+//=============================================================================
+// UI geometry
+float TRICORDER_MOD_WAVEDISPLAY_Y = 159;		// top edge of the wave display widgets
+float TRICORDER_MOD_WAVEDISPLAY_HEIGHT = 156;
+
+float TRICORDER_MOD_AMPL_CURRENT_CENTERX = 233;		// the X coord the widget will center on
+float TRICORDER_MOD_AMPL_COMPARE_CENTERX = 320;		// the X coord the widget will center on
+float TRICORDER_MOD_AMPL_TARGET_CENTERX = 407;		// the X coord the widget will center on
+
+// value ranges and increments
+float TRICORDER_MOD_EDIT_INCAMOUNT = 1;
+float TRICORDER_MOD_EDIT_STEPS = 10;
+float TRICORDER_MOD_EDIT_SCALE = 0.1;
+
+float TRICORDER_MOD_AMPL_MIN = 16;			// min width that the UI widget will shrink to
+float TRICORDER_MOD_AMPL_MAX = 80;			// max width that the UI widget will expand to
+float TRICORDER_MOD_AMPL_RANGE = 64;			// TRICORDER_MOD_AMPL_MAX - TRICORDER_MOD_AMPL_MIN
+
+float TRICORDER_MOD_FREQ_MIN = 6.5;			// the min Y texture scale
+float TRICORDER_MOD_FREQ_MAX = 11.5;			// the max Y texture scale
+float TRICORDER_MOD_FREQ_RANGE = 5;			// TRICORDER_MOD_FREQ_MAX - TRICORDER_MOD_FREQ_MIN
+
+float TRICORDER_MOD_OFFS_MIN = 0;
+float TRICORDER_MOD_OFFS_MAX = 155;			// texture height - 1
+float TRICORDER_MOD_OFFS_RANGE = 155;			// TRICORDER_MOD_OFFS_MAX - TRICORDER_MOD_OFFS_MIN
+
+// state management
+float TRICORDER_MOD_EDITMODE_FREQ = 1;
+float TRICORDER_MOD_EDITMODE_OFFS = 2;
+float TRICORDER_MOD_EDITMODE_AMPL = 3;
+
+
+float TRICORDER_MOD_MAXCOMMANDS = 8;
+
+//=============================================================================
+// Global variables
+// _tricorderMod_locked			- crude critical section; "don't execute this code if it is already
+//									executing in another thread."
+// _tricorderMod_numWaves		- how many waves are displayed and must be matched to win the puzzle
+// _tricorderMod_currentWave	- which wave is currently being edited
+// _tricorderMod_editMode		- which wave parameter (FREQ/OFFS/AMPL) is being edited (see TRICORDER_MOD_EDITMODE_* constants)
+// _tricorderMod_target*		- target parameter values; always initialized to valid values
+// _tricorderMod_current*		- current parameter values
+//=============================================================================
+float _tricorderMod_locked;
+float _tricorderMod_numWaves;
+float _tricorderMod_currentWave;
+float _tricorderMod_editMode;
+float _tricorderMod_targetAmpl1, _tricorderMod_targetOffs1, _tricorderMod_targetFreq1;
+float _tricorderMod_targetAmpl2, _tricorderMod_targetOffs2, _tricorderMod_targetFreq2;
+float _tricorderMod_targetAmpl3, _tricorderMod_targetOffs3, _tricorderMod_targetFreq3;
+float _tricorderMod_currentAmpl1, _tricorderMod_currentOffs1, _tricorderMod_currentFreq1;
+float _tricorderMod_currentAmpl2, _tricorderMod_currentOffs2, _tricorderMod_currentFreq2;
+float _tricorderMod_currentAmpl3, _tricorderMod_currentOffs3, _tricorderMod_currentFreq3;
+entity _puzzleEnt;
+
+//=============================================================================
+// Functions
+//=============================================================================
+
+//---------------------
+// Initializes a modulation tricorder puzzle.
+// timeLimit	- How long they have to solve it before the puzzle is failed.
+//---------------------
+void globalTricorderMod_Run( entity entPuzzleObject, float timeLimit )
+{
+	if( !doesEntityExist( entPuzzleObject ))
+	{
+		centerprint("GIVEN ENTITY MISSING!\n");
+		return;
+	}
+	if( _globalTricorder_lockedDown )//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	{
+		centerprint("ANOTHER PUZZLE IS CURRENTLY IN USE\n");
+		return;
+	}
+		
+	// initialize base variables
+	globalTricorder_BaseSetEntity( entPuzzleObject );
+		
+	_puzzleEnt = entPuzzleObject;
+	
+	//hzm coop mod chrissstrahl - here we need to ready the puzzle for the player, we moved the code here
+	//because we can not access the player before he actually used the puzzle, which works fine in singleplayer
+	//by simply accessing $player does not work at all in multi, since we CAN NOT predict which player will
+	//use the puzzle at the end...	
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_compwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_compwave2 enable" );
+	//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel1 enable" );
+
+	if( _globalTricorder_modulateFrequencyWaves < 1 )
+		_globalTricorder_modulateFrequencyWaves = 1;
+	if(	_globalTricorder_modulateFrequencyWaves > 3 )
+		_globalTricorder_modulateFrequencyWaves = 3;
+
+	_tricorderMod_numWaves = _globalTricorder_modulateFrequencyWaves;
+
+	if( _globalTricorder_modulateFrequencyWaves < 3 )
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel3 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave3 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave3 disable" );
+		_tricorderMod_disableWaveSelector( 3 );
+	}
+	else
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel3 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave3 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave3 enable" );
+	}
+	if( _globalTricorder_modulateFrequencyWaves < 2 )
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel2 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave2 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave2 disable" );
+		_tricorderMod_disableWaveSelector( 2 );
+	}
+	else
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel2 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave2 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave2 enable" );
+	}
+	//hzm eof - this is where the transplanted code ends
+	
+	//hzm gameupdate chrissstrahl - add puzzle hud/menu
+	entity ePlayer;
+	ePlayer = getentity("player"+entPuzzleObject.getFloatVar("_activator"));
+
+	if( !doesEntityExist( ePlayer ) ){
+		centerprint("PLAYER ENTITY MISSING\n");
+		return;
+	}
+	
+	_globalTricorder_lockedDown = 1;
+	
+	//hzm gameupdate chrissstrahl - sets sv_floodProtect to be reenabled after player has finished using the puzzle
+	if( getCvarInt("sv_floodProtect") == 1){
+		_globalTricorder_svFloodProtectEnable = 1;
+		stuffcmd("set sv_floodProtect 0");
+	}	
+	
+	//hzm gameupdate chrissstrahl - unmodded players require this for the hud to work! (And yes, the background will fade to black)
+	globalTricorder_doClientCommand( "pushmenu TricorderModulation" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_help hide" );		
+	wait( 0.05 );
+
+	// SND: start the puzzle
+	_puzzleEnt.playsound( "sound/weapons/tricorder/tri_puzz_begin.wav", 9, 1, 64);
+	tricorderBaseExiting = 0;
+	tricorderBaseSetPuzzleType( TRICORDER_PUZZLE_MOD );
+	thread globalTricorder_BaseRunTimer( entPuzzleObject, timeLimit );
+
+	// update UI widgets
+	_tricorderMod_initVars();
+	//_tricorderMod_updateWaveWidgets();
+
+	//wait( 0.1 );
+
+	_tricorderMod_locked = 0;
+	_tricorderMod_currentWave = -1;
+	tricorderMod_sel1();
+	tricorderMod_ampl();
+}
+
+void _tricorderMod_disableWaveSelector( float number )
+{
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel" + number + " shadercolor 0 0 0 0.8" );
+}
+
+//---------------------
+void _tricorderMod_deactivateWaveSelector( float number, string colorstring )
+//---------------------
+{
+	string cmd;
+	
+	cmd = "globalwidgetcommand tri_mod_button_sel" 
+		+ number
+		+ " shader textures/tricorder/tri_mod_button_" 
+		+ number
+		+ "_inactive";
+	globalTricorder_doClientCommand( cmd );
+	
+	cmd = "globalwidgetcommand tri_mod_button_sel"
+		+ number
+		+ " shadercolor "
+		+ colorstring;
+	globalTricorder_doClientCommand( cmd );
+}
+
+//---------------------
+void _tricorderMod_activateWaveSelector( float number, string colorstring )
+//---------------------
+{
+	string cmd;
+	
+	cmd = "globalwidgetcommand tri_mod_button_sel" 
+		+ number
+		+ " shader textures/tricorder/tri_mod_button_" 
+		+ number
+		+ "_active";
+	globalTricorder_doClientCommand( cmd );
+	
+	cmd = "globalwidgetcommand tri_mod_button_sel"
+		+ number
+		+ " shadercolor "
+		+ colorstring;
+	globalTricorder_doClientCommand( cmd );
+}
+
+
+//---------------------
+// _tricorderMod_initVars
+//---------------------
+float _tricorderMod_initVars_randomStep( float numSteps )
+{
+	float val;
+	val = ( 1 + randomint( numSteps - 1 ) ) / numSteps;
+	val /= TRICORDER_MOD_EDIT_SCALE;
+	return val;
+}
+void _tricorderMod_initVars()
+{
+	_tricorderMod_currentWave = 1;
+
+	// initialize to random values between 1 and range
+	_tricorderMod_currentAmpl1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentOffs1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentFreq1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+
+	_tricorderMod_currentAmpl2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentOffs2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentFreq2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+
+	_tricorderMod_currentAmpl3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentOffs3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+	_tricorderMod_currentFreq3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS );
+
+	_tricorderMod_deactivateWaveSelector( 1, "1 1 1 1" );
+	_tricorderMod_deactivateWaveSelector( 2, "1 1 1 1" );
+	_tricorderMod_deactivateWaveSelector( 3, "1 1 1 1" );
+	wait( 0.05 );
+}
+
+//---------------------
+// tricorderMod_setRandomParms[n]
+// Set the current amplitude, offset and frequency for the wave [n] to random valuse.  Call before globalTricorderMod_Run.
+//---------------------
+void tricorderMod_setRandomParms1()
+{
+	do{ _tricorderMod_targetAmpl1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetAmpl1 == _tricorderMod_currentAmpl1 );
+	do{ _tricorderMod_targetOffs1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetOffs1 == _tricorderMod_currentOffs1 );
+	do{ _tricorderMod_targetFreq1 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetFreq1 == _tricorderMod_currentFreq1 );
+}
+void tricorderMod_setRandomParms2()
+{
+	do{ _tricorderMod_targetAmpl2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetAmpl2 == _tricorderMod_currentAmpl2 );
+	do{ _tricorderMod_targetOffs2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetOffs2 == _tricorderMod_currentOffs2 );
+	do{ _tricorderMod_targetFreq2 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetFreq2 == _tricorderMod_currentFreq2 );
+}
+void tricorderMod_setRandomParms3()
+{
+	do{ _tricorderMod_targetAmpl3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetAmpl3 == _tricorderMod_currentAmpl3 );
+	do{ _tricorderMod_targetOffs3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetOffs3 == _tricorderMod_currentOffs3 );
+	do{ _tricorderMod_targetFreq3 = _tricorderMod_initVars_randomStep( TRICORDER_MOD_EDIT_STEPS ); } while( _tricorderMod_targetFreq3 == _tricorderMod_currentFreq3 );
+}
+void globalTricorderMod_SetAllRandomParms()
+{
+	tricorderMod_setRandomParms1();
+	if( _tricorderMod_numWaves >= 2 )
+		tricorderMod_setRandomParms2();
+	if( _tricorderMod_numWaves == 3 )
+		tricorderMod_setRandomParms3();
+		
+	//hzm gameupdate chrissstrahl - update the UI
+	_tricorderMod_updateWaveWidgets();
+}
+
+//---------------------
+// globalTricorderMod_SetNumWaves
+// Set how many waves to use for the puzzle. Call before globalTricorderMod_Run.
+// - numwaves must be 1 to 3
+//---------------------
+void globalTricorderMod_SetNumWaves( float numWaves )
+{
+	//hzm coop mod chrissstrahl - grab info and store in global var, we need to access this elsewhere
+	//because accessing in here, we have no player yet that activated the puzzle, thgis is just prep-code
+	//we need to do this where a actual player accesses the puzzle
+	_globalTricorder_modulateFrequencyWaves = numWaves;
+	/*
+
+	//print( numWaves + " waves\n" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_compwave1 enable" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_compwave2 enable" );
+	//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel1 enable" );
+
+	if( numWaves < 1 || numWaves > 3 )
+	{
+		globalTricorder_BaseError( "TRICORDER MOD:  setNumWaves: must be >1 and <4\n" );
+	}
+	_tricorderMod_numWaves = numWaves;
+
+	if( numWaves < 3 )
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel3 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave3 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave3 disable" );
+		_tricorderMod_disableWaveSelector( 3 );
+	}
+	else
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel3 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave3 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave3 enable" );
+	}
+	if( numWaves < 2 )
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel2 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave2 disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave2 disable" );
+		_tricorderMod_disableWaveSelector( 2 );
+	}
+	else
+	{
+		//globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel2 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave2 enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave2 enable" );
+	}
+	*/
+}
+
+//---------------------
+// _tricorderMod_updateWaveWidgets
+// Updates all of the wave widgets.
+//---------------------
+string TRI_MOD_WAVE_ACTIVECOLOR_TRI1  	= "1.0 0.2 0.2 1.0";	// red
+string TRI_MOD_WAVE_ACTIVECOLOR_TRI2  	= "0.2 1.0 0.2 1.0";	// green 
+string TRI_MOD_WAVE_ACTIVECOLOR_TRI3  	= "0.2 0.2 1.0 1.0";	// blue
+string TRI_MOD_WAVE_ACTIVECOLOR_LOCK1 	= "1.0 1.0 0.2 1.0";	// yellow
+string TRI_MOD_WAVE_ACTIVECOLOR_LOCK2 	= "0.2 1.0 1.0 1.0";	// cyan
+string TRI_MOD_WAVE_ACTIVECOLOR_LOCK3 	= "1.0 0.2 1.0 1.0";	// purple
+string TRI_MOD_WAVE_INACTIVECOLOR		= "0.1 0.1 0.1 0.1";	// trans gray
+
+void _tricorderMod_updateWaveWidgets()
+{
+	string triColor1, triColor2, triColor3;
+	string lockColor1, lockColor2, lockColor3;
+	
+	if( _tricorderMod_currentWave == 1 )
+	{
+		triColor1 = TRI_MOD_WAVE_ACTIVECOLOR_TRI1;
+		triColor2 = TRI_MOD_WAVE_INACTIVECOLOR;
+		triColor3 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor1 = TRI_MOD_WAVE_ACTIVECOLOR_LOCK1;
+		lockColor2 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor3 = TRI_MOD_WAVE_INACTIVECOLOR;
+	}
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		triColor1 = TRI_MOD_WAVE_INACTIVECOLOR;
+		triColor2 = TRI_MOD_WAVE_ACTIVECOLOR_TRI2;
+		triColor3 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor1 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor2 = TRI_MOD_WAVE_ACTIVECOLOR_LOCK2;
+		lockColor3 = TRI_MOD_WAVE_INACTIVECOLOR;
+	}
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		triColor1 = TRI_MOD_WAVE_INACTIVECOLOR;
+		triColor2 = TRI_MOD_WAVE_INACTIVECOLOR;
+		triColor3 = TRI_MOD_WAVE_ACTIVECOLOR_TRI3;
+		lockColor1 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor2 = TRI_MOD_WAVE_INACTIVECOLOR;
+		lockColor3 = TRI_MOD_WAVE_ACTIVECOLOR_LOCK3;
+	}
+
+	// target wave box
+	_tricorderMod_updateWaveWidget( "tri_mod_lockwave1", lockColor1 );
+	if( _tricorderMod_numWaves >= 2 )	_tricorderMod_updateWaveWidget( "tri_mod_lockwave2", lockColor2 );
+	if( _tricorderMod_numWaves == 3 )	_tricorderMod_updateWaveWidget( "tri_mod_lockwave3", lockColor3 );
+	
+	// current wave box
+	_tricorderMod_updateWaveWidget( "tri_mod_triwave1", triColor1 );
+	if( _tricorderMod_numWaves >= 2 )	_tricorderMod_updateWaveWidget( "tri_mod_triwave2", triColor2 );
+	if( _tricorderMod_numWaves == 3 )	_tricorderMod_updateWaveWidget( "tri_mod_triwave3", triColor3 );
+
+	// comparison box
+	// set shadercolors for comparison box also
+	if( _tricorderMod_currentWave == 1 )
+	{
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave1", triColor1 );
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave2", lockColor1 );
+	}
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave1", triColor2 );
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave2", lockColor2 );
+	}
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave1", triColor3 );
+		_tricorderMod_updateWaveWidget( "tri_mod_compwave2", lockColor3 );
+	}
+}
+
+//---------------------
+// _tricorderMod_updateWaveWidget
+// Adjust the wave widgets to reflect the current state.
+//---------------------
+void _tricorderMod_updateWaveWidget( string widgetName, string colorString )
+{
+	string cmd;
+	float x, width;
+	float t1, t2;
+	float ampl, offs, freq, centerx;
+
+	ampl = _tricorderMod_getAmpl( widgetName );
+	offs = _tricorderMod_getOffs( widgetName );
+	freq = _tricorderMod_getFreq( widgetName );
+	centerx = _tricorderMod_getCenterX( widgetName );
+
+	// ** ampl
+
+	// find the width of the widget
+	width = TRICORDER_MOD_AMPL_MIN + (ampl * TRICORDER_MOD_AMPL_RANGE * TRICORDER_MOD_EDIT_SCALE);
+
+	// find where the left edge of the widget will go; center minus half width
+	x = centerx - ( width / 2 );
+
+	// build and send the monstrous command that updates the widget
+	cmd = "globalwidgetcommand " + widgetName + " rect " + x + " " + TRICORDER_MOD_WAVEDISPLAY_Y + " " + width + " " + TRICORDER_MOD_WAVEDISPLAY_HEIGHT + " 1";
+	globalTricorder_doClientCommand( cmd );
+
+	// ** offs/freq
+
+	// find the texture coords to represent the desired offset and frequency
+	t1 = offs * TRICORDER_MOD_EDIT_SCALE;
+	t2 = t1 + (( 11 - freq ) * TRICORDER_MOD_FREQ_RANGE * TRICORDER_MOD_EDIT_SCALE );	// higher frequency == smaller difference between texture coords
+	cmd = "globalwidgetcommand " + widgetName + " texturecoordinates 0.0 " + t1 + " 1.0 " + t2;
+	globalTricorder_doClientCommand( cmd );
+	
+	cmd = "globalwidgetcommand " + widgetName + " shadercolor " + colorString;
+	globalTricorder_doClientCommand( cmd );
+	cmd = "globalwidgetcommand " + widgetName + " hovershadercolor " + colorString;
+	globalTricorder_doClientCommand( cmd );
+	cmd = "globalwidgetcommand " + widgetName + " selectedshadercolor " + colorString;
+	globalTricorder_doClientCommand( cmd );
+	cmd = "globalwidgetcommand " + widgetName + " armedshadercolor " + colorString;
+	globalTricorder_doClientCommand( cmd );
+}
+
+//---------------------
+// _tricorderMod_get[Ampl,Freq,Offs,Xpos]
+// Returns the [Ampl,Freq,Offs,Xpos] value for the wave widget with the specified name
+// This is copy-pasted three times... it hurts.
+//---------------------
+float _tricorderMod_getAmpl( string widgetName )
+{
+	if( widgetName == "tri_mod_triwave1" ) 		return _tricorderMod_currentAmpl1;
+	else if( widgetName == "tri_mod_triwave2" ) return _tricorderMod_currentAmpl2;
+	else if( widgetName == "tri_mod_triwave3" ) return _tricorderMod_currentAmpl3;
+
+	else if( widgetName == "tri_mod_lockwave1" ) return _tricorderMod_targetAmpl1;
+	else if( widgetName == "tri_mod_lockwave2" ) return _tricorderMod_targetAmpl2;
+	else if( widgetName == "tri_mod_lockwave3" ) return _tricorderMod_targetAmpl3;
+
+	if( _tricorderMod_currentWave == 1 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentAmpl1;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetAmpl1;
+	}
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentAmpl2;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetAmpl2;
+	}
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentAmpl3;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetAmpl3;
+	}
+
+	globalTricorder_BaseError( "_tricorderMod_getAmpl: unknown widgetName " + widgetName + "\n" );
+}
+
+//---------------------
+float _tricorderMod_getFreq( string widgetName )
+{
+	if( widgetName == "tri_mod_triwave1" ) 		return _tricorderMod_currentFreq1;
+	else if( widgetName == "tri_mod_triwave2" ) return _tricorderMod_currentFreq2;
+	else if( widgetName == "tri_mod_triwave3" ) return _tricorderMod_currentFreq3;
+
+	else if( widgetName == "tri_mod_lockwave1" ) return _tricorderMod_targetFreq1;
+	else if( widgetName == "tri_mod_lockwave2" ) return _tricorderMod_targetFreq2;
+	else if( widgetName == "tri_mod_lockwave3" ) return _tricorderMod_targetFreq3;
+
+	if( _tricorderMod_currentWave == 1 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentFreq1;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetFreq1;
+	}
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentFreq2;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetFreq2;
+	}
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentFreq3;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetFreq3;
+	}
+
+	globalTricorder_BaseError( "_tricorderMod_getFreq: unknown widgetName " + widgetName + "\n" );
+}
+
+//---------------------
+float _tricorderMod_getOffs( string widgetName )
+{
+	if( widgetName == "tri_mod_triwave1" ) 		return _tricorderMod_currentOffs1;
+	else if( widgetName == "tri_mod_triwave2" ) return _tricorderMod_currentOffs2;
+	else if( widgetName == "tri_mod_triwave3" ) return _tricorderMod_currentOffs3;
+
+	else if( widgetName == "tri_mod_lockwave1" ) return _tricorderMod_targetOffs1;
+	else if( widgetName == "tri_mod_lockwave2" ) return _tricorderMod_targetOffs2;
+	else if( widgetName == "tri_mod_lockwave3" ) return _tricorderMod_targetOffs3;
+
+	if( _tricorderMod_currentWave == 1 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentOffs1;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetOffs1;
+	}
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentOffs2;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetOffs2;
+	}
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		if( widgetName == "tri_mod_compwave1" ) 		return _tricorderMod_currentOffs3;
+		else if( widgetName == "tri_mod_compwave2" ) 	return _tricorderMod_targetOffs3;
+	}
+
+	globalTricorder_BaseError( "_tricorderMod_getOffs: unknown widgetName " + widgetName + "\n" );
+}
+
+//---------------------
+float _tricorderMod_getCenterX( string widgetName )
+{
+	if( widgetName == "tri_mod_triwave1" || widgetName == "tri_mod_triwave2" || widgetName == "tri_mod_triwave3" )
+		return TRICORDER_MOD_AMPL_CURRENT_CENTERX;
+	if( widgetName == "tri_mod_lockwave1" || widgetName == "tri_mod_lockwave2" || widgetName == "tri_mod_lockwave3" )
+		return TRICORDER_MOD_AMPL_TARGET_CENTERX;
+	if( widgetName == "tri_mod_compwave1" || widgetName == "tri_mod_compwave2" )
+		return TRICORDER_MOD_AMPL_COMPARE_CENTERX;
+
+	globalTricorder_BaseError( "_tricorderMod_getCenterX: unknown widgetName " + widgetName + "\n" );
+}
+
+
+//------------------------------------------------------------------------- UI callbacks
+/*
+void _tricorderMod_resetSelButtonHighlights()
+{
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel1 bgcolor 0.35 0.67 1.00 0.0" ); // set alpha to 0 temporarily - wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel2 bgcolor 0.35 0.67 1.00 0.0" ); // set alpha to 0 temporarily - wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_sel3 bgcolor 0.35 0.67 1.00 0.0" ); // set alpha to 0 temporarily - wyeth
+	_tricorderMod_adjustParm( 0 );
+}
+*/
+
+//---------------------
+void _tricorderMod_resetParmButtonHighlights()
+{
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_freq bgcolor 0.35 0.67 1.00 0.0" );  // changed alpha to 0 temporarily -wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_offs bgcolor 0.35 0.67 1.00 0.0" );  // changed alpha to 0 temporarily -wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_ampl bgcolor 0.35 0.67 1.00 0.0" );  // changed alpha to 0 temporarily -wyeth
+	_tricorderMod_adjustParm( 0 );
+}
+
+//---------------------
+// tricorderMod_sel1 - edit wave 1
+//---------------------
+void tricorderMod_sel1()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	// deactivate currently selected button before activating new one
+	if( _tricorderMod_currentWave >= 0 ) // this is initialized to -1
+	{
+		_tricorderMod_deactivateWaveSelector( _tricorderMod_currentWave, "0.5 0.5 0.5 1" );
+	}
+	_tricorderMod_currentWave = 1;
+	_tricorderMod_updateWaveWidgets();
+	_tricorderMod_activateWaveSelector( _tricorderMod_currentWave, TRI_MOD_WAVE_ACTIVECOLOR_LOCK1 );
+}
+
+//---------------------
+// tricorderMod_sel2 - edit wave 2
+//---------------------
+void tricorderMod_sel2()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	// deactivate currently selected button before activating new one
+	_tricorderMod_deactivateWaveSelector( _tricorderMod_currentWave, "0.5 0.5 0.5 1" );
+	_tricorderMod_currentWave = 2;
+	_tricorderMod_updateWaveWidgets();
+	_tricorderMod_activateWaveSelector( _tricorderMod_currentWave, TRI_MOD_WAVE_ACTIVECOLOR_LOCK2 );
+}
+
+//---------------------
+// tricorderMod_sel3 - edit wave 3
+//---------------------
+void tricorderMod_sel3()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	// deactivate currently selected button before activating new one
+	_tricorderMod_deactivateWaveSelector( _tricorderMod_currentWave, "0.5 0.5 0.5 1" );
+	_tricorderMod_currentWave = 3;
+	_tricorderMod_updateWaveWidgets();
+	_tricorderMod_activateWaveSelector( _tricorderMod_currentWave, TRI_MOD_WAVE_ACTIVECOLOR_LOCK3 );
+}
+
+//---------------------
+// tricorderMod_ampl - edit current wave ampl
+//---------------------
+void tricorderMod_ampl()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	_tricorderMod_editMode = TRICORDER_MOD_EDITMODE_AMPL;
+	// update the UI
+	_tricorderMod_updateWaveWidgets();
+
+	_tricorderMod_resetParmButtonHighlights();
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_ampl bgcolor 1 1 1 0.0" );  // changed alpha to 0 temporarily - wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_controlroute shader textures/tricorder/tri_mod_route-amp" );
+}
+
+//---------------------
+// tricorderMod_freq - edit current wave freq
+//---------------------
+void tricorderMod_freq()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	_tricorderMod_editMode = TRICORDER_MOD_EDITMODE_FREQ;
+	// update the UI
+	_tricorderMod_updateWaveWidgets();
+
+	_tricorderMod_resetParmButtonHighlights();
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_freq bgcolor 1 1 1 0.0" );  // changed alpha to 0 temporarily - wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_controlroute shader textures/tricorder/tri_mod_route-freq" );
+}
+
+//---------------------
+// tricorderMod_offs - edit current wave offs
+//---------------------
+void tricorderMod_offs()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+
+	_tricorderMod_editMode = TRICORDER_MOD_EDITMODE_OFFS;
+	// update the UI
+	_tricorderMod_updateWaveWidgets();
+	
+	_tricorderMod_resetParmButtonHighlights();
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_button_offs bgcolor 1 1 1 0.0" );  // changed alpha to 0 temporarily - wyeth
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_controlroute shader textures/tricorder/tri_mod_route-offset" );
+}
+
+//---------------------
+// tricorderMod_inc - increment current parameter for current wave
+//---------------------
+void tricorderMod_inc()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	//print( "INCREMENT: " );
+	_tricorderMod_adjustParm( 1 );
+	// update the UI
+	_tricorderMod_updateWaveWidgets();
+}
+
+//---------------------
+// tricorderMod_dec - decrement current parameter for current wave
+//---------------------
+void tricorderMod_dec()
+{
+	if( _tricorderMod_locked ) return; // don't allow input
+	
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	//print( "DECREMENT: " ); // continued in next function call
+	_tricorderMod_adjustParm( -1 );
+	// update the UI
+	_tricorderMod_updateWaveWidgets();
+}
+
+//---------------------
+float _tricorderMod_clampValue( float val )
+{
+	float thelimit;
+	thelimit = TRICORDER_MOD_EDIT_INCAMOUNT * TRICORDER_MOD_EDIT_STEPS;
+	//print( val + "-" + thelimit + "\n" );
+	if( val > thelimit )
+	{
+		return thelimit;
+	}
+	else if( val < TRICORDER_MOD_EDIT_INCAMOUNT )
+	{
+		return TRICORDER_MOD_EDIT_INCAMOUNT;
+	}
+	else
+	{
+		return val;
+	}
+}
+
+//---------------------
+//---------------------
+void _tricorderMod_flashWave( float number )
+{
+	wait( 0.05 );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave" + number + " shadercolor 1 1 1 1" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave" + number + " shadercolor 1 1 1 1" );
+	wait( 0.1 );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave" + number + " shadercolor 0.1 0.1 0.1 0.1" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave" + number + " shadercolor 0.1 0.1 0.1 0.1" );
+	wait( 0.1 );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave" + number + " shadercolor 1 1 1 1" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave" + number + " shadercolor 1 1 1 1" );
+	wait( 0.1 );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave" + number + " shadercolor 0.1 0.1 0.1 0.1" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave" + number + " shadercolor 0.1 0.1 0.1 0.1" );
+	wait( 0.1 );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_lockwave" + number + " shadercolor 1 1 1 1" );
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_triwave" + number + " shadercolor 1 1 1 1" );
+	wait( 0.5 );
+}
+
+//---------------------
+//---------------------
+float _tricorderMod_checkCurrentComplete()
+{
+	if( (_tricorderMod_currentWave == 1) 
+		&& (_tricorderMod_currentAmpl1 == _tricorderMod_targetAmpl1)	
+		&& (_tricorderMod_currentFreq1 == _tricorderMod_targetFreq1)
+		&& (_tricorderMod_currentOffs1 == _tricorderMod_targetOffs1) )
+	{
+		_tricorderMod_locked = 1;
+		_tricorderMod_disableWaveSelector( 1 );
+		_tricorderMod_deactivateWaveSelector( 1, "0.5 0.5 0.5 1" );
+		_tricorderMod_updateWaveWidgets();
+		_puzzleEnt.playsound( "sound/weapons/tricorder/tri_puzz_think.wav", 9, 1, 64);
+		_tricorderMod_flashWave( 1 );
+
+		if( _tricorderMod_numWaves == 1 ) // everything done?
+		{
+			return 1;
+		}
+
+		_tricorderMod_currentWave = 2;
+		_tricorderMod_activateWaveSelector( 2, TRI_MOD_WAVE_ACTIVECOLOR_LOCK2 );
+		_tricorderMod_locked = 0;
+		tricorderMod_ampl();
+	}
+	else if( (_tricorderMod_currentWave == 2) 
+		&& (_tricorderMod_currentAmpl2 == _tricorderMod_targetAmpl2)	
+		&& (_tricorderMod_currentFreq2 == _tricorderMod_targetFreq2)
+		&& (_tricorderMod_currentOffs2 == _tricorderMod_targetOffs2) )
+	{
+		_tricorderMod_locked = 1;
+		_tricorderMod_disableWaveSelector( 2 );
+		_tricorderMod_deactivateWaveSelector( 2, "0.5 0.5 0.5 1" );
+		_tricorderMod_updateWaveWidgets();
+		_puzzleEnt.playsound( "sound/weapons/tricorder/tri_puzz_think.wav", 9, 1, 64);
+		_tricorderMod_flashWave( 2 );
+
+		if( _tricorderMod_numWaves == 2 ) // everything done?
+		{
+			return 1;
+		}
+
+		_tricorderMod_currentWave = 3;
+		_tricorderMod_activateWaveSelector( 3, TRI_MOD_WAVE_ACTIVECOLOR_LOCK3 );
+		_tricorderMod_locked = 0;
+		tricorderMod_ampl();
+	}
+	else if( (_tricorderMod_currentWave == 3) 
+		&& (_tricorderMod_currentAmpl3 == _tricorderMod_targetAmpl3)	
+		&& (_tricorderMod_currentFreq3 == _tricorderMod_targetFreq3)
+		&& (_tricorderMod_currentOffs3 == _tricorderMod_targetOffs3) )
+	{
+		_tricorderMod_locked = 1;
+		_tricorderMod_disableWaveSelector( 3 );
+		_tricorderMod_deactivateWaveSelector( 3, "0.5 0.5 0.5 1" );
+		_tricorderMod_updateWaveWidgets();
+		_puzzleEnt.playsound( "sound/weapons/tricorder/tri_puzz_success.wav", 9, 1, 64);
+		_tricorderMod_flashWave( 3 );
+		
+		return 1; // everything definitely done
+	}
+
+	return 0;
+}
+
+//---------------------
+// tricorderMod_adjustParm
+//---------------------
+void _tricorderMod_adjustParm( float sign )
+{
+	float parmVal;
+
+	// WAVE 1
+	if( _tricorderMod_currentWave == 1 )
+	{
+		// AMPL
+		if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_AMPL )
+		{
+			//print( "Ampl 1\n" );
+			_tricorderMod_currentAmpl1 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentAmpl1;
+		}
+		// FREQ
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_FREQ )
+		{
+			//print( "Freq 1\n" );
+			_tricorderMod_currentFreq1 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentFreq1;
+		}
+		// OFFS
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_OFFS )
+		{
+			//print( "Offs 1\n" );
+			_tricorderMod_currentOffs1 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentOffs1;
+		}
+	}
+	// WAVE 2
+	else if( _tricorderMod_currentWave == 2 )
+	{
+		// AMPL
+		if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_AMPL )
+		{
+			//print( "Ampl 2\n" );
+			_tricorderMod_currentAmpl2 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentAmpl2;
+		}
+		// FREQ
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_FREQ )
+		{
+			//print( "Freq 2\n" );
+			_tricorderMod_currentFreq2 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentFreq2;
+		}
+		// OFFS
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_OFFS )
+		{
+			//print( "Offs 2\n" );
+			_tricorderMod_currentOffs2 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentOffs2;
+		}
+	}
+	// WAVE 3
+	else if( _tricorderMod_currentWave == 3 )
+	{
+		// AMPL
+		if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_AMPL )
+		{
+			//print( "Ampl 3\n" );
+			_tricorderMod_currentAmpl3 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentAmpl3;
+		}
+		// FREQ
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_FREQ )
+		{
+			//print( "Freq 3\n" );
+			_tricorderMod_currentFreq3 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentFreq3;
+		}
+		// OFFS
+		else if( _tricorderMod_editMode == TRICORDER_MOD_EDITMODE_OFFS )
+		{
+			//print( "Offs 3\n" );
+			_tricorderMod_currentOffs3 += sign * TRICORDER_MOD_EDIT_INCAMOUNT;
+			parmVal = _tricorderMod_currentOffs3;
+		}
+	}
+
+	// clamp all values
+	_tricorderMod_currentAmpl1 = _tricorderMod_clampValue( _tricorderMod_currentAmpl1 );
+	_tricorderMod_currentAmpl2 = _tricorderMod_clampValue( _tricorderMod_currentAmpl2 );
+	_tricorderMod_currentAmpl3 = _tricorderMod_clampValue( _tricorderMod_currentAmpl3 );
+
+	_tricorderMod_currentFreq1 = _tricorderMod_clampValue( _tricorderMod_currentFreq1 );
+	_tricorderMod_currentFreq2 = _tricorderMod_clampValue( _tricorderMod_currentFreq2 );
+	_tricorderMod_currentFreq3 = _tricorderMod_clampValue( _tricorderMod_currentFreq3 );
+
+	_tricorderMod_currentOffs1 = _tricorderMod_clampValue( _tricorderMod_currentOffs1 );
+	_tricorderMod_currentOffs2 = _tricorderMod_clampValue( _tricorderMod_currentOffs2 );
+	_tricorderMod_currentOffs3 = _tricorderMod_clampValue( _tricorderMod_currentOffs3 );
+
+	parmVal = _tricorderMod_clampValue( parmVal );
+
+	// update the little number box
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_mod_label_value title " + parmVal );
+	
+	// check for current completion
+	if( _tricorderMod_checkCurrentComplete() )
+	{
+		globalTricorder_BaseClose();
+		_puzzleEnt.puzzleobject_solved();
+		_puzzleEnt = $world;
+	}
+
+	////printfloat( _tricorderMod_currentAmpl1 );
+	////print( "\n" );
+	////printfloat( _tricorderMod_targetAmpl1 );
+	////print( "\n" );
+
+	//print( _tricorderMod_currentAmpl1 + "," );
+	//print( _tricorderMod_currentAmpl2 + "," );
+	//print( _tricorderMod_currentAmpl3 + "," );
+	//print( _tricorderMod_currentFreq1 + "," );
+	//print( _tricorderMod_currentFreq2 + "," );
+	//print( _tricorderMod_currentFreq3 + "," );
+	//print( _tricorderMod_currentOffs1 + "," );
+	//print( _tricorderMod_currentOffs2 + "," );
+	//print( _tricorderMod_currentOffs3 + "\n" );
+
+	//print( _tricorderMod_targetAmpl1 + "," );
+	//print( _tricorderMod_targetAmpl2 + "," );
+	//print( _tricorderMod_targetAmpl3 + "," );
+	//print( _tricorderMod_targetFreq1 + "," );
+	//print( _tricorderMod_targetFreq2 + "," );
+	//print( _tricorderMod_targetFreq3 + "," );
+	//print( _tricorderMod_targetOffs1 + "," );
+	//print( _tricorderMod_targetOffs2 + "," );
+	//print( _tricorderMod_targetOffs3 + "\n" );
+}
+
+void tricorderModSolve()
+{
+	_tricorderMod_currentAmpl1 = _tricorderMod_targetAmpl1;
+	_tricorderMod_currentAmpl2 = _tricorderMod_targetAmpl2;
+	_tricorderMod_currentAmpl3 = _tricorderMod_targetAmpl3;
+	_tricorderMod_currentFreq1 = _tricorderMod_targetFreq1;
+	_tricorderMod_currentFreq2 = _tricorderMod_targetFreq2;
+	_tricorderMod_currentFreq3 = _tricorderMod_targetFreq3;
+	_tricorderMod_currentOffs1 = _tricorderMod_targetOffs1;
+	_tricorderMod_currentOffs2 = _tricorderMod_targetOffs2;
+	_tricorderMod_currentOffs3 = _tricorderMod_targetOffs3;
+	_tricorderMod_updateWaveWidgets();
+	_tricorderMod_adjustParm( 0 );
+}
+
+

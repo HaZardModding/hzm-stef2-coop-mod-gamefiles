@@ -1,0 +1,1914 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m5l2c-drull_ruins1 - Drull Ruins 1 - Interior
+//  Script By:    R. 'Charon' Heath
+//  Geometry By:  Richard H., J. Keehan
+//  Created on:   08/21/2002
+//
+//  Last Edited:  R. 'Charon' Heath
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+// Setup Stuff
+void setupCameras();
+void setupTurrets();
+void setupArchetypes();
+
+void globalBioFactorySpawn( entity biofactorySpawnName, string biofactorySpawnTargetName, string biofactorySpawnModelName );
+void globalTurretSetup( float biofactoryTurretNumber );
+void globalTurretActivate( float biofactoryTurretNumber );
+void randomAlienLaunch( entity alien );
+
+// Turret Stuff
+void turretChamberStart();
+void biofactoryTurretChellDamaged();
+void biofactoryTurretKillThread();
+void biofactoryTurretSpawnWave();
+void biofactoryTurretRespawn();
+
+// Bridge Stuff
+void bridgeStart();
+void bridgeExplode();
+void bridgeAlienFly();
+
+// Misc Stuff
+void biofactoryAutoSave();
+void turretChamberStart();
+void checkBossKilled();
+void drullKillThread();
+void liftDownToSon_Move();
+void liftDownCounter();
+
+// Sequences
+void sequenceAlienGroup1Attack();
+void sequenceBossFight();
+void bossBridgeMove();
+void basherWallExplode();
+
+// Cinematics and Dialog
+void cinematicDrullFatherAndGirlfriend();
+void cinematicDrullFatherAndGirlfriend_SkipThread();
+void cinematicDrullFatherAndGirlfriend_setupObjectives();
+
+void cinematicDrullSon();
+void cinematicDrullSon_SkipThread();
+
+void endExplode();
+void secretWeakDoor1_explode();
+void farplaneOut();
+void farplaneIn();
+void idryllRejectSound();
+
+float countBossKilled = 0;
+
+float liftDown = 0;
+float liftTriggered = 0;
+
+float biofactoryTurretsDestroyed = 0;
+float biofactoryTurretContinue = 0;
+float biofactoryTurretChellDone = 0;
+float biofactoryChellAtConsole = 0;
+float chellGaugeHealth = 1000;
+
+entity meetScientists;
+entity meetSon;
+
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+entity	entityPlayerGlobal;
+void	coop_endLevel();
+void	coop_findAndHandleEntities();
+void	coop_findAndTargetnameEntities();
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+/*
+#include "maps/global_scripts/global_weld.scr"
+#include "maps/global_scripts/global_tripwire.scr"
+*/
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_flyin.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/m5/m5l2c_dialog.scr"
+
+
+//===================================================================================================================
+// Main Stuff
+//===================================================================================================================
+//---------------------
+// main
+// do start up stuff
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$RuinsLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - set spawn lopcations
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin8 			= '-4460 -4580 -70';
+	coop_vector_spawnOrigin7 			= '-4460 -4680 -70';
+	coop_vector_spawnOrigin6 			= '-4530 -4580 -70';
+	coop_vector_spawnOrigin5 			= '-4530 -4680 -70';
+	coop_vector_spawnOrigin4 			= '-4600 -4580 -70';
+	coop_vector_spawnOrigin3 			= '-4600 -4680 -70';
+	coop_vector_spawnOrigin2 			= '-4670 -4580 -70';
+	coop_vector_spawnOrigin1 			= '-4670 -4680 -70';
+
+	soundtrack( "music/m5l2c.mus" );
+
+	$world.entity_fade_dist( 2500 );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.05 0.05 0.1' );
+	$world.farplane ( 2500 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m5l2c_drull_ruins1" );
+
+	thread init();
+	thread setupCameras();
+
+	waitForPlayer();
+
+	dontSaveOrientation();
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindScientists$$","incomplete",1,0);
+	globalCoop_objectives_set("$$DestroyTurrets$$","complete",2,0);
+	globalCoop_objectives_set("$$SealGasVents$$","complete",3,0);
+	globalCoop_objectives_set("$$ReuniteWithTeam$$","complete",4,0);
+	globalCoop_objectives_set("$$DeactivateTripWires$$","complete",5,1);
+
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+	$Chell.ai_on();
+
+	thread initDialog();
+	
+	//hzm coop mod chrissstrahl, set damagetype on triggers, so that we get the right kill message
+	thread coop_findAndHandleEntities();
+	wait(2);
+	thread coop_findAndTargetnameEntities();
+}
+
+//---------------------
+// init
+// start setting up
+//---------------------
+void init()
+{
+	$chellGauge.ai_off();
+	$bridgeAlien1.ai_off();
+	$bridgeAlien2.ai_off();
+	$bridgeAlien3.ai_off();
+	$bridgeAlien4.ai_off();
+	$alienGroup1.ai_off();
+	$basher1.ai_off();
+	$munro.ai_off();
+	$kleeya.ai_off();
+	$inigor.ai_off();
+	$krindo.ai_off();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	setupArchetypes();
+	setupTurrets();
+
+	// turret chamber setup
+	$biofactoryTurretPanel1_green.hide();
+	$turretChamberDoor2.lock();
+
+	$turretChamberDoor2_green.hide();
+	$bossDoor_red.hide();
+	
+	$world.light_lightstyle( "turretChamberDoor2_greenlight" , "a" , 0 );
+	$world.light_lightstyle( "doorBoss_redlight" , "a" , 0 );
+
+	$biofactoryTurret1.ai_off();
+	$biofactoryTurret2.ai_off();
+	$biofactoryTurret3.ai_off();
+	$biofactoryTurret4.ai_off();
+
+	$biofactoryTurret1.immortal( 1 );
+	$biofactoryTurret2.immortal( 1 );
+	$biofactoryTurret3.immortal( 1 );
+	$biofactoryTurret4.immortal( 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$biofactoryTurret1.flags( "+notarget" );
+	$biofactoryTurret2.flags( "+notarget" );
+	$biofactoryTurret3.flags( "+notarget" );
+	$biofactoryTurret4.flags( "+notarget" );
+	
+	$biofactoryTurret1.pushable( 1 );
+	$biofactoryTurret2.pushable( 1 );
+	$biofactoryTurret3.pushable( 1 );
+	$biofactoryTurret4.pushable( 1 );
+	$biofactoryTurret1_base.pushable( 1 );
+	$biofactoryTurret2_base.pushable( 1 );
+	$biofactoryTurret3_base.pushable( 1 );
+	$biofactoryTurret4_base.pushable( 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$biofactoryTurret1_base.bind( $biofactoryTurret1_mover );
+	$biofactoryTurret1.bind( $biofactoryTurret1_mover );
+	$biofactoryTurret1_mover.moveUp( 48 );
+
+	$biofactoryTurret2_base.bind( $biofactoryTurret2_mover );
+	$biofactoryTurret2.bind( $biofactoryTurret2_mover );
+	$biofactoryTurret2_mover.moveUp( 48 );
+
+	$biofactoryTurret3_base.bind( $biofactoryTurret3_mover );
+	$biofactoryTurret3.bind( $biofactoryTurret3_mover );
+	$biofactoryTurret3_mover.moveUp( 48 );
+
+	$biofactoryTurret4_base.bind( $biofactoryTurret4_mover );
+	$biofactoryTurret4.bind( $biofactoryTurret4_mover );
+	$biofactoryTurret4_mover.moveUp( 48 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$farplaneOutTrigger.nottriggerable();
+	$bridgeHurtTrigger.nottriggerable();
+
+	// basher and chamber setup
+	$basher1.killthread ( "checkBossKilled" );
+	$bossBridgeControl_red1.hide();
+
+	$bossBridge.solid();
+
+	// bridge explode setup	
+	$biofactoryGiantFanofDoom1.dmg( 16384 );
+	$biofactoryGiantFanofDoom2.dmg( 16384 );
+	
+	$biofactoryGiantFanofDoom1.rotateY( 360 );
+	$biofactoryGiantFanofDoom2.rotateY( 360 );
+
+	
+	$basherDoor1.show();
+	$basherDoor2.hide();
+	$basherDoor3.hide();
+	$basherDoor4.hide();
+
+	$basherWallDestroyed1.hide();
+	$basherWall1.solid();
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$kleeya.health( 200 );
+	$inigor.health( 200 );
+	$krindo.health( 200 );
+	
+	$kleeya.killthread( "drullKillThread" );
+	$inigor.killthread( "drullKillThread" );
+	$krindo.killthread( "drullKillThread" );
+
+	$krindo.anim( "ent-transporter-front-gesture1" );
+	$inigor.anim( "ent-transporter-front-gesture1" );
+	
+	$Chell.pushable( 0 );
+	$kleeya.pushable( 0 );
+	$krindo.pushable( 0 );
+	$inigor.pushable( 0 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+		
+	globalCommon_SetupContextDialog( $Chell , "chell" );
+	globalCommon_SetupContextDialog( $Telsia, "telsia" );
+	globalCommon_SetupContextDialog( $Kourban, "korban" );
+
+	thread globalAccelMove_Rotate( $liftDownToSonDoorNE, '0 90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftDownToSonDoorSE, '0 -90 0', 2, "rampupdown", "" );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$liftDownToSonControl_red.hide();
+	$liftDownToSonControl_red.bind( $liftDownToSon );
+	$liftDownToSonControl_green.bind( $liftDownToSon );
+	$liftDownToSonControl_archetype.bind( $liftDownToSon );
+	$liftDownToSonDoorNE.bind( $liftDownToSon );
+	$liftDownToSonDoorSE.bind( $liftDownToSon );
+
+	// secret stuff
+	$secretWeakDoor1.solid();
+	$secretWeakDoor1_fracture.viewmode( "structuralintegrity" );
+	thread globalCommon_OnDamage( $secretWeakDoor1, "secretWeakDoor1_explode" );
+
+	// global common onwhatever stuff
+	thread globalCommon_OnDamage( $chair1, "chair1_explode" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	// start our randomly launching aliens
+	float i;
+	for ( i = 0 ; i <= 12 ; i++ )
+	{
+		entity alien;
+		alien = getentity ( "launchAlien"+i );
+		if( doesEntityExist( alien ) )
+		{
+			thread randomAlienLaunch ( alien );
+		}
+	}
+	$biofactoryTurret1.bind( $biofactoryTurret1_mover );
+	$biofactoryTurret1_base.bind( $biofactoryTurret1_mover );
+}
+
+//===================================================================================================================
+// Setup Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: setupCameras
+// Comments:
+// setup all cameras for level
+//---------------------
+void setupCameras()
+{
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+
+//	cam.load( "m5l2c_temp1" );
+//	cam.load( "m5l2c_temp2" );
+
+	// cinematic stuff
+	meetScientists = createcinematic( "m5l2c_sci" );
+	meetSon = createcinematic( "m5l2c_son" );
+}
+
+//---------------------
+// Function: setupTurrets
+// Comments:
+// setups the turrets in the map
+//---------------------
+void setupTurrets()
+{
+	entity biofactoryTurret;
+	float i = 1;
+	biofactoryTurret = getentity ( "biofactoryTurret" + i + "_normal" );
+	
+	while( doesEntityExist( biofactoryTurret ) )
+	{
+		globalTurretSetup( i );
+		wait( .1 );
+		
+		i++;
+		wait( .1 );
+		
+		biofactoryTurret = getentity ( "biofactoryTurret" + i + "_normal" );
+	}
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	//$arch_securitypanel1.contents( "targetable" );			//hzm coop mod chrissstrahl - NULL_ENTITY
+	//$arch_securitypanel1.archetype( "IdryllSecurityPanel" );	//hzm coop mod chrissstrahl - NULL_ENTITY
+
+	$liftDownToSonControl_archetype.contents( "targetable" );
+	$liftDownToSonControl_archetype.archetype( "IdryllLiftPanel" );
+	
+	$bossBridgeControl_archetype.contents( "targetable" );
+	$bossBridgeControl_archetype.archetype( "IdryllBridgeSwitch" );
+}
+
+
+//===================================================================================================================
+// Global Stuff
+//===================================================================================================================
+
+//----------------------------
+// Function: globalBioFactorySpawn
+// Comments:
+// Used to spawn in entity via a func_spawn and will give the new entity a targetname
+// Variables:
+// biofactorySpawnName - entity targetname of the func_spawn to use
+// biofactorySpawnTargetName - string targetname of the newly spawned entity
+// biofactorySpawnModelName - string modelname for the newly spawned entity
+//----------------------------
+void globalBioFactorySpawn( entity biofactorySpawnName, string biofactorySpawnTargetName, string biofactorySpawnModelName )
+{
+	biofactorySpawnName.spawntargetname( biofactorySpawnTargetName );
+	biofactorySpawnName.modelname( biofactorySpawnModelName );
+	triggerentity( biofactorySpawnName );	
+}
+
+//---------------------
+// Function: globalTurretSetup
+// Comments:
+// used to setup each of the turrets in the level
+//---------------------
+void globalTurretSetup( float biofactoryTurretNumber )
+{
+	entity biofactoryTurretName , biofactoryTurretNameDoor1 , biofactoryTurretNameDoor2 , biofactoryTurretNameMover , biofactoryTurretNameBase;
+	
+	biofactoryTurretName = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal" );
+	biofactoryTurretNameDoor1 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_door1" );
+	biofactoryTurretNameDoor2 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_door2" );
+	biofactoryTurretNameMover = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_mover" );
+	biofactoryTurretNameBase = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_base" );
+
+	biofactoryTurretName.ai_off();
+
+	biofactoryTurretName.flags( "+notarget" );
+	
+	biofactoryTurretName.pushable( 1 );
+	biofactoryTurretNameBase.pushable( 1 );
+	
+	biofactoryTurretNameBase.bind( biofactoryTurretNameMover );
+	biofactoryTurretName.bind( biofactoryTurretNameMover );
+	biofactoryTurretNameMover.moveUp( 48 );
+}
+
+//---------------------
+// Function: globalTurretActivate
+// Comments:
+// called when a turret needs to become active
+// Variables:
+// biofactoryTurretNumber - float value of the number of the turret
+//---------------------
+void globalTurretActivate( float biofactoryTurretNumber )
+{
+	entity biofactoryTurretName , biofactoryTurretNameDoor1 , biofactoryTurretNameDoor2 , biofactoryTurretNameMover;
+	
+	biofactoryTurretName = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal" );
+	biofactoryTurretNameDoor1 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_door1" );
+	biofactoryTurretNameDoor2 = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_door2" );
+	biofactoryTurretNameMover = getentity( "biofactoryTurret" + biofactoryTurretNumber + "_normal_mover" );
+	
+	biofactoryTurretNameDoor1.moveSouth( 44 );
+	biofactoryTurretNameDoor2.moveNorth( 44 );
+	biofactoryTurretNameMover.moveDown( 48 );
+
+	waitfor( biofactoryTurretNameMover );
+	
+	wait( 1 );
+
+	biofactoryTurretName.ai_on();
+
+	biofactoryTurretName.flags( "-notarget" );
+}
+
+//-----------------------------------------------------------------------------------------------
+// Function			: randomAlienLaunch
+// Parameters		: the alien to be launched
+// Returns			: none
+// Comments
+//	In the map there are tubes that eject aliens at random intervals.  This function will
+// 	do that.  Set it up in the map by creating a script_model, set the model to whatever
+//	alien it is, then create a splinepath of where it's supposed to go, then target-chain
+// 	the script_model to the start of the path, then target-chain the path together and
+// 	leave the last node with no target.  Then at the beginning of the map thread this function
+//	with the script_model's targetname.
+//
+//	You can tweak the times by changing the following globals:
+//		ALIEN_LAUNCH_MIN and ALIEN_LAUNCH_MAX
+//-----------------------------------------------------------------------------------------------
+float ALIEN_LAUNCH_MIN = 1;
+float ALIEN_LAUNCH_MAX = 10;
+
+void randomAlienLaunch( entity alien )
+{
+	if( doesEntityExist( alien ))
+	{
+		vector v;
+		v = alien.getorigin ();
+		while( 1 )
+		{
+			alien.origin ( v );
+			alien.hide();
+	
+			wait( ALIEN_LAUNCH_MIN + randomfloat( ALIEN_LAUNCH_MAX - ALIEN_LAUNCH_MIN ) );
+	
+			alien.show();
+			alien.time ( 1 );
+			alien.moveup ( 2048 );
+			waitfor( alien );
+		}
+	}
+}
+
+
+//===================================================================================================================
+// Turrets
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryTurret1Activate
+// Comments:
+// activates turret 1 and turret 2
+//---------------------
+void biofactoryTurret1Activate()
+{
+	globalTurretActivate( 1 );
+	globalTurretActivate( 2 );
+}
+
+//---------------------
+// Function: turretChamberStart
+// Comments:
+// player triggers the turret chamber
+//---------------------
+void turretChamberStart()
+{
+	float chellDistance = 0;
+	float chellCloseEnough = 0;
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DisableTurrets$$","incomplete",6,1);
+
+	$arch_turret1.missionobjective( 1 );
+	$arch_turret2.missionobjective( 1 );
+
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	
+	$Kourban.walkto( "$gaschamber_node5" , "run" );
+	$Telsia.walkto( "$gaschamber_node6" , "run" );
+	
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_chronic.mp3", 1, 1000000); //Infestation at chronic levels. Escalating to comprehensive eradication system.
+	
+	music( "suspense" );
+
+	$biofactoryTurret1.killthread( "biofactoryTurretKillThread" );
+	$biofactoryTurret2.killthread( "biofactoryTurretKillThread" );
+	$biofactoryTurret3.killthread( "biofactoryTurretKillThread" );
+	$biofactoryTurret4.killthread( "biofactoryTurretKillThread" );
+
+	wait( .1 );
+
+	$biofactoryTurret1.health( 50 );
+	$biofactoryTurret2.health( 50 );
+	$biofactoryTurret3.health( 50 );
+	$biofactoryTurret4.health( 50 );
+
+	$biofactoryTurret1_door2.moveNorth( 44 );
+	$biofactoryTurret1_door1.moveSouth( 44 );
+	$biofactoryTurret1_mover.moveDown( 48 );
+
+	$biofactoryTurret2_door2.moveNorth( 44 );
+	$biofactoryTurret2_door1.moveSouth( 44 );
+	$biofactoryTurret2_mover.moveDown( 48 );
+
+	$biofactoryTurret3_door2.moveNorth( 44 );
+	$biofactoryTurret3_door1.moveSouth( 44 );
+	$biofactoryTurret3_mover.moveDown( 48 );
+
+	$biofactoryTurret4_door2.moveNorth( 44 );
+	$biofactoryTurret4_door1.moveSouth( 44 );
+	$biofactoryTurret4_mover.moveDown( 48 );
+
+	waitfor( $biofactoryTurret1_mover );
+
+	wait( 1 );
+
+	$biofactoryTurret1.immortal( 0 );
+	$biofactoryTurret2.immortal( 0 );
+	$biofactoryTurret3.immortal( 0 );
+	$biofactoryTurret4.immortal( 0 );
+
+	$biofactoryTurret1.ai_on();
+	$biofactoryTurret2.ai_on();
+	$biofactoryTurret3.ai_on();
+	$biofactoryTurret4.ai_on();
+
+	$biofactoryTurret1.flags( "-notarget" );
+	$biofactoryTurret2.flags( "-notarget" );
+	$biofactoryTurret3.flags( "-notarget" );
+	$biofactoryTurret4.flags( "-notarget" );
+
+	$Kourban.followcombatrange( 4096 );
+	$Kourban.followcombatrangemin( 3520 );
+
+	$Telsia.followcombatrange( 4096 );
+	$Telsia.followcombatrangemin( 3520 );
+
+	$Kourban.settendency ( "follow" , 0.0 );
+	$Telsia.settendency ( "follow" , 0.0 );
+
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+
+	wait( .2 );
+
+	$Kourban.attack( $biofactoryTurret3 );
+	$Telsia.attack( $biofactoryTurret4 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($biofactoryTurret1);
+	$biofactoryTurret1.attack( ePlayer );
+	
+	$biofactoryTurret2.attack( $Chell );
+	
+	$Chell.playdialog( "localization/sound/dialog/m5l2/chell_moreturr.mp3", 1, 80000, 1 ); //More turrets!  We need to deactivate their defenses.
+	waitForDialog( $Chell );
+
+	$Chell.playdialog( "localization/sound/dialog/m5l2/chell_coverchell.mp3", 1, 80000, 1 ); //Munro, if you cover me, I can reach the console and disable the security system.
+
+	$Chell.addcustomthread( "damaged" , "biofactoryTurretChellDamaged" );
+
+	$chellGauge.ai_on();
+
+	$Chell.ai_off();
+	$Chell.walkto( "$gaschamber_node1" , "run" );
+	waitfor( $Chell );
+	
+	while( chellCloseEnough == 0 )
+	{
+		chellDistance = $chell.iswithindistanceof( $gaschamber_checknode1, 64.0 );
+		
+		if ( chellDistance > 0 )
+		{
+			chellDistance = 0;
+			chellCloseEnough = 1;
+		}
+		
+		$Chell.walkto( "$gaschamber_node1" , "run" );
+		
+		wait( 2 );
+	}
+	
+	chellCloseEnough = 0;
+	
+	$Chell.anim( "crouch_idle" );
+
+	while( biofactoryTurretContinue == 0 )
+	{
+		wait( 1 );
+	}
+
+	$Chell.walkto( "$gaschamber_node2" , "run" );
+	biofactoryTurretContinue = 0;
+//	waitfor( $Chell );
+
+	wait( 1 );
+	
+	biofactoryTurretRespawn();
+
+	wait( 1 );
+
+	$biofactoryTurret1.immortal( 0 );
+	$biofactoryTurret2.immortal( 0 );
+	$biofactoryTurret3.immortal( 0 );
+	$biofactoryTurret4.immortal( 0 );
+
+	$biofactoryTurret1.ai_on();
+	$biofactoryTurret2.ai_on();
+	$biofactoryTurret3.ai_on();
+	$biofactoryTurret4.ai_on();
+
+	$biofactoryTurret1.flags( "-notarget" );
+	$biofactoryTurret2.flags( "-notarget" );
+	$biofactoryTurret3.flags( "-notarget" );
+	$biofactoryTurret4.flags( "-notarget" );
+
+	$Kourban.attack( $biofactoryTurret3 );
+	$Telsia.attack( $biofactoryTurret4 );
+	
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	ePlayer = globalCoop_return_playerClosestPreferActive($biofactoryTurret1);
+	$biofactoryTurret1.attack( ePlayer );
+
+	$biofactoryTurret2.attack( $Chell );
+
+	$Chell.playdialog( "localization/sound/dialog/m5l2/chell_coverchell3.mp3", 1, 80000, 1 ); //Cover me, Munro!
+
+	while( chellCloseEnough == 0 )
+	{
+		chellDistance = $chell.iswithindistanceof( $gaschamber_checknode2, 64.0 );
+		
+		if ( chellDistance > 0 )
+		{
+			chellDistance = 0;
+			chellCloseEnough = 1;
+		}
+		
+		$Chell.walkto( "$gaschamber_node2" , "run" );
+		
+		wait( 2 );
+	}
+	
+	chellCloseEnough = 0;
+
+	$Chell.anim( "crouch_idle" );
+
+	while( biofactoryTurretContinue == 0 )
+	{
+		wait( 1 );
+	}
+
+	$Chell.walkto( "$gaschamber_node3" , "run" );
+	biofactoryTurretContinue = 0;
+
+	wait( 1 );
+
+	biofactoryTurretRespawn();
+
+	wait( 1 );
+
+	$biofactoryTurret1.immortal( 0 );
+	$biofactoryTurret2.immortal( 0 );
+	$biofactoryTurret3.immortal( 0 );
+	$biofactoryTurret4.immortal( 0 );
+
+	$biofactoryTurret1.ai_on();
+	$biofactoryTurret2.ai_on();
+	$biofactoryTurret3.ai_on();
+	$biofactoryTurret4.ai_on();
+
+	$biofactoryTurret1.flags( "-notarget" );
+	$biofactoryTurret2.flags( "-notarget" );
+	$biofactoryTurret3.flags( "-notarget" );
+	$biofactoryTurret4.flags( "-notarget" );
+
+	$Kourban.attack( $biofactoryTurret3 );
+	$Telsia.attack( $biofactoryTurret4 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	ePlayer = globalCoop_return_playerClosestPreferActive($biofactoryTurret1);
+	$biofactoryTurret1.attack( ePlayer );
+
+	$biofactoryTurret2.attack( $Chell );
+
+//	waitfor( $Chell );
+
+	$Chell.playdialog( "localization/sound/dialog/m5l2/chell_coverchell2.mp3", 1, 80000, 1 ); //Take out those turrets Munro, I can’t get to the console!
+
+	while( chellCloseEnough == 0 )
+	{
+		chellDistance = $chell.iswithindistanceof( $gaschamber_checknode3, 64.0 );
+		
+		if ( chellDistance > 0 )
+		{
+			chellDistance = 0;
+			chellCloseEnough = 1;
+		}
+		
+		$Chell.walkto( "$gaschamber_node3" , "run" );
+		
+		wait( 2 );
+	}
+	
+	chellCloseEnough = 0;
+
+	$Chell.anim( "crouch_idle" );
+
+	while( biofactoryTurretContinue == 0 )
+	{
+		wait( 1 );
+	}
+	
+	$Chell.walkto( "$gaschamber_node4" , "run" );
+	biofactoryTurretContinue = 0;
+	waitfor( $Chell );
+
+	while( chellCloseEnough == 0 )
+	{
+		chellDistance = $chell.iswithindistanceof( $gaschamber_checknode4, 64.0 );
+		
+		if ( chellDistance > 0 )
+		{
+			chellDistance = 0;
+			chellCloseEnough = 1;
+		}
+		
+		$Chell.walkto( "$gaschamber_node4" , "run" );
+		
+		wait( 2 );
+	}
+	
+	chellCloseEnough = 0;
+
+	biofactoryChellAtConsole = 1;
+
+	$Chell.anim( "ent-transporter-front-gesture1" );
+
+	thread biofactoryTurretSpawnWave();
+
+	$Chell.playdialog( "localization/sound/dialog/m5l2/chell_coverchell4.mp3", 1, 80000, 1 ); //This will take some time. Try to keep those turrets off me while I work. 
+	wait( 5 );
+	$Chell.stopdialog();
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_strangest.mp3", 1, 80000, 1); //This is the strangest system...
+	waitForDialog( $Chell );
+
+	wait( 5 );
+	$Chell.stopdialog();
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_nosense.mp3", 1, 80000, 1); //This makes no sense. 
+	waitForDialog( $Chell );
+
+	wait( 5 );
+
+	$Chell.stopdialog();
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_noway.mp3", 1, 80000, 1); //There’s no way I can... Oh, wait.
+	waitForDialog( $Chell );
+
+	biofactoryTurretChellDone = 1;
+	
+	$Chell.addcustomthread ( "damaged" , "" );
+
+	$chellGauge.ai_off();
+	$chellGauge.remove();
+
+	$biofactoryTurret1.ai_off();
+	$biofactoryTurret2.ai_off();
+	$biofactoryTurret3.ai_off();
+	$biofactoryTurret4.ai_off();
+
+	$biofactoryTurret1.flags( "+notarget" );
+	$biofactoryTurret2.flags( "+notarget" );
+	$biofactoryTurret3.flags( "+notarget" );
+	$biofactoryTurret4.flags( "+notarget" );
+
+	$Kourban.followcombatrange( 512 );
+	$Kourban.followcombatrangemin( 384 );
+
+	$Telsia.followcombatrange( 512 );
+	$Telsia.followcombatrangemin( 384 );
+
+	$Kourban.settendency ( "follow" , 1.0 );
+	$Telsia.settendency ( "follow" , 1.0 );
+	
+	$Chell.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500 );	
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_okdis.mp3", 1, 80000, 1); //OK. Disabled the defensive systems.
+	waitForDialog( $Chell );
+
+	$biofactoryTurret1.ai_off();
+	$biofactoryTurret2.ai_off();
+	$biofactoryTurret3.ai_off();
+	$biofactoryTurret4.ai_off();
+
+	$biofactoryTurret1.flags( "+notarget" );
+	$biofactoryTurret2.flags( "+notarget" );
+	$biofactoryTurret3.flags( "+notarget" );
+	$biofactoryTurret4.flags( "+notarget" );
+
+	music( "normal" );
+
+	$farplaneOutTrigger.triggerable();
+	
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_foundsci.mp3", 1, 80000, 1); //I have located the scientists. They’re in a room on the far side of the ruins. Now unlocking a door in the main entrance... OK, we should be able to reach them.
+	waitForDialog( $Chell );
+
+	$Chell.clearCurrentEnemy();
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DisableTurrets$$","complete",6,1);	
+	
+	$inigor.missionobjective( 1 );
+
+	$turretChamberDoor2.unlock();
+
+	$turretChamberDoor2_red.hide();
+	$turretChamberDoor2_green.show();
+	
+	$world.light_lightstyle( "turretChamberDoor2_greenlight" , "z" , 0 );
+	$world.light_lightstyle( "turretChamberDoor2_redlight" , "a" , 0 );
+
+	$turretChamberDoorLockedReClip_trigger.nottriggerable();
+	$turretChamberPlayerCheck_trigger.nottriggerable();
+
+	biofactoryChellAtConsole = 0;
+
+	$Chell.ai_on();
+}
+
+//---------------------
+// Function: biofactoryTurretChellDamaged
+// Comments:
+// resets the gauge when chell gets hit
+//---------------------
+void biofactoryTurretChellDamaged()
+{
+	if( biofactoryChellAtConsole == 1 )
+	{
+		$Chell.anim( "pain_back" );
+		waitForAnimation( $Chell, "pain_back" );
+	
+		$Chell.anim( "ent-transporter-front-gesture1" );
+	}
+	
+	$chellGauge.addhealth( -75 );
+	wait( .05 );
+	chellGaugeHealth = $chellGauge.gethealth();
+	
+	if( chellGaugeHealth <= 0 )
+	{
+		//hzm coop mod chrissstrahl, fail current mission
+		globalCoop_mission_fail();
+	}
+}
+
+//---------------------
+// Function: biofactoryTurretKillThread
+// Comments:
+// checks to see if all the turrets have been destroyed
+//---------------------
+void biofactoryTurretKillThread()
+{
+	biofactoryTurretsDestroyed++;
+	
+	if( biofactoryTurretsDestroyed >= 4 )
+	{
+		biofactoryTurretsDestroyed = 0;
+		biofactoryTurretContinue = 1;
+	}
+}
+
+//---------------------
+// Function: biofactoryTurretSpawnWave
+// Comments:
+// constantly respawns the turrets until chell is done with the console
+//---------------------
+void biofactoryTurretSpawnWave()
+{
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	
+	while( biofactoryTurretChellDone == 0 )
+	{
+		biofactoryTurretRespawn();
+
+		wait( 1 );
+
+		$biofactoryTurret1.immortal( 0 );
+		$biofactoryTurret2.immortal( 0 );
+		$biofactoryTurret3.immortal( 0 );
+		$biofactoryTurret4.immortal( 0 );
+	
+		$biofactoryTurret1.ai_on();
+		$biofactoryTurret2.ai_on();
+		$biofactoryTurret3.ai_on();
+		$biofactoryTurret4.ai_on();
+	
+		$biofactoryTurret1.flags( "-notarget" );
+		$biofactoryTurret2.flags( "-notarget" );
+		$biofactoryTurret3.flags( "-notarget" );
+		$biofactoryTurret4.flags( "-notarget" );
+
+		$Kourban.attack( $biofactoryTurret3 );
+		$Telsia.attack( $biofactoryTurret4 );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		ePlayer = globalCoop_return_playerClosestPreferActive($biofactoryTurret1);
+		$biofactoryTurret1.attack( ePlayer );
+		
+		$biofactoryTurret2.attack( $Chell );
+	
+		biofactoryTurretContinue = 0;
+	
+		wait( 1 );
+
+		while( biofactoryTurretContinue == 0 )
+		{
+			wait( 1 );
+		}
+	}
+}
+
+//---------------------
+// Function: biofactoryTurretRespawn
+// Comments:
+// respawns all the turrets and sets them up again
+//---------------------
+void biofactoryTurretRespawn()
+{
+	if( biofactoryTurretChellDone == 0 )
+	{
+		$biofactoryTurret1_door1.moveNorth( 44 );
+		$biofactoryTurret1_door2.moveSouth( 44 );
+		$biofactoryTurret1_mover.moveUp( 48 );
+
+		$biofactoryTurret2_door1.moveNorth( 44 );
+		$biofactoryTurret2_door2.moveSouth( 44 );
+		$biofactoryTurret2_mover.moveUp( 48 );
+
+		$biofactoryTurret3_door1.moveNorth( 44 );
+		$biofactoryTurret3_door2.moveSouth( 44 );
+		$biofactoryTurret3_mover.moveUp( 48 );
+
+		$biofactoryTurret4_door1.moveNorth( 44 );
+		$biofactoryTurret4_door2.moveSouth( 44 );
+		$biofactoryTurret4_mover.moveUp( 48 );
+
+		wait( 1 );
+	
+		spawn( "enviro/drull2_cannon.tik" , "targetname" , "biofactoryTurret1" );
+		spawn( "enviro/drull2_cannon.tik" , "targetname" , "biofactoryTurret2" );
+		spawn( "enviro/drull2_cannon.tik" , "targetname" , "biofactoryTurret3" );
+		spawn( "enviro/drull2_cannon.tik" , "targetname" , "biofactoryTurret4" );
+	
+		wait( .1 );
+
+		$biofactoryTurret1.immortal( 1 );
+		$biofactoryTurret2.immortal( 1 );
+		$biofactoryTurret3.immortal( 1 );
+		$biofactoryTurret4.immortal( 1 );
+	
+		$biofactoryTurret1.origin( $biofactoryTurret1_base.getorigin() );
+		$biofactoryTurret2.origin( $biofactoryTurret2_base.getorigin() );
+		$biofactoryTurret3.origin( $biofactoryTurret3_base.getorigin() );
+		$biofactoryTurret4.origin( $biofactoryTurret4_base.getorigin() );
+
+		wait( .1 );
+	
+		$biofactoryTurret1.ai_off();
+		$biofactoryTurret2.ai_off();
+		$biofactoryTurret3.ai_off();
+		$biofactoryTurret4.ai_off();
+
+		$biofactoryTurret1.flags( "+notarget" );
+		$biofactoryTurret2.flags( "+notarget" );
+		$biofactoryTurret3.flags( "+notarget" );
+		$biofactoryTurret4.flags( "+notarget" );
+	
+		$biofactoryTurret1.health( 50 );
+		$biofactoryTurret2.health( 50 );
+		$biofactoryTurret3.health( 50 );
+		$biofactoryTurret4.health( 50 );
+
+		$biofactoryTurret1.pushable( 1 );
+		$biofactoryTurret2.pushable( 1 );
+		$biofactoryTurret3.pushable( 1 );
+		$biofactoryTurret4.pushable( 1 );
+		$biofactoryTurret1_base.pushable( 1 );
+		$biofactoryTurret2_base.pushable( 1 );
+		$biofactoryTurret3_base.pushable( 1 );
+		$biofactoryTurret4_base.pushable( 1 );
+
+		$biofactoryTurret1.killthread( "biofactoryTurretKillThread" );
+		$biofactoryTurret2.killthread( "biofactoryTurretKillThread" );
+		$biofactoryTurret3.killthread( "biofactoryTurretKillThread" );
+		$biofactoryTurret4.killthread( "biofactoryTurretKillThread" );
+		
+		$biofactoryTurret1.bind( $biofactoryTurret1_mover );
+		$biofactoryTurret2.bind( $biofactoryTurret2_mover );
+		$biofactoryTurret3.bind( $biofactoryTurret3_mover );
+		$biofactoryTurret4.bind( $biofactoryTurret4_mover );
+	
+		$biofactoryTurret1.turntoangle( 180 );
+		$biofactoryTurret2.turntoangle( 225 );
+		$biofactoryTurret3.turntoangle( 0 );
+		$biofactoryTurret4.turntoangle( 90 );
+	}
+	
+	wait( 1 );
+	
+	if( biofactoryTurretChellDone == 0 )	
+	{
+		$biofactoryTurret1_door2.moveNorth( 44 );
+		$biofactoryTurret1_door1.moveSouth( 44 );
+		$biofactoryTurret1_mover.moveDown( 48 );
+
+		$biofactoryTurret2_door2.moveNorth( 44 );
+		$biofactoryTurret2_door1.moveSouth( 44 );
+		$biofactoryTurret2_mover.moveDown( 48 );
+
+		$biofactoryTurret3_door2.moveNorth( 44 );
+		$biofactoryTurret3_door1.moveSouth( 44 );
+		$biofactoryTurret3_mover.moveDown( 48 );
+
+		$biofactoryTurret4_door2.moveNorth( 44 );
+		$biofactoryTurret4_door1.moveSouth( 44 );
+		$biofactoryTurret4_mover.moveDown( 48 );
+	
+		waitfor( $biofactoryTurret1_mover );
+	}
+}
+
+
+//===================================================================================================================
+// Bridge Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: bridgeStart
+// Comments:
+// starts the entire bridge sequence
+//---------------------
+void bridgeStart()
+{
+	$bridgeExplosion2.scale( 2 );
+	$bridgeExplosion3.scale( 4 );
+
+	$bridgeAlien1.walkto( "$bridgeNode1" , "attack_charge_run" );
+	$bridgeAlien2.walkto( "$bridgeNode2" , "attack_charge_run" );
+	$bridgeAlien3.walkto( "$bridgeNode3" , "attack_charge_run" );
+	$bridgeAlien4.walkto( "$bridgeNode4" , "attack_charge_run" );
+	
+	wait( 2.5 );
+	
+	thread bridgeAlienFly();
+}
+
+//---------------------
+// Function: bridgeExplode
+// Comments:
+// explodes the bridge
+//---------------------
+void bridgeExplode()
+{
+	$bridgeAlien1.anim( "death_gib" );
+	$bridgeAlien2.anim( "death_gib" );
+	$bridgeAlien3.anim( "death_gib" );
+	$bridgeAlien4.anim( "death_gib" );
+	$bridgeAlienFly1.anim( "death_gib" );
+	
+	$bridgeCenterPiece.notsolid();
+	$bridgeHurtTrigger.triggerable();
+	$bridgeForceField.remove();
+	$bridgeClip.remove();
+	trigger( "$bridgeExplosion1" );
+	trigger( "$bridgeExplosion2" );
+	trigger( "$bridgeExplosion3" );
+	$bridgeSparks.remove();
+	$bridgeCenterPiece.rotateXdown( 20 );
+	$bridgeCenterPiece.moveDown( 1024 );
+	$bridgeCenterPiece.time( 4 );
+	waitfor( $bridgeCenterPiece );
+}
+
+//---------------------
+// Function: bridgeAlienFly
+// Comments:
+// alien flies in and blows up bridge
+//---------------------
+void bridgeAlienFly()
+{
+	thread globalFlyin_SpawnLaunch( $bridgeAlienFlySpawn1, "char/alien-type1b-chewer.tik", 0 , "", "", 1 );
+}
+
+
+//===================================================================================================================
+// Misc Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void biofactoryAutoSave()
+{
+	globalCommon_Autosave();
+}
+
+//---------------------
+// checkBossKilled
+// Cruiser Boss killed, checks to see if both are dead and if door should unlock
+//---------------------
+void checkBossKilled()
+{
+	countBossKilled ++;
+
+	if ( countBossKilled >= 2 )
+	{
+		$doorBossKrindo.unlock();
+
+		$bossDoor_green.show();
+		$bossDoor_red.hide();
+
+		$world.light_lightstyle( "doorBoss_greenlight" , "z" , 0 );
+		$world.light_lightstyle( "doorBoss_redlight" , "a" , 0 );
+	}
+}
+
+//---------------------
+// liftDownToSon_Move
+// lift moves down to boss area and son area
+//---------------------
+void liftDownToSon_Move()
+{
+	//hzm coop mod chrissstrahl, make sure all player are inside the lift
+	entity ePlayer;
+	float fPlayerIdInUse;
+	float fTotalPlayers = 999;
+	float fInsidePlayers;
+	float fTimer = 20; //wait 10 sec
+	
+	do
+	{
+		wait(0.5);
+		fInsidePlayers	= 0;
+		fTotalPlayers	= 0;
+		fTimer--;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					fTotalPlayers++;
+					if( ePlayer.isWithinDistanceOf($liftDownToSon,148) ){
+						fInsidePlayers++;
+					}else{
+						if( $world.getFloatVar("coopLastMessageTime") < getLevelTime() ){
+							$world.setFloatVar("coopLastMessageTime", getLevelTime() + 3);
+							ePlayer.hudprint("Please enter the lift, other players are waiting for you\n");
+						}
+					}
+				}
+			}
+		}
+		if( fTotalPlayers < 1 ){
+			fTotalPlayers	= 999;
+			waitForPlayer();
+		}
+	}while( fInsidePlayers < fTotalPlayers && fTimer > 0 );
+	
+	
+	//hzm coop mod chrissstrahl, applay new spawn locations
+	coop_float_spawnAngle1 			= 90;
+	coop_float_spawnAngle2 			= 90;
+	coop_float_spawnAngle3 			= 90;
+	coop_float_spawnAngle4 			= 90;
+	coop_float_spawnAngle5 			= 90;
+	coop_float_spawnAngle6 			= 90;
+	coop_float_spawnAngle7 			= 90;
+	coop_float_spawnAngle8 			= 90;
+	coop_vector_spawnOrigin8 		= '-4512 -2934 -2558';
+	coop_vector_spawnOrigin7 		= '-4434 -2934 -2558';
+	coop_vector_spawnOrigin6 		= '-4512 -2850 -2558';
+	coop_vector_spawnOrigin5 		= '-4434 -2780 -2558';
+	coop_vector_spawnOrigin4 		= '-4512 -2710 -2558';
+	coop_vector_spawnOrigin3 		= '-4434 -2640 -2558';
+	coop_vector_spawnOrigin2 		= '-4512 -2570 -2558';
+	coop_vector_spawnOrigin1 		= '-4434 -2500 -2558';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	$liftDownToSonControl_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 4, 1, 200 );
+
+	//hzm coop mod chrissstrahl, we don't need this
+	$liftDownToSonClip.remove();
+	/*$liftDownToSonClip.solid();*/
+	
+	$liftDownToSonLowerClip.solid();
+
+	$liftDownToSonControl_red.show();
+	$liftDownToSonControl_green.hide();
+
+	$liftDownToSonDoorNE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	$liftDownToSonDoorSE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	thread globalAccelMove_Rotate( $liftDownToSonDoorNE, '0 -90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftDownToSonDoorSE, '0 90 0', 2, "rampupdown", "" );
+
+	wait( 2.5 );
+	
+	$liftDownToSon.playsound( "sound/environment/machine/lift4.wav", 4, 1, 200 );	
+	$liftDownToSon.time ( 13 );
+	$liftDownToSon.movedown ( 2376 );
+	waitfor ( $liftDownToSon );
+	
+	$liftDownToSon.playsound( "sound/environment/machine/lift4stop.wav", 4, 1, 200 );	
+
+	$liftDownToSonLowerClip.remove();
+
+	$liftDownToSonDoorNE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	$liftDownToSonDoorSE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	thread globalAccelMove_Rotate( $liftDownToSonDoorNE, '0 90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftDownToSonDoorSE, '0 -90 0', 2, "rampupdown", "" );
+	waitfor( $liftDownToSonDoorNE );
+	
+	$liftDownToSonDoorNE.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.25, 1500 );
+	$liftDownToSonDoorSE.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.25, 1500 );
+}
+
+//---------------------
+// Function: liftDownCounter
+// Comments:
+//
+//---------------------
+void liftDownCounter()
+{
+	liftDown++;
+	liftTriggered = 1;
+}
+
+//---------------------
+// Function: drullKillThread
+// Comments:
+// killthread for the drull peeps in the map
+//---------------------
+void drullKillThread()
+{
+	//hzm coop mod chrissstrahl - fail mission, show failure hud
+	globalCoop_mission_failWithReason("CivilianKilled");
+}
+
+//===================================================================================================================
+// Sequences
+//===================================================================================================================
+
+//---------------------
+// Function: sequenceAlienGroup1Attack
+// Comments:
+// aliens attack player as he comes down lift to drull son area
+//---------------------
+void sequenceAlienGroup1Attack()
+{
+	$alienGroup1.ai_on();
+	$liftDownToSonClip.notsolid();
+}
+
+//---------------------
+// Function: sequenceBossFight
+// Comments:
+// player enters room with cruisers, door locks whatever happens
+//---------------------
+void sequenceBossFight()
+{
+	//hzm coop mod chrissstrahl - this would lock other players out
+	$bossDoor_green.hide();
+	$bossDoor_red.show();	
+	$doorBossKrindo.lock();
+	$world.light_lightstyle( "doorBoss_greenlight" , "bbbbbbbbbbbbbbbbbaaaaaaaaaaaaaaaaaaaa" , 0 );
+	$world.light_lightstyle( "doorBoss_redlight" , "yyyyyyyyyyyyyyyyyyyyyyyyzzzzzzzzzzzzz" , 0 );
+	
+	
+	//eof hzm
+	
+	$bossTrigger.remove();
+	spawn( "func_earthquake", "targetname", "basherQuake1");
+	wait( .1 );
+	$basherQuake1.magnitude( .75 );
+	$basherQuake1.duration( .5 );
+	trigger( "$basherQuake1" );
+
+	$basherDoor1.solid();
+
+	$basher1.anim( "attack_charge_run" );
+
+	$basherDoor1.playsound ( "sound/ships/drull/drull_doorpound.wav", 9, 1, 1024 );
+	
+	$basherDoor1.hide();
+	$basherDoor2.show();
+	
+	wait( 1 );
+
+	trigger( "$basherQuake1" );
+
+	$basherDoor1.playsound ( "sound/ships/drull/drull_doorpound.wav", 13, 1, 1024 );
+	
+	$basherDoor2.hide();
+	$basherDoor3.show();
+
+	wait( .25 );
+
+	trigger( "$basherQuake1" );
+
+	$basherDoor1.playsound ( "sound/environment/metal/bigcreak_impact.wav", 19, 1, 1024 );
+	$basherDoor1.playsound ( "sound/impact/explosion/expl_towerfall.wav", 18, 1, 1024 );
+	$basherDoor3.hide();
+	$basherDoor4.show();
+
+	wait( .25 );
+
+	$basherExplosion1.scale( 1.5 );
+	$basherExplosion1.modelname( "fx/fx-explosion-debris-idryllruins-large.tik" );
+	trigger( "$basherExplosion1" );
+	
+	$basherDoor4.hide();
+
+	$basherDoor1.remove();
+	$basherDoor2.remove();
+	$basherDoor3.remove();
+	$basherDoor4.remove();
+
+	wait( .1 );
+	$basher1.playsound ( "sound/chars/basher/bash_charge.wav" , 3 , 1.3 ,684 );
+
+	$basher1.walkto( "$basher1_node1" , "attack_charge_run" );
+	waitfor( $basher1 );
+
+	$basher1.ai_on();
+	wait( .1 );
+	
+	//hzm coop mod chrissstrahl - let the ai decide
+	/*$basher1.attack( $player );*/
+	
+	$basher1.updatebosshealth( 1 , 1 );
+	$basher1.maxbosshealth( $basher1.gethealth() + 1 );
+}
+
+//---------------------
+// Function: bossBridgeMove
+// Comments:
+// lowers the boss bridge in the giant basher room
+//---------------------
+void bossBridgeMove()
+{
+	$bossBridgeControl_green1.playsound( "sound/ships/drull/drull-beepaccept.wav", 4, 1, 1024 );	
+
+	$bossBridgeControl_green1.hide();
+	$bossBridgeControl_red1.show();
+	
+	$bossBridge.loopsound ( "sound/environment/machine/factory_loop2.wav", 1, 1024 );
+	
+	$bossBridge.time( 2 );
+	$bossBridge.moveDown( 64 );
+	waitfor( $bossBridge );
+	
+	$bossBridge.time( 4 );
+	$bossBridge.moveDown( 128 );
+	$bossBridge.rotateYup( 90 );
+	waitfor( $bossBridge );
+	
+	$bossBridge.time( 2 );
+	$bossBridge.moveDown( 64 );
+	waitfor( $bossBridge );
+
+	$bossBridge.stoploopsound();	
+	$bossBridge.playsound( "sound/environment/machine/factory_pneuhit1.wav", 13, 1, 1024 );		
+}
+
+//---------------------
+// Function: basherWallExplode
+// Comments:
+// basher comes busting out of a wall
+//---------------------
+void basherWallExplode()
+{
+	$basherWall1.notsolid();
+	$basherWallDestroyed1.notsolid();
+
+	$basherWallExplosion1.scale( 2 );
+	$basherWallExplosion2.scale( 2 );
+	$basherWallExplosion2.playsound ( "sound/impact/explosion/expl_towerfall.wav" , 4 , 1 ,584 );
+		
+	wait( .2 );
+
+	thread globalBioFactorySpawn( $basherWallExplosion1, "basherWallExploder1", "fx/fx-explosion-debris-idryllruins-large.tik" );
+	thread globalBioFactorySpawn( $basherWallExplosion2, "basherWallExploder2", "fx/fx-explosion-debris-idryllruins-xtralarge.tik" );
+	thread globalBioFactorySpawn( $basherSpawn2, "basher2", "char/alien-type1c-basher.tik" );
+	$basherWall1.remove();
+	$basherWallDestroyed1.show();
+
+	$basherWallDestroyed1.playsound ( "sound/chars/basher/bash_charge.wav" , 3 , 1.3 ,684 );
+	wait( 0.1 );
+	
+	$basher2.killthread ( "checkBossKilled" );
+	
+	wait( 0.9 );
+	$basherWallDestroyed1.solid();
+}
+
+
+//===================================================================================================================
+// Cinematics and Dialog
+//===================================================================================================================
+
+//---------------------
+// Function: cinematicDrullFatherAndGirlfriend
+// Comments:
+// Drull Father and Girlfriend play out an entire enpisode of the show to the Team
+// this entire scene chould have been shortened to just:
+// MUNRO: We're with the Federation. We're here to get you out.
+// INGOR: I am Doctor Inigor. This is Doctor Kleeya. We are archeologists on an expedition here. My son is trapped below, please help!
+// MUNRO: Stay here and protect them.
+//---------------------
+void cinematicDrullFatherAndGirlfriend()
+{
+	//hzm coop mod chrissstrahl, set new spawn locations
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin8 			= '-4774 -1902 -124';
+	coop_vector_spawnOrigin7 			= '-4774 -1962 -124';
+	coop_vector_spawnOrigin6 			= '-4774 -2022 -124';
+	coop_vector_spawnOrigin5 			= '-4774 -2082 -124';
+	coop_vector_spawnOrigin4 			= '-4834 -1902 -124';
+	coop_vector_spawnOrigin3 			= '-4834 -1902 -124';
+	coop_vector_spawnOrigin2 			= '-4834 -2022 -124';
+	coop_vector_spawnOrigin1 			= '-4834 -1962 -124';
+
+	//hzm coop mod chrissstrahl, get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	
+	entityPlayerGlobal.immobilize(1);
+	
+	cam_fadeout( 0.5 , 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	
+	cinematic();
+	freezeplayer();
+
+	letterbox( .1 );
+    forcemusic ("aux1");
+
+	$Kourban.ai_off();
+	$Chell.ai_off();
+	$Telsia.ai_off();
+
+	$Kourban.hide();
+	$Chell.hide();
+	$Telsia.hide();
+	
+	$inigor.hide();
+	$kleeya.hide();
+	
+	$inigor.anim( "idle" );
+	
+	//set skipthread
+	skipthread( "cinematicDrullFatherAndGirlfriend_SkipThread");
+
+	// start cinematic
+	meetScientists.setendthread( "cinematicDrullFatherAndGirlfriend_SkipThread" );
+	meetScientists.beginCinematic( "m5l2c_sci" );
+}
+
+//---------------------
+// Functions: cinematicDrullFatherAndGirlfriend_SkipThread
+// Comments:
+// skip thread for cinematic with Drull Father
+//---------------------
+void cinematicDrullFatherAndGirlfriend_SkipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicDrullFatherAndGirlfriend" );
+
+	meetScientists.endCinematic();
+
+	wait( .1 );
+
+	//fade to black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .1 );
+
+        music ("normal");
+
+	//hzm coop mod chrissstrahl, grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( '-4512 -1888 8' );
+		entityPlayerGlobal.immobilize(0);
+	}
+
+	$Kourban.show();
+	$Chell.show();
+	$Telsia.show();
+
+	$Kourban.origin( '-4480 -2184 8' );
+	$Chell.origin( '-4512 -2248 8' );
+	$Telsia.origin( '-4592 -2232 8' );
+	
+	//hzm coop mod, do not allow the player to push them arround
+	$Telsia.pushable( 0 );
+	$Kourban.pushable( 0 );
+
+	$inigor.show();
+	$kleeya.show();
+
+	cam_fadein ( 1, 0, 0, 0, 1, 0 );
+
+	cinematicDrullFatherAndGirlfriend_setupObjectives();
+}
+
+//---------------------
+// Function: cinematicDrullFatherAndGirlfriend_setupObjectives
+// Comments:
+// setups the objectives after the cinematicDrullFatherAndGirlfriend is finally finished
+//---------------------
+void cinematicDrullFatherAndGirlfriend_setupObjectives()
+{
+	$inigor.missionobjective( 0 );
+	$krindo.missionobjective( 1 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindScientists$$","complete",1,0);
+	globalCoop_objectives_set("$$FindIdryllSon$$","incomplete",7,1);
+}
+
+//---------------------
+// Functions: cinematicDrullSon
+// Comments:
+// Munro talks to Drull son
+//---------------------
+void cinematicDrullSon()
+{
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindIdryllSon$$","complete",7,1);
+
+	$krindo.missionobjective( 0 );
+	
+	wait( .5 );
+
+	cinematic();
+	freezeplayer();
+
+    	forcemusic ("aux2");
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	letterbox( .1 );
+
+	$krindo.hide();
+	$krindo.notsolid();
+
+	//set skipthread
+	skipthread( "cinematicDrullSon_SkipThread");
+
+	// start cinematic
+	meetSon.setendthread( "cinematicDrullSon_SkipThread" );
+	meetSon.beginCinematic( "m5l2c_son" ) ;
+	wait( 54 );
+
+	thread endExplode();
+}
+
+//---------------------
+// Functions: cinematicDrullSon_SkipThread
+// Comments:
+// skip thread for cinematic with Drull Son
+//---------------------
+void cinematicDrullSon_SkipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicDrullSon" );
+
+	meetSon.endCinematic();
+
+	wait( .1 );
+
+	//fade to black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+
+    music ("normal");
+
+	noncinematic();
+	clearletterbox( .1 );
+
+	//hzm coop mod chrissstrahl, load the next map
+	thread coop_endLevel();
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "ent-deck1_bridge" );
+	setfloatvar ( "game.globalMissionEnterprise", 4 );
+	wait ( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+//---------------------
+// Function: endExplode
+// Comments:
+// called to explode the final room
+//---------------------
+void endExplode()
+{
+    	forcemusic ("aux3");
+	$endExplodeExplosions1.scale( 2 );
+	$endExplodeExplosions2.scale( 2 );
+	$endExplodeExplosions3.scale( 2 );
+	$endExplodeExplosions4.scale( 1 );
+
+	$endExplodeExplosions1.modelname( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$endExplodeExplosions2.modelname( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$endExplodeExplosions3.modelname( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$endExplodeExplosions4.modelname( "fx/fx-explosion-sparkshower-intense.tik" );
+	trigger( "$endExplodeExplosions1" );
+	trigger( "$endExplodeExplosions4" );
+	trigger( "$endExplodeObject" );
+
+	$endExplodePlatform.playsound ( "sound/impact/explosion/expl_drullship.wav", 0, 1.5, 2048 );
+
+	$world.light_lightstyle ( "endExplodeLightsCenter", "azzzaazzzaazazaaazzaaa", 0 );
+	$world.light_lightstyle ( "endExplodeLightsSide",   "zaazzzzazzzaazzaazzaaa", 0 );
+	$endExplodeScreens1.hide();
+	$endExplodeScreens2.hide();
+	$endExplodeScreens3.hide();
+	$endExplodePlatform.time( 1 );
+	$endExplodePlatform.rotateXdown( 4 );
+	$endExplodePlatform.rotateZup( 3 );
+	$endExplodePlatform.earthquake( 1.5 , 1.5 );
+	wait( .5 );
+
+	$endExplodeExplosions1.modelname( "fx/fx-explosion-distnode.tik" );
+	trigger( "$endExplodeExplosions1" );
+
+	$endExplodeScreens1.show();
+	$endExplodeScreens3.show();
+
+	trigger( "$endExplodeExplosions2" );
+	$endExplodeWalkway1.time( 1 );
+	$endExplodeWalkway1.rotateXup( 3 );
+	$endExplodeWalkway1.rotateZdown( 4 );
+	wait( 1 );
+
+	$endExplodeScreens1.hide();
+	$endExplodeScreens2.show();
+	$endExplodeScreens3.hide();
+
+	$endExplodePlatform.playsound ( "sound/impact/explosion/explo_wall1.wav", 0, 1.5, 2048 );
+
+	trigger( "$endExplodeExplosions3" );
+	$endExplodeWalkway2.time( 1 );
+	$endExplodeWalkway2.rotateXup( 4 );
+	$endExplodeWalkway2.rotateZdown( 3 );
+	wait( 1 );
+
+	$endExplodeScreens2.hide();
+
+	$endExplodeExplosions1.modelname( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	trigger( "$endExplodeExplosions1" );
+	trigger( "$endExplodeExplosions3" );
+	trigger( "$endExplodeExplosions4" );
+	$endExplodePlatform.time( 1 );
+	$endExplodePlatform.rotateXdown( 3 );
+	$endExplodePlatform.rotateZdown( 2 );
+	wait( 1 );
+
+	$world.light_lightstyle ( "endExplodeLightsCenter", "a", 0 );
+	$world.light_lightstyle ( "endExplodeLightsSide",   "a", 0 );
+}
+
+//---------------------
+// Function: secretWeakDoor1_explode
+// Comments:
+// explodes the secret structural integrity door
+//---------------------
+void secretWeakDoor1_explode()
+{
+	$secretWeakDoor1.nodamage();
+	
+	thread globalBioFactorySpawn( $secretWeakDoor1_explosion, "secretWeakDoor1_exploder", "fx/fx-explosion-debris-rocks-dust-brown.tik" );
+
+	$secretWeakDoor1_explosion.playsound( "sound/impact/explosion/explo_wall1.wav", 6, 1.4, 550 );
+
+	$secretWeakDoor1.remove();
+	$secretWeakDoor1_fracture.remove();
+}
+
+//---------------------
+// Function: farplaneOut
+// Comments:
+// moves the farplane out
+//---------------------
+void farplaneOut()
+{
+	float fpd;
+
+	$world.farplane_cull( 0 );
+
+	for( fpd = 2500 ; fpd <= 3500 ; fpd += 50 )
+	{
+		$world.farplane ( fpd );
+		wait( .01 );
+	}
+	
+//	$world.farplane ( 3500 );
+}
+
+//---------------------
+// Function: farplaneIn
+// Comments:
+// brings the farplane in
+//---------------------
+void farplaneIn()
+{
+	float fpd;
+
+	for( fpd = 3500 ; fpd >= 2500 ; fpd -= 50 )
+	{
+		$world.farplane ( fpd );
+		wait( .01 );
+	}
+	
+	$world.farplane_cull( 1 );
+//	$world.farplane ( 2500 );
+}
+
+//---------------------
+// Function: idryllRejectSound
+// Comments:
+//
+//---------------------
+void idryllRejectSound()
+{
+	//hzm coop mod chrissstrahl, let the trigger play the sound, instead of the $player
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound ( "sound/ships/drull/drull-beepaccept.wav", 0, 1, 256 );
+}
+
+void coop_findAndHandleEntities()
+//find entities without targetname and give em a targetname
+{	
+	float fEntity;
+	entity e;
+	for(fEntity=0;fEntity<1023;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if(	e.getOrigin() == '-2536 -488 -3616'		||
+				e.getOrigin() == '-4848 -1752 -2816'	||
+				e.getOrigin() == '-7984 -1672 -128'		||
+				e.getOrigin() == '-4800 -2376 -2816'
+			){
+				e.damagetype("falling");
+			}
+		}
+	}
+}
+
+void coop_findAndTargetnameEntities()
+//find entities without targetname and vive em a targetname
+{
+	entity e;
+	float fEntity,fFound;
+	for(fEntity=0;fEntity<1023;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if(e.getOrigin() == '-1848 112 -2464'){
+				e.lock();//lock boss door
+				e.targetname("doorBossKrindo");//give a name
+				fFound++;
+			}
+			if(e.getOrigin() == '-1944 112 -2464'){
+				e.lock();//lock boss door
+				e.targetname("doorBossKrindo");//give a name
+				fFound++;
+			}
+			if(e.getOrigin() == '-5518 -2112 -23'){
+				e.targetname("trigger_use_liftToSon");//give a name damn it
+				fFound++;
+			}
+			if(fFound>=3){
+				return;
+			}
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setfloatvar ( "game.globalMissionEnterprise", 4 );
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	setFloatVar("game.checkEntMission4RoomsVisited",0);//set rooms visited
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	setfloatvar("game.statusM5L2CUnlocked",0);//make sure the level that gets loaded twiche (m5l2a) starts at the beginning
+	//eof HZM
+	
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("m6l0-attack");
+			return;
+		}
+	}
+	//eof hzm
+	
+	wait(0.05);	
+	thread globalCoop_mission_completed("ent-deck1_bridge");
+}
+
+
+

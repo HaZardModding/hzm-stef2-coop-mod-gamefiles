@@ -1,0 +1,200 @@
+void startHoloTrainingMissionIGM1();
+
+void fieldAssaultRifleWait();
+void fieldAssaultRifleGo();
+
+void holoMissionIGM1Over();
+void coop_holodeckStart();
+void coop_holodeckWeapon();
+
+//Voided in ent-deck8-mission1
+//void holoMissionIGM1Over();
+
+////////////////////////////////
+//  startHoloTrainingMissionIGM1
+//  Start the holo mission
+////////////////////////////////
+void startHoloTrainingMissionIGM1()
+{
+	$triggerHoloDeck.thread( "" );
+	
+	killAllTalking();
+	
+	thread fieldAssaultRifleWait();
+}
+
+////////////////////////////////
+// Wait till player picks up Shot Gun
+////////////////////////////////
+void fieldAssaultRifleWait()
+{
+	$fieldassaultrifle.ontouch( "fieldAssaultRifleGo" );
+	pause();
+}
+
+////////////////////////////////
+// start mission
+////////////////////////////////
+void fieldAssaultRifleGo()
+{
+	$fieldassaultrifle.notouch();
+	$fieldassaultrifle.missionobjective( 0 );
+	$fieldassaultrifle.notsolid();
+	
+	$holoDeckWeaponStand.notsolid();
+	$holoDeckWeaponStand.hide();
+	
+	$world.playsound( "sound/player/player_invpickup.wav", 3, 1, 90000 );
+	
+	thread givePlayerAmmo();
+	
+	//hzm coop mod chrissstrahl - give the players a weapon if they are inside the holodeck
+	thread coop_holodeckWeapon();
+	
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_pirmary.mp3", 1, 10000, 1); //The primary attack is a spread plasma burst. 
+	waitForDialog( $korban );	
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_secondary.mp3", 1, 10000, 1); //The secondary attack is a powerful single shot, which can do extensive collateral damage to nearby hostiles.
+	waitForDialog( $korban );
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area, and keep the weapon in the holodeck
+	vector vPos;
+	vPos = $fieldassaultrifle.getOrigin();
+	//$fieldassaultrifle.remove();
+	vPos_z = 0;
+	
+	wait(2);
+	thread globalCoop_level_gatheringArea("","coop_holodeckStart",100,'340 340 200',vPos);
+}
+
+//hzm coop mod chrissstrahl - give and take weapon from a player if he leaves the holodeck
+void coop_holodeckWeapon()
+{
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	while(1)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					vOriginPlayer = ePlayer.getOrigin();
+					//give weapon if inside the holodeck, take weapon if outside
+					if( vOriginPlayer_y > -614 && vOriginPlayer_x < -12226 ) {
+						ePlayer.give( "weapons/worldmodel-fieldassaultrifle.tik" );
+						ePlayer.use( "fieldassaultrifle" );
+						ePlayer.disableuseweapon(1);
+						ePlayer.nodamage();
+					}else{
+						ePlayer.take( "weapons/worldmodel-fieldassaultrifle.tik" );
+						ePlayer.disableuseweapon(0);
+						ePlayer.use( "None" );
+						ePlayer.nodamage();
+					}
+				}
+			}
+		}
+		wait(0.1);
+	}
+}
+
+//hzm coop mod chrissstrahl, make the holodeck lock and load the next map
+void coop_holodeckStart()
+{
+	lockHoloDoor();
+	wait(4);
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .6 );
+	thread coop_endLevel();
+}
+
+////////////////////////////////
+// end Mission
+////////////////////////////////
+void holoMissionIGM1Over()
+{
+	//CHECK is the setup the same as 
+	//FIX laptop closed in sickbay
+	//FIX korban not working
+
+	waitForPlayer();
+		
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+		
+	//hzm coop mod chrissstrahl, objectives
+	globalCoop_objectives_set("$$IGM1VisitArmory$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM1HoloDeck$$","complete",2,1);
+	
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.immobilize( 1 );
+			}
+		}
+	}
+	$world.playsound( "sound/player/player_invdrop.wav", 3, 1, 10000 );
+	
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	//hzm coop mod chrissstrahl, make korban work
+	$korban.origin( '-12431 -1313 0' );
+	$korban.angle( 300 );
+	$korban.mass( 99999 );
+	$korban.pushable( 0 );
+	//hzm eof
+	
+	$korban.playdialog( "localization/sound/dialog/ent_m1/korban_blood.mp3", 1, 10000, 1 ); //Not bad... considering that you lack Klingon blood.
+	waitForDialog( $korban );
+	//$korban.playdialog( "localization/sound/dialog/ent_m1/korban_welldone.mp3 ", 1, 10000, 1 ); //Well done Munro.
+	//waitForDialog( $korban );
+	
+	setfloatvar( "game.holoMissionVisited", 2 );
+
+	
+	//hzm coop mod chrissstrahl, make korban work, and talk
+	thread randomlyAnimateActor( $korban, "ent-stand" );
+	thread korban_workIGM1();
+	
+	//hzm coop mod chrissstrahl, make transporterroom dudes talk
+	thread dorchev_workIGM1();
+	thread thompson_workIGM1();
+	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.immobilize( 0 );
+			}
+		}
+	}
+	
+	//hzm coop mod chrissstrahl, set deck to go to for turbolift
+	setfloatvar(  "level.deckToChangeToIGM", 71 );
+	
+	
+	//Move actor close for ambient effect Holo Deck
+	/*$russel.origin( '-12056 -1184 16' );*/
+	$jameson.origin( '-11936 -1584 16' );	
+//	$gray.origin( '-11940 -1016 16' );
+
+	/*$russel.ai_off();*/
+	$jameson.ai_off();	
+	$gray.ai_off();
+	wait( .05 );
+	/*$russel.ai_on();*/
+	$jameson.ai_on();	
+	$gray.ai_on();
+	
+	wait(2);
+	
+	//hzm coop mod chrissstrahl, objectives
+	globalCoop_objectives_set("$$IGM1VisitLockers$$","incomplete",3,0);
+	globalCoop_objectives_set("$$IGM1VisitBreifing$$","incomplete",4,1);
+}
+

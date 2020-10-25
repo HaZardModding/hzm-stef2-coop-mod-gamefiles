@@ -1,0 +1,2574 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  m9l1a-klingon_base (K7 Starbase)
+//  Script By:    Adam 'Senn' Bellefeuil
+//  Geometry By:  Richard H., Adam 'Senn' Bellefeuil
+//  Created on:   08/01/2002
+//  Last Edited:  02/20/2003 - Adam
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+void setupCameras();
+void setupActors();
+void setupPlayer();
+void setupArchetypes();
+void setupArmatureCinematics();
+
+// Cinematics
+void cinematicArm_Intro_Start();
+void cinematicArm_Intro_ArmEnd();
+void cinematicArm_MeetOmag_Start();
+void cinematicArm_MeetOmag_DialogSeq1_Start();
+void cinematicArm_MeetOmag_DialogChoice1();
+void cinematicArm_MeetOmag_DialogChoice1Reply1();
+void cinematicArm_MeetOmag_DialogChoice1Reply2();
+void cinematicArm_MeetOmag_DialogSeq2_Start();
+void cinematicArm_MeetOmag_DialogChoice2();
+void cinematicArm_MeetOmag_DialogChoice2Reply1();
+void cinematicArm_MeetOmag_DialogChoice2Reply2();
+void cinematicArm_MeetOmag_DialogSeq3_Start();
+void cinematicArm_MeetOmag_ArmEnd();
+
+entity cinematicArm_Intro;
+entity cinematicArm_MeetOmag;
+entity cinematicArm_MeetOmag_DialogSeq1;
+entity cinematicArm_MeetOmag_DialogSeq2;
+entity cinematicArm_MeetOmag_DialogSeq3;
+
+// Bar Sequence
+void bar_entrance();
+void enableBartender();
+void isBarDoorLocked();
+void bartender_lookbusy();
+void vip_bartender_lookbusy();
+
+void cinematic_CageMatch();
+void cinematic_CageMatch_End();
+void cinematic_CageMatch_Skipthread();
+void npcCheer();
+void npcBoo();
+
+float barDoorLocked = 1;
+float cageLowered = 0;
+
+// Dialog Sequences
+void teamDialog1();
+void dialogInBar1();
+void klingonTaunts();
+void dialogKlingonHonor();
+void barRomulanAleConversation();
+void barStarWarsConversation();
+void barMusicianConversation();
+void shuttlebayConversation1();
+void shuttlebayConversation2();
+void hallwayConversation1();
+void hallwayConversation2();
+
+float barRomulanAleConversationComplete = 0;
+float barStarWarsConversationComplete = 0;
+float barMusicianConversationComplete = 0;
+float shuttlebayConversation1Complete = 0;
+float shuttlebayConversation2Complete = 0;
+float hallwayConversation1Complete = 0;
+float hallwayConversation2Complete = 0;
+
+// Hallway Battle Sequences
+void hallway_seq01();
+void hallway_seq02();
+void hallway_seq03();
+void hallway_seq04();
+void hallway_seq05();
+
+// Omag Chase Sequences
+void omagFollowPath01();
+void omagFollowPath02();
+void omagFollowPath03();
+void barrelPuzzle();
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+float	coop_itIsAllOverNow = 0;
+void	coop_unarmPlayer(entity ePlayer);
+void	coop_nicolasCagePlayer(entity ePlayer);
+entity	coop_returnMeARandomPlayer();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/m9/m9l1a_dialog.scr"
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// LEVEL SETUP
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// Main Function
+// Main level thread
+//---------------------
+void main()
+{	
+//hzm coop mod chrissstrahl - Set spawnangle for player 1
+	coop_float_spawnAngle1 		= 45;
+//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_vector_spawnOrigin1 	= '-2154 -246 -14';	
+	coop_vector_spawnOrigin2 	= '-4000 -330 0';
+	coop_vector_spawnOrigin3 	= '-4000 -400 0';
+	coop_vector_spawnOrigin4 	= '-4000 -470 0';
+	coop_vector_spawnOrigin5 	= '-4000 -550 0';
+	coop_vector_spawnOrigin6 	= '-4000 -620 0';
+	coop_vector_spawnOrigin7 	= '-4000 -690 0';
+	coop_vector_spawnOrigin8 	= '-4000 -760 0';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$DM9LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - remove the original trigger and spawn our own level end trigger
+	removeclass("TriggerChangeLevel");
+	
+	//--- setup distance fog
+	//$world.farplane( 5000 );
+	//$world.farplane_color( '.25 .2 .1' );
+
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+
+	soundtrack( "music/m9l1a-klingon_base.mus" );
+	$world.entity_fade_dist( 8000 );
+
+	//--- setup the level
+	init();
+
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//--- setup the player
+	//freezeplayer();
+	setupPlayer();
+
+	//--- launch the intro cinematic
+	thread cinematicArm_Intro_Start();
+	
+	thread globalCoop_level_gatheringArea("","coop_endLevel",100,'300 300 200','1376 3104 352');
+}
+
+void setupArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "targetable" );
+	e.archetype( theArchetype );
+}
+
+void setupCrateArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "+targetable" );
+	e.archetype( theArchetype );
+}
+
+//---------------------
+// Init Function
+// Setup the world
+//---------------------
+void init()
+{
+	$boss.actortype( "friend" );
+
+	//raise cage
+	$cage.time( .1 );
+	$cage.moveUp( 320 );
+
+	//make it solid (jhefty)
+	//it's notsolid in the map so that pathnodes connect properly
+	$cage.solid ();
+
+	// setup hallway battle guys
+	hallway_seq01();
+	hallway_seq05();
+
+	// setup dialog
+	initDialog();
+
+	// setup cameras
+	setupCameras();
+
+	// setup actors
+	setupActors();
+
+	// setup archetypes
+	setupArchetypes();
+
+	//--- setup armature cinematics
+	setupArmatureCinematics();
+
+	//--turn on red light above door to VIP lounge (green off)
+	$world.light_lightstyle( "doorLight_red1" , "z" , 0 );
+	$world.light_lightstyle( "doorLight_green1" , "a" , 0 );
+
+	$world.light_lightstyle( "vipLight_red1" , "a" , 0 );
+	$world.light_lightstyle( "vipLight_green1" , "z" , 0 );
+
+	$shuttle.notsolid();
+	$shuttle_int.notsolid();
+	$shuttle_int.anim( "closed" );
+
+	//dancers
+	$dancer1.anim( "dance1" );
+	$dancer2.anim( "dance2" );
+
+	$innerBarDoor.noise( "sound/doors/door_locked.wav" );
+	
+	float	fEntity;
+	vector	vOrigin;
+	entity	e;
+	for(fEntity=0;fEntity<1024;fEntity++)
+	{
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if( e.getOrigin() == '1376 2304 352' )
+			{
+				vector vSize1,vSize2;
+				vSize1 = e.getMins();
+				vSize2 = e.getMaxs();
+				vSize2_y += 500;
+				e.setsize(vSize1,vSize2);
+				e.origin('1376 2804 352');
+			}
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - spawn clip that prevents players from reaching the level end
+	spawn("script_model","model","fx/fx-dummy.tik","targetname","levelEndClip","origin","1376 3400 250");
+	wait(0.05);
+	$levelEndClip.setSize('-300 0 0','300 20 250');
+	$levelEndClip.solid();
+}
+
+//---------------------
+// setupPlayer
+// setup the player
+//---------------------
+void setupPlayer()
+{
+	//---set players objectives
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$TakeKrindotoBar$$","incomplete",1,0);
+	globalCoop_objectives_set("$$LocateOmag$$","incomplete",2,1);
+}
+
+//---------------------
+// characterSetup
+// initial setup for ai & actor types
+//---------------------
+void setupActors()
+{
+	//CINEMATIC MUNRO
+	$munro_bar.removeactorweapon ( "CompressionRifle" );
+	globalCommon_AiDummyHide( $munro );
+
+	//KRINDO
+	globalCommon_AiDummyHide( $krindo );
+	$krindo.immortal( 1 );
+	$krindo.removeactorweapon ( "CompressionRifle" );
+	$krindo.followrange( 320 );		//---384 default
+	$krindo.followrangemin( 192 );		//---256
+	$krindo.followcombatrange( 384 );	//---512
+	$krindo.followcombatrangemin( 192 );	//---256
+	$krindo.allowfall( 1 );
+
+	// GONZALES
+	globalCommon_AiDummyHide( $gonzales );
+	$gonzales.immortal( 1 );
+	$gonzales.removeactorweapon ( "CompressionRifle" );
+	$gonzales.setTargetType( 4 );
+	$gonzales.followrange( 320 );		//---384 default
+	$gonzales.followrangemin( 192 );	//---256
+	$gonzales.followcombatrange( 384 );	//---512
+	$gonzales.followcombatrangemin( 192 );	//---256
+	$gonzales.allowfall( 1 );
+
+	// HALLWAY MERCS
+	$hallway_klingon.pushable( 0 );
+	$hallway_ferengi.pushable( 0 );
+	$hallway_andorian.pushable( 0 );
+	
+	//hzm coop mod chrissstrahl - make sure it is not to much at once for the dedicated server, pause one frame
+	wait(0.05);
+
+	// OMAG
+	$omag.immortal( 1 );
+	$omag.notsolid();
+
+	// NAUSICAN BOUNCER
+	$bonesaw.ai_off();
+	$bonesaw.immortal( 1 );
+	$bonesaw.settendency( "wander" , 0.0 );
+	$bonesaw.allowfall( 1 );
+
+	// KLINGON BARKEEP
+	$klingon_barkeep.immortal( 1 );
+	$klingon_barkeep.ai_off();
+	$klingon_barkeep.immortal( 1 );
+	$klingon_barkeep.pushable( 0 );
+
+	// VIP LOUNGE BARKEEP
+	$vip_barkeep.immortal( 1 );
+	$vip_barkeep.ai_off();
+	$vip_barkeep.immortal( 1 );
+	$vip_barkeep.pushable( 0 );
+	thread vip_bartender_lookbusy();
+	
+	//hzm coop mod chrissstrahl - make sure it is not to much at once for the dedicated server, pause one frame
+	wait(0.05);
+
+	// HUMAN FEMALE 1 - wandering around the bar
+	$humanFemale1.immortal( 1 );
+	$humanFemale1.allowfall( 1 );
+	$humanFemale1.pushable( 0 );
+	$humanFemale1.settendency ( "wander" , 1.0 );
+
+	// HUMAN FEMALE 2 - standing at the bar
+	$humanFemale2.immortal( 1 );
+	$humanFemale2.ai_off();
+	$humanFemale2.anim( "bar_standing" );
+	$humanFemale2.pushable( 0 );
+
+	// HUMAN FEMALE 3 - standing at the bar in the vip room
+	$humanFemale3.immortal( 1 );
+	$humanFemale3.ai_off();
+	$humanFemale3.anim( "bar_standing" );
+	$humanFemale3.pushable( 0 );
+
+	// HUMAN MALE 1 - standing at bar
+	$humanMale1.immortal( 1 );
+	$humanMale1.ai_off();
+	$humanMale1.anim( "bar_standing" );
+	$humanMale1.pushable( 0 );
+
+	// HUMAN MALE 2 - standing at the bar in the vip room
+	$humanMale2.immortal( 1 );
+	$humanMale2.ai_off();
+	$humanMale2.anim( "bar_standing" );
+	$humanMale2.pushable( 0 );
+
+	// ANDORIAN MALE 1 - wandering around the bar
+	$andorianMale1.immortal( 1 );
+	$andorianMale1.settendency( "wander" , 0.0 );
+	$andorianMale1.allowfall( 1 );
+	$andorianMale1.pushable( 0 );
+	
+	//hzm coop mod chrissstrahl - make sure it is not to much at once for the dedicated server, pause one frame
+	wait(0.05);
+
+	// ANDORIAN MALE 2 - wandering around the vip room
+	$andorianMale2.immortal( 1 );
+	$andorianMale2.settendency( "wander" , 0.0 );
+	$andorianMale2.allowfall( 1 );
+	$andorianMale2.pushable( 0 );
+
+	// ANDORIAN MALE 3 - standing at the bar
+	$andorianMale3.immortal( 1 );
+	$andorianMale3.ai_off();
+	$andorianMale3.anim( "bar_standing" );
+	$andorianMale3.pushable( 0 );
+
+	// ANDORIAN SITTING 1 - sitting at a table in the bar
+	$andorianSitting1.immortal( 1 );
+	$andorianSitting1.ai_off();
+	$andorianSitting1.anim( "bar_sitting_right" );
+	$andorianSitting1.pushable( 0 );
+
+	// ANDORIAN SITTING 2 - sitting on the couch in the champagne room
+	$andorianSitting2.immortal( 1 );
+	$andorianSitting2.ai_off();
+	$andorianSitting2.anim( "bar_sitting_left" );
+	$andorianSitting2.pushable( 0 );
+
+	// ANDORIAN SITTING 3 - sitting at a table in the vip room
+	$andorianSitting3.immortal( 1 );
+	$andorianSitting3.ai_off();
+	$andorianSitting3.anim( "bar_sitting_relaxed" );
+	$andorianSitting3.pushable( 0 );
+
+	// HUMAN FEMALE SITTING 1 - sitting on the couch in the champagne room
+	$humanFemale_sitting1.immortal( 1 );
+	$humanFemale_sitting1.ai_off();
+	$humanFemale_sitting1.anim( "bar_sitting_right" );
+	$humanFemale_sitting1.pushable( 0 );
+
+	// KLINGON SLEEPING 1 - male sleeping at a table in the bar
+	$klingonSleeping1.immortal( 1 );
+	$klingonSleeping1.ai_off();
+	$klingonSleeping1.anim( "bar_sitting_sleep" );
+	$klingonSleeping1.pushable( 0 );
+	
+	//hzm coop mod chrissstrahl - make sure it is not to much at once for the dedicated server, pause one frame
+	wait(0.05);
+
+	// KLINGON SLEEPING 2 - female sleeping at a table in the vip room
+	$klingonSleeping2.immortal( 1 );
+	$klingonSleeping2.ai_off();
+	$klingonSleeping2.anim( "bar_sitting_sleep" );
+	$klingonSleeping2.pushable( 0 );
+
+	// HUMAN MALE SITTING 1 - sitting at a table in the bar
+	$humanMaleSitting1.immortal( 1 );
+	$humanMaleSitting1.ai_off();
+	$humanMaleSitting1.anim( "bar_sitting_left" );
+	$humanMaleSitting1.pushable( 0 );
+
+	// KLINGON FEMALE 1 - conversing in the champagne room
+	$klingonFemale1.immortal( 1 );
+	$klingonFemale1.ai_off();
+	$klingonFemale1.pushable( 0 );
+
+	// HUMAN MALE 3 - conversing in the champagne room
+	$humanMale3.immortal( 1 );
+	$humanMale3.ai_off();
+	$humanMale3.pushable( 0 );
+
+	// STAR WARS CANTINA CONVERSATION - sitting at a table in the bar
+	$HanSolo.immortal( 1 );
+	$HanSolo.ai_off();
+	$HanSolo.anim( "bar_sitting_forward" );
+	$HanSolo.pushable( 0 );
+	$LukeSkywalker.immortal( 1 );
+	$LukeSkywalker.ai_off();
+	$LukeSkywalker.anim( "bar_sitting_relaxed" );
+	$LukeSkywalker.pushable( 0 );
+	$ObiWanKenobi.immortal( 1 );
+	$ObiWanKenobi.ai_off();
+	$ObiWanKenobi.anim( "bar_sitting_relaxed" );
+	$ObiWanKenobi.pushable( 0 );
+
+	$shuttlebayConversation1_andorian1.pushable( 0 );
+	$shuttlebayConversation1_andorian2.pushable( 0 );
+
+	$shuttlebayConversation2_male1.pushable( 0 );
+	$shuttlebayConversation2_male2.pushable( 0 );
+
+	$hallwayConversation1_male1.pushable( 0 );
+	$hallwayConversation1_klingon1.pushable( 0 );
+
+	$hallwayConversation2_male1.pushable( 0 );
+	$hallwayConversation2_female1.pushable( 0 );
+}
+
+void vip_bartender_lookbusy()
+{
+	$vip_barkeep.attachmodel( "models/enviro/klingon_bottle1.tik" , "tag_Rhand" , 1 , "" , 0 , 0 , 1.0 );
+
+	while( 1 )
+	{
+		$vip_barkeep.anim( "bar_idle" );
+		waitforanimation( $vip_barkeep , "bar_idle" );
+
+		$vip_barkeep.anim( "bar_shake" );
+		waitforanimation( $vip_barkeep , "bar_shake" );
+
+		$vip_barkeep.anim( "bar_idle" );
+		waitforanimation( $vip_barkeep , "bar_idle" );
+
+		$vip_barkeep.anim( "bar_spin" );
+		waitforanimation( $vip_barkeep , "bar_spin" );
+	}
+}
+
+//---------------------
+// setupArchetypes
+// setting up the archetypes
+//---------------------
+void setupArchetypes()
+{
+	setupArchetypeObject( $archetypeDoorPanel, "KlingonDoorPanel" );
+	setupCrateArchetypeObject( $arch_crate1, "TrilithiumResin" );
+}
+
+//---------------------
+// setupCameras
+// setting up cameras
+//---------------------
+void setupCameras()
+{
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");
+	spawn( "Camera", "targetname", "cam5");
+	spawn( "Camera", "targetname", "cam6");
+	spawn( "Camera", "targetname", "cam7");
+
+	//load camera paths
+	cam.load( "m9l1a_bar1" );
+	cam.load( "m9l1a_bar2" );
+	cam.load( "m9l1a_bartender1" );
+	cam.load( "m9l1a_bartender2" );
+	cam.load( "m9l1a_cage1" );
+	cam.load( "m9l1a_cage2" );
+}
+
+//---------------------
+// setupArmatureCinematics
+// setupt the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--- the intro armature
+	cinematicArm_Intro = createCinematic( "m9l1a_k7intro" );
+	cinematicArm_Intro.setendthread( "cinematicArm_Intro_ArmEnd" );
+
+	//--- setup the omag cinematic
+	cinematicArm_MeetOmag = createCinematic( "m9l1_intro" );
+	cinematicArm_MeetOmag.setEndThread( "cinematicArm_MeetOmag_DialogSeq1_Start" );
+	cinematicArm_MeetOmag_DialogSeq1 = createCinematic( "m9l1_omaga" );
+	cinematicArm_MeetOmag_DialogSeq1.setEndThread( "cinematicArm_MeetOmag_DialogChoice1" );
+	cinematicArm_MeetOmag_DialogSeq2 = createCinematic( "m9l1_omagb" );
+	cinematicArm_MeetOmag_DialogSeq2.setEndThread( "cinematicArm_MeetOmag_DialogChoice2" );
+	cinematicArm_MeetOmag_DialogSeq3 = createCinematic( "m9l1_omagc" );
+	cinematicArm_MeetOmag_DialogSeq3.setEndThread( "cinematicArm_MeetOmag_ArmEnd" );
+}
+
+//-----------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 2, .7, 800 );
+}
+
+//-----------------------------------
+void cageWallSound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/enviroment/machine/light_stop.wav", 6, .7, 800 ); // TEMP SOUND - adam
+
+	// NEW SOUND NEEDED ABOVE - need sound for cage russling when player brushes up against cage walls
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// BAR SEQUENCES
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// Take Players Weapons
+// Take away players weapons when he enters the bar
+//---------------------
+void bar_entrance()
+{
+	$boss.walkto( "$bossnode1" );
+	waitfor( $boss );
+
+	$boss.walkto( "$bossnode2" );
+	waitfor( $boss );
+
+	$innerBarDoor.close();
+	wait( .1 );
+	$innerBarDoor.lock();
+	wait( 1 );
+	$boss.remove();
+	$vipdoorclip.remove();
+}
+
+//---------------------
+// Bartender Trigger
+// Once krindo and gonzales are inside the call volume, the bartender walks over and the player can talk to her
+//---------------------
+void enableBartender()
+{
+	$klingon_barkeep.walkto( "$barkeepNode2" );
+	waitfor( $klingon_barkeep );
+
+	$bartenderTrigger.triggerable();
+}
+
+//---------------------
+// VIP Door Locked Dialog
+// If the player uses VIP door prior to speaking to bartender, krindo babels
+//---------------------
+void isBarDoorLocked()
+{
+	if ( barDoorLocked == 1 )
+	{
+		$krindo.playdialog("localization/sound/dialog/m9l1/krindo_vip.mp3", 1, 500, 1); //The VIP lounge is locked. Only the bartender can get you in.
+		waitForDialog( $krindo );
+	}
+}
+
+//---------------------
+// Bar Fight Cinematic
+// Bar Fight Cinematic Start
+//---------------------
+void cinematic_CageMatch()
+{
+	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	
+	
+	//--- fade the world out
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	freezeplayer();
+	letterbox( .1 );
+	cinematic();
+    allowMusicDucking( 0 );
+    forcemusic ("aux2");
+
+	$barStarWarsConversation_Trigger.nottriggerable();
+
+	// if conversations are still running, stop dialog to shut them up
+	if( barRomulanAleConversationComplete == 0)
+	{
+		killthread( "barRomulanAleConversation" );
+		$humanMale1.stopdialog();
+		$andorianMale3.stopdialog();
+	}
+
+	if( barStarWarsConversationComplete == 0 )
+	{
+		killthread( "barStarWarsConversation" );
+		$HanSolo.stopdialog();
+		$LukeSkywalker.stopdialog();
+		$ObiWanKenobi.stopdialog();
+	}
+
+	if( hallwayConversation1Complete == 0 )
+	{
+		killthread( "hallwayConversation1" );
+		$hallwayConversation1_male1.stopdialog();
+		$hallwayConversation1_klingon1.stopdialog();
+	}
+
+	if( hallwayConversation2Complete == 0 )
+	{
+		killthread( "hallwayConversation2" );
+		$hallwayConversation2_male1.stopdialog();
+		$hallwayConversation2_female1.stopdialog();
+	}
+
+	//--- move characters into position
+	$gonzales.ai_off();
+	$krindo.ai_off();
+
+	wait( .25 );
+
+	$munro_bar.show();
+	$gonzales.warpto( "$bar_origin2" );
+	$krindo.warpto( "$bar_origin3" );
+
+	$gonzales.angle( 160 );
+	$krindo.angle( 190 );
+
+	$munro_bar.headwatch( $klingon_barkeep );
+	$gonzales.headwatch( $klingon_barkeep );
+	$krindo.headwatch( $klingon_barkeep );
+
+	$humanMale1.ai_off();
+	$humanFemale1.ai_off();
+	$humanFemale2.ai_off();
+	$andorianMale1.ai_off();
+
+	$humanMale1.warpto( "$spectateNode1" );
+	$humanFemale1.warpto( "$spectateNode2" );
+	$humanFemale2.warpto( "$spectateNode3" );
+	$andorianMale1.warpto( "$spectateNode4" );
+	$andorianMale3.warpto( "$spectateNode5" );
+
+	//--- set skipthread
+	skipthread( "cinematic_CageMatch_Skipthread");
+
+	$cam3.follow( $m9l1a_bartender1 );
+	$cam4.follow( $m9l1a_bartender2 );
+	$cam5.follow( $m9l1a_cage1 );
+	wait( .5 );
+
+	//--- start the first shot
+	cuecamera( $cam4 );
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait( 2 );
+
+	$munro_bar.playdialog("localization/sound/dialog/m9l1/munro_howmuch.mp3", 1, 10000, 0); //How much to get into the VIP room?
+	waitForDialog( $munro_bar );
+
+	wait( .25 );
+
+	//--- start the second shot
+	cuecamera( $cam3 );
+
+	wait( .25 );
+
+	$klingon_barkeep.headwatch( $munro_bar );
+	$klingon_barkeep.playdialog("localization/sound/dialog/m9l1/bar_prove.mp3", 1, 500, 0); //Ha! You have to prove your worth! You have to beat Korloff.
+	waitForDialog( $klingon_barkeep );
+
+	wait( .25 );
+
+	//--- start the second shot
+	cuecamera( $cam3 );
+
+	$klingon_barkeep.headwatch( $barBatleth );
+	$klingon_barkeep.walkto ( "$barkeepNode1" );
+	waitfor ( $klingon_barkeep );
+
+	$barBatleth.hide ();
+	$klingon_barkeep.giveactorweapon ( "actorweapons/klingon-batleth.tik" );
+	$klingon_barkeep.useactorweapon ( "Batleth" , "left" );
+
+	$klingon_barkeep.headwatch( $munro_bar );
+	$klingon_barkeep.walkto( "$barkeepNode2" );
+	waitfor ( $klingon_barkeep );
+
+	$klingon_barkeep.removeactorweapon ( "Batleth" );
+
+	$barBatleth1.show ();
+
+	wait( .5 );
+
+	$barBatleth1.remove();
+
+	$munro_bar.giveactorweapon ( "actorweapons/klingon-batleth.tik" );
+	$munro_bar.useactorweapon ( "Batleth" , "left" );
+
+	$munro_bar.headwatch( $bonesaw );
+	$munro_bar.walkto( "$cage_node1" );
+	$gonzales.turntoangle( 350 );
+
+	wait( .5 );
+
+	//--- start the third shot
+	cuecamera( $cam5 );
+
+	$bonesaw.walkto ( "$doorman_position2" );
+	$gonzales.walkto( "$gonzocagenode");
+
+	wait( 1 );
+
+	$krindo.walkto( "$krindocagenode");
+
+	wait( 3 );
+
+	//--- start the fourth shot
+	$cam6.follow( $m9l1a_cage2 );
+	wait( .25 );
+	cuecamera( $cam6 );
+
+        forcemusic ("surprise");
+	// lower the cage
+	cageLowered = 1;
+	$cage.playsound( "sound/ships/klingon/kling_cagehit.wav", 5, 1, 800 );
+	globalAccelMove( $cage, '0 0 -320', 1, "rampup", "sound/ships/klingon/kling_cagelower.wav" );
+	waitfor( $cage );
+	//$cage.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 5, 1, 800 );
+
+	$bonesaw.playdialog("localization/sound/dialog/m9l1/naus_trifle.mp3", 1, 800, 0); //You dare trifle with me, Federation?  Die!
+	waitForDialog( $bonesaw );
+
+	wait( .25 );
+
+	thread cinematic_CageMatch_Skipthread();
+}
+
+//---------------------
+// Bar Fight Cinematic
+// Bar Fight Cinematic Skipthread
+//---------------------
+void cinematic_CageMatch_Skipthread()
+{
+	//fade to black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1.25 );
+
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematic_CageMatch" );
+
+	// warp all the fools into position
+	$krindo.origin( '-152 -456 16' );
+	$gonzales.origin( '-152 -328 16' );
+
+	$bonesaw.warpto( "$doorman_position2" );
+	$humanMale1.warpto( "$spectateNode1" );
+	$humanFemale1.warpto( "$spectateNode2" );
+	$humanFemale2.warpto( "$spectateNode3" );
+	$andorianMale1.warpto( "$spectateNode4" );
+	$andorianMale3.warpto( "$spectateNode5" );
+
+	$munro_bar.resethead();
+	$klingon_barkeep.resethead();
+
+	
+	//hzm coop mod chrissstrahl - make sure we have at least one valid player!
+	while( !doesEntityExist(entityPlayerGlobal) || entityPlayerGlobal.getHealth() < 1){
+		wait(2);
+		if(!doesEntityExist(entityPlayerGlobal)){
+			entityPlayerGlobal = globalCoop_return_playerClosestActive($klingon_barkeep);
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - grab player that was triggering this sequence, and move him, like in singleplayer
+	entityPlayerGlobal.origin( '416 -2616 -408' );
+	entityPlayerGlobal.playerviewangles( '0 -486 0' );
+	
+	//hzm coop mod chrissstrahl - do this is a specialized function
+	/*
+	$krindo.headwatch( $player );
+	$gonzales.headwatch( $player );
+	$humanMale1.headwatch( $player );
+	$humanFemale1.headwatch( $player );
+	$humanFemale2.headwatch( $player );
+	$andorianMale1.headwatch( $player );
+	$andorianMale3.headwatch( $player );
+	*/
+
+	// lower the cage if its not already lowered
+	if( cageLowered == 0 )
+	{
+		$cage.time( .1 );
+		$cage.moveDown( 320 );
+		waitfor( $cage );
+	}
+
+	$munro_bar.stopdialog();
+	$gonzales.stopdialog();
+	$bonesaw.stopdialog();
+	$klingon_barkeep.stopdialog();
+
+	thread cinematic_CageMatch_End();
+}
+
+//---------------------
+// Bar Fight Cinematic
+// Bar Fight Cinematic End
+//---------------------
+void cinematic_CageMatch_End()
+{
+	$munro_bar.remove();
+	
+	//hzm coop mod chrissstrahl - do this is a specialized function
+	/*
+	$player.origin( '0 -448 0' );
+	$player.playerviewangles( '-5 -1439 0' );
+	*/
+
+	$humanMale1.anim( "idle_cheer" );
+	$humanFemale1.anim( "idle_cheer" );
+	$humanFemale2.anim( "idle_cheer" );
+	$andorianMale1.anim( "idle_cheer" );
+	$krindo.anim( "idle_cheer" );
+	$gonzales.anim( "idle_cheer" );
+
+	$bonesaw.addcustomthread ( "meleehit" , "npcCheer" );
+	//$bonesaw.killthread ( "endBarFightSequence");
+
+	$cageWallTriggers.triggerable();
+	
+	wait( 1 );
+
+	$krindo.angle( 0 );
+	$gonzales.angle( 0 );
+
+	noncinematic();
+	clearletterbox( 1 );
+	cueplayer();
+
+    //--- music cue
+	music( "action");
+	
+	//hzm coop mod chrissstrahl - move thet player inside the cage and make him fight, do all other setup, ai and so forth
+	thread coop_nicolasCagePlayer(entityPlayerGlobal);
+
+	wait( .25 );
+
+	//fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	releaseplayer();
+
+	$gonzales.playdialog("localization/sound/dialog/m9l1/gonz_gethim.mp3", 1, 1000, 0); //Get him, Munro!
+
+	$bonesaw.actortype ( "enemy" );
+	wait( .25 );
+
+
+}
+
+//---------------------
+// NPC Cheers
+// Bar patrons cheer when nausican hits player with batleth
+//---------------------
+void npcCheer()
+{
+	$humanMale1.playsound( "sound/ships/klingon/kling_cheer.wav", 5, 1, 800 );
+	$andorianMale1.playsound( "sound/ships/klingon/kling_cheer2.wav", 6, 1, 800 );
+	$andorianMale3.playsound( "sound/ships/klingon/kling_cheer3.wav", 7, 1, 800 );
+
+	//centerprint( "yay!!" ); - ZAK, NEED LOUD CHEER SOUNDS HERE
+
+	$humanMale1.anim( "cheer" );
+	$humanFemale1.anim( "boo" );
+	$humanFemale2.anim( "cheer" );
+	$andorianMale1.anim( "boo" );
+	$andorianMale3.anim( "boo" );
+	$krindo.anim( "boo" );
+	$gonzales.anim( "boo" );
+
+	wait( 1 );
+
+	$humanMale1.anim( "idle_cheer" );
+	$humanFemale1.anim( "idle_cheer" );
+	$humanFemale2.anim( "idle_cheer" );
+	$andorianMale1.anim( "idle_cheer" );
+	$andorianMale3.anim( "idle_cheer" );
+	$krindo.anim( "idle_cheer" );
+	$gonzales.anim( "idle_cheer" );
+}
+
+//---------------------
+// NPC Boos
+// Bar patrons boo when player hits nausican with batleth
+//---------------------
+void npcBoo()
+{
+	$humanMale1.playsound( "sound/ships/klingon/kling_boo1.wav", 8, 1, 800 );
+	$andorianMale1.playsound( "sound/ships/klingon/kling_boo2.wav", 9, 1, 800 );
+	$andorianMale3.playsound( "sound/ships/klingon/kling_boo3.wav", 10, 1, 800 );
+
+	//centerprint( "boo!!" ); - ZAK, NEED LOUD BOO SOUNDS HERE
+
+	$humanMale1.anim( "boo" );
+	$humanFemale1.anim( "cheer" );
+	$humanFemale2.anim( "boo" );
+	$andorianMale1.anim( "cheer" );
+	$andorianMale3.anim( "cheer" );
+	$krindo.anim( "cheer" );
+	$gonzales.anim( "cheer" );
+
+	wait( 1 );
+
+	$humanMale1.anim( "idle_cheer" );
+	$humanFemale1.anim( "idle_cheer" );
+	$humanFemale2.anim( "idle_cheer" );
+	$andorianMale1.anim( "idle_cheer" );
+	$andorianMale3.anim( "idle_cheer" );
+	$krindo.anim( "idle_cheer" );
+	$gonzales.anim( "idle_cheer" );
+}
+
+//---------------------
+// endBarFightSequence
+// after defeating the nausican (BONESAW), screen fades and bar is returned to normal
+//---------------------
+void endBarFightSequence()
+{
+	//hzm coop mod chrissstrahl - signal script that it is over
+	coop_itIsAllOverNow = 1;
+	
+	//fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	freezeplayer();
+	cinematic();
+	letterbox( .1 );
+	$bonesaw.anim( "idle" );
+
+	wait( .25 );
+
+	$bonesaw.origin( '140 -480 0' );
+	$bonesaw.angle( 180 );
+
+	$cam7.origin( '-56.07 -453.37 81.52' );
+	wait( .25 );
+
+	cuecamera( $cam7 );
+	$cam7.watch( "$bonesaw" );
+
+	wait( .5 );
+
+	$bonesaw.anim( "death" );
+
+	//fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	forcemusic( "success","aux3");
+
+        //--- sound cue
+	$humanMale1.playsound( "sound/ships/klingon/kling_boo1.wav", 8, 1, 800 );
+	wait( .1 );
+	$andorianMale1.playsound( "sound/ships/klingon/kling_boo2.wav", 9, 1, 800 );
+	wait( .25 );
+	$andorianMale3.playsound( "sound/ships/klingon/kling_boo3.wav", 10, 1, 800 );
+	wait( .25 );
+	$humanMale1.playsound( "sound/ships/klingon/kling_boo1.wav", 8, 1, 800 );
+
+	wait( 1 );
+
+	allowmusicducking ( 1 );
+	music( "suspense");
+
+	wait( 4 );
+
+	//fade out
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	$bonesaw.anim( "idle" );
+	$bonesaw.ai_off();
+	$bonesaw.pushable( 0 );
+	$bonesaw.origin( '400 -240 0' );
+	$bonesaw.angle( 270 );
+
+	$player.deactivateweapon ( "dual" );	//hide batleth viewmodel from player
+	$player.take( "batleth" );
+	wait( .25 );
+	$player.disableuseweapon( 1 );
+
+	$krindo.resethead();
+	$gonzales.resethead();
+	$humanMale1.resethead();
+	$humanFemale1.resethead();
+	$humanFemale2.resethead();
+	$andorianMale1.resethead();
+	$andorianMale3.resethead();
+
+	wait( .25 );
+
+	$bonesaw.origin( '400 -240 0' );
+	$bonesaw.angle( 270 );
+
+	// hack this to make sure gonzo doesnt yell when his AI gets turned back on
+	$gonzales.forgetenemies();
+	$bonesaw.actortype( "friend" );
+	wait ( .05 );
+	$bonesaw.forgetenemies();
+
+	$humanMale1.warpto( "$krindoNode1" );
+	$humanMale1.angle( 135 );
+
+	$humanFemale2.warpto( "$bar_origin3" );
+	$humanFemale2.angle( 190 );
+
+	$cage.time( .05 );
+	$cage.moveUp( 320 );
+	waitfor( $cage );
+
+	wait( .25 );
+
+	$cageWallTriggers.remove();
+
+	$barBatleth.show();
+
+	barDoorLocked = 0;
+
+	$innerBarDoor.unlock();	//unlock door to VIP room
+	$innerBarDoor.noise( "sound/ships/klingon/kling_beepyes.wav" );
+	$barDoorLight_red.hide(); //hide red light script object above door
+	$barDoorLight_green.show(); //show green light script object above door
+
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+
+	thread bartender_lookbusy();
+
+	wait( 2 );
+
+	releaseplayer();
+
+	//fade in
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+
+	// turn on everyones AI again
+	$gonzales.ai_on();
+	$krindo.ai_on();
+	$humanMale1.ai_on();
+	$humanFemale1.ai_on();
+	$humanFemale2.ai_on();
+	$andorianMale1.ai_on();
+	$andorianMale3.ai_on();
+
+	wait( 1 );
+
+	$klingon_barkeep.playdialog("localization/sound/dialog/m9l1/bar_nice.mp3", 1, 500, 1); //Nice job. Here's the code to the VIP room. Come back when you want a job as bouncer.
+	waitForDialog( $klingon_barkeep );
+
+	$world.light_lightstyle( "doorLight_red1" , "a" , 0 ); //turn on green light entity above door to VIP lounge (red off)
+	$world.light_lightstyle( "doorLight_green1" , "z" , 0 );
+
+	if( doesEntityExist ( $barStarWarsConversation_Trigger ) )
+	{
+		$barStarWarsConversation_Trigger.triggerable();
+	}
+}
+
+void bartender_lookbusy()
+{
+	$klingon_barkeep.attachmodel( "models/enviro/klingon_bottle1.tik" , "tag_Rhand" , 1 , "" , 0 , 0 , 1.0 );
+
+	while( 1 )
+	{
+		$klingon_barkeep.anim( "bar_idle" );
+		waitforanimation( $klingon_barkeep , "bar_idle" );
+
+		$klingon_barkeep.anim( "bar_shake" );
+		waitforanimation( $klingon_barkeep , "bar_shake" );
+
+		$klingon_barkeep.anim( "bar_idle" );
+		waitforanimation( $klingon_barkeep , "bar_idle" );
+
+		$klingon_barkeep.anim( "bar_spin" );
+		waitforanimation( $klingon_barkeep , "bar_spin" );
+	}
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// OMAG CHASE SEQUENCES
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// omagFollowPath01
+// omags follows first path out of bar
+//---------------------
+void omagFollowPath01()
+{
+	wait ( .5 );
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath01" );
+	waitfor ( $omag );
+	// warp omag to second area in hallway
+	$omag.warpTo ( "$omagWarptoPosition02" );
+}
+
+//---------------------
+// omagFollowPath02
+// omags follows second path through hallway
+//---------------------
+void omagFollowPath02()
+{
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath02" );
+	waitfor ( $omag );
+	// warp omag to upper-walkway in small warehouse
+	$omag.warpTo ( "$omagWarptoPosition03" );
+}
+
+//---------------------
+// omagFollowPath03
+// omags follows path along upper walkway
+//---------------------
+void omagFollowPath03()
+{
+	thread klingonTaunts();
+
+	$omag.blindlyfollowpath ( "run", 0 , "omagPath03" );
+	waitfor ( $omag );
+	// warp omag to upper-walkway in small warehouse
+	//$omag.warpTo ( "$omagWarptoPosition03" );
+	$omag.remove();
+}
+
+//---------------------
+// Barrels
+// Omag knocks over some barrels in a hallway
+//---------------------
+void barrelPuzzle()
+{
+	$barrel1.playsound( "sound/environment/metal/bigcreak_impact.wav", 4, 1, 550 );
+	$barrel1.time( 2 );
+	$barrel1.rotateZup( 90 );
+	$barrel2.rotateXup( 5 );
+
+	wait( .25 );
+
+	$barrel1.time( 3 );
+	$barrel2.rotateZup( 90 );
+	$barrel2.rotateXup( 25 );
+
+	wait( 1 );
+
+	$panelExplode1.playsound( "sound/impact/explosion/explo_shuttleint.wav", 6, 2, 550 );
+	trigger( "$panelExplode1" );
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// IN-GAME DIALOG SEQUENCES
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// Team Dialog In Hallway
+// Gonzales and Krindo babble as they walk about the station
+//---------------------
+void teamDialog1()
+{
+	wait( 4 );
+
+	$gonzales.playdialog("localization/sound/dialog/m9l1/gonz_betterday.mp3", 1, 500, 1); //This old Starbase has seen better days.
+	waitForDialog( $gonzales );
+	//$munro.playdialog("localization/sound/dialog/m9l1/munro_things.mp3", 1, 500, 0); //And better inhabitants, from the look of things.
+	//waitForDialog( $munro );
+}
+
+//---------------------
+// Team Dialog In Bar
+// Krindo voices that he doesnt see omag in the bar
+//---------------------
+void dialogInBar1()
+{
+	$player.setobjectivecomplete ( "TakeKrindotoBar" , 1 );
+
+	$krindo.playdialog("localization/sound/dialog/m9l1/krindo_dontsee.mp3", 1, 500, 1); //I don't see him.
+	waitForDialog( $krindo );
+	//$munro.playdialog("localization/sound/dialog/m9l1/munro_lookaround.mp3", 1, 10000, 0); //Look around again.
+	//waitForDialog( $munro );
+}
+
+//---------------------
+// Klingon Taunts
+// Klingons taunt Munro and he makes some lame ass remark
+//---------------------
+void klingonTaunts()
+{
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_stopthem.mp3", 1, 500, 0); //Federation scum right behind me! They’re here to arrest everyone! Stop them, and I’ll pay you well!
+	waitForDialog( $omag );
+
+	$hallway_seq05_rifle1.playdialog("localization/sound/dialog/m9l1/klingon_hide.mp3", 1, 500, 0); //What will you do without a Starship to hide behind?
+	waitForDialog( $hallway_seq05_rifle1 );
+
+	//$munro.playdialog("localization/sound/dialog/m9l1/munro_hidebehind.mp3", 1, 10000, 0); //I'll hide behind this.
+	//waitForDialog( $munro );
+}
+
+//---------------------
+// Klingon Taunts
+// Omag screams, Munro taunts a Klingon and the Klingon gets pissed off
+//---------------------
+void dialogKlingonHonor()
+{
+	$omag.playdialog("localization/sound/dialog/m9l1/omag_latinum.mp3", 1, 500, 0); //Latinum for Federation heads! Attention all mercenaries!
+	waitForDialog( $omag );
+
+	$munro.playdialog("localization/sound/dialog/m9l1/munro_honor.mp3", 1, 10000, 0); //Where's the honor in protecting a Ferengi for money?
+	waitForDialog( $munro );
+
+	$hallway_seq01_knife2.playdialog("localization/sound/dialog/m9l1/klingon_dare.mp3", 1, 500, 0); //How dare you insult my honor?
+	waitForDialog( $hallway_seq01_knife2 );
+
+	$munro.playdialog("localization/sound/dialog/m9l1/munro_whathon.mp3", 1, 10000, 0); //What honor?
+	waitForDialog( $munro );
+
+	$hallway_seq01_knife2.playdialog("localization/sound/dialog/m9l1/klingon_arrg.mp3", 1, 500, 0); //Arrrgh!
+	waitForDialog( $hallway_seq01_knife2 );
+}
+
+//---------------------
+// Bar Conversation Dialog
+// Start up some conversation in the cantina
+//---------------------
+void barStarWarsConversation()
+{
+	if( hallwayConversation1Complete != 1 )
+	{
+		killthread( "hallwayConversation1" );
+		hallwayConversation1Complete = 1;
+
+		$hallwayConversation1_male1.stopdialog();
+		$hallwayConversation1_klingon1.stopdialog();
+
+		$hallwayConversation1_male1.dialog( "hallway1_male2Dialog" );
+		$hallwayConversation1_klingon1.dialog( "hallway1_klingon1Dialog" );
+	}
+
+	if( hallwayConversation2Complete != 1 )
+	{
+		killthread( "hallwayConversation2" );
+		hallwayConversation2Complete = 1;
+
+		$hallwayConversation2_male1.stopdialog();
+		$hallwayConversation2_female1.stopdialog();
+
+		$hallwayConversation2_female1.dialog( "hallway2_female1Dialog" );
+		$hallwayConversation2_male1.dialog( "hallway2_male1Dialog" );
+	}
+
+	$HanSolo.headwatch( $ObiWanKenobi );
+	$ObiWanKenobi.headwatch( $HanSolo );
+	$LukeSkywalker.headwatch( $HanSolo );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_zane.mp3", 1, 250, 0 ); // I'm the commander of the transport vessel Kytan.  My friend here tells me you're looking for transportation?
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_indeed.mp3", 1, 250, 0 ); // Yes, indeed, if it's a big vessel.
+	waitForDialog( $ObiWanKenobi );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_neverheard.mp3", 1, 250, 0 ); //  Big vessel? The Kytan is a Wudan-class transport vessel.
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_should.mp3", 1, 250, 0 ); // Should I know what that means?
+	waitForDialog( $ObiWanKenobi );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_shipmade.mp3", 1, 250, 0 ); // Let's just say it's big
+	waitForDialog( $HanSolo );	wait( .25 );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_outh.mp3", 1, 250, 0 ); // ... I've outhauled Romulan starships, not just the D-cruisers, either.  I can carry more cargo then even the big D'deridex-class ships.  What's the cargo?
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_only.mp3", 1, 250, 0 ); // Only myself, ten transport containers of domesticated Targ, and no questions asked.
+	waitForDialog( $ObiWanKenobi );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_trouble.mp3", 1, 250, 0 ); // What's your destination?
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_noq.mp3", 1, 250, 0 ); // Didn't I just say no questions asked?  I'll provide you with the coordinates after we depart the station.
+	waitForDialog( $ObiWanKenobi );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_tricky.mp3", 1, 250, 0 ); // Three thousand Latinum in advance, or no deal.
+	waitForDialog( $HanSolo );
+
+	$HanSolo.headwatch( $LukeSkywalker );
+
+	$LukeSkywalker.playdialog( "localization/sound/dialog/m9l1/merc11_bird.mp3", 1, 250, 0 ); // Three thousand?  We could almost buy a Klingon Bird of Prey for that!
+	waitForDialog( $LukeSkywalker );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_warpcore.mp3", 1, 250, 0 ); // That's obvious, but I think where you're going you'll need an experienced pilot.
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.headwatch( $LukeSkywalker );
+
+	$LukeSkywalker.playdialog( "localization/sound/dialog/m9l1/merc11_youbet.mp3", 1, 250, 0 ); // I'm sure for that money  we could buy a pilot too.
+	waitForDialog( $LukeSkywalker );
+
+	$ObiWanKenobi.headwatch( $HanSolo );
+	$HanSolo.headwatch( $ObiWanKenobi );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_muchon.mp3", 1, 250, 0 ); // How about we give you two thousand now, and another two thousand when we reach our destination.
+	waitForDialog( $ObiWanKenobi );
+
+	$HanSolo.playdialog( "localization/sound/dialog/m9l1/merc9_sevent.mp3", 1, 250, 0 ); // Four thousand total?  Hmm...I could do that.  My ship is at your disposal, friend.
+	waitForDialog( $HanSolo );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_twent.mp3", 1, 250, 0 ); // We will have our cargo ready for transport in one hour.
+	waitForDialog( $ObiWanKenobi );
+
+	$LukeSkywalker.headwatch( $ObiWanKenobi );
+	$ObiWanKenobi.headwatch( $LukeSkywalker );
+
+	$LukeSkywalker.playdialog( "localization/sound/dialog/m9l1/merc11_calc.mp3", 1, 250, 0 ); // Let's see if we can get a drink before we leave.  It might be hard to get Romulan Ale where we are going.
+	waitForDialog( $LukeSkywalker );
+
+	$ObiWanKenobi.playdialog( "localization/sound/dialog/m9l1/merc10_findanoth.mp3", 1, 250, 0 ); // Make mine a double.
+	waitForDialog( $ObiWanKenobi );
+
+	$ObiWanKenobi.headwatch( $HanSolo );
+	$LukeSkywalker.headwatch( $HanSolo );
+
+	barStarWarsConversationComplete = 1;
+
+	$HanSolo.dialog( "HanSoloDialog" );
+	$LukeSkywalker.dialog( "LukeSkywalkerDialog" );
+	$ObiWanKenobi.dialog( "ObiWanKenobiDialog" );
+}
+
+//---------------------
+// Bar Conversation Dialog
+// Start up some conversation in the cantina
+//---------------------
+void barRomulanAleConversation()
+{
+	$humanMale1.headwatch( $andorianMale3 );
+	$andorianMale3.headwatch( $humanMale1 );
+
+	$andorianMale3.playdialog( "localization/sound/dialog/m9l1/merc1_aged.mp3", 1, 250, 0 ); // You know, this aged Romulan ale is just the standard Romulan ale they don't sell right away. Every couple of years they pump a bunch of it out of storage, they change the label on the bottle, and they sell it for twice the price.
+	waitForDialog( $andorianMale3 );
+
+	$humanMale1.playdialog( "localization/sound/dialog/m9l1/merc2_reallyter.mp3", 1, 250, 0 ); // Really?  That's terrible!
+	waitForDialog( $humanMale1 );
+
+	$andorianMale3.playdialog( "localization/sound/dialog/m9l1/merc1_truemore.mp3", 1, 250, 0 ); // It's true.  And what's more, it's not all a century old.  Some of it's from 150 year old batches and others from 50 year old batches.  They just mix it all together and kind of average it out.
+	waitForDialog( $andorianMale3 );
+
+	$humanMale1.playdialog( "localization/sound/dialog/m9l1/merc2_ripoff.mp3", 1, 250, 0 ); // What a rip-off!
+	waitForDialog( $humanMale1 );
+
+	wait( 3 );
+
+	$humanMale1.headwatch( $klingon_barkeep );
+
+	$humanMale1.playdialog( "localization/sound/dialog/m9l1/merc2_round.mp3", 1, 250, 0 ); // We need another round of Romulan Century.
+	waitForDialog( $humanMale1 );
+
+	barRomulanAleConversationComplete = 1;
+
+	$humanMale1.dialog( "male1Dialog" );
+	$andorianMale3.dialog( "andorian3Dialog" );
+}
+
+//---------------------
+// Bar Conversation Dialog
+// Start up some conversation in the cantina
+//---------------------
+void barMusicianConversation()
+{
+	$humanMale3.headwatch( $klingonFemale1 );
+	$klingonFemale1.headwatch( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_tellingyou.mp3", 1, 250, 0 ); // I'm telling you, that guy is Ardrek L'Xor
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_nowwhy.mp3", 1, 250, 0 ); // Now why would a famous Risan musician be here?
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_search.mp3", 1, 250, 0 ); // I don't know... maybe he's searching for his next bold new look.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_onbase.mp3", 1, 250, 0 ); // Here?  On a Klingon starbase?  Right, I'll bet he's planning to launch a new fashion trend… Mercenary-chic.
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_fine.mp3", 1, 250, 0 ); // Fine.  I'll bet you 50 latinum that that guy over there is Ardrek L'Xor.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_yourname.mp3", 1, 250, 0 ); // 50 latinum!  You don't have 50 latinum to your name.  If you did, you'd be in the gaming hall right now.
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_ship.mp3", 1, 250, 0 ); // Look, I've got a shipment of Tholian figurines coming in tomorrow.  That's worth at least 50 latinum.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_figur.mp3", 1, 250, 0 ); // Figurines!?  What am I going to do with 50 latinum worth of Tholian Figurines?
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_selland.mp3", 1, 250, 0 ); // I'm going to sell them to the Andorians.  Then I'll have well more than 50 latinum.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_buyfig.mp3", 1, 250, 0 ); // Why would an Andorian mercenary want to buy Tholian Figurines?
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_wives.mp3", 1, 250, 0 ); // They don't get them for themselves.  They get them as gifts for their wives.  They like to display them in cases in their family communal area.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_once.mp3", 1, 250, 0 ); // I think I've been inside one of those dwellings.  It was truly repulsive.
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_addict.mp3", 1, 250, 0 ); // Their women are almost addicted to these things.  No matter how many they possess, every time a new type comes out they immediately desire to obtain it to add to their menagerie.
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_notpay.mp3", 1, 250, 0 ); // Fine, I'll wager you 50 latinum that this is not Ardrek L'Xor.  And you'd better not try to pay it off with those hideous figurines.
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_deal.mp3", 1, 250, 0 ); // Deal.  Now let's go ask him
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_wherehe.mp3", 1, 250, 0 ); // Ok, where is he?
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_wherego.mp3", 1, 250, 0 ); // Over there... Where'd he go?
+	waitForDialog( $klingonFemale1 );
+
+	$humanMale3.playdialog( "localization/sound/dialog/m9l1/merc4_left.mp3", 1, 250, 0 ); // I think he left.
+	waitForDialog( $humanMale3 );
+
+	$klingonFemale1.playdialog( "localization/sound/dialog/m9l1/merc3_buysome.mp3", 1, 250, 0 ); // That's too bad.  I was going to see if he wanted to buy some Tholian figurines.
+	waitForDialog( $klingonFemale1 );
+
+	barMusicianConversationComplete = 1;
+
+	$humanMale3.dialog( "humanMale3Dialog" );
+	$klingonFemale1.dialog( "klingonFemale1Dialog" );
+}
+
+//---------------------
+// Shuttlebay Conversation 1 Dialog
+// Start up some conversation in the shuttlebay
+//---------------------
+void shuttlebayConversation1()
+{
+	$shuttlebayConversation1_andorian1.headwatch( $shuttlebayConversation1_andorian2 );
+	$shuttlebayConversation1_andorian2.headwatch( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_sofindingw.mp3", 1, 250, 0 ); // So I'm having trouble finding work, and this old trader I know says he's got a job. Toys for the colony on Regula Five.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_degrad.mp3", 1, 250, 0 ); // How degrading.
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_getbetter.mp3", 1, 250, 0 ); // Wait, it gets better.  So he says they're in boxes, but under no circumstances should I inspect them.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_strange.mp3", 1, 250, 0 ); // That's strange.
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_openup.mp3", 1, 250, 0 ); // Yes, so of course I open them up, and what do I find?  Tribbles.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_tribkid.mp3", 1, 250, 0 ); // Tribbles, you're kidding.
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_sothink.mp3", 1, 250, 0 ); // So I'm thinking, I can't deliver these, but I need the latinum, you know?
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_whatdo.mp3", 1, 250, 0 ); // So what'd you do?
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_tribstew.mp3", 1, 250, 0 ); // Tribble stew.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_no.mp3", 1, 250, 0 ); // No!
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_yepchick.mp3", 1, 250, 0 ); // Yes. Tastes almost like chicken.  I sold the muck to refugees on Ferrius Prime.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_gotta.mp3", 1, 250, 0 ); // I gotta remember that one.
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_ton.mp3", 1, 250, 0 ); // Only problem is, I got about 10 metric tons of Tribble hair to get rid of.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_coats.mp3", 1, 250, 0 ); // Hmm... Tribble-hair coats?
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_hats.mp3", 1, 250, 0 ); // Maybe, right now I'm leaning toward Tribble-felt hats.  There's a market for those to some of the Romulan merchants that operate near the neutral zone.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	$shuttlebayConversation1_andorian2.playdialog( "localization/sound/dialog/m9l1/merc2_anti.mp3", 1, 250, 0 ); // Then again, transfer of Tribbles in any form is forbidden in Klingon space.
+	waitForDialog( $shuttlebayConversation1_andorian2 );
+
+	$shuttlebayConversation1_andorian1.playdialog( "localization/sound/dialog/m9l1/merc1_goodp.mp3", 1, 250, 0 ); // Good point.
+	waitForDialog( $shuttlebayConversation1_andorian1 );
+
+	shuttlebayConversation1Complete = 1;
+
+	$shuttlebayConversation1_andorian1.dialog( "shuttlebay1_andorian1Dialog" );
+	$shuttlebayConversation1_andorian2.dialog( "shuttlebay1_andorian2Dialog" );
+}
+
+//---------------------
+// Shuttlebay Conversation 2 Dialog
+// Start up some conversation in the shuttlebay
+//---------------------
+void shuttlebayConversation2()
+{
+	$shuttlebayConversation2_male1.headwatch( $shuttlebayConversation2_male2 );
+	$shuttlebayConversation2_male2.headwatch( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc3_lizard.mp3", 1, 250, 0 ); // Yesterday, this big lizard man comes into my store.  I say, What can I do for ya?  And all he does is hiss.
+	waitForDialog( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male2.playdialog( "localization/sound/dialog/m9l1/merc4_hiss.mp3", 1, 250, 0 ); // Hiss?
+	waitForDialog( $shuttlebayConversation2_male2 );
+
+	$shuttlebayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc3_artic.mp3", 1, 250, 0 ); // Well, sort of an articulated hissing, like hsshsshhhhsss.
+	waitForDialog( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male2.playdialog( "localization/sound/dialog/m9l1/merc4_weird.mp3", 1, 250, 0 ); // Weird.
+	waitForDialog( $shuttlebayConversation2_male2 );
+
+	$shuttlebayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc3_gorn.mp3", 1, 250, 0 ); // Then he hands me a card, and all it says is "Gorn."
+	waitForDialog( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male2.playdialog( "localization/sound/dialog/m9l1/merc4_famil.mp3", 1, 250, 0 ); // Gorn... that sounds familiar.
+	waitForDialog( $shuttlebayConversation2_male2 );
+
+	$shuttlebayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc3_disrupt.mp3", 1, 250, 0 ); // Anyway, he keeps pointing to the disruptors like he wants one.
+	waitForDialog( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male2.playdialog( "localization/sound/dialog/m9l1/merc4_freak.mp3", 1, 250, 0 ); // I wouldn't give a freak like that any kind of weapon.
+	waitForDialog( $shuttlebayConversation2_male2 );
+
+	$shuttlebayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc3_sulfur.mp3", 1, 250, 0 ); // No kidding. I told him to go somewhere else.  I won't deal with his kind.
+	waitForDialog( $shuttlebayConversation2_male1 );
+
+	$shuttlebayConversation2_male2.playdialog( "localization/sound/dialog/m9l1/merc4_brother.mp3", 1, 250, 0 ); // I hear you.
+	waitForDialog( $shuttlebayConversation2_male2 );
+
+	shuttlebayConversation2Complete = 1;
+
+	$shuttlebayConversation2_male1.dialog( "shuttlebay2_male1Dialog" );
+	$shuttlebayConversation2_male2.dialog( "shuttlebay2_male2Dialog" );
+}
+
+//---------------------
+// Hallway Conversation 1 Dialog
+// Start up some conversation in the hallway
+//---------------------
+void hallwayConversation1()
+{
+	if( shuttlebayConversation1Complete != 1 )
+	{
+		killthread( "shuttlebayConversation1" );
+		shuttlebayConversation1Complete = 1;
+
+		$shuttlebayConversation1_andorian1.stopdialog();
+		$shuttlebayConversation1_andorian2.stopdialog();
+
+		$shuttlebayConversation1_andorian1.dialog( "shuttlebay1_andorian1Dialog" );
+		$shuttlebayConversation1_andorian2.dialog( "shuttlebay1_andorian2Dialog" );
+	}
+
+	if( shuttlebayConversation2Complete != 1 )
+	{
+		killthread( "shuttlebayConversation2" );
+		shuttlebayConversation2Complete = 1;
+
+		$shuttlebayConversation2_male1.stopdialog();
+		$shuttlebayConversation2_male2.stopdialog();
+
+		$shuttlebayConversation2_male1.dialog( "shuttlebay2_male1Dialog" );
+		$shuttlebayConversation2_male2.dialog( "shuttlebay2_male2Dialog" );
+	}
+
+	$hallwayConversation1_male1.headwatch( $hallwayConversation1_klingon1 );
+	$hallwayConversation1_klingon1.headwatch( $hallwayConversation1_male1 );
+
+	$hallwayConversation1_male1.playdialog( "localization/sound/dialog/m9l1/merc5_hearfer.mp3", 1, 250, 0 ); // I hear that the Ferengi Omag is looking for new clients.  I wonder if he's in the VIP room?
+	waitForDialog( $hallwayConversation1_male1 );
+
+	$hallwayConversation1_klingon1.playdialog( "localization/sound/dialog/m9l1/merc6_without.mp3", 1, 250, 0 ); // The Ferengi are without honor, I will not trade with them.
+	waitForDialog( $hallwayConversation1_klingon1 );
+
+	$hallwayConversation1_male1.playdialog( "localization/sound/dialog/m9l1/merc5_yeah.mp3", 1, 250, 0 ); // Some of my best deals have been with Ferengi.
+	waitForDialog( $hallwayConversation1_male1 );
+
+	$hallwayConversation1_klingon1.playdialog( "localization/sound/dialog/m9l1/merc6_deal.mp3", 1, 250, 0 ); // Like the deal for the irradiated Plasma Regulators?
+	waitForDialog( $hallwayConversation1_klingon1 );
+
+	$hallwayConversation1_male1.playdialog( "localization/sound/dialog/m9l1/merc5_nottyp.mp3", 1, 250, 0 ); // How was he to know they came from a damaged Pakled frieghter?
+	waitForDialog( $hallwayConversation1_male1 );
+
+	$hallwayConversation1_klingon1.playdialog( "localization/sound/dialog/m9l1/merc6_orthe.mp3", 1, 250, 0 ); // Or the time Omag sold you the Ferenginar Bridge?
+	waitForDialog( $hallwayConversation1_klingon1 );
+
+	$hallwayConversation1_male1.playdialog( "localization/sound/dialog/m9l1/merc5_youright.mp3", 1, 250, 0 ); // I guess you're right, I never really thought about it that way.
+	waitForDialog( $hallwayConversation1_male1 );
+
+	$hallwayConversation1_klingon1.playdialog( "localization/sound/dialog/m9l1/merc6_ofcourse.mp3", 1, 250, 0 ); // Of course I am right.  You are an ignorant k'pekt.
+	waitForDialog( $hallwayConversation1_klingon1 );
+
+	hallwayConversation1Complete = 1;
+
+	$hallwayConversation1_male1.dialog( "hallway1_male2Dialog" );
+	$hallwayConversation1_klingon1.dialog( "hallway1_klingon1Dialog" );
+}
+
+//---------------------
+// Hallway Conversation 2 Dialog
+// Start up some conversation in the hallway
+//---------------------
+void hallwayConversation2()
+{
+	$hallwayConversation2_female1.headwatch( $hallwayConversation2_male1 );
+	$hallwayConversation2_male1.headwatch( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_barband.mp3", 1, 250, 0 ); // I'm thinking about starting a band.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc8_kidding.mp3", 1, 250, 0 ); // You're kidding, right?
+	waitForDialog( $hallwayConversation2_male1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_noser.mp3", 1, 250, 0 ); // No, I'm serious.  Vorlock and I have been practicing together for a few weeks.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc8_klingst.mp3", 1, 250, 0 ); // So what kind of music?
+	waitForDialog( $hallwayConversation2_male1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_happ.mp3", 1, 250, 0 ); // To be successful in a place like this we are leaning towards a mix of Klingon opera and classical Human and Andorian styles.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc8_in.mp3", 1, 250, 0 ); // That sounds terrible.  I'm in.
+	waitForDialog( $hallwayConversation2_male1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_excellent.mp3", 1, 250, 0 ); // Excellent.  There's just one thing… we need a practice space.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc8_preactice.mp3", 1, 250, 0 ); // A practice space... wait a minute, you're not thinking of my cargo bay.
+	waitForDialog( $hallwayConversation2_male1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_acoust.mp3", 1, 250, 0 ); // The acoustics are great in there.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	$hallwayConversation2_male1.playdialog( "localization/sound/dialog/m9l1/merc8_noway.mp3", 1, 250, 0 ); // No way.
+	waitForDialog( $hallwayConversation2_male1 );
+
+	$hallwayConversation2_female1.playdialog( "localization/sound/dialog/m9l1/merc7_groupies.mp3", 1, 250, 0 ); // Aw, come on, think of the latinum we will make.
+	waitForDialog( $hallwayConversation2_female1 );
+
+	hallwayConversation2Complete = 1;
+
+	$hallwayConversation2_female1.dialog( "hallway2_female1Dialog" );
+	$hallwayConversation2_male1.dialog( "hallway2_male1Dialog" );
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// BATTLE SEQUENCES
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// Hallway Battle Sequence 01
+//---------------------
+void hallway_seq01()
+{
+	$hallway_seq01_knife2.setactivationdelay( 2 ); 		//was 5
+	$hallway_seq01_knife1.setactivationdelay( 0 );	//was 1
+	$hallway_seq01_batleth1.setactivationdelay( .25 );
+}
+
+//---------------------
+// Hallway Battle Sequence 02
+//---------------------
+void hallway_seq02()
+{
+	$hallway_seq02_batleth1.ai_on();
+	$hallway_seq02_knife1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 03
+//---------------------
+void hallway_seq03()
+{
+	$hallway_seq03_knife1.setactivationdelay( 2 );
+	$hallway_seq03_batleth1.setactivationdelay( 3 );
+
+	wait( .25 );
+
+	$hallway_seq03_knife1.ai_on();
+	$hallway_seq03_batleth1.ai_on();
+	$hallway_seq03_rifle1.ai_on();
+	$hallway_seq03_rifle2.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 04
+//---------------------
+void hallway_seq04()
+{
+	$hallway_seq04_grenade1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 05
+//---------------------
+void hallway_seq05()
+{
+	$hallway_seq05_batleth1.setactivationdelay( 4 );
+	$hallway_seq05_knife1.setactivationdelay( .25 );
+}
+
+//---------------------
+// Hallway Battle Sequence 05 - Catwalk Ambush Grenade Guy
+//---------------------
+void hallway_seq05_catwalk_ambush1()
+{
+	$hallway_seq05_grenade1.walkto( "$grenade_guy_node1", "run" );
+	waitfor( $hallway_seq05_grenade1 );
+
+	$hallway_seq05_grenade1.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 05 - Catwalk Ambush Batleth Guy
+//---------------------
+void hallway_seq05_catwalk_ambush2()
+{
+	$hallway_seq05_batleth2.ai_on();
+}
+
+//---------------------
+// Hallway Battle Sequence 06
+//---------------------
+void hallway_seq06()
+{
+	$hallway_seq06_batleth1.walkto( "$batleth_guy_node1", "run" );
+	wait ( .75 );
+	$hallway_seq06_knife1.walkto( "$knife_guy_node1", "run" );
+
+	wait ( 1 );
+
+	$hallway_seq06_batleth1.ai_on();
+
+	wait( .5 );
+
+	$hallway_seq06_knife1.ai_on();
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// INTRO CINEMATIC
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+//---------------------
+// cinematicArm_Intro_Start
+// starting armature cinematic
+//---------------------
+void cinematicArm_Intro_Start()
+{
+	//--- start the armature
+	cinematicArm_Intro.beginCinematic( "m9l1a_k7intro" );
+	wait( .2 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_Intro_ArmEnd" );
+}
+
+//---------------------
+// cinematicArm_Intro_ArmEnd
+// end thread for cinematic
+//---------------------
+void cinematicArm_Intro_ArmEnd()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_Intro.endCinematic( FALSE );
+
+	killthread( "cinematicArm_Intro_Start" );
+
+	//--- show gonzales and krindo
+	globalCommon_AiDummy( $krindo, "" );
+	globalCommon_AiDummy( $gonzales, "" );
+
+	//$player.warp( $nodeMunro_PostChellCinematic.getOrigin() );
+	//$player.turntowardsentity( $chell );
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .75 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	//--- start krindo and gonzales AI
+	globalCommon_AiActor( $krindo );
+	globalCommon_AiActor( $gonzales );
+
+	wait( 1 );
+
+	shuttlebayConversation1();
+}
+
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+// OMAG CHOICE DIALOG SEQUENCE CINEMATIC
+//-----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------
+
+void testLoad()
+{
+	cam.load( "m9l1a_MeetOmag_Shot1" );
+	cam.load( "m9l1a_MeetOmag_Shot2" );
+	cam.load( "m9l1a_MeetOmag_Shot3" );
+	cam.load( "m9l1a_MeetOmag_Shot4" );
+}
+
+//---------------------
+// cinematicArm_MeetOmag_Start
+// opening armature of krindo walking up to omag
+//---------------------
+void cinematicArm_MeetOmag_Start()
+{
+	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	//hzm coop mod chrissstrahl - Set spawnangle for player 1
+	coop_float_spawnAngle1 		= 0;
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_vector_spawnOrigin1 	= '564 537 0';	
+	coop_vector_spawnOrigin2 	= '564 537 0';
+	coop_vector_spawnOrigin3 	= '454 542 0';
+	coop_vector_spawnOrigin4 	= '451 468 0';
+	coop_vector_spawnOrigin5 	= '529 465 0';
+	coop_vector_spawnOrigin6 	= '526 393 0';
+	coop_vector_spawnOrigin7 	= '463 396  0';
+	coop_vector_spawnOrigin8 	= '460 341 0';
+	/*
+	(451 273 85) : 55
+	(511 261 85) : 55
+	(509 334 85) : 55	
+	*/
+
+	//--- mark the objective as complete
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$LocateOmag$$","complete",2,1);
+
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	cam.load( "m9l1a_MeetOmag_Shot1" );
+	cam.load( "m9l1a_MeetOmag_Shot2" );
+	cam.load( "m9l1a_MeetOmag_Shot3" );
+	cam.load( "m9l1a_MeetOmag_Shot4" );
+	wait( .1 );
+
+	// stop conversation dialog if its still running
+	if( barMusicianConversationComplete == 0)
+	{
+		killthread( "barMusicianConversation" );
+		$klingonFemale1.stopdialog();
+		$humanMale3.stopdialog();
+	}
+
+	globalCommon_AiDummyHide( $krindo );
+	globalCommon_AiDummyHide( $gonzales );
+	globalCommon_AiDummyHide( $omag );
+
+	//--- start the first piece of the cinematic
+	cinematicArm_MeetOmag.beginCinematic( "m9l1_omaga" );
+
+	//--- set the music
+	forcemusic( "normal" );
+
+	//centerprint( "PLAYING ARM INTRO" );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+}
+
+//---------------------
+// cinematicArm_MeetOmag_Start
+// opening armature of krindo walking up to omag
+//---------------------
+void cinematicArm_MeetOmag_DialogSeq1_Start()
+{
+	//--- start the first dialog piece
+	cinematicArm_MeetOmag_DialogSeq1.beginCinematic( "m9l1_omaga" );
+
+	//centerprint( "PLAYING ARM OMAG A" );
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice1
+// first dialog choice
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice1()
+{
+	//cueplayer();
+	//releaseplayer();
+	//noncinematic();
+	//--- set the idles on the characters
+	$armMunro.anim( "omagA_idle" );
+
+	$armKrindo.anim( "omagA_drull_idle" );
+
+	$munro.branchdialog( "branchMeetOmag_DialogChoice1" );
+	//pause();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice1Reply1
+// first choice, reply 1 - failure
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice1Reply1()
+{
+	//--------------------------------------------------------
+	//shot - munro
+
+	//--- set the camera
+	$cam2.fov( 40 );
+	$cam2.follow( $m9l1a_MeetOmag_Shot2 );
+	$cam2.cut();
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	$armMunro.anim( "omagA_talkA" );
+	$armMunro.playdialog("localization/sound/dialog/m9l1/munro_riskier.mp3", 1, 20000, 0); //Rule 7. ‘Keep your ears open.’ Where is the Master Control Facility?
+	waitForDialog( $armMunro );
+	wait( .2 );
+
+	$armMunro.anim( "omagA_idle" );
+
+	//--------------------------------------------------------
+	//shot - omag
+
+	//--- set the camera
+	$cam1.fov( 40 );
+	$cam1.follow( $m9l1a_MeetOmag_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	$armOmag.anim( "omagA_fer_talkA" );
+	$armOmag.playdialog("localization/sound/dialog/m9l1/omag_neverheard.mp3", 1, 20000, 0); //I heard you! But I don’t know about this Controlling Facility Master.
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//shot - all
+
+	//--- set the camera
+	$cam3.fov( 50 );
+	$cam3.follow( $m9l1a_MeetOmag_Shot3 );
+	$cam3.cut();
+	wait( .2 );
+
+	cuecamera( $cam3 );
+
+	//--- wait for Omag to finish yappin'.....NO MORE YAK YAK!!!!!!
+	waitForDialog( $armOmag );
+	wait( .2 );
+
+	$armOmag.anim( "omagA_fer_idle" );
+
+	thread cinematicArm_MeetOmag_DialogChoice1();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice1Reply2
+// first choice, reply 2 - success
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice1Reply2()
+{
+	//--------------------------------------------------------
+	//shot - munro
+
+	//--- set the camera
+	$cam2.fov( 40 );
+	$cam2.follow( $m9l1a_MeetOmag_Shot2 );
+	$cam2.cut();
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	$armMunro.anim( "omagA_talkB" );
+	$armMunro.playdialog("localization/sound/dialog/m9l1/munro_60.mp3", 1, 20000, 0); //Rule 60. ‘Keep your lies consistent.’ Where is the Master Control Facility?
+	waitForDialog( $armMunro );
+	wait( .2 );
+
+	$armMunro.anim( "omagA_idle" );
+
+	//--------------------------------------------------------
+	//shot - omag
+
+	//--- set the camera
+	$cam1.fov( 40 );
+	$cam1.follow( $m9l1a_MeetOmag_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	$armOmag.playdialog("localization/sound/dialog/m9l1/omag_cuaght.mp3", 1, 20000, 0); //All right! You caught me in an inconsistency. So here’s the truth.  I don’t know where the Master Control Facility is.
+
+	$armOmag.anim( "omagA_fer_talkB" );
+	waitForAnimation( $armOmag, "omagA_fer_talkB" );
+
+	$armOmag.anim( "omagA_fer_talkA" );
+	waitForAnimation( $armOmag, "omagA_fer_talkA" );
+	$armOmag.anim( "omagA_fer_idle" );
+
+	waitForDialog( $armOmag );
+	wait( .2 );
+
+	thread cinematicArm_MeetOmag_DialogSeq2_Start();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogSeq2_Start
+// 2nd dialog portion of the cinematic
+//---------------------
+void cinematicArm_MeetOmag_DialogSeq2_Start()
+{
+	//--- start the first dialog piece
+	cinematicArm_MeetOmag_DialogSeq2.beginCinematic( "m9l1_omagb" );
+
+	//centerprint( "PLAYING ARM OMAG B" );
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice2
+// 2nd dialog choice
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice2()
+{
+	$armMunro.anim( "omagB_idle" );
+	$armOmag.anim( "omagB_fer_idle" );
+	$armKrindo.anim( "omagB_drull_idle" );
+
+	$munro.branchdialog( "branchMeetOmag_DialogChoice2" );
+	pause();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice2Reply1
+// 2nd dialog choice reply 1 - success
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice2Reply1()
+{
+	//--------------------------------------------------------
+	//shot - munro
+
+	//--- set the camera
+	$cam2.fov( 40 );
+	$cam2.follow( $m9l1a_MeetOmag_Shot4 );
+	$cam2.cut();
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	$armMunro.playdialog("localization/sound/dialog/m9l1/munro_181.mp3", 1, 20000, 0); //How do we know you’re telling the truth? Rule 181 says ‘not even dishonesty can tarnish the shine of profit.’
+
+	$armMunro.anim( "omagB_talkA" );
+	waitForAnimation( $armMunro, "omagB_talkA" );
+
+	$armMunro.anim( "omagB_idle" );
+
+	waitForDialog( $armMunro );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot - omag
+
+	//--- set the camera
+	$cam1.fov( 40 );
+	$cam1.follow( $m9l1a_MeetOmag_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	$armOmag.playdialog("localization/sound/dialog/m9l1/omag_want.mp3", 1, 20000, 0); //Because I don’t WANT to know where it is. If I knew the location of the Master Control Facility, my customer would be afraid I’d sell it again. Why give him incentive to kill me? No, I just I sold Krindo’s data from Prazjag Gamma 6, and let my customer fiddle about with star-charts to find it.
+
+	$armOmag.anim( "omagB_fer_talkA" );
+	waitForAnimation( $armOmag, "omagB_fer_talkA" );
+
+	$armOmag.anim( "omagB_fer_idle" );
+	wait( 6 );
+
+	//--------------------------------------------------------
+	//shot - all
+
+	//--- set the camera
+	$cam3.fov( 50 );
+	$cam3.follow( $m9l1a_MeetOmag_Shot3 );
+	$cam3.cut();
+	wait( .2 );
+
+	cuecamera( $cam3 );
+	wait( .25 );
+
+	$armOmag.anim( "omagB_fer_talkA" );
+	waitForAnimation( $armOmag, "omagB_fer_talkA" );
+
+	$armOmag.anim( "omagB_fer_idle" );
+	wait( .5 );
+
+	//--------------------------------------------------------
+	//shot - omag
+
+	//--- set the camera
+	$cam1.fov( 40 );
+	$cam1.follow( $m9l1a_MeetOmag_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	//--- wait for omag to stop that insessent yappin'!!!!!  Such a great voice actor eh??  I think he really nailed the part right, he's one of my favorite characters in the game actually.....so whinny....
+	//$armOmag.anim( "omagB_fer_talkA" );
+	//waitForAnimation( $armOmag, "omagB_fer_talkA" );
+
+	//$armOmag.anim( "omagB_fer_idle" );
+
+	waitForDialog( $armOmag );
+	wait( .2 );
+
+	thread cinematicArm_MeetOmag_DialogSeq3_Start();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogChoice2Reply2
+// 2nd choice, reply 2 - failure
+//---------------------
+void cinematicArm_MeetOmag_DialogChoice2Reply2()
+{
+	//--------------------------------------------------------
+	//shot - munro
+
+	//--- set the camera
+	$cam2.fov( 40 );
+	$cam2.follow( $m9l1a_MeetOmag_Shot4 );
+	$cam2.cut();
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	$armMunro.playdialog("localization/sound/dialog/m9l1/munro_27.mp3", 1, 20000, 0); //You’re telling the truth? ‘There's nothing more dangerous than an honest businessman.’ Rule 27.
+
+	$armMunro.anim( "omagB_talkB" );
+	waitForAnimation( $armMunro, "omagB_talkB" );
+
+	$armMunro.anim( "omagB_idle" );
+
+	waitForDialog( $armMunro );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot - omag
+
+	//--- set the camera
+	$cam1.fov( 40 );
+	$cam1.follow( $m9l1a_MeetOmag_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	$armOmag.playdialog("localization/sound/dialog/m9l1/omag_danger.mp3", 1, 20000, 0); //Then I’m the most dangerous Ferengi you know! Ha, ha!
+
+	$armOmag.anim( "omagB_fer_talkB" );
+	waitForAnimation( $armOmag, "omagB_fer_talkB" );
+
+	$armOmag.anim( "omagB_fer_idle" );
+
+	waitForDialog( $armOmag );
+	wait( .2 );
+
+	//--------------------------------------------------------
+	//shot - all
+
+	//--- set the camera
+	$cam3.fov( 50 );
+	$cam3.follow( $m9l1a_MeetOmag_Shot3 );
+	$cam3.cut();
+	wait( .2 );
+
+	cuecamera( $cam3 );
+
+	thread cinematicArm_MeetOmag_DialogChoice2();
+}
+
+//---------------------
+// cinematicArm_MeetOmag_DialogSeq3_Start
+// 3rd dialog portion of the cinematic
+//---------------------
+void cinematicArm_MeetOmag_DialogSeq3_Start()
+{
+	//--- start the first dialog piece
+	cinematicArm_MeetOmag_DialogSeq3.beginCinematic( "m9l1_omaga" );
+
+	//centerprint( "PLAYING ARM OMAG C" );
+}
+
+//---------------------
+// cinematicArm_MeetOmag_ArmEnd
+// end the cinematic
+//---------------------
+void cinematicArm_MeetOmag_ArmEnd()
+{	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m9l1a_klingon_base" );
+	
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	//hzm coop mod Chrissstrahl - give all players their weapons now, so they don't need to respawn
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.use(globalCoop_armory_equipWithWeapons( ePlayer));
+				//move all players to their spawn, 
+				thread globalCoop_player_warpToSpawn(ePlayer);
+			}
+		}
+	}
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	//cinematicArm_MeetChell.endCinematic( FALSE );
+
+	//killthread( "cinematicArm_MeetChell_Start" );
+
+	globalCommon_AiDummy( $krindo, "" );
+	globalCommon_AiDummy( $gonzales, "" );
+	globalCommon_AiDummy( $omag, "" );
+
+	//--- positiong omag
+	$krindo.warp( $nodeKrindo_PostCinematic.getOrigin() );
+	$gonzales.warp( $nodeGonzales_PostCinematic.getOrigin() );
+	$omag.warp( $nodeOmag_PostCinematic.getOrigin() );
+
+	//---unlock door allows player to follow omag out of bar
+	$barDoorExit.unlock();
+
+	//---lock the door leading back to the bar
+	$t531.lock();
+	$t531.noise( "sound/doors/door_locked.wav" );
+	$vip_doorLightGreen.remove();
+	$vip_doorLightRed.show();
+	$world.light_lightstyle( "vipLight_red1" , "z" , 0 );
+	$world.light_lightstyle( "vipLight_green1" , "a" , 0 );
+
+	//--- remove armature gonzo
+	$armGonzo.remove();
+
+	//--- set the player
+	
+	//hzm coop mod chrissstrahl - grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) ){
+		entityPlayerGlobal.warp( $nodePlayer_PostCinematic.getOrigin() );
+		wait( .1 );
+		entityPlayerGlobal.turntowardsentity( $omag );
+		$krindo.turnTowardsEntity( entityPlayerGlobal );
+		$gonzales.turnTowardsEntity( entityPlayerGlobal );
+	}
+
+	$omag.turnTowardsEntity( $barDoorExit );
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .75 );
+
+	//--- music cue
+	music( "suspense");
+
+	//--- fade
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//---set players next objective
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FollowOmag$$","incomplete",3,1);
+
+	//---path for omag to run out of bar
+	thread omagFollowPath01();
+	wait( .75 );
+
+	$munro.playdialog("localization/sound/dialog/m9l1/munro_stayhere3.mp3", 1, 10000, 1); //gonzales! Stay here with Krindo!
+	waitForDialog( $munro );
+	wait( .2 );
+
+	$gonzales.playdialog("localization/sound/dialog/m9l1/gonz_cleanup.mp3", 1, 500, 1); //Aye sir! And I'll help clean up this mess!
+	waitForDialog( $gonzales );
+}
+
+void coop_nicolasCagePlayer(entity ePlayer)
+//------------------------------------------------------------------------------
+//set everything up so that this player is inside the cage and become the target of attention
+//------------------------------------------------------------------------------
+{
+	if(coop_itIsAllOverNow){
+		return;
+	}
+	$krindo.headwatch( ePlayer );
+	$gonzales.headwatch( ePlayer );
+	$humanMale1.headwatch( ePlayer );
+	$humanFemale1.headwatch( ePlayer );
+	$humanFemale2.headwatch( ePlayer );
+	$andorianMale1.headwatch( ePlayer );
+	$andorianMale3.headwatch( ePlayer );
+	
+	ePlayer.origin( '0 -448 0' );
+	ePlayer.playerviewangles( '-5 -1439 0' );
+	
+	globalCoop_player_makeSolidASAP($bonesaw);
+	
+	ePlayer.giveweapon ( "models/weapons/worldmodel-batleth.tik" );
+	ePlayer.disableuseweapon( 0 );
+	wait( .35 );
+	ePlayer.use ( "Batleth" );
+	wait( .35 );
+	ePlayer.disableuseweapon( 1 );
+	
+	$bonesaw.health( 300 );
+	$bonesaw.ai_on ();
+	$bonesaw.attack(ePlayer);
+	$bonesaw.headwatch(ePlayer);
+	
+	while(doesEntityExist(ePlayer))
+	{
+		if(ePlayer.getHealth() < 1 || globalCoop_check_playerSpectator(ePlayer) || ePlayer.getActiveWeaponName() != "Batleth" ) {
+			coop_unarmPlayer(entityPlayerGlobal);
+			thread coop_nicolasCagePlayer(coop_returnMeARandomPlayer());
+			return;
+		}
+		if(coop_itIsAllOverNow){
+			coop_unarmPlayer(entityPlayerGlobal);
+			return;
+		}
+		wait(2);
+	}
+	thread coop_nicolasCagePlayer(coop_returnMeARandomPlayer());
+}
+
+void coop_unarmPlayer(entity ePlayer)
+//------------------------------------------------------------------------------
+//take weapon away from player
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		ePlayer.deactivateweapon ( "dual" );	//hide batleth viewmodel from player
+		ePlayer.take( "batleth" );
+		wait( .25 );
+		ePlayer.disableuseweapon( 1 );
+		ePlayer.health( 100 );
+	}
+}
+
+entity coop_returnMeARandomPlayer()
+//------------------------------------------------------------------------------
+//returns a random player - used for the blitz to impact upon the player
+//------------------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("hatoria_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	for(fTries=6;fTries>0;fTries--){
+		fRandom = randomint(fExistingPlayers);
+		fPlayerIdInUse = $world.getFloatVar("hatoria_activeplayer"+fRandom);
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fTries = 0;
+				eRandomPlayer = ePlayer;
+			}
+		}
+	}
+	
+	//return the world if no player could be found
+	if(!doesEntityExist(eRandomPlayer)){
+		eRandomPlayer = $world;
+	}
+	return eRandomPlayer;
+}
+
+void branchMeetOmag_DialogChoice1_failsafe()
+//___IMPORTANT___ NAME THIS FUNCTION AFTER THE NAME OF THE BRANCHDIALOG
+//___EXAMPLE___ $telsia.branchdialog("entDeck11IGM3BranchingDialog");
+//___NAME_IS_THEN___ entDeck11IGM3BranchingDialog
+//___FULL_NAME_IS_THEN___ entDeck11IGM3BranchingDialog_failsafe
+//___WARNING___ it is CASESENSITIVE: xxx_failsafe != xXx_FailSave
+//
+//HZM gameupdate chrissstrahl - this thread is called by the gamex86.dll
+// if a the branchdialog is started with the name prefixed of _failsafe
+//THIS IS A FAILSAFE thread, it makes sure that a option is selected upon a branch dialog
+//otherwise a single player could brake the script or stall the game
+//THIS NEEDS TO BE ADJUSTED FOR EVERY LEVEL-SCRIPT THAT CONTAINS A BRANCHDIALOG
+{
+	string sThread;
+	//___IMPORTANT___ ADJUST THE NAME OF THE THREAD TO RUN HERE
+	sThread = "cinematicArm_MeetOmag_DialogChoice1Reply2";
+	
+	//start thread, this is the actual failsafe
+	runThreadNamed(sThread);
+}
+
+void branchMeetOmag_DialogChoice2_failsafe()
+//___IMPORTANT___ NAME THIS FUNCTION AFTER THE NAME OF THE BRANCHDIALOG
+//___EXAMPLE___ $telsia.branchdialog("entDeck11IGM3BranchingDialog");
+//___NAME_IS_THEN___ entDeck11IGM3BranchingDialog
+//___FULL_NAME_IS_THEN___ entDeck11IGM3BranchingDialog_failsafe
+//___WARNING___ it is CASESENSITIVE: xxx_failsafe != xXx_FailSave
+//
+//HZM gameupdate chrissstrahl - this thread is called by the gamex86.dll
+// if a the branchdialog is started with the name prefixed of _failsafe
+//THIS IS A FAILSAFE thread, it makes sure that a option is selected upon a branch dialog
+//otherwise a single player could brake the script or stall the game
+//THIS NEEDS TO BE ADJUSTED FOR EVERY LEVEL-SCRIPT THAT CONTAINS A BRANCHDIALOG
+{
+	string sThread;
+	//___IMPORTANT___ ADJUST THE NAME OF THE THREAD TO RUN HERE
+	sThread = "cinematicArm_MeetOmag_DialogChoice2Reply1";
+	
+	//start thread, this is the actual failsafe
+	runThreadNamed(sThread);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	/*
+	stuffcmd("seta coop_igm 6\n");//set mission number
+	stuffcmd("seta coop_igmH 0\n");//set spawn in holodeck
+	globalCoop_main_waitAFrame();
+	stuffcmd("seta coop_igmT 0\n");//set spawn in turbolift
+	stuffCMD("seta coop_igmR 0\n");//set rooms visited
+	setfloatvar("game.globalMissionEnterprise",6);
+	*/
+	
+	thread globalCoop_mission_completed("m9l1b-klingon_base");
+}
+
+

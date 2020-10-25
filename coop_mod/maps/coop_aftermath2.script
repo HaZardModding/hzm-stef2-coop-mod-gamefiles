@@ -1,0 +1,677 @@
+void main();
+void coop_window2OnDamage();
+void coop_window2Break();
+void coop_giveTetryon();
+void coop_giveDisruptor();
+void setupLevel();
+void cinematic_startLevel();
+void cinematic_startLevelEnd();
+void foundSpy();
+void spyHealthCheck();
+void cinematic_spyFlees();
+void cinematic_spyFleesEnd();
+void cinematic_warbirdOrbit();
+void cinematic_warbirdOrbitEnd();
+void startFish();
+void orbitalAttack();
+void aftermath_pda();
+void coop_endLevel();
+
+//reset this to zero before relase
+float float_developer_test = 0;
+//set additional developer test variables
+float float_skip_intro = 1;
+float float_spawnAt_spy = 0;
+float float_spawnAt_fish = 0;
+float float_spawnAt_outside = 1;
+float float_spy_fleeHealth = 300;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+float float_foundSpy;
+float float_orbitalAttack;
+
+
+void main()
+//this is executed as soon as the server has finished loading this map
+{
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Daedalus";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Find a way into the city";
+	coop_string_objectiveItem2 = "Find a way into the Spy's hideout";
+	coop_string_objectiveItem3 = "Find the Spy";
+	coop_string_objectiveItem4 = "Stop the Spy";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Finden Sie einen Weg in die City";
+	coop_string_objectiveItem2_deu = "Finden Sie einen Weg zum Versteck des Spions";
+	coop_string_objectiveItem3_deu = "Finden Sie den Spion";
+	coop_string_objectiveItem4_deu = "Stopen Sie den Spion";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
+	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+	
+//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
+	
+//fade screen black, this level starts with a cinematic
+	cam_fadeout(0.01,0,0,0,1);
+	
+//spawn camera entities, this level starts with a cinematic
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	
+//run setup
+	thread setupLevel();
+	
+//wait for the player to spawn
+	waitForPlayer();
+//clear/set viewmodes avialbe for Tricorder
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("tripwire");
+	$world.addAvailableViewMode("structuralintegrity");
+
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//find way in city
+	globalCoop_objectives_update("complete" , 2 , 0 );//find way to spy hideout
+	globalCoop_objectives_update("incomplete" , 3 , 1 );//find spy
+	
+//set spawn effect, make em beam in on spawn
+	$t9.spawneffectname("TransportIn","Romulan");
+	
+//for testing features
+	if(float_developer_test) //ship with -> 0 !!!
+	{
+	//make the spy flee very quickley
+		float_spy_fleeHealth = 900;
+		
+	//fade screen from black back in again to normal
+		if(float_skip_intro)
+		{
+			cam_fadeIn(0.25,0,0,0,1);
+		}
+	//warp player to a location
+		if(float_spawnAt_spy)
+		{
+			$player.origin('785 15 1600');//spy
+		}
+		else if(float_spawnAt_fish)
+		{
+			$player.origin('1371 -32 1600');//fish
+		}
+		else if(float_spawnAt_outside)
+		{
+			$informantBoss.origin('318.00 -480.00 1224.00');//outside
+			$player.origin('318.00 -400.00 1224.00');//outside
+			$informantBoss.ai_on();
+		}
+	}
+}
+
+void coop_giveTetryon()
+{
+	globalCoop_player_giveAll("models/weapons/worldmodel-tetryon.tik",0);
+}
+void coop_giveDisruptor()
+{
+	globalCoop_player_giveAll("models/weapons/worldmodel-rom-disruptor.tik",0);
+}
+
+void coop_window2OnDamage()
+{
+	$window2Normal.ondamage("coop_window2Break");
+	pause();
+}
+void coop_window2Break()
+{
+	$window2Normal.remove();
+	$window2Damaged.show();
+	$window2Damaged.playsound("sound/impact/explosion/explo_neonsign.wav",0,2,256);
+}
+
+void setupLevel()
+{
+//hzm coop mod chrissstrahl - change things to work better with coop
+	$t73.notsolid();
+	$t73.hide();
+	$tetryon.pickup_thread("coop_giveTetryon");
+	$disruptor.pickup_thread("coop_giveDisruptor");
+//eof hzm
+
+//remove archetypes when targeting these models
+	$commander.archetype("");
+	$informantBoss.archetype("");
+	/* //disabled 2018.03.22
+	$fish.archetype("");
+	$terminal0.archetype("");
+	$terminal1.archetype("");
+	$terminal2.archetype("");
+	$terminal3.archetype("");
+	$terminal4.archetype("");
+	*/
+//setup ai
+	$commander.anim("ent-mainchair-idle");
+//spy damage sensitive trigger
+	$spyDamageTrigger.solid();
+	//$informantBoss.health(1000);
+	//$informantBoss.maxbosshealth(1000);
+//make objects solid that where not due to pathnodes connecting properly that way
+	$window1Normal.solid();
+}
+
+void cinematic_startLevel()
+{
+//for testing features
+	if(float_developer_test) //ship with -> 0 !!!
+	{
+		if(float_skip_intro)
+		{
+			return;
+		}
+	}
+//have a slight delay in case the playesr pc is freaking fast
+	wait(0.1);
+	
+//fix: player visisble if in cg_3rdPerson
+	if(getcvarint("g_gametype") == 0){//hazardmodding coop mod chrissstrahl - sp only
+		$player.hide();
+		$player.notsolid();
+	}
+
+//start this thread when player hits escape
+	skipthread("cinematic_startLevelEnd");
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	$cam1.follow($cinematicSceneA);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	
+//wait for the scene to end
+	wait(3);
+
+//end this cienmatic
+	thread cinematic_startLevelEnd();
+}
+
+void cinematic_startLevelEnd()
+{
+//delete skip thread
+	skipthread("");
+	
+//terminate cinematic
+	killthread("cinematic_startLevel");
+	
+//delete entrace door
+	$entraceDoorOpen.remove();
+	
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+
+	if(getcvarint("g_gametype") == 0){//hazardmodding coop mod chrissstrahl - sp only
+		$player.show();
+		$player.solid();
+	}
+}
+
+
+void foundSpy()
+//eye contact, player has been spotted by the commander or spy
+{
+//there are many triggers and triggering events, but start this just once
+	if(float_foundSpy)
+	{
+		return;
+	}
+	float_foundSpy=1;
+	
+	if(doesEntityExist($spyDamageTrigger))
+	{
+		$spyDamageTrigger.remove();
+	}
+	
+//commander stands up, and beams out
+	$commander.anim("idle");
+	wait(0.5);
+	$commander.displayEffect("TransportOut","Romulan");
+	$commander.notsolid();
+	
+	wait(1);
+	
+//cinematic, spy flees
+	thread cinematic_spyFlees();
+	
+//the spy reacts
+	//$informantBoss.ai_on();
+	//$informantBoss.updatebosshealth( 1 );
+	//wait(1);
+	
+//wiat until commander has beamed out, remove
+	wait(2);
+	$commander.remove();
+	
+//let the player battle with the spy and make the spy then flee
+	//spyHealthCheck();
+//cinematic, spy flees
+	//thread cinematic_spyFlees();
+}
+
+void spyHealthCheck()
+//loops until spy has less than or exactly 300 health
+{
+	while(doesEntityExist($informantBoss))
+	{
+		if($informantBoss.getHealth() <= float_spy_fleeHealth)
+		{
+			return;
+		}
+		wait(0.5);
+	}
+}
+
+void cinematic_spyFlees()
+{
+//remove normal window and show broken
+	$window1Normal.remove();
+	$window1Damaged.show();
+	
+//disable spy ai
+	$informantBoss.ai_off();
+	
+//start this thread when player hits escape
+	skipthread("cinematic_spyFleesEnd");
+	
+//fade screen black
+	cam_fadeout(0.25,0,0,0,1);
+	wait(0.25);
+	
+//set objectives
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 3 , 0 );//find spy hide
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//stop spy
+
+//fix: player visisble if in cg_3rdPerson
+	if(getcvarint("g_gametype") == 0){//hazardmodding coop mod chrissstrahl - sp only
+		$player.hide();
+		$player.notsolid();
+	}
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	$cam1.follow($cinematic_spyFightEnd);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+
+	$window1Damaged.playsound("sound/impact/explosion/explo_neonsign.wav",0,2,256);
+	
+//put the spy into the place,make it appear she jumps out
+	$informantBoss.allowfall(1);
+	$informantBoss.warpto("$spyJumpOut2");
+	$informantBoss.angle(0);
+	$informantBoss.animateonce("crouch_idle");
+
+//fade screen from black back in again to normal
+	cam_fadeIn(1,0,0,0,1);
+
+//i tryed everything from push trigger to animations to velocity, she won't jump out
+//force her to jump out that silly window for fuckshake
+	$informantBoss.bind($pushTheBitch);
+	$pushTheBitch.moveEast(75);
+	$pushTheBitch.time(1);
+	waitFor($pushTheBitch);
+	$informantBoss.animateonce("from_crouch");
+	$informantBoss.unbind();
+	
+//spawn("trigger_push","target","t66","spawnflags","20","origin",""+$informantBoss.getOrigin());
+//wait for the camera to reach its target
+	wait(3);
+
+//end this cienmatic
+	thread cinematic_spyFleesEnd();
+}
+
+void cinematic_spyFleesEnd()
+{
+//delete skip thread
+	skipthread("");
+	
+//terminate cinematic
+	killthread("cinematic_spyFlees");
+	
+//fade screen black
+	cam_fadeout(0.25,0,0,0,1);
+	wait(0.25);
+	
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+//hzm coop mod chrissstrahl - allow players to destroy second window as well
+	thread coop_window2OnDamage();
+//eof hzm
+	
+//fix: player visisble if in cg_3rdPerson
+	if(getcvarint("g_gametype") == 0){//hazardmodding coop mod chrissstrahl - sp only
+		$player.show();
+		$player.solid();
+	}
+	
+//unbind from object
+	$informantBoss.unbind();
+	
+//relocate to new position
+	$informantBoss.warpto("$spyStartRunning");
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	
+//wait, then make her run
+	wait(0.1);
+	$informantBoss.walkto("$spyStopRunning2","run");
+}
+
+void cinematic_warbirdOrbit()
+{
+//start this thread when player hits escape
+	skipthread("cinematic_warbirdOrbitEnd");
+	
+//fade screen black
+	cam_fadeout(0.25,0,0,0,1);
+	
+	cinematic();
+	freezeplayer();
+
+//wait for cam to fade out
+	wait(0.25);
+	
+	forcemusic("aux1","normal");
+	
+	letterbox(0.1);
+	$cam1.follow($cinematic_warbirdOrbit);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(1,0,0,0,1);
+
+//wait for camera to be in position
+	wait(4);
+	
+//show warbird
+	$warbirdOrbit.show();
+	$warbirdOrbit.playsound("sound/ships/romulan/rom_redalert.wav",0,4,1280);
+	wait(1.5);
+	$warbirdOrbit.playsound("sound/ships/romulan/rom_redalert.wav",0,4,1280);
+	wait(1.5);
+	$warbirdOrbit.playsound("sound/ships/romulan/rom_redalert.wav",0,4,1280);
+	wait(1.5);
+	
+//end cin
+	thread cinematic_warbirdOrbitEnd();
+}
+
+void cinematic_warbirdOrbitEnd()
+{
+//delete skip thread
+	skipthread("");
+	
+//terminate cinematic
+	killthread("cinematic_warbirdOrbit");
+	
+//fade screen black
+	cam_fadeout(0.25,0,0,0,1);
+	wait(0.25);
+	
+	forcemusic("action");
+
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+//warp spy to new location, player may not catch up with the spy!
+	$informantBoss.warpto("$spyStopRunning2");
+	$informantBoss.angle(180);
+	
+//show warbird in sky
+	$skyWarbird.show();
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	
+//wait a sec
+	wait(1);
+	
+//make first torpedo impact
+	triggerEntity($firstTorpedoImpact);
+	
+//Save Game
+	if(getCvarInt("g_gametype") != 1)
+	{
+		if($player.getHealth() < 1)
+			return;
+			
+		stuffCMD("ui_savegamewithname \"City2 - Warbird Attack\"");
+	}
+}
+
+void spyRunToExitDoor()
+{
+	//player spawns
+	/* not needed, allredy at the right angle
+	entity e;
+	float f;
+	for(f=1;f<9;f++){
+		e=getEntity("ipd"+f);
+		if(doesEntityExist(e)){
+			e.angle(0);
+		}
+	}*/
+	$ipd1.origin('5920 24 1328');	
+	$ipd2.origin('5967 -13 1328');
+	$ipd3.origin('5810 243 1328');
+	$ipd4.origin('5827 288 1328');
+	$ipd5.origin('5850 337 1328');$ipd5.angle(324);
+	$ipd6.origin('5879 385 1328');$ipd6.angle(312);
+	$ipd7.origin('6000 -64 1328');$ipd7.angle(24);
+	$ipd8.origin('6024 -112 1328');$ipd8.angle(35);
+	
+
+	$goingTowardsSewerDoor.open($informantBoss);
+	$goingTowardsSewerDoor.wait(-1);
+	$informantBoss.walkto("$spyStopRunning3","run");
+	waitFor($informantBoss);
+	$goingTowardsSewerDoor.wait(3);
+	$informantBoss.walkto("$spyStopRunning4","run");
+}
+
+
+
+void InformantBoss_PickNewNodeID_Stage1()
+{
+	return;
+	float i;
+
+	i = randomint( 2 ) + 1;
+	i = i + 100;
+	$informantBoss.setnodeid( i );
+}
+
+void InformantBoss_WarpToNode_Stage1()
+{
+	float i;
+	string nodeName;
+	entity theNode;
+	vector nodeOrigin;
+
+	i = randomint( 2 ) + 1;
+	i = i + 100;
+
+	nodeName = "node" + i;
+	theNode = GetEntity( nodeName );
+
+	if ( doesEntityExist( theNode ) )
+	{
+		nodeOrigin = theNode.getorigin();
+		$informantBoss.origin ( nodeOrigin );
+	}
+}
+
+void startFish()
+//make fish swim in cricles
+{
+	$fish.anim("idle");
+	$fish.followpath( $t46 , "loop" , "normalangles" );
+}
+
+void orbitalAttack()
+{
+	string sTargetname;
+	entity ePhoton,eTrigger,eStreet,eStreetDamaged;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger))
+	{
+		sTargetname = eTrigger.getStringVar("uservar1");
+		eStreet		= getEntity(sTargetname);
+		if(doesEntityExist(eStreet))
+		{
+		
+			float_orbitalAttack++;
+			
+			vector vOrigin;
+			//$torpedoFireStart.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$"+sTargetname,5,20);
+			//$torpedoFireStart.projectileAttackEntity( "weapons/projectile_photonball.tik","$"+sTargetname,5,20);
+			//$torpedoFireStart.projectileAttackEntity( "weapons/projectile_photonball2.tik","$"+sTargetname,5,20);
+			vOrigin	= eStreet.getOrigin();
+			vOrigin_z += vectorGetZ(eStreet.getMaxs());
+			ePhoton = spawn("script_object","model","weapons/projectile_photonball.tik","hide","1","origin","0 0 -99999");
+			wait(0.02);
+			ePhoton.show();
+			ePhoton.origin($torpedoFireStart.getOrigin());
+			ePhoton.setStringVar("uservar1","killmessage  was vaporized by the ^2Romulan Warbird");
+			ePhoton.setStringVar("uservar2","killmessage_de  wurde vaporisiert von dem ^2Romulanischen Warbird");
+			wait(0.01);
+			ePhoton.movetopos(vOrigin);
+			ePhoton.time(1);
+			wait(1);
+			spawn("explosion","model","weapons/explosion-photon-andorian.tik","origin",""+vOrigin);
+			eStreet.remove();
+			ePhoton.doradiusdamage(350,"Explosion",64,6000,0,0);
+			ePhoton.doradiusdamage(50,"Explosion",128,400,0,0);
+			ePhoton.doradiusdamage(50,"Explosion",256,100,0,0);
+			ePhoton.doradiusdamage(25,"Explosion",384,50,0,0);
+			ePhoton.doradiusdamage(15,"Explosion",500,50,0,0);
+			ePhoton.doradiusdamage(10,"Explosion",550,50,0,0);
+			ePhoton.remove();
+			eStreetDamaged	= getEntity(sTargetname+"Damaged");
+			if(doesEntityExist(eStreetDamaged))
+			{
+				eStreetDamaged.show();
+			}
+			
+			//cloack warbird again
+			if(float_orbitalAttack == 8){
+				$skyWarbird.fade(3,0);
+			}
+		}
+	}
+}
+
+void playerAproachGoingTowardsSewerDoor()
+//do something with the informant, so player can't walk by it
+{
+//warp spy to new location, player may not catch up with the spy!
+	$informantBoss.walkto("$spyExitDoor");
+	wait(0.1);
+	$informantBoss.warpto("$spyExitDoor");
+	$informantBoss.angle(180);
+	wait(4);
+	$informantBoss.walkto("$spyExitRunTo","run");
+	waitfor($informantBoss);
+	$informantBoss.remove();
+}
+
+void aftermath_pda()
+//--------------------------------------------------
+// pushes pda menu on player ui and sets the text from the trigger at the ui
+//--------------------------------------------------
+{
+	entity e;
+	entity ePlayer;
+	
+	e=getCurrentEntity();
+	ePlayer = e.getLastActivatingEntity();
+	
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getHealth() > 0){
+			SendClientCommand( ePlayer, "popmenu 0;pushmenu aftermath_pda\n" );
+			string s;
+			s = e.getStringVar("uservar1");
+			//ePlayer.hudprint(s);
+			if(s != ""){
+				SendClientCommand( ePlayer, "globalwidgetcommand aftermathPda_text title "+s+"\n" );
+			}
+		}
+	}
+}
+
+void changeLevel()
+{
+	wait(10);
+//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'520 520 280','10204 -160 620');
+
+/*
+//do not display mission sucess hud
+	nointermission();
+//load next level
+	spawn("trigger_changelevel","targetname","changeMap","map","city3");
+//wait a moment for the player to orientate
+	wait(1);
+//activate
+	triggerEntity($changeMap);
+	*/
+}
+
+//hzm coop mod chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath3");
+}
+
+
+

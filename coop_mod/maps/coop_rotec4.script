@@ -1,0 +1,950 @@
+//geometry started in 200? by Luke Sutton
+//script by chrissstrahl 2016.01.22 ulm, germany
+
+void main();
+void initial();
+void removeArchetypesFromGroup(string sName);
+void teammateStopFollow();
+void teammateFollow();
+void giveAttraxRiffle();
+void commandAttack();
+void commandAttackKilled();
+void commandUserKilled();
+void disconnectNodes(float fNum);
+void teamAiWaitHere();
+
+float fEndSequenceCinematicRunning = 0;
+float fSequence2ExtraEnemies = 0;
+float fSpawnerEnemyNum = 0;
+float fSequence2Over = 0;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+float fCommandAttackKilled=0;
+float fCommandUserKilled=0;
+float fCartHalted=0;
+float fCartCrashed=0;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+
+void main()
+{
+	//hzm coop mod chrissstrahl - notify the coop mod that this mission has a user defined text
+	//there for does not use the $$ pre and suffix
+	$world.setFloatVar("globalCoop_missionFailedUserString",1);
+
+	//bin cart together
+	$cartClip.bind($cartOrigin);
+	$cart0.bind($cartOrigin);
+	$cart1.bind($cartOrigin);
+	$cart2.bind($cartOrigin);
+	$cartPushTrigger.bind($cartOrigin);
+	$cartHurtTrigger.bind($cartOrigin);
+	$cartPassengerTrigger.bind($cartOrigin);
+	
+	$commandUser1.missionObjective(1);
+	$commandUser2.missionObjective(1);
+
+//register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Tricorder-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Phaser-stx.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-BurstRifle.tik");
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-CompressionRifle.tik");
+
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	soundtrack( "music/dm_kw.mus" );
+  
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Luke^0_^8Sutton";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Help the Attrexians and defeat the Romulan invaders.";
+	coop_string_objectiveItem2 = "Defend the Control Room, and its Personal.";
+	coop_string_objectiveItem3 = "Protect the wounded to allow for a evacuation.";
+	coop_string_objectiveItem4 = "Activate the Cart and drive it.";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Helfen Sie den Attrexianern und besiegen Sie die romulanischen Eindringlinge.";
+	coop_string_objectiveItem2_deu = "Verteidigen Sie den Kontrollraum und sein Personal.";
+	coop_string_objectiveItem3_deu = "Besch$$u$$tzen Sie die verwundeten und erm$$o$$glichen Sie die Evakuation.";
+	coop_string_objectiveItem4_deu = "Aktivieren Sie Wagon und fahren Sie mit diesem.";
+	coop_string_objectiveTacticalInfo1_deu = "";//N$$u$$tzen Sie die Verwirrung zu Ihrem Vorteil
+
+	coop_string_story = "Date: Jan 2388. USS Odyssey-A has been ordered to fight off an orbiting warbird, and liberate the planet. You and your teammates must battle through the streets of Attrexia and protect the population from Romulan invasion.";
+	coop_string_story_deu = "Datum: Jan 2388. Die USS Odyssey-A wurde entsannt um einen Warbird zu vertreiben und den Planeten zu befreien. Sie und Ihr Team m$$u$$ssen sich durch die Stra$$S$$en von Attrexia k$$a$$mpfen und die Bev$$o$$lkerung vor den romulanischen Invsoren sch$$u$$tzen.";
+	
+	thread initial();
+	
+	waitforplayer();
+	
+//update objectives - reroute power
+	globalCoop_objectives_update("incomplete" , 1 , 0 );//help attrax
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//defend control
+	//globalCoop_objectives_update("incomplete" , 4 , 1 );//continue
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm activate team ai
+	//hzm remove archetype
+	$hazardTeam1.ai_on();
+	//$hazardTeam1.archetype(""); //disabled 2018.03.22
+	
+	//make solid - was notsolid for the paths to connect
+	$tranCrash_wall.solid();
+}
+
+void initial()
+{
+	$cartDisplayMove.hide();
+	$cartDisplayError.hide();
+	
+	$commandUser1.killattach();//remove weapon
+	$commandUser2.killattach();//remove weapon
+	
+	$commandEnemy1.flags("+notarget");//hide from radar //does not work :(
+	$commandEnemy2.flags("+notarget");//hide from radar //does not work :(
+	$commandEnemy3.flags("+notarget");//hide from radar //does not work :(
+	
+	//make sure the player can not push arround the ai
+	$commandUser1.pushable(0);
+	$commandUser1.mass(999999);
+	$commandUser2.pushable(0);
+	$commandUser2.mass(999999);
+	$sick0.pushable(0);
+	$sick0.mass(999999);
+	$sick1.pushable(0);
+	$sick1.mass(999999);
+	$sick2.pushable(0);
+	$sick2.mass(999999);
+	$sick3.pushable(0);
+	$sick3.mass(999999);
+	$doctor.pushable(0);
+	$doctor.mass(999999);
+	
+	$commandUser1.anim("sit_idle");
+	wait(0.6);
+	$commandUser2.anim("sit_idle");
+	
+	//remove archetypes from the crates
+	/* //disabled 2018.03.22
+	removeArchetypesFromGroup("explosiveCrate");
+	removeArchetypesFromGroup("healthConsole");
+	removeArchetypesFromGroup("ammoConsole");
+	*/
+	removeArchetypesFromGroup("sick");
+	
+	//move cart to its starting location, it was put up to allow pathnodes to connect
+	$cartOrigin.movetoPos('-924 2467 -218');
+}
+
+void removeArchetypesFromGroup(string sName)
+{
+	float fNumber = 0;
+	entity e;
+	e = getEntity(sName + fNumber);
+	do
+	{
+		if(doesEntityExist(e)){
+			e.archetype("");
+			fNumber++;
+			e = getEntity(sName + fNumber);
+		}
+	}while(doesEntityExist(e));	
+}
+
+void teammateStopFollow()
+{
+	//stop follow, prevent them walking infront of the cart
+	$hazardTeam1.setTendency("follow",0);
+}
+void teammateFollow()
+{
+	//stop follow, prevent them walking infront of the cart
+	$hazardTeam1.setTendency("follow",1);
+}
+
+void aiOnAggressive(entity e)
+{
+	e.ai_on();
+	e.aggressive(1);
+}
+void aiOnAggressiveBeam(entity e)
+{
+	e.show();
+	e.displayeffect("TransportIn","Romulan");
+	aiOnAggressive(e);
+}
+
+void giveAttraxRiffle()
+{
+//register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-attrex-rifle.tik");
+//make all players use that weapon imidiatley
+	globalCoop_armory_useTiki("models/weapons/worldmodel-attrex-rifle.tik");
+}
+
+void commandAttack()
+{		
+	$commandUser1.sethatemodifier(2);
+	$commandUser2.sethatemodifier(2);
+	
+	float i;
+	float fCount;
+	float iVic;
+	entity eVic;
+	entity eEnemy;
+	entity eSpawn;
+	for(i=0;i<5;i++)
+	{
+		eSpawn = getEntity("commandEnemySpawn" + i );
+		eSpawn.spawneffectname("TransportIn","Romulan");
+		eSpawn.spawntargetname("commandEnemy" + i);
+		eSpawn.checkforspace();
+		eSpawn.spawnnow();
+		wait(0.05);
+		eEnemy = getEntity("commandEnemy" + i);
+		eEnemy.killthread("commandAttackKilled");
+		eEnemy.aggressive(1);
+		wait(1);
+	}
+}
+void commandAttackKilled()
+{
+	fCommandAttackKilled++;
+	if(fCommandAttackKilled == 5){
+		globalCoop_objectives_update("complete" , 2 , 1 );//defend control
+		wait(2);
+		globalCoop_objectives_update("incomplete" , 3 , 1 );//protect wounded
+		
+		$commandUser1.missionObjective(0);
+		$commandUser2.missionObjective(0);
+		
+		//remove killthread, if they die now, no one cares
+		$commandUser1.killthread("");
+		$commandUser2.killthread("");
+	}
+}
+void commandUserKilled()
+{
+	fCommandUserKilled++;
+	if(fCommandUserKilled == 2){
+		globalCoop_objectives_update("failed" , 2 , 1 );//defend control
+		wait(4);
+		//fail current mission
+		globalCoop_mission_germanText("Das Kontrollraum Personal ist gestorben.");
+		globalCoop_mission_failWithReason("The Control room personal died.");
+	}
+}
+
+void evacuationSequenceSpawn()
+{
+	if( (fSequence2ExtraEnemies / 2) > (globalCoop_return_integerPlayersQuantity(2)) ){
+		return;
+	}
+
+	entity eEnemy;
+	entity eSpawn;
+	float fRandom;
+	float fEnemyNum;
+	
+	fEnemyNum = fSpawnerEnemyNum;
+	fSpawnerEnemyNum++;
+	
+	fRandom = randomInt(7);
+	eSpawn = getEntity("sequence2Spawner" + fRandom );
+	eSpawn.spawneffectname("TransportIn","Romulan");
+	eSpawn.spawntargetname("sequence2Enemy" + fEnemyNum);
+	eSpawn.checkforspace();
+	eEnemy = eSpawn.spawnnow();
+	wait(0.05);
+	//eEnemy = getEntity("sequence2Enemy" + fEnemyNum);
+	eEnemy.killthread("evacuationSequenceSpawn");
+	
+	if(fRandom != 1 && fRandom != 3 && fRandom != 5 && !fSequence2Over ){
+		eEnemy.attack($doctor);
+	}else{
+		eEnemy.aggressive(1);
+	}
+	
+	if( fSequence2Over ){
+		fSequence2ExtraEnemies++;
+	}
+}
+
+void evacuationSequenceKilled()
+{
+	killthread("evacuationSequence");
+	
+	thread globalCoop_objectives_update("failed" , 3 , 1 );//defend sick
+	
+	cam_fadeout( 0.01 , 0, 0, 0, 1 , 0 );
+	$camDocKill.follow($doctor,$doctor);
+	wait(0.05);
+	cinematic();
+	freezeplayer();
+	cuecamera($camDocKill);
+	letterbox( .1 );
+	wait(0.05);
+	$camDocKill.cut();
+	cam_fadein( 0.15 , 0, 0, 0, 0, 0 );
+	wait(0.05);
+	
+	//long_death
+	//death3
+	//death-knockback
+	float fAngle;
+	vector vAngels;
+	vAngels =  $doctor.getAngles();
+	fAngle = vectorGetY(vAngels);
+	
+	if(fAngle > 135 && fAngle < 225){//180
+		$doctor.angle(180);
+		$doctor.setvelocity('600 0 50');
+	}else if(fAngle < 45 || fAngle > 315){//0/360
+		$doctor.angle(0);
+		$doctor.setvelocity('-600 0 50');
+	}
+	else if(fAngle >= 45 && fAngle <= 135){//90
+		$doctor.angle(90);
+		$doctor.setvelocity('0 -600 50');
+	}else{
+		$doctor.angle(270);
+		$doctor.setvelocity('0 600 50');
+	}
+	
+	$doctor.animateonce("long_death");
+	waitForAnimation($doctor,"long_death");
+	$doctor.setframe(164); //hold animation in this frame (makes it freeze)
+
+	noncinematic();
+	clearletterbox( 0.05 );
+	
+	//fail current mission
+	globalCoop_mission_germanText("Der Doktor verstarb.");
+	globalCoop_mission_failWithReason("The Doctor died.");
+}
+
+void evacuationSequence()
+{
+	//make medic to from bed to medical table pickup something, go to next pacient, beam old pacient out
+	//make enemy beam in and walk over to the doctor trying to kill here
+	//play objectives: doctor and pacient need to survive, until all a beamed out
+	
+	//models/char/romulan-m2-rebel-pistol-m2.tik
+	
+	float fHealth = 50;
+	float i=0;
+	entity eSick;
+	
+	fHealth = (fHealth / (globalCoop_return_integerPlayersQuantity(2)) );
+	if( fHealth < 15){
+		fHealth = 15;
+	}
+	
+	//set health depending on player num
+	$doctor.immortal(0);
+	$doctor.health(fHealth);
+	$doctor.maxbosshealth(fHealth + 1);// + 1
+	$doctor.updatebosshealth( 1,1);
+	
+	//set mission marker on radar
+	$doctor.missionObjective(1);
+	
+	//spawn a enemy
+	thread evacuationSequenceSpawn();
+	wait(0.25);
+	thread evacuationSequenceSpawn();
+	wait(0.25);
+	thread evacuationSequenceSpawn();
+	
+	$useSymbolSequence2Over.scale(0.05);
+	
+	spawn("camera","targetname","camDocKill");
+
+	//start doctor heal sequence
+	for(i=1;i<5;i++){
+		$doctor.walkto("sickbed" + i , "walk");
+		waitFor($doctor);
+		
+		//she does not quite reac the location, give her a little push
+		$doctor.setvelocity('-400 0 50');
+		
+		$doctor.animateonce("ent-sickbed-idle-look");
+		waitforAnimation($doctor,"ent-sickbed-idle-look");
+		wait(1);
+		
+		$doctor.anim("ent-curvedconsole-gesture");
+		wait(10);
+		
+		$doctor.animateonce("communicator");
+		waitforAnimation($doctor,"communicator");
+		wait(1);
+		
+		eSick = getEntity("sick" + i);
+		//eSick.displayeffect("TransportOut","Federation"); //buggy
+		//eSick.displayeffect("TransportOut","FederationWeapons"); //no sound
+		eSick.displayeffect("TransportOut","Multiplayer");
+		wait(1.5);
+		
+		$doctor.walkto("medicaltools" , "walk");
+		waitFor($doctor);
+		
+		//she does not quite reach the location, give her a little push
+		$doctor.setvelocity('400 0 50');
+		
+		$doctor.animateonce("twitch");
+		waitforAnimation($doctor,"twitch");
+		$doctor.anim("idle");
+		
+		eSick.remove();
+	}
+	
+	//remove cam now, as we don't need it anymore
+	$camDocKill.remove();
+	
+	//signal the enemy that the doctor is no longer a target;
+	fSequence2Over = 1;
+	
+	//set mission marker on radar
+	$puzzleSymbol.missionObjective(1);
+	$doctor.missionobjective(0);
+
+	//enable door
+	$useSymbolSequence2Over.scale(1);
+	$doorEvecuationAreaTrigger.triggerable();
+	$doorEvecuationAreaTrigger.time(1);//make sure players do not imidatly close it again
+	
+	//beam out doctor
+	$doctor.immortal(1);
+	$doctor.killthread("");
+	$doctor.updatebosshealth(0,0);
+	$doctor.turntowardsplayer();
+	$doctor.anim("idle");
+	wait(0.2);
+	$doctor.animateonce("communicator");
+	waitforAnimation($doctor,"communicator");
+	wait(1);
+	$doctor.displayeffect("TransportOut","Federation");
+	wait(1);
+	$doctor.notsolid();
+	globalCoop_objectives_update("complete" , 3 , 1 );//defend sick
+	wait(2);
+	$doctor.remove();
+	
+	//"conv-comehere"
+	//"conv-fingerpoint-atyou"
+	//"ent-compstation-gesture1"
+	//"ent-sickbed-gesture"
+	//"ent-sickbed-gesture1"
+	//"ent-sickbed-idle"
+	//"ent-sickbed-idle-look"
+	//"ent-sickbed-scan"
+	//"tricorder_area_scan180"
+	
+	//$doctor.anim("twitch");
+	//$doctor.anim("ent-curvedconsole-gesture");
+	//$doctor.anim("ent-curvedconsole-idle-look");
+	//$doctor.anim("ent-curvedconsole-idle");
+	//$doctor.anim("idle");
+	//$doctor.animateonce("communicator");
+	//beam out the pacient .diesplayeffect("TransportOut","Federation");
+}
+
+
+void ambushSequence()
+{
+	//activate snipers
+	aiOnAggressiveBeam($ambushSniper0);
+	if(globalCoop_return_integerPlayersQuantity(2) > 1){aiOnAggressiveBeam($ambushSniper1);}
+	if(globalCoop_return_integerPlayersQuantity(2) > 2){aiOnAggressiveBeam($ambushSniper2);}
+	
+	//activate granade
+	aiOnAggressiveBeam($ambushGranade0);
+	aiOnAggressiveBeam($ambushGranade1);
+}
+
+void puzzleCanceled()
+{
+	$puzzle.puzzleobject_reset();
+}
+
+void puzzleUsed()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 10 );
+	globalTricorderRoute_SetSource2Row( 8 );
+	globalTricorderRoute_SetDestination1( 3, 10 );
+    globalTricorderRoute_SetDestination2( 2, 8 );
+    
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 19, 16, 20, 22, 16, 16 );
+ 	globalTricorderRoute_SetNextRow( 19, 16, 20, 17, 32, 17, 17, 11,  8 );
+ 	globalTricorderRoute_SetNextRow( 17, 32, 25, 25, 32, 18, 21, 32, 17 );
+ 	globalTricorderRoute_SetNextRow( 23, 19, 24, 17, 32, 11,  3, 16,  8 );
+ 	globalTricorderRoute_SetNextRow( 25, 17, 25, 21, 25,  7,  9, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 17, 18, 21,  6,  4, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 21, 32, 32,  0, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  2, 16,  2, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 16,  7,  6, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 11, 32, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+}
+
+void puzzleSolved()
+{
+	//remove mission marker on radar
+	$puzzleSymbol.missionObjective(0);
+	
+	//remove modulate symbol
+	$puzzleSymbol.remove();
+	
+	//allow now to enter the colony
+	$bigSecurityDoor.open($world);
+	
+//update objectives - reroute power
+	globalCoop_objectives_update("complete" , 3 , 1 );//reroute power
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//activate drive cart
+	
+	$cartActivate.missionObjective(1);
+}
+
+void cartHit()
+{
+	//if touched while moving by a entity, kill the entity, if it is a enemy
+	entity eTrigger,eHit;
+	eTrigger = getCurrentEntity();
+	eHit = eTrigger.getLastActivatingEntity();
+	
+	string sRawTargetname;
+	sRawTargetname = eHit.getRawTargetName();
+	if(	sRawTargetname != "hazardTeam1" &&
+		sRawTargetname != "player" &&
+		sRawTargetname != "player0" &&
+		sRawTargetname != "player1" &&
+		sRawTargetname != "player2" &&
+		sRawTargetname != "player3" &&
+		sRawTargetname != "player4" &&
+		sRawTargetname != "player5" &&
+		sRawTargetname != "player6" &&
+		sRawTargetname != "player7" &&
+		sRawTargetname != "player8" )
+	{
+		eHit.gravity(1);
+		eHit.mass(50);
+		eHit.setvelocity('450 0 200');
+		eHit.kill();
+	}
+}
+
+void cartActivate()
+{
+	$cartActivate.missionObjective(0);
+	$cart0.missionObjective(1);
+	//cart damage trigger might be adjusted by cart speed
+	$cartPassengerTrigger.triggerable();
+	$cartDisplayMove.show();
+	
+	while(!fCartCrashed)
+	{
+		wait(0.05);
+		//make damage based on cart speed
+		$cartHurtTrigger.damage( vectorGetx($cartOrigin.getVelocity()) / 10 );
+	}
+	$cartDisplayError.show();
+	$cartDisplayMove.remove();
+}
+
+void cartPassengerActive()
+{
+	vector v1,v2;
+	float fVectorLength;
+	if(fCartHalted == 0){
+		v1 = $cartHaltPosition.getOrigin();
+		v2 =  $cartOrigin.getOrigin();
+		fVectorLength = vectorLength( v1 - v2 );
+		
+		if(fVectorLength < 20){
+			$cartPassengerTrigger.thread("");
+			$cartOrigin.setvelocity('0 0 0');
+			$cartBlockade0.open($world);
+			$cartBlockade2.open($world);
+			wait(1);
+			$cartBlockade1.open($world);
+			wait(4);
+			
+			fCartHalted=1;
+			$cartPassengerTrigger.thread("cartPassengerActive");
+			
+			//make teammate follow again
+			teammateFollow();
+			return;
+		}
+		$cartOrigin.movetopos( $cartHaltPosition.getOrigin() );
+		$cartOrigin.time( (fVectorLength / 150) );
+	}
+	else{	
+		v1 = $cartCrashPosition.getOrigin();
+		v2 = $cartOrigin.getOrigin();
+		
+		fVectorLength = vectorLength(  v1 - v2 );
+		
+		if(fVectorLength < 20){
+			$cartPassengerTrigger.thread("");
+			$cartPassengerTrigger.nottriggerable();
+			$cart0.missionObjective(0);
+			fCartCrashed=1;
+			$cartHurtTrigger.damage(0);
+			$cartHurtTrigger.nottriggerable();
+			globalCoop_objectives_update("complete" , 4 , 1 );//activate drive cart
+		}
+		$cartOrigin.movetopos( $cartCrashPosition.getOrigin() );
+		$cartOrigin.time( (fVectorLength / 200) );
+	}
+
+	//activates cart if player is inside
+	//if player leaves cart, the cart stops
+}
+
+void activateCartSniper()
+{
+	$cartSniper0.walkto("$cartSniperDestination0","run");
+	waitFor($cartSniper0);
+	$cartSniper0.angle(180);
+	$cartSniper0.ai_on();
+	$cartSniper0.aggressive(1);
+	
+	$cartSniper1.walkto("$cartSniperDestination1","run");
+	waitFor($cartSniper1);
+	$cartSniper1.angle(180);
+	$cartSniper1.ai_on();
+	$cartSniper1.aggressive(1);
+
+}
+
+void activateAggressiveAi()
+{
+	//spawn ai, make it run out of the hole, turn and attack who ever is closest
+	entity e,eSpawn,eAi,ePlayer;
+	string s;
+	e = getCurrentEntity();
+	ePlayer = e.getLastActivatingEntity();
+	s = e.getStringVar("uservar1");
+	eSpawn = getEntity(s);
+	
+	if(!doesEntityExist(eSpawn)){
+		centerprint("Error missing spawn: "+s);
+	}
+	
+	//eSpawn.setspawnvelocity( '0 0 0' );
+	eSpawn.startanim( "run" );
+	eSpawn.spawnTargetName("enemy" + eSpawn.getRawTargetName() );
+	eAi = eSpawn.spawnnow();
+	wait(0.05);
+	eAi.ai_off();
+	eAi.anim("run");
+	
+	vector v1,v2;
+	v1 = eSpawn.getOrigin();
+	v2 = eAi.getOrigin();
+	
+	while(vectorLength(v1 - v2) < 170 )
+	{
+		wait(0.05);
+		v1 = eSpawn.getOrigin();
+		v2 = eAi.getOrigin();
+	}
+	eAi.angle(180);
+	eAi.anim("romdisruptor_fire");
+	wait(1);
+	if(eAi.getHealth() < 1){
+		return;
+	}
+	eAi.ai_on();
+	eAi.aggressive(1);
+	//eAi.ai_on();
+	//eAi.hurt(1);
+	//eAi.aggressive(1);
+	//eAi.attack($cartShootMe);
+}
+
+void giveRomDisruptor()
+{
+	//get trigger that was activating this function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//get player that was activating the trigger
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	//get player name
+	string sNameOfFinder;
+	sNameOfFinder = getStringPlayername(ePlayer);
+	
+	$secretDisruptor.remove();
+	
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-rom-disruptor.tik");
+	globalCoop_player_giveAll("models/weapons/worldmodel-rom-disruptor.tik",0);
+	
+	//send message to all players
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0 || coop_float_immobilizeActive != 1){
+			//german text
+				if(getStringPlayerLanguage(ePlayer) == "Deu" ){
+					ePlayer.hudprint( sNameOfFinder + " ^8hat eine verstecke Waffe gefunden!\n");
+				}
+			//english text
+				else{
+					ePlayer.hudprint(sNameOfFinder + " ^8has found a secret weapon!\n");
+				}
+			}
+		}
+	}
+}
+
+void endSequenceCinematic()
+{
+//dead shall be dead - secret rom dis dude
+	$youAreDead.anim("cin-m9l2_munro_lurok");
+
+	if(fEndSequenceCinematicRunning){
+		return;
+	}
+	fEndSequenceCinematicRunning++;
+
+	spawn("camera","targetname","cam1");
+//paint it black
+	cam_fadeout( 1 , 0, 0, 0, 1, 0 );
+	wait(1);
+
+	$hazardTeam1.ai_off();//teammate - might start to fire
+	$hazardTeam1.hide();//teammate - might be visible
+	
+	$triggerExit.remove();//forces level end hud, we don't want this now
+	
+	//start the actual cinematic
+	cinematic();
+	freezeplayer();
+	cuecamera($cam1);
+	letterbox( .1 );
+	$cam1.cut();
+	$cam1.follow($endSequencePath);
+	wait(0.2);
+	//remove black
+	cam_fadeIn( 1 , 0, 0, 0, 0, 0 );
+
+	
+	$endSequenceRom0.walkto("$removePath0","run");
+	$endSequenceRom1.walkto("$removePath1","run");
+	$endSequenceRom2.walkto("$removePath2","run");
+	waitFor($endSequenceRom2);
+	
+	//idle_combat
+	//walk_combat
+	//prefire
+	$endSequenceRom0.anim("idle_combat");
+	$endSequenceRom1.anim("prefire");
+	$endSequenceRom2.anim("idle_combat");
+	
+	$crashingTram.bind($crashingTramOrigin);
+	wait(1);
+	
+	$crashingTramOrigin.movetopos($chrashedTram.getOrigin());
+	$crashingTramOrigin.time(1.3);
+	triggerEntity($crashingTramWallExposion0);
+	triggerEntity($crashingTramWallExposion1);
+	triggerEntity($crashingTramWallExposion2);
+	triggerEntity($crashingTramWallExposion3);
+	triggerEntity($crashingTramWallExposion4);
+	triggerEntity($crashingTramWallExposion5);
+	wait(0.2);
+	$endSequenceRom0.kill();
+	wait(0.1);
+	$endSequenceRom1.kill();
+	wait(0.1);
+	$endSequenceRom2.kill();
+	$tranCrash_wall.remove();
+	
+	waitFor($crashingTramOrigin);
+	$chrashedTramClip.solid();
+	//$chrashedTramMonsterClip.solid();
+	$tranCrash_wallFragment0.show();
+	$tranCrash_wallFragment0.solid();	
+	$chrashedTramExtend.show();
+	$chrashedTramExtendClip.solid();
+	$chrashedTramExtendMoveClip.solid();	
+	$tranCrash_rails.solid();
+	$floorDamaged.show();
+	$floorUndamaged.remove();
+	$chrashedTram.show();
+	$crashingTram.remove();
+	
+	noncinematic();
+	clearletterbox( .1 );
+	
+	//remove invalid pathnodes now, they are located where the tram has crashed and can no longer be used
+	float fNum;
+	float fNumCount;
+	
+	disconnectNodes(0);
+	disconnectNodes(1);
+	disconnectNodes(2);
+	disconnectNodes(3);
+	disconnectNodes(4);
+	disconnectNodes(5);
+	disconnectNodes(6);
+	
+	$hazardTeam1.origin('3600 3800 -107');
+	wait(0.1);
+	$hazardTeam1.ai_on();//teammate - might start to fire
+	$hazardTeam1.show();//teammate - might be visible
+	
+	//freezeplayer();
+	//thread coop_endLevel();
+}
+
+void disconnectNodes(float fNum)
+{
+	float fNumCount;
+	entity eMaster;
+	entity eSlave;
+	for(fNumCount = 0;fNumCount<7;fNumCount++ ){
+	
+		eMaster = getEntity("removePath" + fNum);
+		if(doesEntityExist(eMaster)){
+		
+			eSlave = getEntity("removePath" + fNumCount + "_l");
+			if(doesEntityExist(eSlave)){
+				disconnectPathNodes( "removePath" + fNum, "removePath" + fNumCount + "_l" );
+			}
+			
+			eSlave = getEntity("removePath" + fNumCount + "_r");
+			if(doesEntityExist(eSlave)){
+				disconnectPathNodes( "removePath" + fNum, "removePath" + fNumCount + "_r" );
+			}
+			
+			eSlave = getEntity("removePath" + fNumCount);
+			if(doesEntityExist(eSlave)){
+				disconnectPathNodes( "removePath" + fNum, "removePath" + fNumCount );
+			}
+		}
+	}
+}
+
+void enteredGarden()
+{
+	wait(10);
+//it is okay now if players claim the tram now
+	$chrashedTramExtendMoveClip.remove();
+	$butcherGardenExitDoor.open($world);
+	
+	entity e;
+	float i;
+	for(i=0;i<3;i++)
+	{
+		e = getEntity("backAlleySpawner"+i);
+		if(doesEntityExist(e))
+		{
+			triggerEntity(e);
+		}
+	}
+}
+
+
+void teamAiWaitHere()
+{
+	entity e;
+	e=getCurrentEntity();
+	entity ePlayer;
+	ePlayer = e.getLastActivatingEntity();
+	ePlayer.simplePlayDialog( "localization/sound/dialog/.mp3", 2, 999999 );
+	
+	float fWait=1;
+	while(fWait){
+		if(!doesEntityExist($hazardTeam1))
+			return;
+			
+		if(!$hazardTeam1.iswithinDistanceOf($tramExitTeamWait,1048)){
+			wait(3);
+		}else{
+			fWait=0;
+		}
+	}
+	$hazardTeam1.ai_off();
+	fWait=1;
+	while(fWait){
+		$hazardTeam1.walkto("tramExitTeamWait","run");
+		waitFor($hazardTeam1);
+		
+		if(!doesEntityExist($hazardTeam1))
+			return;
+			
+		if($hazardTeam1.iswithinDistanceOf($tramExitTeamWait,48)){
+			fWait = 0;
+		}
+	}
+	$hazardTeam1.mass(99999);
+	$hazardTeam1.pushable(0);	
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	
+	//do cinematic if there is more than 1 player
+	//if( > 1){
+	
+//start cinematic
+	cam_fadeout( 0.18 , 0, 0, 0, 1 , 0 );
+	$cam1.cut();
+	spawn("camera","targetname","warehouseIntro");
+	wait(0.1);
+	$warehouseIntro.follow($levelExitCamPath);
+	wait(0.1);
+	cinematic();
+	freezeplayer();
+	letterbox( .1 );
+	cuecamera($warehouseIntro);
+	cam_fadein( 1 , 0, 0, 0, 0 , 0 );
+	wait(18);
+	cam_fadeout( 1.5 , 0, 0, 0, 1 , 0 );
+	wait(2);
+	noncinematic();
+	clearletterbox( .1 );
+	
+//credits, and history of map
+	globalCoop_main_globalCommand("nodamage");
+//load next map
+	thread globalCoop_mission_completed("coop_rotec5");
+}
+
+
+

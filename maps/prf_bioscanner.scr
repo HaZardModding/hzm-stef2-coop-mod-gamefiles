@@ -1,0 +1,513 @@
+//bioscaner example script and map for ef2 created 23.02.2015 by Chrissstrahl
+//parts of the script-code have been extracted from the game its campaign
+//
+//mail questions to chrissstrahl@yahoo.de
+//this code is !!!FULLY!!! commented, how ever, if you are still missing something
+//or find something confusing, don't hesitate to contact me.
+//
+//there is no full support for ai teammates, sometimes they are a bit messy
+//I have not checked the mission levels from campaign yet to see how to
+//fix this, this is a rather hasty creation
+//
+//updated 2017.07.22
+
+
+//declare all the functions
+//===========================================
+//function declarations
+//===========================================
+//the declaration makes the existence of the function known trough out the script file.
+//Without it, functions could only be called after they are defined.
+//
+//A declaration only announces the existence of a function!
+//While a definition of a function is the actual function.
+//
+//If there are no declarations, functions are only known after they are
+//defined, so the script would be linear. This is best compared to a book.
+//If you have a chapter overview, you know the names the chapters and you
+//can go directly to each chapter.
+//If you do not have a overview, you would only know of the existence of
+//a chapter once you have arrived at the page where the chapter starts.
+//Think of the script as book and it all will be read from top to bottom,
+//once a chapter/function is declared you can reference/call it, but not before!
+void main();
+void bioscannerConsolePrint(string sText);
+void bioscannerSetup();
+void bioscannerDetected(entity ePlayer);
+void bioscannerDisable();
+void bioscannerToggleDoor();
+void bioscannerStartChecking ( entity beamModel);
+void bioscannerRotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir , vector endRotation);
+
+//definition of the level-script function: main
+//===========================================
+//this function is started every time the map has finished loading,
+//but before players are connected or ready (assuming they are already connected)
+//===========================================
+// 1. removes all tricorder viewmodes
+// 2. adds a viewmode for the tricoder
+// 3. starts bioscanner functions
+void main()
+{
+//remove all other viewmodes, for this to work, you need to add a viewmode
+//1. if you don't want any view mode use: $world.addAvailableViewMode("bogusMode");
+	$world.clearAvailableViewModes();
+//2. set viewmode, so the player can use it with his tricorder
+	$world.addAvailableViewMode("tripwire");
+
+//3. start function bioscannerSetup, and run it as "independant instance" also called: thread
+	thread bioscannerSetup();
+}
+
+
+void bioscannerConsolePrint(string sText)
+//definition of the level-script function: bioscannerConsolePrint
+//===========================================
+//handles text, so that it is always printed into the game console
+//===========================================
+// 1. adds the new line marker, so that the next text in the console starts in a new line
+// 2.0a checks if the server is a linux server, if it is the code inside will be executed
+// 2.0b uses print to display the text to the server console, this is for linux servers
+// 2.1a starts when the server is NOT a linux server - windows or mac, executes code inside
+// 2.1b starts if server is windows or mac, prints message to server console
+{
+	//1.0 add new line to string variable
+	sText = sText + "\n";
+	
+	//2.0a check if this is a linux server
+	if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003"){
+		//2.1a use print command to make the text show up in the server console
+		print(sText);
+	}
+	//2.0b this is no linux server - windows or mac
+	else{
+		//2.1b use the echo command and relay directly to the server console
+		stuffCMD("echo " + sText);
+	}
+}
+
+
+//definition of the level-script function: bioscannerSetup
+//===========================================
+//this function does the setup of the bioscanner script objects
+//===========================================
+// 1.0 Starts function that makes the first beam move
+// 1.1 Starts function that makes the second beam move
+// 2.0 Starts function checks if a player is hit by the beam
+// 2.1 Starts function checks if a player is hit by the beam
+void bioscannerSetup()
+{
+//start-angels: you only need to change the second value, example: '0 X 0' X is the number you change
+//degree-to-rotate: this depends on your start-angles second value
+//degree-to-rotate:		'0 270 0' uses '0 0 60'
+//degree-to-rotate:		'0 90 0' uses '0 0 -60'
+//degree-to-rotate:		'0 180 0' uses '-60 0 0'
+//degree-to-rotate:		'0 0 0' uses '60 0 0'
+//get your starts-angels from the level-editor
+//level-editor: 		angels 0 90 0 is equal to angle 90
+
+//1.0 start the bioscanner beam moving - targetname, speed-move-up , speed-modedown , start-angels, degree-to-rotate
+thread bioscannerRotateTripWire( "bioscannerBeam0" , 0.2 , 5 , '0 270 0' , '0 0 60' );
+//1.1 start the bioscanner beam moving - second instance, for second beam
+thread bioscannerRotateTripWire( "bioscannerBeam1" , 0.2 , 5 , '0 90 0' , '0 0 -60' );
+
+//2.0 start a new function, that handles the checking. Give the model entities to that function
+thread bioscannerStartChecking( $bioscannerBeam0 );
+//2.1 start a new function, that handles the checking. Give the model entities to that function
+thread bioscannerStartChecking( $bioscannerBeam1 );
+}
+
+//definition of the level-script function: bioscannerDisable
+//===========================================
+//this function disables the bioscanner alarm
+//===========================================
+// 1.0 check if the sound is ON, if it is the code inside will be executed
+// 1.1 toggle the sound_speaker that plays the alarm, it will then stop playing
+// 1.2 save the current sound off status on the sound_speaker entity
+// 1.3 play dialog
+// 2.0 checks if the variable "thisDoorIsClosed" saved on the door says that the door is closed
+// executes code inside, that opens the door and sets the variable "thisDoorIsClosed" to 0
+// which means for the script, that this door is closed...
+// 2.1 open door now
+// 2.2 save variable on the door, that tells us the door is now open
+void bioscannerDisable()
+{
+	//1.0 read the variable attached to the entity, and check if the sound is ON
+	if( $bioscannerAlarmSound0.getFloatVar("alarmSoundIsOn") == 1){
+	//1.1 activate that sound_speaker entity AGAIN, it STOPS the alarm sound
+		triggerEntity($bioscannerAlarmSound0);
+	//1.2 set variable on the entity, that tells us that the alarm is OFF
+		$bioscannerAlarmSound0.setFloatVar("alarmSoundIsOn",0);
+	//1.3 make the actor play a dialog - Saying: You did it!
+		$bioscannerSpawnedActor0.playdialog("localization/sound/dialog/combat/telsia_youdidit.mp3",1,512);
+	}
+	
+	//2.0 checks if door is closed, and executes code inside if so
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") == 1){
+		//2.1 open door now
+		$bioscannerDoor.open($world);
+		//2.2 save variable on the door, that tells us the door is now open
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",0);
+	}
+}
+
+
+//===========================================
+//this function opens and closes the door, it sets the state of the door each time
+//===========================================
+// 1.0a checks variable of door entity if the door is NOT closed, if door is open it sets the closed state
+// 1.1a closes the door
+// 1.2a sets the door is closed variable to 1 on the door entity
+// 1.0b if the variable "thisDoorIsClosed" that was saved on the door is 1 it will execute the code inside
+// 1.1b opens the door
+// 1.2b sets the door is closed variable to 0 on the door entity
+void bioscannerToggleDoor()
+{
+	//1.0a checks if door is NOT closed
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") != 1){
+		//1.1a close the door now
+		$bioscannerDoor.close();
+		
+		//1.2a save variable on the door, that tells us the door is now closed
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",1);
+		
+		//1.3a locks the door, so that the ai does not try to walk trough a closed door
+		$bioscannerDoor.lock();
+	}else{
+		//1.1b unlocks the door, so that it can be opened again
+		$bioscannerDoor.unlock();
+		//1.2b open door now
+		$bioscannerDoor.open($world);
+		//1.3b save variable on the door, that tells us the door is now open
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",0);
+	}
+}
+
+
+
+//definition of the level-script function: bioscannerDetected
+//===========================================
+//this function does the setup of the bioscanner script objects
+//===========================================
+// 1.0 reads the a variable from the entity, only activates the alarm sound entity
+// when it is not ON already, otherwise it would TOGGLE the sound_speaker entity
+// and this would turn teh sound off!
+// 1.1 Activates a entity in the level for alarm sound
+// 1.2 writes a variable on the entity, to determinate if the sound is on or off
+// 2.0 Activates the func_spawn entity to spawn a new ACTOR if the previous spawned does not exist any more
+// 2.1 activates func_spawn entity, and makes it spawn a ACTOR
+// 2.2 Wait a moment for the actor to spawn
+// 2.3 Make the actor play a dialog
+// 2.4 Activates the func_spawn entity to spawn a new ACTOR if the previous spawned does not exist any more
+// 2.5 activates func_spawn entity, and makes it spawn a ACTOR
+// 2.6 Activates the func_spawn entity to spawn a new ACTOR if the previous spawned does not exist any more
+// 2.7 activates func_spawn entity, and makes it spawn a ACTOR
+// 3.0 checks if door is NOT closed, closes the door if it is open
+// 3.1 close the door now
+// 3.2 save variable on the door, that tells us the door is now closed
+// 4.0 Check if the player exists (his virtual persona is still on the server)
+// 4.1a check s if the server is in singleplayer mode
+// 4.1b code inside of else will be execute when the server is NOT in singleplayer mode (multiplayer)
+// 4.2a print a text to player his screen in singleplayer
+// 4.2b print a text to player his chat-hud in multiplayer
+// 5. wait a moment before the script continues
+void bioscannerDetected(entity ePlayer)
+{
+	 //1.0 read the variable attached to the entity, and check if the sound is NOT on
+	if( $bioscannerAlarmSound0.getFloatVar("alarmSoundIsOn") != 1){
+		//1.1 activate that entity, it plays a alarm sound
+		triggerEntity($bioscannerAlarmSound0);
+		//1.2 set variable on the entity, that tells us that the alarm is on
+		$bioscannerAlarmSound0.setFloatVar("alarmSoundIsOn",1);
+	}
+
+	// 2.0 - check if there is not already a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor0)){
+		// 2.1 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn0);
+		
+		// 2.2 wait a moment for the actor to spawn
+		wait(0.1);
+		
+		// 2.3 make the actor play a dialog - Saying: Whatch out!
+		$bioscannerSpawnedActor0.playdialog("localization/sound/dialog/combat/telsia_watchout.mp3",1,512);
+	}
+
+	// 2.4 - check if there is not already a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor1)){
+		// 2.5 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn1);
+	}
+
+	// 2.6 - check if there is not already a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor2)){
+		// 2.7 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn2);
+	}
+
+	//3.0 checks if door is NOT closed, closes the door if it is open
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") != 1){
+		//3.1 close the door now
+		$bioscannerDoor.close();
+		//3.2 save variable on the door, that tells us the door is now closed
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",1);
+	}
+
+	//4.0 check for player
+	if(doesEntityExist(ePlayer)){
+		//4.1a check for singleplayer
+		if(getCvarInt("g_gametype") == 0){
+			//4.2a print text to the center of the screen
+			centerPrint("You have been detected!\n");
+		}
+		//4.1b if not singleplayer - then it is multiplayer
+		else{
+			//4.2b print text to chat hud of the player who was detected
+			ePlayer.hudPrint("^3WARNING^8: You have been detected!\n");
+		}
+	}
+	//5. wait a moment before the script continues
+	wait( 2 );
+}
+
+//definition of the level-script function: bioscannerStartChecking
+//===========================================
+//this function check if a bioscanner hits a player
+//===========================================
+// 1. check if the bioscanner entity exists
+// 2. gets the maximum number of players of the server
+// 3. create variables for client number
+// 4. create variables for client entity (contains the virtual persona of the player)
+// 5. loops, executes the code inside while as long as the condition in the while() head is 1 or true
+// 6.0 executes the code inside the for, for each player once
+// 6.1 gets the player by his client id and puts his virtual persona into a entity variable
+// 6.2 checks if the virtual persona of a player exist (when the player leaves the persona is destroyed)
+// 6.3 checks if the virtual persona of the player is alive
+// 6.4 checks if the virtual persona really is a player, by comparing the targetname to possible targetnames
+// 6.5 checks if the virtual persona is hit by the beam
+// 6.6 starts detection function, that manages what happens if a player gets detected
+// 6.7 pauses this function for the number of seconds
+void bioscannerStartChecking ( entity beamModel)
+{
+//1. check if the entity exists
+	if ( doesEntityExist ( beamModel )){
+		//2. get the maximum number of player that can be on the server
+		float fMaxClients;
+		fMaxClients = getCvarInt( "sv_maxclients" );
+		
+		//3. used to store client number
+		float fCurrentClient = 0;
+		
+		//4. used to store the player entity
+		entity ePlayer;
+		
+		//5. do this over and over again
+		while ( 1 )
+		{
+			//6.0 check for every player
+			for(fCurrentClient = 0; fCurrentClient < fMaxClients; fCurrentClient++){
+				//6.1 get the player by his client id, starting with 0
+				ePlayer = getEntity("*" + fCurrentClient );
+				
+				//6.2 check if that player is on the server
+				if(doesEntityExist(ePlayer)){
+					//6.3 check if player is alive
+					if(ePlayer.getHealth() > 0){
+						//6.4 check if it really is a player, it really should be, but let us be sure
+						if(	ePlayer.getRawTargetname() == "player" ||
+							ePlayer.getRawTargetname() == "player" + fCurrentClient ||
+							ePlayer.getRawTargetname() == "player" + (fCurrentClient + 1) )
+						{
+							//6.5 check if the model points directly on the current entity (makes it seam as if he was hit by the beam)
+							if(beamModel.traceHitsEntity ( "tag_horizontal" , 300 , ePlayer )){
+								//6.6 starts a function that handels the detected event,
+								//In the same instance. Meaning this code here continues after bioscannerDetected has ended
+								bioscannerDetected(ePlayer);	
+							}
+						}
+					}
+				}				
+			}
+		//6.7 wait a moment, before we run the check again
+			wait ( .25 );
+		}
+	}
+}
+
+
+//definition of the level-script function: bioscannerRotateTripWire
+//===========================================
+//this function makes the beams move
+//===========================================
+//1. creating entity variables to store the entities
+//2. creating variables for the rotation process
+//3. renaming this thread, so that it can be accessed by its name
+//4.0 getting the beam model entity by its targetname, and putting it into the entity variable: wire
+//4.1 getting the beam script_origin entity by its targetname, and putting it into the entity variable: beamOrigin
+//5. setting the facing direction (angle) on the model
+//6. starting a repeating sound, originating from the script_origin (master) of the tripwrire beam
+//7.0 starts the code inside the entity does NOT exist
+//7.1 start function that prints a error message to the server console (is visible to logfile)
+//7.2 ends this function right away
+//8.0 starts the code inside the entity does NOT exist
+//8.1 start function that prints a error message to the server console (is visible to logfile)
+//8.2 ends this function right away
+//9. binds the model to the script_origin, we need to control the movement of the model by a script_origin!
+//10. adapts the rotation variables, if they shall go up or down, depending on the start-angels
+//11. adapts the rotation variables, if they shall go up or down, depending on the start-angels
+//12. adapts the rotation variables, if they shall go up or down, depending on the start-angels
+//13. runs the code inside, while its condition is true or 1
+//14. sets the time, how long this entity will be rotating, in seconds
+//15. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//16. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//17. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//18. waits for the entity to finish moving
+//19. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//20. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//21. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//22. depending on the on the angle of the beam start-angles, this will rotate the script_origin accordingly, to make the beam go up or down
+//23. waits for the entity to finish moving
+void bioscannerRotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir , vector endRotation)
+{
+	//1. create entity variables
+	entity wire,beamOrigin;
+	
+	//2. create variables to store integers or floats in
+	float flipX,flipY,flipZ;
+	
+	//3. rename this instance of this function
+	threadname ( basename + "_thread" );
+	
+	//4.0 get the model by its targetname
+	wire = getentity ( basename );
+	
+	//4.1 get the master by its targetname, we use to control the model,
+	//NOTE:	the master has the same targetname as the model, BUT it has the extension _model to it
+	//		If the model targetname is $beam1 then the master would be $beam1_origin
+	//		the targetnames will show in the level-editor without the leading $
+	//		the leading $ signals the level-script that this is a level-object
+	//		level-objects are entities, everything that can move or be deleted
+	//		is a entity in the game, every door,player,weapon,ammo,item,enemy,trigger... and so forth
+	beamOrigin = getentity ( basename + "_origin" );
+	
+	//5. aligen the model
+	wire.angles ( startDir );
+
+	//6. start loop sound
+	beamOrigin.loopsound ( "sound/ships/romulan/rom_search_hi.wav", .45, 75);
+
+	//7.0 check if the master of that beam does NOT exists
+	if ( ! doesEntityExist( beamOrigin ) ){
+		//7.1 the master does not exist, print a error message and end this function
+		bioscannerConsolePrint( "ERROR: could not find entity: $" + basename + " - bioscannerRotateTripWire" );
+
+		//7.2 exit/end this function
+		return;
+	}	
+	
+	//8.0 check if the master of that beam does NOT exists
+	if ( ! doesEntityExist( beamOrigin ) ){
+		//8.1 the master does not exist, print a error message and end this function
+		bioscannerConsolePrint( "ERROR: could not find entity: $" + basename + " - bioscannerRotateTripWire" );
+
+		//8.2 exit/end this function
+		return;
+	}
+	
+	//9. bind model(script_model) to master (script_origin) 
+		wire.bind( beamOrigin );
+
+	//10. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_x < 0 ){
+		flipX = 1;
+		endRotation_x *= -1;
+	}
+	
+	//11. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_y < 0 ){
+		flipY = 1;
+		endRotation_y *= -1;
+	}
+	
+	//12. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_z < 0 ){
+		flipZ = 1;
+		endRotation_z *= -1;
+	}
+
+	//13. runs the code inside as long as the condition inside the while head is true or 1
+	while ( 1 ) //1 means true, running infinity
+	{
+		//14. sets the duration of the move 
+		beamOrigin.time ( rotateSpeedUp );
+
+		//15.  - rotates the X axis of the script_origin entity UP
+		if ( flipX == 1 ){
+			beamOrigin.rotateXup ( endRotation_x );
+		}
+		//15. - rotates the X axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateXdown ( endRotation_x );
+		}
+		
+		//16.  - rotates the Y axis of the script_origin entity UP
+		if ( flipY == 1 ){
+			beamOrigin.rotateYup ( endRotation_y );
+		}
+		//16.  - rotates the Y axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateYdown ( endRotation_y );
+		}
+		
+		//17.  - rotates the Z axis of the script_origin entity UP
+		if ( flipZ == 1 ){
+			beamOrigin.rotateZup ( endRotation_z );
+		}
+		//17.  - rotates the Z axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateZdown ( endRotation_z );
+		}
+
+		//18. waits for the script_origin entity to finsih the current movement
+		waitfor ( beamOrigin );
+		
+		
+		//19. sets the duration of the move 
+		beamOrigin.time ( rotateSpeedDown );
+
+		//20.  - rotates the X axis of the script_origin entity DOWN
+		if ( flipX == 1 ){
+			beamOrigin.rotateXdown ( endRotation_x );
+		}
+		//20. - rotates the X axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateXup ( endRotation_x );
+		}
+
+		//21. - rotates the Y axis of the script_origin entity DOWN
+		if ( flipY == 1 ){
+			beamOrigin.rotateYdown ( endRotation_y );
+		}
+		//21. - rotates the Y axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateYup ( endRotation_y );
+		}
+
+		//22. - rotates the Z axis of the script_origin entity DOWN
+		if ( flipZ == 1 ){
+			beamOrigin.rotateZdown ( endRotation_z );
+		}
+		//22. - rotates the Z axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateZup ( endRotation_z );
+		}
+
+		//23. waits for the script_origin entity to finsih the current movement
+		waitfor ( beamOrigin );
+	}
+}
+//have a few empty lines here bellow to prevent a old linux bug crashing the server
+//by corrupting the script (ending the file early)
+
+
+

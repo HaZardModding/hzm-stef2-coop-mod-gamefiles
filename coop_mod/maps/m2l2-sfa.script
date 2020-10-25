@@ -1,0 +1,3389 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m2l2-sfa
+//  Script By:    Benson R
+//  Geometry By:  Richard H., Benson R.
+//  Created on:   8/22/2002
+//
+//  Last Edited By:  Benson R
+//
+//-----------------------------------------------------------------
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  DEFINE SCRIPT
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+void main();
+string fullsoundname;
+
+//--- setup routines
+void setupWorld();
+void setupWorld_SpawnGroup_PickTiki( entity entSpawner);
+void setupAI();
+void setupVariables();
+void setupArmatureCinematics();
+
+//--- start functions
+void startLevel();
+
+//--- entrance functions
+void seqEntrance_Wave1();
+void seqEntrance_Wave2();
+void seqEntrance_Wave3();
+
+//--- hallway 1 functions
+void seqHallway1_KorbanUnlockDoor();
+
+//--- basement functions
+void seqBasement_Wave1();
+void seqBasement_Wave2();
+void seqBasement_FoundVent();
+
+//--- hallway2 functions
+void seqHallway2_Wave1();
+void seqHallway2_Wave1Death();
+void seqHallway2_Wave2Death();
+void seqHallway2_KorbanUnlockDoor();
+void seqHallway2_FoundVent();
+
+//--- vent shaft1 functions
+void seqVentShaft1_FirePuzzleStart();
+void seqVentShaft1_FirePuzzle1();
+void seqVentShaft1_FirePuzzle2();
+void seqVentShaft1_FirePuzzle3();
+void seqVentShaft1_OpenExitDoor();
+
+//--- barracks1 functions
+void seqBarracks1_CloseVent();
+void seqBarracks1_DoorPanelSouthPuzzle();
+void seqBarracks1_DoorPanelSouthFixed();
+void seqBarracks1_Wave1();
+void seqBarracks1_Wave2Death();
+
+//--- hallway3 functions
+void seqHallway3_KorbanUnlockDoor();
+void spawnHallway3_Wave1Death();
+
+//--- vent shaft2 functions
+void seqVentShaft2_CloseDoorVent();
+void seqVentShaft2_FirePuzzle1();
+void seqVentShaft2_FirePuzzle2();
+void seqVentShaft2_FirePuzzleCheck();
+void seqVentShaft2_OpenExitDoor();
+
+//--- tactical functions
+void seqTactical_DoorPanelWestPuzzle();
+void seqTactical_DoorPanelWestFixed();
+void seqTactical_CloseVent();
+void seqTactical_RaiseLift();
+void seqTactical_Wave1Death();
+void seqTactical_Lift2CallKorban();
+
+//--- great hall functions
+void seqGreatHall_KorbanUnlockDoor();
+void seqGreatHall_KorbanUnlockDoor_FailSafe();
+void seqGreatHall_SpawnCharge();
+void seqGreatHall_HolodeckTransition();
+
+//--- Cinematics
+void cinematicArm_MeetPicard_Start();
+void cinematicArm_MeetPicard_ArmEnd();
+void cinematicArm_MeetPicard_Setup();
+void cinematicArm_MeetPicard_ActionMunro();
+void cinematicArm_MeetPicard_ActionKorban();
+
+//--- common functions
+void commonOpenVentDoor( string strDoor );
+void commonOpenVentDoor_Outer( entity entDoor );
+void commonCloseVentDoor( string strDoor );
+void commonCloseVentDoor_Outer( entity entDoor );
+void commonActivateKorban();
+void sparksBlownPanels( entity entSparks );
+void commonTricorderPuzzleFailed();
+void commonLockDoor( entity entDoor );
+void commonUnlockDoor( entity entDoor );
+void commonGoToLocation( entity entDork, string strNode );
+void commonKorbanUsePanel( string strLocation );
+void commonAICharge( entity entDork, string strNode, entity entTarget );
+void commonActivateAI();
+void commonEndLevel();
+void commonAmbientExplosions();
+void commonAmbientExplosions_TriggerDust();
+void commonAccessDenied();
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- PARAMETER CONSTANTS
+
+float VENTDOOR_OUTER_DISTANCE = 44;				//vent outer door travel distance
+float VENTDOOR_INNER_DISTANCE = 36;				//vent inner door travel distance
+float VENTDOOR_TIME = 1.5;						//vent door time for movement
+
+float GOTO_TOLERANCE = 20;		//how close an entity has to get to his destination to satisfy the goto function
+
+float GREATHALL_SPAWNER_COUNT = 28;				//the number of spawners in the great hall
+float GREATHALL_SPAWNER_PISTOL_CHANCE = .6;		//the percentage chance of spawing a pistol dude
+
+float DUST_EMITTERS = 31;							//the number of ambient ceiling dust emitters
+float DUST_EMITTER_DISTANCE_TOLERANCE = 1500;		//the maximum distance to search for dust emitters to trigger
+
+string M2_SOUND_ACCESS_DENIED = "sound/doors/door_locked.wav";
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float boolVentShaft2_FirePuzzle1On = 1;
+float boolVentShaft2_FirePuzzle2On = 1;
+float boolSimulationDone = 0;
+float boolGreatHall_KorbanUnlockDoor = 0;
+
+//--- armature cinematics
+entity cinematicArm_MeetPicard;
+entity cinematicArm_MeetChell;
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  INCLUDES
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+float coop_updateTheSpawnLocations = 1;
+void coop_endLevel();
+void coop_endLevel();
+void coop_adaptSpawnToLift();
+void coop_moveToOnTimeOut(entity actor, vector vec,float ftime,float fdistance); //[b607] chrissstrahl - fixes korban getting stuck - location, time, max distance
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_spawnWave.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+#include "maps/global_scripts/global_tricorderRouteData.scr"
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  MAIN FUNCTION
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+void main()
+{
+//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+//Set spawnangles for this level
+	coop_float_spawnAngle0 				= 90;
+	coop_float_spawnAngle1 				= 106;
+	coop_vector_spawnOrigin1 			= '3539 -839 112';//inside the lift	
+	//coop_vector_spawnOrigin1 			= '2264 1762 -1153';//inside the lift	
+	coop_vector_spawnOrigin2 			= '3487 -895 112';//inside the lift	
+	coop_vector_spawnOrigin3 			= '3553 -887 112';//inside the lift	
+	coop_vector_spawnOrigin4 			= '3430 -883 112';//inside the lift	
+	
+	coop_vector_spawnOrigin5 			= '3597 -591 112';
+	coop_vector_spawnOrigin6 			= '3593 -515 112';
+	coop_vector_spawnOrigin7 			= '3575 -286 179';
+	coop_vector_spawnOrigin8 			= '3374 -385 183';
+	
+	
+	//--- bind objects
+	$lift1_NorthDoor_East.bind( $lift1_Cab );
+	$lift1_NorthDoor_West.bind( $lift1_Cab );
+	
+	//hzm coop mod chrissstrahl - move lift down to avoid spawn bug
+	$lift1_Cab.movedown(1360);
+	$lift1_Cab.time(0.1);
+	$lift1_Cab.notsolid();
+ 
+	//hzm - does not work right in coop - disabled
+	thread coop_adaptSpawnToLift();
+
+	
+	//hzm coop mod chrissstrahl, set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$SFALoadingText$$";
+	
+	//--- fade the world out
+	//[b607] chrissstrahl - restored the line below, was disabled for testing and then forgotten
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+
+	//--- set the soundtrack
+	soundtrack( "music/m2l2-sfa.mus" );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m2l2_sfa" );
+
+	//--- run setup functions
+	setupAI();
+	setupWorld();
+	setupVariables();
+	setupArmatureCinematics();
+	
+	//--- wait for player to spawn
+	waitForPlayer();
+	$lift1_Cab.solid();
+	$korban.origin('3453 -812 112');
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//--- start the level
+	thread startLevel();
+}
+
+
+void coop_adaptSpawnToLift()
+//hzm coop mod chrissstrahl, spawnpos matches moving lift
+{
+return;
+	//for some reason this does not work right in coop
+	float fUpdate,fZ;
+	//while(coop_updateTheSpawnLocations)
+	//{
+		fZ	= vectorGetZ($lift1_Cab.getOrigin());
+		fZ  -= 40;
+		coop_vector_spawnOrigin1_z = fZ;
+		coop_vector_spawnOrigin2_z = fZ;
+		coop_vector_spawnOrigin3_z = fZ;
+		coop_vector_spawnOrigin4_z = fZ;
+		wait(0.1);
+	//}
+}
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  SETUP FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// setupWorld
+// setup world objects
+//---------------------
+void setupWorld()
+{
+
+	//hzm coop mod chrissstrahl - moved here cuz it gets triggred by player spawn points
+	//--- setup triggers
+	$triggerSeqHallway2_FoundVent.notTriggerable();
+	$triggerSeqHallway2_KorbanUnlockDoor.notTriggerable();
+	$triggerSeqBarracks1_Wave1.notTriggerable();
+	//$triggerSeqHallway3_KorbanUnlockDoor.notTriggerable();
+	$triggerSeqTactical_Lift2CallKorban.notTriggerable();
+	$triggerSeqGreatHall_SpawnCharge.notTriggerable();
+	//eof hzm
+
+	float i, fltChoice;
+
+	entity entSpawner;
+
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+
+	//load camera paths
+	cam.load( "m2l3_picard_shot1" );
+	cam.load( "m2l3_picard_shot2" );
+
+	//--- setup distance fog
+	$world.farplane( 2500 );
+	$world.farplane_color( '.3 .15 0' );
+
+	$triggerVentShaft1_FirePuzzle1_Hurt.nottriggerable();
+	$triggerVentShaft1_FirePuzzle2_Hurt.nottriggerable();
+	$triggerVentShaft1_FirePuzzle3_Hurt.nottriggerable();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup AI spawners
+	$spawnHallway2_Romulan1.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnHallway2_Romulan1.modelName( "char/romulan-m2-rebel-pistol-m.tik" );
+	$spawnHallway2_Romulan1.spawnTargetname( "romulan3_2" );
+	$spawnHallway2_Romulan2.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnHallway2_Romulan2.modelName( "char/romulan-m2-rebel-rifle-f.tik" );
+	$spawnHallway2_Romulan2.spawnTargetname( "romulan3_3" );
+	$spawnHallway2_Romulan3.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnHallway2_Romulan3.modelName( "char/romulan-m2-rebel-rifle-m2.tik" );
+	$spawnHallway2_Romulan3.spawnTargetname( "romulan3_4" );
+	$spawnHallway2_Romulan4.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnHallway2_Romulan4.modelName( "char/romulan-m2-rebel-rifle-m.tik" );
+	$spawnHallway2_Romulan4.spawnTargetname( "romulan3_5" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$spawnBarracks1_1.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_2.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_3.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_4.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_5.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_6.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_7.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_8.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_9.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_10.spawnEffectName( "TransportIn", "Romulan" );
+	$spawnBarracks1_11.spawnEffectName( "TransportIn", "Romulan" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//$spawnHallway3_1.spawnEffectName( "TransportIn", "Romulan" );
+	//$spawnHallway3_1.modelName( "char/romulan-m2-rebel-rifle-m.tik" );
+	//$spawnHallway3_2.spawnEffectName( "TransportIn", "Romulan" );
+	//$spawnHallway3_2.modelName( "char/romulan-m2-rebel-pistol-m2.tik" );
+	//$spawnHallway3_3.spawnEffectName( "TransportIn", "Romulan" );
+	//$spawnHallway3_3.modelName( "char/romulan-m2-rebel-rifle-m3.tik" );
+
+	for( i = 1 ; i <= GREATHALL_SPAWNER_COUNT ; i++ )
+	{
+		entSpawner = getEntity( "spawnGreatHall" + i );
+		entSpawner.checkForSpace();
+
+		entSpawner.spawnEffectName( "TransportIn", "Romulan" );
+
+		//--- pick a tiki
+		setupWorld_SpawnGroup_PickTiki( entSpawner );
+	}
+
+	//--- setup spawn wave groups
+	globalSpawnWave_Setup( "spawnBarracks1_", 11, 4, 1, 3, 10 );
+	globalSpawnWave_SetupDeathThread( "spawnBarracks1_", "seqBarracks1_Wave2Death" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//globalSpawnWave_Setup( "spawnHallway3_", 3, 1, 3, 3, 30 );
+	//globalSpawnWave_SetupDeathThread( "spawnHallway3_", "spawnHallway3_Wave1Death" );
+
+	globalSpawnWave_Setup( "spawnGreatHall", GREATHALL_SPAWNER_COUNT, 4, 2, 4, 60 );
+	globalSpawnWave_SetupDeathThread( "spawnGreatHall", "commonEndLevel" );
+
+	//--- setup non group spawners
+	$spawnVentShaft1_FirePuzzle1.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+	$spawnVentShaft1_FirePuzzle2.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+	$spawnVentShaft1_FirePuzzle3.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+	$spawnVentShaft1_Fire1.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+	$spawnVentShaft1_Fire2.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+//	$spawnVentShaft2_FirePuzzle1.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+//	$spawnVentShaft2_FirePuzzle2.modelname( "fx/fx-flamethrow-small-fat-directional.tik" );
+
+	$spawnVentShaft1_FirePuzzle1.spawntargetname( "fxVentShaft1_FirePuzzle1" );
+	$spawnVentShaft1_FirePuzzle2.spawntargetname( "fxVentShaft1_FirePuzzle2" );
+	$spawnVentShaft1_FirePuzzle3.spawntargetname( "fxVentShaft1_FirePuzzle3" );
+	$spawnVentShaft1_Fire1.spawntargetname( "fxVentShaft1_Fire1" );
+	$spawnVentShaft1_Fire2.spawntargetname( "fxVentShaft1_Fire2" );
+//	$spawnVentShaft2_FirePuzzle1.spawntargetname( "fxVentShaft2_FirePuzzle1" );
+//	$spawnVentShaft2_FirePuzzle2.spawntargetname( "fxVentShaft2_FirePuzzle2" );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$spawnVentShaft1_FirePuzzle1.scale( 1 );
+	$spawnVentShaft1_FirePuzzle2.scale( 1 );
+	$spawnVentShaft1_FirePuzzle3.scale( 1 );
+	$spawnVentShaft1_Fire1.scale( 1 );
+	$spawnVentShaft1_Fire2.scale( 1 );
+//	$spawnVentShaft2_FirePuzzle1.scale( 1 );
+//	$spawnVentShaft2_FirePuzzle2.scale( 1 );
+
+	for( i = 1 ; i <= DUST_EMITTERS ; i++ )
+	{
+		entSpawner = getEntity( "spawnDust" + i );
+
+		fltChoice = randomInt( 3 ) + 1;
+
+		if( fltChoice == 1 )
+		{
+			entSpawner.modelName( "fx/fx-explosion-fallingdust-small.tik" );
+		}
+		else if( fltChoice == 2 )
+		{
+			entSpawner.modelName( "fx/fx-explosion-fallingdust-small.tik" );
+			//entSpawner.modelName( "fx/fx-explosion-rockdebris-brown-falling.tik" );
+		}
+		else
+		{
+			entSpawner.modelName( "fx/fx-explosion-fallingdust-small.tik" );
+			//entSpawner.modelName( "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+		}
+	}
+
+	//--- setup locked doors
+	//commonLockDoor( $doorLocked1 );
+	commonLockDoor( $doorLocked2 );
+	//commonLockDoor( $doorLocked3 );
+	//commonUnlockDoor( $doorLocked4 );
+	commonLockDoor( $doorLocked5 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup archetypes
+	//globalArchetype_Setup( $panelDoor1, "KorbanDoorPanel" );
+	//globalArchetype_Setup( $panelDoor2, "KorbanDoorPanel" );
+	//globalArchetype_Setup( $panelDoor3, "KorbanDoorPanel" );
+	//globalArchetype_Setup( $panelDoor4, "KorbanDoorPanel" );
+	//globalArchetype_Setup( $panelDoor5, "KorbanDoorPanel" );
+	globalArchetype_Setup( $archetypeBarracks1_JunctionPanel, "KlingonDoorJunction" );
+	//globalArchetype_Setup( $archetypeTactical_JunctionPanel, "KlingonDoorJunction" );
+	//globalArchetype_Setup( $archetypeLift2Panel, "KorbanDoorPanel" );
+	wait( .1 );
+
+	//--- remove the archetypes for the klingon door panels
+	//$panelDoor1.remove();
+	//$panelDoor2.remove();
+	//$panelDoor3.remove();
+	//$panelDoor4.remove();
+	//$panelDoor5.remove();
+
+	$lift2_EastDoor_North.bind( $lift2_Cab );
+	$lift2_EastDoor_South.bind( $lift2_Cab );
+	$lift2_WestDoor_North.bind( $lift2_Cab );
+	$lift2_WestDoor_South.bind( $lift2_Cab );
+	$lift2_EastPlayerClip.bind( $lift2_Cab );
+	$archetypeLift2Panel.bind( $lift2_Cab );
+
+	$holodeck.bind( $nodeHolodeckCenter );
+	
+	//--- object properties
+	$lift2_EastDoor_North.solid();
+	$lift2_EastDoor_South.solid();
+	$lift2_TopGate.solid();
+	$lift2_BottomGate.solid();
+	$lift2_EastPlayerClip.notSolid();
+	$clipGreatHall.notSolid();
+	$archetypeLift2Panel.notSolid();
+	$archetypeLift2Panel.hide();
+	$weaponBatleth.notSolid();
+
+	//--- move objects into starting positions
+	thread globalAccelMove( $lift2_Cab,'0 0 -512', 3, "rampupdown", "" );
+
+	$doorVentCage1.rotateYup( 25 );
+	$doorVentCage2.rotateYup( 8 );
+	$doorVentCage3.rotateYup( 40 );
+	$doorVentCage4.rotateYup( 15 );
+	$doorVentCage5.rotateYdown( 35 );
+	$doorVentCage6.rotateYdown( 15 );
+
+//	$doorVent2Cage1.rotateYup( 20 );
+//	$doorVent2Cage2.rotateYup( 40 );
+//	$doorVent2Cage3.rotateYup( 25 );
+//	$doorVent2Cage4.rotateYup( 50 );
+//	$doorVent2Cage5.rotateYdown( 25 );
+	waitFor( $doorVentCage6 );
+}
+
+//---------------------
+// setupWorld_SpawnGroup_PickTiki
+// pick a tiki for the great hall spawn group
+//---------------------
+void setupWorld_SpawnGroup_PickTiki( entity entSpawner)
+{
+	float fltChoice, boolGender, fltType;
+
+	string strGender, strTiki;
+
+
+	fltChoice = randomInt( 3 ) + 1;
+	boolGender = randomInt( 1 );
+	fltType = randomFloat( 1 );
+
+	if( fltType < GREATHALL_SPAWNER_PISTOL_CHANCE )	//spawn a pistol dude
+	{
+		if( fltChoice == 1 )
+		{
+			strTiki = "char/romulan-m2-rebel-pistol-m.tik";
+		}
+		else
+		{
+			strTiki = "char/romulan-m2-rebel-pistol-m" + fltChoice + ".tik";
+		}
+
+		//--- set the proper node ID on the spawner
+		entSpawner.setSpawnKeyValue( "setnodeid" , "61" );
+	}
+	else	//spawn a rifle dude
+	{
+    	//--- set the gender
+    	if( boolGender == 0 )
+    	{
+    		strGender = "m";
+    	}
+    	else
+    	{
+    		strGender = "f";
+    	}
+
+    	if( fltChoice == 1 )
+    	{
+        	//--- assemble the tiki
+        	strTiki = "char/romulan-m2-rebel-rifle-" + strGender + ".tik";
+        }
+        else
+        {
+        	//--- assemble the tiki
+        	strTiki = "char/romulan-m2-rebel-rifle-" + strGender + fltChoice + ".tik";
+		}
+
+		//--- set the proper node ID on the spawner
+		entSpawner.setSpawnKeyValue( "setnodeid" , "60" );
+    }
+
+	entSpawner.modelName( strTiki );
+}
+
+
+//---------------------
+// setupAI
+// setup AI
+//---------------------
+void setupAI()
+{
+	//--- team mates
+	globalCommon_AiDummyHide( $munro );
+	$korban.ai_off();
+	$korban.mass( 100000 );
+	$korban.immortal( 1 );
+	$korban.setnodeid( 1 );
+	$korban.pushable( 0 );
+	//$korban.removeActorWeapon( "FieldAssaultRifle" );
+	$korban.giveActorWeapon( "models/actorweapons/fed-compressionrifle.tik" );
+	$korban.useActorWeapon( "CompressionRifle" );
+	globalCommon_SetupContextDialog( $korban , "korban" );
+
+	//--- entrance room
+	//$romulan1_1.ai_off();
+	//$romulan1_2.ai_off();
+	//$romulan1_3.ai_off();
+	//$romulan1_4.ai_off();
+	//$romulan1_6.ai_off();
+	//$romulan1_7.ai_off();
+
+	//--- basement
+	//$romulan2_1.ai_off();
+	//$romulan2_2.ai_off();
+	//$romulan2_3.ai_off();
+	//$romulan2_4.ai_off();
+
+	//--- hallway2
+	$romulan3_1.ai_off();
+	$romulan3_1.setGroupID( 30 );
+	$romulan3_2.ai_off();
+	$romulan3_2.setGroupID( 30 );
+	$romulan3_3.ai_off();
+	$romulan3_3.setGroupID( 30 );
+	$romulan3_3.groupDeathThread( "seqHallway2_Wave1Death" );
+
+	//--- barracks1
+	//$romulan4_1.ai_off();
+	//$romulan4_2.ai_off();
+	$romulan6_1.setactorflag ( "immediateactivate" , 1.0 );
+	$romulan6_2.setactorflag ( "immediateactivate" , 1.0 );
+	$romulan6_3.setactorflag ( "immediateactivate" , 1.0 );
+
+	//--- tactical
+	$romulan5_1.ai_off();
+	$romulan5_1.setGroupID( 50 );
+	//$romulan5_2.ai_off();
+	//$romulan5_2.setGroupID( 50 );
+	$romulan5_3.ai_off();
+	$romulan5_3.setGroupID( 50 );
+	$romulan5_4.ai_off();
+	$romulan5_4.setGroupID( 50 );
+	$romulan5_5.ai_off();
+	$romulan5_5.setGroupID( 50 );
+	$romulan5_5.groupDeathThread( "seqTactical_Wave1Death" );
+	//$romulan5_5.groupDeathThread( "commonEndLevel" );
+
+	//--- hallway before great hall
+	$romulan10_1.setGroupID( 100 );
+	$romulan10_2.setGroupID( 100 );
+	$romulan10_2.groupDeathThread( "seqGreatHall_KorbanUnlockDoor" );
+}
+
+//---------------------
+// setupVariables
+// initialize variables
+//---------------------
+void setupVariables()
+{
+	return;
+}
+
+
+//---------------------
+// setupArmatureCinematics
+// setup the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--- meeting picard at the start of the level
+	cinematicArm_MeetPicard = createCinematic( "m2l3-picard" );
+	cinematicArm_MeetPicard.setendthread( "cinematicArm_MeetPicard_ArmEnd" );
+
+	//--- meeting up with Chell in the cafeteria
+	cinematicArm_MeetChell = createCinematic( "m2l3-chell" );
+	cinematicArm_MeetChell.setendthread( "cinematicArm_MeetChell_ArmEnd" );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  START FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// startLevel
+// start the level in lift1
+//---------------------
+void startLevel()
+{
+	wait( 2 );
+	//hzm coop mod chrissstrahl, 
+	
+	
+	//--- move the lift down
+	
+	//hzm - this does not work right in coop, so remove it
+	//thread globalAccelMove( $lift1_Cab,'0 0 -1360', 8, "rampupdown", "" );
+
+	//--- print text on the screen
+	centerprint( "$$YearsLater$$" );
+	wait( 2 );
+	//--- playsound on lift
+	//hzm - this does not work right in coop, so remove it
+	//$lift1_Cab.loopsound( "sound/environment/machine/lift4.wav", .9, 512 );
+
+
+	//--- fade in
+	cam_fadein( 1.5, 0, 0, 0, 1, 0 );
+	wait( 2 );
+
+	//--- have korban say something
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_romulan.mp3", 1, 20000 , 1); //Romulan sneak attack! Follow me!
+
+	//--- set objective
+	//$player.setobjectiveshow( "FollowKorban", 1 );
+	//$korban.missionobjective( 1 );
+	
+	//hzm - this does not work right in coop, so remove it
+	//wait( 4 );
+
+	$lift1_Cab.stopLoopSound();
+	//$lift1_Cab.playsound( "sound/environment/machine/lift4stop.wav", 1 , 128 );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$EscapeFacility$$","incomplete",1,1);
+	
+	$weaponBatleth.missionobjective( 1 );
+	wait( 1 );
+
+	//hzm coop mod chrissstrahl, stop updating spawn loactaions
+	coop_updateTheSpawnLocations = 0;
+	
+	//--- spawn explosions loop
+	thread commonAmbientExplosions();
+
+	//--- open the north and bottom lift doors
+	thread globalAccelMove( $lift1_BottomGate,'0 0 128', 2, "rampupdown", "sound/doors/temple_door1.wav" );
+	thread globalAccelMove( $lift1_NorthDoor_East,'60 0 0', 2, "rampupdown", "" );
+	globalAccelMove( $lift1_NorthDoor_West,'-60 0 0', 2, "rampupdown", "" );
+	wait( .3 );
+
+	//--- run korban to the center of the lift
+	//$korban.walkto( "$nodeKorban_Lift1", "run", 0, -1 );
+	//waitFor( $korban );
+
+	//hzm coop mod chrissstrahl - make sure korban is out of the lift before we activate him, this is very important, or he gets stuck and the mission can not be continued
+	//if( vectorlength($korban.getOrigin() - '3427 -572 111') > 20){
+		//$korban.origin('3427 -580 111');
+		//$korban.angle(90);
+	//}
+	
+	
+	//[b607] chrissstrahl - this is a failsafe making surre korban reaches the location
+	thread coop_moveToOnTimeOut($korban,'3427 -580 111',10,100); //location, time, max distance
+	
+	
+	//hzm coop mod chrissstrahl - make sure korban is out of the lift before we activate him, this is very important, or he gets stuck and the mission can not be continued
+	globalCoop_actor_walkToVector($korban,'3427 -580 111',"run");
+	
+	//--- activate korban
+	$korban.ai_on();
+
+	//--- start the first attack
+	thread seqHallway2_Wave1();
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  ENTRANCE FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqEntrance_Wave1
+// launch the first wave of romulans
+//---------------------
+void seqEntrance_Wave1()
+{
+	$romulan1_1.ai_on();
+	$romulan1_1.attack( $player, 1 );
+
+	$romulan1_2.ai_on();
+	$romulan1_2.attack( $korban, 1 );
+}
+
+//---------------------
+// seqEntrance_Wave2
+// launch the second wave of romulans that come through the front door
+//---------------------
+void seqEntrance_Wave2()
+{
+	$triggerSeqEntrance_Wave2.remove();
+
+	$romulan1_3.ai_on();
+	$romulan1_3.attack( $player, 1 );
+	wait( 1 );
+
+	$romulan1_4.ai_on();
+	$romulan1_4.attack( $korban, 1 );
+}
+
+//---------------------
+// seqEntrance_Wave3
+// launch the third wave of romulans that come through the side door
+//---------------------
+void seqEntrance_Wave3()
+{
+	$romulan1_6.ai_on();
+	$romulan1_6.attack( $player, 1 );
+	wait( 1 );
+
+	$romulan1_7.ai_on();
+	$romulan1_7.attack( $korban, 1 );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  HALLWAY 1 FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqHallway1_KorbanUnlockDoor
+// korban runs over to the door and unlocks it
+//---------------------
+void seqHallway1_KorbanUnlockDoor()
+{
+	//--- make korban run over and use the panel
+	commonKorbanUsePanel( "nodeDoorLocked1_Panel" );
+	wait( 3 );
+
+	//--- set korban to being done
+	commonActivateKorban();
+
+	//--- unlock the door
+	commonUnlockDoor( $doorLocked1 );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  BASEMENT FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqBasement_Wave1
+// have the two romulans run through the right door
+//---------------------
+void seqBasement_Wave1()
+{
+	$triggerSeqBasement_Wave1.remove();
+
+	thread commonAICharge( $romulan2_1, "nodeRomulan2_1_Charge", $player );
+	wait( 1 );
+
+	thread commonAICharge( $romulan2_2, "nodeRomulan2_1_Charge", $korban );
+}
+
+//---------------------
+// seqBasement_Wave2
+// activate the two pistol romulans on the upper floor
+//---------------------
+void seqBasement_Wave2()
+{
+	$romulan2_3.ai_on();
+	$romulan2_3.attack( $player, 1 );
+	wait( 1 );
+
+	$romulan2_4.ai_on();
+	$romulan2_4.attack( $korban, 1 );
+}
+
+//---------------------
+// seqBasement_FoundVent
+// munro finds the vent 2 entrance, so korban opens it
+//---------------------
+void seqBasement_FoundVent()
+{
+	//--- korban says he'll open the vent
+	$korban.playdialog( "localization/sound/dialog/m2l2/korban_perhaps.mp3", 1, 20000, 1 ); //I will open the ducts
+	waitForDialog( $korban );
+	wait( 1 );
+
+	//--- setup stuff in the vent before the door opens
+	thread globalAccelMove_Pendulum( $panelVent2Ceiling1, '4 0 0', 3, 0, "" );
+	thread globalAccelMove_Pendulum( $panelVent2Ceiling2, '5 0 0', 3, 0, "" );
+	thread globalAccelMove_Pendulum( $panelVent2Ceiling3, '4 0 0', 4, 0, "" );
+	thread globalAccelMove_Pendulum( $doorVent2Cage1, '0 8 0', 10, 0, "" );
+	thread globalAccelMove_Pendulum( $doorVent2Cage5, '0 8 0', 10, 0, "" );
+
+	triggerentity( $spawnVentShaft2_FirePuzzle1 );
+	triggerentity( $spawnVentShaft2_FirePuzzle2 );
+	wait( .1 );
+
+	$fxVentShaft2_FirePuzzle1.anim( "idle" );
+	$fxVentShaft2_FirePuzzle2.anim( "idle" );
+
+	thread seqVentShaft2_FirePuzzle1();
+	thread seqVentShaft2_FirePuzzle2();
+
+	wait( .1 );
+
+	//--- open the vent shaft door
+	thread commonOpenVentDoor( "doorBasementVent" );
+}
+
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  HALLWAY2 FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqHallway2_Wave1
+// the first guy comes out at the top of the stairs
+//---------------------
+void seqHallway2_Wave1()
+{
+	$romulan3_1.ai_on();
+	$romulan3_1.attack( $player, 1 );
+
+	$romulan3_2.ai_on();
+	$romulan3_2.attack( $korban, 1 );
+
+	$romulan3_3.ai_on();
+	$romulan3_3.attack( $player, 1 );
+}
+
+//---------------------
+// seqHallway2_Wave1Death
+// the first guy's dead
+//---------------------
+void seqHallway2_Wave1Death()
+{
+	//$triggerSeqHallway2_KorbanUnlockDoor.triggerable();
+
+	//Instead of triggering based off trigger, we'll send Korban after the first group dies
+	//because... ahem... evidently you can break him by abusing the +use stuff, so this is for
+	//bulletproofing
+
+	//Wait a minute to let everything settle down
+	
+	
+	globalCoop_main_print("seq start");
+	
+	wait ( 2.5 );
+	thread seqHallway2_KorbanUnlockDoor();
+	
+	globalCoop_main_print("seq end");
+}
+
+//---------------------
+// seqHallway2_KorbanUnlockDoor
+// korban runs over to the door and unlocks it
+//---------------------
+void seqHallway2_KorbanUnlockDoor()
+{
+	//print( "KORBAN UNLOCK DOOR IN HALLWAY2\n" );
+	
+	globalCoop_main_print("start unlock");
+	
+	//--- make korban run over and use the panel
+	commonKorbanUsePanel( "nodeDoorLocked2_Panel" );
+	wait( 1 );
+
+	//--- trigger the spawners
+	triggerEntity( $spawnHallway2_Romulan1 );
+	wait( .2 );
+
+	triggerEntity( $spawnHallway2_Romulan2 );
+	triggerEntity( $spawnHallway2_Romulan3 );
+	wait( .1 );
+
+	triggerEntity( $spawnHallway2_Romulan4 );
+	wait( .1 );
+
+	$romulan3_2.setNodeID( 32 );
+	$romulan3_2.setGroupID( 3 );
+	$romulan3_3.setGroupID( 3 );
+	$romulan3_4.setGroupID( 3 );
+	$romulan3_5.setGroupID( 3 );
+	$romulan3_2.groupDeathThread( "seqHallway2_Wave2Death" );
+}
+
+//---------------------
+// seqHallway2_Wave2Death
+// when all the spawned AI are dead
+//---------------------
+void seqHallway2_Wave2Death()
+{
+	wait( 2 );
+
+	//--- play the computer beepi-ty-beep sound
+	$korban.playsound( "sound/ships/klingon/kling_beep2.wav", 1, .9 , 512 );
+
+	//--- korban says the doors busted
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_dormal.mp3", 1, 20000, 1 ); //PLA-'TUNK, The door is malfunctioning!
+    waitForDialog( $korban );
+	wait( .2 );
+
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_past.mp3", 1, 20000, 1 ); //We need to find a way past it and repair it from the other side.
+    waitForDialog( $korban );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepairDoorBarracks$$","incomplete",2,1);
+	
+	$archetypeBarracks1_JunctionPanel.missionobjective( 1 );
+
+	//--- set korban to being done
+	commonActivateKorban();
+
+	//--- activate the trigger
+	$triggerSeqHallway2_FoundVent.triggerable();
+}
+
+//---------------------
+// seqHallway2_FoundVent
+// when the player's found the vent, have korban open it
+//---------------------
+void seqHallway2_FoundVent()
+{
+	$korban.ai_off();
+
+	//--- run korban over
+	$korban.walkTo( "$nodeKorban_FoundVent", "run" );
+	waitFor( $korban );
+
+	//--- korban says his lines
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_duct.mp3", 1, 20000, 1 ); //Aha, a duct! You should be able to get to the door through there.
+    waitForDialog( $korban );
+	wait( .2 );
+
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_perhaps.mp3", 1, 20000, 1 ); //Perhaps I can open it from the panel.
+
+	//--- run korban back to the panel
+	commonGoToLocation( $korban, "nodeDoorLocked2_Panel" );
+
+	//--- have korban put away his weapon
+	$korban.useActorWeapon( "none" );
+	wait( .5 );
+
+	//--- play the opening animation
+	$korban.anim( "panel-pushbutton" );
+	wait( 3 );
+
+	//--- play the computer beepi-ty-beep sound
+	$korban.playsound( "sound/ships/klingon/kling_beep1.wav", 1, .9 , 512 );
+
+	$korban.anim( "idle" );
+
+	//--- korban has it
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_ductopen.mp3", 1, 20000, 1 ); //Success!  The ducts are now open.
+	wait( .5 );
+
+	//--- korban pulls his weapon out.....oohh my....
+	$korban.useActorWeapon( "CompressionRifle" );
+
+	//--- setup stuff in the vent before the door opens
+	thread globalAccelMove_Pendulum( $panelVentCeiling1, '0 0 4', 3, 0, "" );
+	thread globalAccelMove_Pendulum( $panelVentCeiling2, '5 0 0', 3, 0, "" );
+	thread globalAccelMove_Pendulum( $panelVentCeiling3, '4 0 0', 4, 0, "" );
+	thread globalAccelMove_Pendulum( $panelVentCeiling4, '0 0 4', 3, 0, "" );
+	thread globalAccelMove_Pendulum( $doorVentCage2, '0 8 0', 10, 0, "" );
+	thread globalAccelMove_Pendulum( $doorVentCage4, '0 8 0', 10, 0, "" );
+
+	triggerentity( $spawnVentShaft1_Fire1 );
+	triggerentity( $spawnVentShaft1_Fire2 );
+	wait( .1 );
+
+	$fxVentShaft1_Fire1.anim( "burn" );
+	$fxVentShaft1_Fire2.anim( "burn" );
+	$fxVentShaft1_Fire1.loopSound( "sound/ships/klingon/kling_flamejet.wav", 1, 150 );
+	$fxVentShaft1_Fire2.loopSound( "sound/ships/klingon/kling_flamejet.wav", 1, 150 );
+
+	//--- open the vent shaft door
+	thread commonOpenVentDoor( "doorHallwayVent" );
+	waitForDialog( $korban );
+	wait( .2 );
+
+	//--- korban says he'll stay here
+	$korban.playdialog( "localization/sound/dialog/m2l2/korban_wait.mp3", 1, 20000, 1 ); //I will wait here to activate the door.
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  VENT SHAFT 1 SEQUENCE FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqVentShaft1_FirePuzzleStart
+// start the vent shaft fire puzzles
+//---------------------
+void seqVentShaft1_FirePuzzleStart()
+{
+	//--- autosave
+	globalCommon_Autosave();
+
+	//--- close the vent shaft door
+	thread commonCloseVentDoor( "doorHallwayVent" );
+
+	//--- spawn the fire puzzle effects
+	trigger( "$spawnVentShaft1_FirePuzzle1" );
+	trigger( "$spawnVentShaft1_FirePuzzle2" );
+	trigger( "$spawnVentShaft1_FirePuzzle3" );
+	wait( .1 );
+
+	//--- set all them all the idle anims
+	$fxVentShaft1_FirePuzzle1.anim( "idle" );
+	$fxVentShaft1_FirePuzzle2.anim( "idle" );
+	$fxVentShaft1_FirePuzzle3.anim( "idle" );
+
+	//--- start their timings
+	thread seqVentShaft1_FirePuzzle1();
+	thread seqVentShaft1_FirePuzzle2();
+	thread seqVentShaft1_FirePuzzle3();
+}
+
+
+//---------------------
+// seqVentShaft1_FirePuzzle1
+// fire puzzle 1 timing
+//---------------------
+void seqVentShaft1_FirePuzzle1()
+{
+	while( doesEntityExist( $fxVentShaft1_FirePuzzle1 ) )
+	{
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle1 ) )
+		{
+        	//--- vent shaft 1 activate
+        	$fxVentShaft1_FirePuzzle1.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle1.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+        	//hzm coop mod chrissstrahl, dissable for testing
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle1_Hurt.triggerable();
+			//}
+        	wait( 3 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle1 ) )
+		{
+        	//--- vent shaft 1 deactivate
+        	$fxVentShaft1_FirePuzzle1.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle1.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle1);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle1.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle1.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 7, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle1_Hurt.nottriggerable();
+        	wait( 4 );
+        }
+    }
+}
+
+
+//---------------------
+// seqVentShaft1_FirePuzzle2
+// fire puzzle 2 timing
+//---------------------
+void seqVentShaft1_FirePuzzle2()
+{
+	while( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+	{
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 activate
+        	$fxVentShaft1_FirePuzzle2.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle2.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle2_Hurt.triggerable();
+			//}
+        	wait( 2.5 );
+        }
+
+ 		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 deactivate
+        	$fxVentShaft1_FirePuzzle2.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle2.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle2);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle2.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle2.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 8, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle2_Hurt.nottriggerable();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 activate
+        	$fxVentShaft1_FirePuzzle2.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle2.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle2_Hurt.triggerable();
+			//}
+        	wait( 1.5 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 deactivate
+        	$fxVentShaft1_FirePuzzle2.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle2.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle2);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle2.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle2.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 8, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle2_Hurt.nottriggerable();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 activate
+        	$fxVentShaft1_FirePuzzle2.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle2.loopSound( "sound/ships/klingon/kling_flamejetstop.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle2_Hurt.triggerable();
+			//}
+        	wait( 1.5 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle2 ) )
+		{
+        	//--- vent shaft 2 deactivate
+        	$fxVentShaft1_FirePuzzle2.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle2.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle2);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle2.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle2.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 8, .9, 150 );
+			}
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle2_Hurt.nottriggerable();
+			//}
+        	wait( 4 );
+        }
+    }
+}
+
+
+//---------------------
+// seqVentShaft1_FirePuzzle3
+// fire puzzle 3 timing
+//---------------------
+void seqVentShaft1_FirePuzzle3()
+{
+	while( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+	{
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 activate
+        	$fxVentShaft1_FirePuzzle3.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle3.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle3_Hurt.triggerable();
+			//}
+        	wait( 2 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 deactivate
+        	$fxVentShaft1_FirePuzzle3.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle3.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle3);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle3.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle3.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 9, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle3_Hurt.nottriggerable();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 activate
+        	$fxVentShaft1_FirePuzzle3.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle3.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle3_Hurt.triggerable();
+			//}
+        	wait( 1.5 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 deactivate
+        	$fxVentShaft1_FirePuzzle3.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle3.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle3);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle3.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle3.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 9, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle3_Hurt.nottriggerable();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 activate
+        	$fxVentShaft1_FirePuzzle3.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle3.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle3_Hurt.triggerable();
+			//}
+        	wait( 3 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 deactivate
+        	$fxVentShaft1_FirePuzzle3.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle3.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle3);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle3.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle3.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 9, .9, 150 );
+			}
+        	$triggerVentShaft1_FirePuzzle3_Hurt.nottriggerable();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 activate
+        	$fxVentShaft1_FirePuzzle3.anim( "burn" );
+        	$fxVentShaft1_FirePuzzle3.loopSound( "sound/ships/klingon/kling_flamejet.wav", .9, 150 );
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle3_Hurt.triggerable();
+			//}
+        	wait( 1.5 );
+        }
+
+		if( doesEntityExist( $fxVentShaft1_FirePuzzle3 ) )
+		{
+        	//--- vent shaft 1 deactivate
+        	$fxVentShaft1_FirePuzzle3.anim( "idle" );
+        	$fxVentShaft1_FirePuzzle3.stopLoopSound();
+			//hzm coop mod chrissstrahl, this makes ANOYING noises when playing solo, and it also eatch up network...
+			entity ePlayer;
+			ePlayer = globalCoop_return_playerClosestPreferActive($fxVentShaft1_FirePuzzle3);
+			if( globalMath_GetXYDistance( $fxVentShaft1_FirePuzzle3.getOrigin(), ePlayer.getOrigin()) < 400){
+				$fxVentShaft1_FirePuzzle3.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 9, .9, 150 );
+			}
+			//if(getcvar("username") != "Chrissstrahl"){
+				$triggerVentShaft1_FirePuzzle3_Hurt.nottriggerable();
+			//}
+        	wait( 4 );
+        }
+    }
+}
+
+//---------------------
+// seqVentShaft1_OpenExitDoor
+// close the exit door of the vent shaft
+//---------------------
+void seqVentShaft1_OpenExitDoor()
+{
+	//--- start the blown panel sparking
+	thread sparksBlownPanels( $sparksBarracks1_DoorPanelSouth );
+	//$sparksBarracks1_DoorPanelSouth.loopsound( "sound/environment/electric/fritz5.wav", .8 , 50 );
+
+	//--- open the vent door
+	thread commonOpenVentDoor( "doorBarracks1Vent" );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  BARRACKS1 FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqBarracks1_CloseVent
+// close the vent door after the player's out of it and remove vent objects
+//---------------------
+void seqBarracks1_CloseVent()
+{
+	return;
+	//--- close the vent door
+	commonCloseVentDoor( "doorBarracks1Vent" );
+
+	//--- remove objects in the vent
+	$panelVentCeiling1.remove();
+	$panelVentCeiling2.remove();
+	$panelVentCeiling3.remove();
+	$panelVentCeiling4.remove();
+	$doorVentCage2.remove();
+	$doorVentCage4.remove();
+	$fxVentShaft1_FirePuzzle1.remove();
+	$fxVentShaft1_FirePuzzle2.remove();
+	$fxVentShaft1_FirePuzzle3.remove();
+	$fxVentShaft1_Fire1.remove();
+	$fxVentShaft1_Fire2.remove();
+}
+
+//---------------------
+// seqBarracks1_DoorPanelSouthPuzzle
+// setup and launch the routing puzzle
+//---------------------
+void seqBarracks1_DoorPanelSouthPuzzle()
+{
+	entity entPuzzle;
+	entPuzzle = getcurrententity();
+
+	globalTricorderRouteData_Medium1( entPuzzle, 0 );
+}
+
+
+//---------------------
+// seqBarracks1_DoorPanelSouthFixed
+// fixes the south door and tells korban to return to normal
+//---------------------
+void seqBarracks1_DoorPanelSouthFixed()
+{
+	//--- remove the archetype
+	$archetypeBarracks1_JunctionPanel.missionobjective( 0 );
+	$archetypeBarracks1_JunctionPanel.remove();
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepairDoorBarracks$$","complete",2,1);
+
+
+	//--- stop the sparks
+	$sparksBarracks1_DoorPanelSouth.remove();
+	$sparksBarracks1_DoorPanelSouth.playsound( "sound/ships/klingon/kling_beep1.wav", 3, 1 , 250 );
+	$sparksBarracks1_DoorPanelSouth.playsound( "sound/ships/attrexian/att-powerup.wav", 2, 1 , 250 );
+
+	$sparksBarracks1_DoorPanelSouth.stoploopsound();
+
+	//--- korban says good job
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_goodjob.mp3", 1, 20000, 1 ); //Good job munro!
+
+	//--- unlock the southern door
+	commonUnlockDoor( $doorLocked2 );
+
+	//--- have korban run into the room
+	commonGoToLocation( $korban, "nodeDoorLocked2_Inside" );
+
+	//hzm coop mod chrissstrahl, don't close or lock that door, so that other players can enter that room
+	//--- close the door
+	//$doorLocked2.close();
+	//--- lock the door
+	//commonLockDoor( $doorLocked2 );
+
+	//--- run korban into the room
+	commonActivateKorban();
+
+	//--- start the spawn wave group
+	globalSpawnWave_Start( "spawnBarracks1_" );
+
+
+	//--- disconnect the path through the door
+	disconnectPathnodes( "nodeDoorLocked2_Outside", "nodeDoorLocked2_Inside" );
+	disconnectPathnodes( "nodeDoorLocked2_Outside2", "nodeDoorLocked2_Inside" );
+	disconnectPathnodes( "nodeDoorLocked2_Outside3", "nodeDoorLocked2_Inside" );
+	
+	//hzm coop mod chrissstrahl, maybe add a trigger that pushes AI/KORBAN away from the entrance, if he tries to follow the player iside again
+	//spawn("trigger_push","origin","find_door_inside_bsp_file","speed","","spawnflags","");
+}
+
+//---------------------
+// seqBarracks1_Wave1
+// have two guys run in through the exit door
+//---------------------
+void seqBarracks1_Wave1()
+{
+	//thread commonAICharge( $romulan4_1, "nodeRomulan4_1_Charge", $player );
+	//wait( 1 );
+
+	//thread commonAICharge( $romulan4_2, "nodeRomulan4_1_Charge", $korban );
+
+	//--- lock door 4 in hallway3
+	//commonLockDoor( $doorLocked4 );
+
+	//--- bring up the lift with those sneaky romulans....now the player's gonna get it!!!!  him and that stupid Klingon!!!!  Why we're romulans....we're tough....we're fab....we have really ugly shoulder pads.......no wait....!!!
+	thread seqTactical_RaiseLift();
+}
+
+//---------------------
+// seqBarracks1_Wave2Death
+// after the spawn wave is dead, then let korban be allowed to unlock the door in hallway3
+//---------------------
+void seqBarracks1_Wave2Death()
+{
+	$triggerSeqBarracks1_Wave1.triggerable();
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  HALLWAY3 FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqHallway3_KorbanUnlockDoor
+// korban tries to unlock the door in hallway3
+//---------------------
+void seqHallway3_KorbanUnlockDoor()
+{
+	//--- make korban run over and use the panel
+	commonKorbanUsePanel( "nodeDoorLocked3_Panel" );
+	wait( 3 );
+
+	//--- korban announces that this door is also busted up gus...
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_door2.mp3", 1, 20000, 1 ); //Huh-teck! This door is also malfunctioning. I shall try and bypass it.
+    waitForDialog( $korban );
+	wait( 1 );
+
+	//--- start the spawn wave
+	globalSpawnWave_Start( "spawnHallway3_" );
+	wait( 1 );
+
+	//--- set korban to being done
+	commonActivateKorban();
+}
+
+//---------------------
+// spawnHallway3_Wave1Death
+// death thread for the wave spawn in hallway3
+//---------------------
+void spawnHallway3_Wave1Death()
+{
+	wait( 1 );
+
+	//--- turn off his AI
+	$korban.ai_off();
+
+	//--- make him goto the node no matter what
+	commonGoToLocation( $korban, "nodeDoorLocked3_Panel" );
+
+	//--- have korban put away his weapon
+	$korban.useActorWeapon( "none" );
+	wait( .5 );
+
+	//--- play the opening animation
+	$korban.anim( "panel-pushbutton" );
+	wait( 2 );
+
+	//--- korban says important stuff....better listen, because it's important
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_again.mp3", 1, 20000, 1 ); //Rrrr, we must find a way past this door and repair it from the other side.
+	waitForDialog( $korban );
+	wait( .2 );
+
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_hack.mp3", 1, 20000, 1 ); //I will unlock the door over there, see if you can find a way in while I hack here!!
+    waitForDialog( $korban );
+	wait( 1 );
+
+	//--- unlock the door for munro
+	commonUnlockDoor( $doorLocked4 );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  VENT2 FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqVentShaft2_CloseDoorVent
+// close the vent door
+//---------------------
+void seqVentShaft2_CloseDoorVent()
+{
+	//--- close the vent shaft door
+	thread commonCloseVentDoor( "doorBasementVent" );
+}
+
+//---------------------
+// seqVentShaft2_FirePuzzle1
+// fire puzzle timing for emitter 1
+//---------------------
+void seqVentShaft2_FirePuzzle1()
+{
+	while( doesEntityExist( $fxVentShaft2_FirePuzzle1 ) )
+	{
+		if( doesEntityExist( $fxVentShaft2_FirePuzzle1 ) )
+		{
+        	//--- activate
+        	$fxVentShaft2_FirePuzzle1.anim( "burn" );
+        	$fxVentShaft2_FirePuzzle1.playsound( "sound/ships/klingon/kling_flamejet.wav", 6, .9 , 150 );
+        	boolVentShaft2_FirePuzzle1On = TRUE;
+        	thread seqVentShaft2_FirePuzzleCheck();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft2_FirePuzzle1 ) )
+		{
+        	//--- deactivate
+        	$fxVentShaft2_FirePuzzle1.anim( "idle" );
+        	$fxVentShaft2_FirePuzzle1.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 6, .9 , 150 );
+        	boolVentShaft2_FirePuzzle1On = FALSE;
+        	thread seqVentShaft2_FirePuzzleCheck();
+        	wait( 2.5 );
+        }
+    }
+}
+
+
+//---------------------
+// seqVentShaft2_FirePuzzle2
+// fire puzzle timing for emitter 2
+//---------------------
+void seqVentShaft2_FirePuzzle2()
+{
+	while( doesEntityExist( $fxVentShaft2_FirePuzzle2 ) )
+	{
+		if( doesEntityExist( $fxVentShaft2_FirePuzzle2 ) )
+		{
+        	//--- activate
+        	$fxVentShaft2_FirePuzzle2.anim( "burn" );
+        	$fxVentShaft2_FirePuzzle2.playsound( "sound/ships/klingon/kling_flamejet.wav", 5, .9 , 150 );
+
+        	boolVentShaft2_FirePuzzle2On = TRUE;
+        	thread seqVentShaft2_FirePuzzleCheck();
+        	wait( 1 );
+        }
+
+		if( doesEntityExist( $fxVentShaft2_FirePuzzle2 ) )
+		{
+        	//--- deactivate
+        	$fxVentShaft2_FirePuzzle2.anim( "idle" );
+        	$fxVentShaft2_FirePuzzle2.playsound( "sound/ships/klingon/kling_flamejetstop.wav", 5, .9 , 150 );
+
+        	boolVentShaft2_FirePuzzle2On = FALSE;
+        	thread seqVentShaft2_FirePuzzleCheck();
+        	wait( 3.5 );
+        }
+    }
+}
+
+
+//---------------------
+// seqVentShaft2_FirePuzzleCheck
+// checks if the emitters are on, and sets the trigger hurt accordingly
+//---------------------
+void seqVentShaft2_FirePuzzleCheck()
+{
+	if( boolVentShaft2_FirePuzzle1On == FALSE && boolVentShaft2_FirePuzzle2On == FALSE )
+	{
+		$triggerVentShaft2_FirePuzzle_Hurt.nottriggerable();
+	}
+	else
+	{
+		$triggerVentShaft2_FirePuzzle_Hurt.triggerable();
+	}
+}
+
+//---------------------
+// seqVentShaft2_OpenExitDoor
+// open the door to the tactical room
+//---------------------
+void seqVentShaft2_OpenExitDoor()
+{
+	//--- open the vent shaft door
+	thread commonOpenVentDoor( "doorTacticalVent" );
+}
+
+
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  TACTICAL FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqTactical_DoorPanelWestPuzzle
+// setup and launch the routing puzzle
+//---------------------
+void seqTactical_DoorPanelWestPuzzle()
+{
+	entity entPuzzle;
+	entPuzzle = getcurrententity();
+
+	globalTricorderRouteData_Medium1( entPuzzle, 0 );
+}
+
+
+//---------------------
+// seqTactical_DoorPanelWestFixed
+// fixes the west door and tells korban to return to normal
+//---------------------
+void seqTactical_DoorPanelWestFixed()
+{	
+	//--- stop the sparks
+	$sparksTactical_DoorPanelWest.remove();
+	$sparksTactical_DoorPanelWest.playsound( "sound/ships/klingon/kling_beep1.wav", 3, 1 , 250 );
+	$sparksTactical_DoorPanelWest.playsound( "sound/ships/attrexian/att-powerup.wav", 2, 1 , 250 );
+	$sparksTactical_DoorPanelWest.stoploopsound();
+
+	//--- unlock the door into tactical
+	commonUnlockDoor( $doorLocked3 );
+
+	//--- korban says good job
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_excell.mp3", 1, 20000, 1 ); //Excellent work.
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepairDoorBarracks$$","complete",2,1);
+	//$player.setobjectivecomplete( "RepairDoorTactical", 1 );
+
+	//--- bring up the lift with those sneaky romulans....now the player's gonna get it!!!!  him and that stupid Klingon!!!!  Why we're romulans....we're tough....we're fab....we have really ugly shoulder pads.......no wait....!!!
+	thread seqTactical_RaiseLift();
+	
+	//hzm coop mod chrissstrahl, hide to avoid confusion
+	$archetypeTactical_JunctionPanel.hide();
+	
+	entity ePlayer;
+	ePlayer=$world;
+	while(ePlayer.getRawTargetName() == "world")
+	{
+		wait(1);
+		ePlayer = globalCoop_return_playerClosestPreferActive($archetypeTactical_JunctionPanel);
+	}
+	
+	//hzm coop mod chrissstrahl, finally remove
+	$archetypeTactical_JunctionPanel.remove();
+
+	//--- run korban into the room
+	$korban.walkto( ""+ePlayer.getTargetName(), "run" );
+	wait( 1 );
+
+	//--- activate korban
+	commonActivateKorban();
+}
+
+//---------------------
+// seqTactical_CloseVent
+// close the vent shaft 2 exit door
+//---------------------
+void seqTactical_CloseVent()
+{
+	//--- open the vent shaft door
+	thread commonCloseVentDoor( "doorTacticalVent" );
+}
+
+//---------------------
+// seqTactical_RaiseLift
+// raise the lift2 with the romulans
+//---------------------
+void seqTactical_RaiseLift()
+{
+	//--- playsound on lift
+	$lift2_Cab.loopSound( "sound/environment/machine/lift4.wav", .9, 512 );
+
+	//--- raise the lift
+	globalAccelMove( $lift2_Cab,'0 0 512', 2, "rampupdown", "" );
+
+	$lift2_Cab.stopLoopSound();
+	$lift2_Cab.playSound( "sound/environment/machine/lift4stop.wav", 0, .9, 512 );
+	wait( .3 );
+
+	//--- open the lift doors
+	thread globalAccelMove( $lift2_TopGate,'0 0 128', 2, "rampupdown", "sound/doors/temple_door1.wav" );
+	thread globalAccelMove( $lift2_EastDoor_North,'0 60 0', 2, "rampupdown", "" );
+	thread globalAccelMove( $lift2_EastDoor_South,'0 -60 0', 2, "rampupdown", "" );
+	wait( .5 );
+
+	//--- turn on the AI, here they come...sneaky romulans.....
+	thread commonAICharge( $romulan5_1, "nodeRomulan5_1_Charge", globalCoop_return_playerClosestPreferActive($romulan5_1) );
+	wait( .5 );
+
+	//thread commonAICharge( $romulan5_2, "nodeRomulan5_1_Charge", $korban );
+	//wait( .5 );
+
+	thread commonAICharge( $romulan5_3, "nodeRomulan5_1_Charge", globalCoop_return_playerClosestPreferActive($romulan5_3) );
+	wait( .5 );
+
+	thread commonAICharge( $romulan5_4, "nodeRomulan5_1_Charge", globalCoop_return_playerClosestPreferActive($romulan5_4) );
+	wait( .5 );
+
+	thread commonAICharge( $romulan5_5, "nodeRomulan5_1_Charge", globalCoop_return_playerClosestPreferActive($romulan5_5) );
+}
+
+//---------------------
+// seqTactical_Wave1Death
+// wave that comes off of lift2 is all dead
+//---------------------
+void seqTactical_Wave1Death()
+{	
+	$triggerSeqTactical_Lift2CallKorban.triggerable();
+}
+
+//---------------------
+// seqTactical_Lift2CallKorban
+// call korban over to lift2 to activate the lift
+//---------------------
+void seqTactical_Lift2CallKorban()
+{
+	float boolPlayerOnLift2 = 0;
+
+	$korban.ai_off();
+
+	//--- have korban tell the player to get on the elevator
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_elev.mp3", 1, 20000, 1 ); //The elevator!!....ohhhhh....doesn't he sounds scary!!!!
+
+	//--- make him goto the node no matter what
+	commonGoToLocation( $korban, "nodeLift2_Panel" );
+
+	//--- have korban put away his weapon
+	$korban.useActorWeapon( "none" );
+	wait( .5 );
+
+	//--- play the opening animation
+	$korban.anim( "panel-pushbutton" );
+	
+	//hzm coop mod chrissstrahl - make sure we make the lift go at the right time
+	//$player0.hudprint("$lift2_Cab get size: " + $lift2_Cab.getMins() +" - "+ $lift2_Cab.getMaxs() +"\n");
+	float fPlayerIdInUse;
+	float fInsideNumRequired;
+	float fCurrentExisting;
+	float fRounds = 50;
+	entity ePlayer;
+	
+	while( fRounds > -1 )
+	{
+		wait(0.2);
+		float fInsideNum = 0;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(ePlayer.getHealth() > 0){
+					if(globalCoop_check_playerSpectator(ePlayer) == 0){
+						if( globalCoop_check_isEntityInsideOfEntity($player0,$lift2_Cab,-20) ){//chrissstrahl updated 2018.02.18 to -20, padding should be -55 to make sure the players are really inside the lift
+							fInsideNum++;
+						}else{
+							if( ePlayer.getFloatVar("coopElevatorMessage") < getLevelTime() ){
+								ePlayer.setFloatVar("coopElevatorMessage",getLevelTime() + 2);
+								if( getStringPlayerLanguage(ePlayer) == "Deu"){
+									ePlayer.hudPrint("Bitte steigen Sie in den Lift mit ein...\n");
+								}else{
+									ePlayer.hudPrint("Please also enter the elevator...\n");
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		fCurrentExisting = globalCoop_return_integerPlayersQuantity(1);
+		
+		//if two players are playing together, assume their cooperation is at 100%, so wait until both are inside
+		if( fCurrentExisting == 1 )			{fInsideNumRequired = 1;}
+		else if( fCurrentExisting  <= 3 )	{fInsideNumRequired = 2;}
+		else if( fCurrentExisting  > 3 )	{fInsideNumRequired = ( fCurrentExisting / 2 );}
+		
+		if( fInsideNum >= ceil(fInsideNumRequired) ){
+			if( fCurrentExisting >= fInsideNumRequired){
+				fRounds--;
+			}else{
+				fRounds=0;	
+			}
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - make sure players respawn at respawn location
+	$world.setFloatVar("coop_forceSafeSpawnLocation",1);
+	
+	
+	//hzm coop mod chrissstrahl, set new respawn points down at the batleth shrine near the elevator
+	coop_vector_spawnOrigin1 = '1894 1635 -1146';coop_float_spawnAngle1 = 110;
+	coop_vector_spawnOrigin2 = '1942 1635 -1146';coop_float_spawnAngle2 = 130;
+	coop_vector_spawnOrigin3 = '1990 1635 -1146';coop_float_spawnAngle3 = 145;
+	coop_vector_spawnOrigin4 = '2038 1635 -1146';coop_float_spawnAngle4 = 150;
+	coop_vector_spawnOrigin5 = '1900 1879 -1146';coop_float_spawnAngle5 = 260;
+	coop_vector_spawnOrigin6 = '1950 1879 -1146';coop_float_spawnAngle6 = 220;
+	coop_vector_spawnOrigin7 = '2308 1665 -1146';coop_float_spawnAngle7 = 172;
+	coop_vector_spawnOrigin8 = '2223 1859 -1146';coop_float_spawnAngle8 = 217;
+
+	
+	//$lift2_EastPlayerClip.solid(); //don't do this in coop
+
+	//--- activate korban
+	//commonActivateKorban();
+	$korban.useActorWeapon( "CompressionRifle" );
+	$korban.anim( "idle" );
+
+	//--- play the computer beepi-ty-beep sound
+	$korban.playsound( "sound/ships/klingon/kling_beep1.wav", 1, .9, 512 );
+
+	//--- move korban to the center of the lift
+	$korban.walkto( "$nodeKorban_Lift2", "walk", 0, -1 );
+
+	//--- close the south and top lift doors
+	thread globalAccelMove( $lift2_TopGate,'0 0 -128', 2, "rampupdown", "sound/doors/temple_door1.wav" );
+	thread globalAccelMove( $lift2_EastDoor_North,'0 -60 0', 2, "rampupdown", "" );
+	thread globalAccelMove( $lift2_EastDoor_South,'0 60 0', 2, "rampupdown", "" );
+	
+	//manage players that are outside of the lift
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer) && ePlayer.getHealth() > 0){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				if( globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2_Cab,-20) ){//chrissstrahl updated 2018.02.18 to -20, padding should be -55 to make sure the players are really inside the lift
+					ePlayer.immobilize(1);
+				}
+				else{
+					if( getStringPlayerLanguage(ePlayer) == "Deu"){
+						ePlayer.hudPrint("Sie wurden neu positioniert, da Sie den Lift nicht benutzen wollten\n");
+					}else{
+						ePlayer.hudPrint("You have been repositionied, since you did not want to enter the elevator\n");
+					}
+					thread globalCoop_player_warpToSpawn(ePlayer);
+				}
+			}
+		}
+	}
+	wait( 2 );
+	
+	//manage players that are outside of the lift
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer) && ePlayer.getHealth() > 0){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				if( globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2_Cab,-20) ){//chrissstrahl updated 2018.02.18 to -20, padding should be -55 to make sure the players are really inside the lift
+					ePlayer.immobilize(0);
+				}
+			}
+		}
+	}
+
+	wait( .5 );
+
+	//--- playsound on lift
+	$lift2_Cab.loopSound( "sound/environment/machine/lift4.wav", .9, 512 );
+
+	//--- make korban face the right way
+	$korban.turnTowardsEntity( $lift2_BottomGate );
+
+	//--- move the lift down
+	globalAccelMove( $lift2_Cab,'0 0 -1376', 8, "rampupdown", "" );
+
+	$lift2_Cab.stopLoopSound();
+	$lift2_Cab.playsound( "sound/environment/machine/lift4stop.wav", 0, .9, 512 );
+	wait( 1 );
+
+	//--- open the north and bottom lift doors
+	thread globalAccelMove( $lift2_BottomGate,'0 0 128', 2, "rampupdown", "sound/doors/temple_door1.wav" );
+	thread globalAccelMove( $lift2_WestDoor_North,'0 60 0', 2, "rampupdown", "" );
+	globalAccelMove( $lift2_WestDoor_South,'0 -60 0', 2, "rampupdown", "" );
+	wait( .3 );
+
+	//--- run korban to the center of the lift
+	//$korban.walkto( "$nodeKorban_Lift2", "run", 0, -1 );
+	//waitFor( $korban );
+	
+	//spawn("trigger_multiple","targetname","coop_elevatorCallTriggerBottom","origin","2457 1760 -1120");
+	//spawn("trigger_multiple","targetname","coop_elevatorCallTriggerTop","origin","2843 1762 224");
+	$korban.ai_on();
+	
+	//hzm coop mod chrissstrahl - allow players to respawn ath their location of death again
+	$world.setFloatVar("coop_forceSafeSpawnLocation",0);
+	
+	//lift2_Cab
+	wait(.25);
+	
+	while( globalMath_GetXYDistance( $korban.getOrigin(), $lift2_Cab.getOrigin() ) < 130 )
+	{
+		wait(.25);
+	}
+	$coop_elevatorCallTriggerBottom.thread("coop_CallLiftDown");
+	$coop_elevatorCallTriggerBottom.setSize('-40 -40 0','40 40 10');
+	$coop_elevatorCallTriggerTop.thread("coop_CallLiftUp");
+	$coop_elevatorCallTriggerTop.setSize('-40 -40 0','40 40 10');
+}
+
+
+void coop_CallLiftDown()
+{
+	if(getcvar("username") == "Chrissstrahl"){
+		centerprint("coop_CallLiftDown ERROR: FUNCTION NOT COMPLETE");
+	}
+}
+
+void coop_CallLiftUp()
+{
+	if(getcvar("username") == "Chrissstrahl"){
+		centerprint("coop_CallLiftUp ERROR: FUNCTION NOT COMPLETE");
+	}
+}
+
+
+//==============================================================================================================================================
+//==============================================================================================================================================
+//  GREAT HALL FUNCTIONS
+//==============================================================================================================================================
+//==============================================================================================================================================
+
+//---------------------
+// seqGreatHall_KorbanUnlockDoor
+// korban unlocks the door to the great hall
+//---------------------
+void seqGreatHall_KorbanUnlockDoor()
+{
+	if( boolGreatHall_KorbanUnlockDoor == TRUE )
+	{
+		return;
+	}
+
+	boolGreatHall_KorbanUnlockDoor = TRUE;
+	
+	//hzm coop mod chrissstrahl - make sure this can not be activated before korban is on this level
+	float waitForHim=1;
+	while(waitForHim){
+		if(vectorGetZ($korban.getOrigin()) <= -1136 ){
+			waitForHim = 0;
+		}else if(doesEntityExist($korban)){
+			wait(1);
+		}else{
+			waitForHim = 0;
+		}
+	}
+
+	$korban.ai_off();
+
+	//--- if korban is on the lift, run him to the center of the lift first
+	if( globalMath_GetXYDistance( $korban.getOrigin(), $nodeKorban_Lift2_Check.getOrigin() ) <= 128 )
+	{
+		commonGoToLocation( $korban, "nodeKorban_Lift2" );
+	}
+
+	wait( .5 );
+
+	//--- activate the failsafe
+	thread seqGreatHall_KorbanUnlockDoor_FailSafe();
+	
+	//hzm coop mod chrissstrahl - allow players to push korban if he is stuck
+	$korban.pushable(1);
+	$korban.mass(700);
+
+	//--- make korban run over and use the panel
+	commonKorbanUsePanel( "nodeDoorLocked5_Panel" );
+	wait( 3 );
+
+	//--- set korban to being done
+	commonActivateKorban();
+
+	//--- play the computer beepi-ty-beep sound
+	$korban.playsound( "sound/ships/klingon/kling_beep1.wav", 1, .9 , 512 );
+
+	//--- unlock the door
+	commonUnlockDoor( $doorLocked5 );
+
+	//--- open the door
+	$doorLocked5.open( $korban );
+}
+
+//---------------------
+// seqGreatHall_KorbanUnlockDoor_FailSafe
+// failsafe for korban attempting to unlock the door
+//---------------------
+void seqGreatHall_KorbanUnlockDoor_FailSafe()
+{
+	vector vecPlayerOrigin;
+	vector vecPlayerAngle;
+
+	//--- only loop while korban is on the lift
+	while( globalMath_GetXYDistance( $korban.getOrigin(), $nodeKorban_Lift2_Check.getOrigin() ) <= 128 )
+	{
+		vecPlayerOrigin = $player.getOrigin();
+		print( "=======================================================\n" );
+		print( "FAIL SAFE: players origin: " + vecPlayerOrigin + "\n" );
+		
+		//--- check if the player is half way across the room towards the lift
+		if( vecPlayerOrigin_x < 2112 )
+		{
+			vecPlayerAngle = $player.getAngles();
+			print( "FAIL SAFE: players angles: " + vecPlayerAngle + "\n" );
+			
+			//--- check if the player is not looking back at korban
+			if( vecPlayerAngle_y <= 240 && vecPlayerAngle_y >= 120 )
+			{
+        		print( "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" );
+        		print( "FAIL SAFE: WARPING KORBAN NOW!!!!!!!!!!\n" );
+
+				//--- reposition korban
+				$korban.origin( '2264 1762 -1153' );
+				$korban.angles( '0 180 0' );
+			}
+		}
+		
+		wait( .05 );
+	}
+}
+
+void testLift()
+{
+	cam_fadein( .05, 0, 0, 0, 1 );
+
+	$romulan6_1.remove();
+	$romulan6_2.remove();
+	$romulan6_3.remove();
+
+	$player.origin( '3255 1747 224' );
+	$player.angles( '0 180 0' );
+	$korban.origin( '3404 1747 224' );
+	$korban.angles( '0 180 0' );
+	$korban.ai_on();
+	
+	$triggerSeqBarracks1_Wave1.triggerable();
+}
+
+//---------------------
+// seqGreatHall_Showdown
+// the showdown begins
+//---------------------
+void seqGreatHall_Showdown()
+{
+	//--- prevent the player from leaving the room
+	//$clipGreatHall.solid();
+
+	//--- close the door
+	$doorLocked5.close();
+	wait( .5 );
+
+	//--- show the locked light
+	$doorLocked5_LightLocked.show();
+	$doorLocked5_LightUnlocked.hide();
+
+	//--- activate the spawn charge triggers
+	$triggerSeqGreatHall_SpawnCharge.triggerable();
+
+	//--- disable the objective
+	$weaponBatleth.missionobjective( 0 );
+
+	//hzm coop mod chrissstrahl, we have plans for you....
+	$weaponBatleth.hide();
+
+	//--- make the player use the batleth and remove his other weapons
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-batleth.tik" );
+
+	globalCoop_armory_useTiki("models/weapons/worldmodel-batleth.tik");
+	
+   	//globalLoadout_TakeWeapon( WEAPON_PHASER_STX );
+   	//globalLoadout_TakeWeapon( WEAPON_BURST_RIFLE );
+   	//globalLoadout_TakeWeapon( WEAPON_COMPRESSION_RIFLE );
+
+   	//--- make korban pull the batleths
+   	$korban.removeActorWeapon( "CompressionRifle" );
+   	$korban.giveActorWeapon( "models/actorweapons/klingon-batleth.tik" );
+   	$korban.useActorWeapon( "Batleth", "left" );
+
+	//"flash" Korban's bios
+	$korban.ai_off();
+	$korban.anim ( "batleth_idle" );
+	wait ( .25 );
+
+	//Because of animation issues with the batleth, we need to wait to
+	//turn his ai on until after enemies spawn
+	//$korban.ai_on();
+
+
+	//--- execute hazard team 5 ways to pull something out of my arse....
+    $munro.playdialog( "localization/sound/dialog/m2l2/munro_alpha3.mp3", 1, 20000, 1 ); //Korban, execute hazard maneuver Munro-Alpha 3
+	//wait ( 1 );
+	waitForDialog( $munro );
+
+	//Need to make sure Korban is close enough to Player
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($weaponBatleth);
+   	$korban.walkTo( ""+ePlayer.getTargetName(), "run", 0, -1 );
+
+   	while( globalMath_GetXYDistance( $korban.getOrigin(), ePlayer.getOrigin() ) >= 192 )
+   	{
+   		wait( .1 );
+		ePlayer = globalCoop_return_playerClosestPreferActive($weaponBatleth);
+   	}
+	$korban.anim ( "batleth_idle" );
+
+	//--- start the spawn wave
+	globalSpawnWave_Start( "spawnGreatHall" );
+
+    //waitForDialog( $munro );
+	wait( .2 );
+
+	$korban.ai_on();
+
+    $korban.playdialog( "localization/sound/dialog/m2l2/korban_pleasure.mp3", 1, 20000, 1 ); //With pleasure.
+    waitForDialog( $korban );
+
+
+}
+
+//---------------------
+// seqGreatHall_SpawnCharge
+// take a spawned guy as he runs through a trigger and execute the common charge function on him
+//---------------------
+void seqGreatHall_SpawnCharge()
+{
+	entity entTrigger, entDork;
+
+	//--- get the trigger
+	entTrigger = getCurrentEntity();
+	entDork = entTrigger.getLastActivatingEntity();
+
+	print( "GREAT HALL CHARGE: telling: " + entDork.getRawTargetname() + " : to charge to: " + entTrigger.getTarget() + " : has boolCharge: " + entDork.getFloatVar( "boolCharge" ) + "\n" );
+
+	if( entDork.getFloatVar( "boolCharge" ) != TRUE )
+	{
+		print( "GREAT HALL CHARGE: executing charge for : " + entDork.getRawTargetname() + "\n" );
+
+    	//--- set the flag that the dork has already been set to charge
+    	entDork.setFloatVar( "boolCharge", TRUE );
+
+    	//--- set him to charge
+    	thread commonAICharge( entDork, entTrigger.getTarget(), $poopNstuff );
+    }
+}
+
+//---------------------
+// seqGreatHall_HolodeckTransition
+// fade in the holodeck and warp the player to the actual holodeck with korban
+//---------------------
+void seqGreatHall_HolodeckTransition()
+{
+	float i, fltAngularDistance;
+	entity	ePlayer;
+	vector	vecPlayerAngles,
+			vecKorbanAngles,
+			vecDestinationAngles,
+			vecKorbanOffset,
+			vecKorbanOrigin,
+			vecPlayerOrigin,
+			vecPlayerOffset,
+			vecDestinationOrigin;
+
+	//--- set the holodeck and korban for the transition
+	$holodeck.notsolid();
+	$holodeck.rendereffects( "+depthhack" );
+	$korban.rendereffects( "+depthhack" );
+	$holodeck.forcealpha( 1 );
+	$holodeck.alpha( 0 );
+
+	//--- lock the player
+//	freezeplayer();
+	$korban.ai_off();
+	wait( .25 );
+	
+	vecKorbanAngles = $korban.getAngles();
+	vecKorbanOrigin = $korban.getOrigin();
+	
+	//--- position the holodeck
+	$nodeHolodeckCenter.origin( vecKorbanOrigin );
+	$nodeHolodeckCenter.angles( vecKorbanAngles );
+	vecDestinationAngles = $nodePlayer_HolodeckCenter.getAngles();
+	vecDestinationOrigin = $nodePlayer_HolodeckCenter.getOrigin();
+	wait( .1 );
+	
+	//hzm coop mod chrissstrahl, set new respawn points isnide the holodeck
+	//set new spawnpoints based upon a base vector
+	float i;
+	float f;
+	vector v;
+	v = '700 4000 1024';
+	f = v_y;
+	for(i=1;i<=coop_integer_maxPlayers;i++){
+		setFloatScriptVariable("coop_float_spawnAngle"+i,180);
+		v_y = f;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		f += 50;
+	}
+	//eof hzm
+	
+	//--- get all the needed vectors
+	vecKorbanOrigin = $korban.getOrigin();
+	vecKorbanAngles = $korban.getAngles();
+	vecDestinationAngles = $nodePlayer_HolodeckCenter.getAngles();
+	vecDestinationOrigin = $nodePlayer_HolodeckCenter.getOrigin();
+	
+/*
+	//--- calculate the offset to korban
+	vecKorbanOffset_x = vecKorbanOrigin_x - vecPlayerOrigin_x;
+	vecKorbanOffset_y = vecKorbanOrigin_y - vecPlayerOrigin_y;
+	vecKorbanOffset_z = 0;
+	
+	//--- calculate the yaw offset between the two
+	fltAngularDistance = globalMath_GetCircularDistanceInDegrees( vecPlayerAngles_y, vecDestinationAngles_y );
+
+	//--- calculate korbans new position and orientation
+	vecKorbanOrigin = globalMath_RotatePointInXYPlane( vecKorbanOffset, '0 0 0', fltAngularDistance );
+	vecKorbanAngles = globalMath_RotateAnglesInXYPlane( vecKorbanAngles, fltAngularDistance );
+
+	//--- calculate korban's new origin
+	vecKorbanOrigin_x = vecKorbanOrigin_x + vecDestinationOrigin_x;
+	vecKorbanOrigin_y = vecKorbanOrigin_y + vecDestinationOrigin_y;
+	vecKorbanOrigin_z = vecDestinationOrigin_z;
+	*/
+
+	
+	//hzm coop mod chrissstrahl, immobilize player that are allready inside the holodeck
+	float fPlayerIdInUse;
+	float fPlayerId;
+	vector vOrigin;
+		
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.immobilize(1);
+				//player is inside of the holodeck
+				if(globalCoop_check_isEntityInsideOfEntity(ePlayer,$holodeck,-64)){
+					//calculate distance difference from korban to player
+					/* vecPlayerAngles = ePlayer.getAngles(); */
+					vecPlayerOrigin = ePlayer.getOrigin();
+					vecPlayerOffset_x = (vecKorbanOrigin_x - vecPlayerOrigin_x );
+					vecPlayerOffset_y = (vecKorbanOrigin_y - vecPlayerOrigin_y );
+					vecPlayerOffset_z = 0;
+					ePlayer.setVectorVar("coopRelativePosition",vecPlayerOffset);
+				}
+			}
+		}
+	}
+
+	$holodeck.fadeIn( 1 );
+	wait( 1.5 );
+
+	//--- turn off the fog
+	$world.farplane( 0 );
+	
+	//position Korban in the "real" holodeck
+	/*$korban.useActorWeapon( "none" );*/
+	$korban.warp( vecDestinationOrigin );
+	$korban.rendereffects( "-depthhack" );
+	$holodeck.rendereffects( "-depthhack" );
+
+	//hzm coop mod chrissstrahl, get player positions		
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+			//--- reposition player relative to korban!
+				vecPlayerOffset = ePlayer.getVectorVar("coopRelativePosition");
+				if(vecPlayerOffset_x != 0 && vecPlayerOffset_y != 0){
+					vecPlayerOrigin = vecDestinationOrigin;
+					vecPlayerOrigin_x += vecPlayerOffset_x;
+					vecPlayerOrigin_y += vecPlayerOffset_y;
+					vecPlayerOrigin_z = vecDestinationOrigin_z;
+					if(vecPlayerOrigin_x < 220 || vecPlayerOrigin_x > 740 || vecPlayerOrigin_y < 3900 || vecPlayerOrigin_y > 4430 || vecPlayerOrigin_z < 1024 || vecPlayerOrigin_z > 1118 ){
+						ePlayer.warp(globalCoop_return_vectorPlayerSpawnOrigin(fPlayerIdInUse));
+					}else{
+						ePlayer.warp(vecPlayerOrigin);
+					}
+				}
+			//player is not inde the holodeck
+				else{
+					ePlayer.warp(globalCoop_return_vectorPlayerSpawnOrigin(fPlayerIdInUse));
+				}
+				ePlayer.immobilize(0);
+			}
+		}
+	}
+
+	//--- warp the player and korban
+	/*$player.turn( fltAngularDistance, 0 );*/
+	/*$player.warp( $nodePlayer_HolodeckCenter.getOrigin() );*/
+	wait( .3 );
+
+	//--- unfreeze the player
+//	releaseplayer();
+	$korban.ai_on();
+
+	//--- setup korban and the player
+	//globalLoadout_TakeWeapon( WEAPON_BATLETH );
+	//globalLoadout_TakeWeapon( WEAPON_PHASER_STX );
+	//globalLoadout_TakeWeapon( WEAPON_BURST_RIFLE );
+	//globalLoadout_TakeWeapon( WEAPON_COMPRESSION_RIFLE );
+
+	//--- set the soundtrack
+	soundtrack( "music/m2l1-sfa.mus" );
+	wait( 1 );
+
+	music( "normal" );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  COMMON FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// 	commonLockDoor
+//	entDoor - entity, the door to lock
+// 	lock the passed in door and change it's lights over
+//---------------------
+void commonLockDoor( entity entDoor )
+{
+	entity entLightLocked, entLightUnlocked;
+
+	string strAssemble;
+
+	//--- get the door lights
+	strAssemble = entDoor.getRawTargetname() + "_LightLocked";
+
+	entLightLocked = getEntity( strAssemble );
+
+	strAssemble = entDoor.getRawTargetname() + "_LightUnlocked";
+
+	entLightUnlocked = getEntity( strAssemble );
+
+	//--- set the lights
+	entLightLocked.show();
+	entLightUnlocked.hide();
+
+	//--- lock the door
+	entDoor.lock();
+}
+
+//---------------------
+// 	commonUnlockDoor
+//	entDoor - entity, the door to lock
+// 	unlock the passed in door and change it's lights over
+//---------------------
+void commonUnlockDoor( entity entDoor )
+{
+	entity entLightLocked, entLightUnlocked;
+
+	string strAssemble;
+
+	//--- get the door lights
+	strAssemble = entDoor.getRawTargetname() + "_LightLocked";
+
+	entLightLocked = getEntity( strAssemble );
+
+	strAssemble = entDoor.getRawTargetname() + "_LightUnlocked";
+
+	entLightUnlocked = getEntity( strAssemble );
+
+	//--- set the lights
+	entLightLocked.hide();
+	entLightUnlocked.show();
+
+	//--- lock the door
+	entDoor.unlock();
+}
+
+//---------------------
+// 	commonGoToLocation
+//	entDork - entity, the dork to make run to the node
+//	strNode - string, the targetname of the node without the $
+// 	tells the passed AI to goto a specific location, and will make him keep going there until he's successful
+//---------------------
+void commonGoToLocation( entity entDork, string strNode )
+{
+	globalCoop_main_print("commonGoToLocation start");
+	entity entCheck;
+
+	float boolSuccess = 0;
+
+	string strAssemble, strPathNode;
+
+	//--- get the check node
+	strAssemble = strNode + "_Check";
+	/*print( "GOTO: strAssemble: " + strAssemble + "\n" );*/
+
+	strPathNode = "$" + strNode;
+
+	entCheck = getEntity( strAssemble );
+	/*print( "GOTO: entCheck: " + entCheck.getTargetname() + "\n" );*/
+	
+
+
+	while( boolSuccess == FALSE )
+	{
+		print("while...\n");
+		
+		//Have to slam AI Off, because of restore mode craziness.
+		entDork.ai_off();
+
+		/*print( "GOTO: targetname of entDork walking to target: " + entDork.getTargetname() + "\n" );*/
+
+    	//--- run korban to the path node, loop until it's success
+    	entDork.walkto( strPathNode, "run" );
+		wait(0.05);
+    	waitFor( entDork );
+
+    	/*print( "GOTO: waitFor is completed\n" );*/
+
+    	//--- do a check to see if he made it
+    	if( globalMath_GetXYDistance( entDork.getOrigin(), entCheck.getOrigin() ) < GOTO_TOLERANCE )
+    	{
+    		/*print( "GOTO: entDork made it to target\n" );*/
+    		boolSuccess = TRUE;
+    	}
+    }
+	globalCoop_main_print("commonGoToLocation end");
+}
+
+//---------------------
+// 	commonKorbanUsePanel
+//	strLocation - string, the targetname of the node to go to without the $
+// 	makes korban run to a locked door panel and start to open it
+//---------------------
+void commonKorbanUsePanel( string strLocation )
+{
+	globalCoop_main_print("commonKorbanUsePanel start");
+
+	$korban.ai_off();
+
+	//--- korban dialog to the player
+	$korban.playdialog( "localization/sound/dialog/m2l2/korban_cover.mp3", 1, 20000, 1 ); //Cover me while I try to open the door!
+
+	//--- make him goto the node no matter what
+	commonGoToLocation( $korban, strLocation );
+
+	//--- have korban put away his weapon
+	$korban.useActorWeapon( "none" );
+	wait( .5 );
+
+	//--- play the opening animation
+	$korban.anim( "panel-pushbutton" );
+	
+	globalCoop_main_print("commonKorbanUsePanel end");
+}
+
+//---------------------
+// 	commonActivateKorban
+// 	turn korban's AI back on and have him draw his weapon
+//---------------------
+void commonActivateKorban()
+{
+	//--- make korban stop animating
+	$korban.anim( "idle" );
+	wait( .3 );
+
+	//--- activate korban
+	$korban.ai_on();
+
+	//--- give korban his weapon back
+	$korban.useActorWeapon( "CompressionRifle" );
+}
+
+//---------------------
+// 	commonAICharge
+//	entDork - entity, the dork to make run to the node
+//	strNode - string, the targetname of the node without the $
+//	entTarget - entity, the optional target to attack
+// 	tells an AI to charge to a location, turn their AI on, and attack
+//---------------------
+void commonAICharge( entity entDork, string strNode, entity entTarget )
+{
+	//--- disable the dork's AI
+	if( doesEntityExist( entDork ) )
+	{
+		entDork.ai_off();
+	}
+
+	//--- charge him to his location
+	if( doesEntityExist( entDork ) )
+	{
+		commonGoToLocation( entDork, strNode );
+	}
+
+	//--- activate his AI
+	if( doesEntityExist( entDork ) )
+	{
+		entDork.ai_on();
+	}
+
+	//--- if the target passes was valid, have him attack it
+	if( doesEntityExist( entDork ) )
+	{
+		if( doesEntityExist( entTarget ) )
+		{
+			entDork.attack( entTarget, 1 );
+		}
+	}
+}
+
+
+//---------------------
+// commonActivateAI
+// activate an AI that runs through the triggerbrush
+//---------------------
+void commonActivateAI()
+{
+	entity entTrigger;
+	entity entAI;
+
+	entTrigger = getCurrentEntity();
+	entAI = entTrigger.getLastActivatingEntity();
+
+	//--- check to make sure it's not korban
+	if( entAI.getrawtargetname() != "korban" )
+	{
+		//print( "COMMON: Activating AI: " + entAI.getrawtargetname() + "\n" );
+
+    	//--- activate the AI that triggered the brush
+    	entAI.ai_on();
+    }
+}
+
+//---------------------
+// sparksBlownPanels
+// turns the spark emitters on and off
+//---------------------
+void sparksBlownPanels( entity entSparks )
+{
+	float fltRandomTime;
+
+	while( doesEntityExist( entSparks ) )
+	{
+		//--- show the sparks and play a sound
+		entSparks.show();
+		entSparks.loopsound ( "sound/environment/electric/fritz5.wav", .8, 82 );
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( .5 ) + .5;
+		wait( fltRandomTime );
+
+		//--- hide the sparks and stop the sound
+		entSparks.hide();
+        entSparks.stoploopsound ();
+
+		//--- wait a random amount of time
+		fltRandomTime = randomfloat( 1 ) + .3;
+		wait( fltRandomTime );
+	}
+}
+
+//---------------------
+// commonOpenVentDoor
+// string - strDoor, the base name of the vent door
+// opens the passed in vent door
+//---------------------
+void commonOpenVentDoor( string strDoor )
+{
+	entity entDoorOuter1;
+	entity entDoorOuter2;
+	entity entDoorInner1;
+	entity entDoorInner2;
+
+	vector vecMoveInner1 = '0 0 0';
+	vector vecMoveInner2 = '0 0 0';
+
+	//--- grab the 4 doors
+	entDoorOuter1 = getEntity( strDoor + "_Outer1" );
+	entDoorOuter2 = getEntity( strDoor + "_Outer2" );
+	entDoorInner1 = getEntity( strDoor + "_Inner1" );
+	entDoorInner2 = getEntity( strDoor + "_Inner2" );
+
+	//--- set the times on the entities
+	entDoorOuter1.time( VENTDOOR_TIME );
+	entDoorOuter2.time( VENTDOOR_TIME );
+	entDoorInner1.time( VENTDOOR_TIME );
+	entDoorInner2.time( VENTDOOR_TIME );
+
+	//--- open the area portal
+	entDoorOuter1.openPortal();
+	wait( .1 );
+
+	//--- open the doors
+	thread commonOpenVentDoor_Outer( entDoorOuter1 );
+	thread commonOpenVentDoor_Outer( entDoorOuter2 );
+	//entDoorInner1.playsound( "sound/doors/klingon_jtube.wav", 10, 1, 200);
+	//entDoorInner1.moveUp( VENTDOOR_INNER_DISTANCE );
+	//entDoorInner2.moveDown( VENTDOOR_INNER_DISTANCE );
+	//waitFor( entDoorInner2 );
+
+	//--- set the inner1 vector
+	vecMoveInner1 = vectorSetZ( vecMoveInner1, VENTDOOR_INNER_DISTANCE );
+
+	//--- set the inner2 vector
+	vecMoveInner2 = vectorSetZ( vecMoveInner2, (VENTDOOR_INNER_DISTANCE * -1) );
+
+	//--- move the door with acceleration
+	thread globalAccelMove( entDoorInner1, vecMoveInner1, VENTDOOR_TIME, "rampupdown", "sound/doors/klingon_jtube.wav" );
+	globalAccelMove( entDoorInner2, vecMoveInner2, VENTDOOR_TIME, "rampupdown", "" );
+}
+
+//---------------------
+// commonCloseVentDoor
+// string - strDoor, the base name of the vent door
+// closes the passed in vent door
+//---------------------
+void commonCloseVentDoor( string strDoor )
+{
+	//hzm coop mod chrissstrahl, allow player go get in any time
+	//might want to do something more original than that, to fix max temp model issue
+	return;
+	
+	entity entDoorOuter1;
+	entity entDoorOuter2;
+	entity entDoorInner1;
+	entity entDoorInner2;
+
+	vector vecMoveInner1 = '0 0 0';
+	vector vecMoveInner2 = '0 0 0';
+
+	//--- grab the 4 doors
+	entDoorOuter1 = getEntity( strDoor + "_Outer1" );
+	entDoorOuter2 = getEntity( strDoor + "_Outer2" );
+	entDoorInner1 = getEntity( strDoor + "_Inner1" );
+	entDoorInner2 = getEntity( strDoor + "_Inner2" );
+	
+	/*
+	
+	entity ePlayer;
+	vectot v1,v2;
+	v2 = entDoorOuter2.getOrigin();
+	float fPlayerIdInUse;
+	float fBlocking = 1;
+	while(fBlocking){
+		fBlocking = 0;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if( globalCoop_check_playerSpectator(ePlayer) == 0 ){
+					v1 = ePlayer.getOrigin();
+					v1_z = v2_z;
+					if( vectorLength( v1 - v2 ) < 64 ){
+						fBlocking = 1;
+					}
+				}
+			}
+		}
+		wait(0.25);
+	}
+	
+	*/
+
+	//--- set the times on the entities
+	entDoorOuter1.time( VENTDOOR_TIME );
+	entDoorOuter2.time( VENTDOOR_TIME );
+	entDoorInner1.time( VENTDOOR_TIME );
+	entDoorInner2.time( VENTDOOR_TIME );
+
+	//--- close the doors
+	thread commonCloseVentDoor_Outer( entDoorOuter1 );
+	thread commonCloseVentDoor_Outer( entDoorOuter2 );
+	//entDoorInner1.moveDown( VENTDOOR_INNER_DISTANCE );
+	//entDoorInner1.playsound( "sound/doors/klingon_jtube.wav", 10, 1, 200);
+	//entDoorInner2.moveUp( VENTDOOR_INNER_DISTANCE );
+	//waitFor( entDoorInner2 );
+
+	//--- set the inner1 vector
+	vecMoveInner1 = vectorSetZ( vecMoveInner1, (VENTDOOR_INNER_DISTANCE * -1) );
+
+	//--- set the inner2 vector
+	vecMoveInner2 = vectorSetZ( vecMoveInner2, VENTDOOR_INNER_DISTANCE );
+
+	//--- move the door with acceleration
+	thread globalAccelMove( entDoorInner1, vecMoveInner1, VENTDOOR_TIME, "rampupdown", "sound/doors/klingon_jtube.wav" );
+	globalAccelMove( entDoorInner2, vecMoveInner2, VENTDOOR_TIME, "rampupdown", "" );
+	wait( .1 );
+
+	//--- close the area portal
+	entDoorOuter1.closePortal();
+}
+
+
+//---------------------
+// commonOpenVentDoor_OpenOuter
+// entity - entDoor, the door to open
+// opens the outer doors based on the direction in the uservar1
+//---------------------
+void commonOpenVentDoor_Outer( entity entDoor )
+{
+	vector vecMove = '0 0 0';
+
+	if( entDoor.getstringvar( "uservar1" ) == "north" )
+	{
+		//entDoor.moveNorth( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetY( vecMove, VENTDOOR_OUTER_DISTANCE );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "south" )
+	{
+		//entDoor.moveSouth( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetY( vecMove, (VENTDOOR_OUTER_DISTANCE * -1) );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "east" )
+	{
+		//entDoor.moveEast( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetX( vecMove, VENTDOOR_OUTER_DISTANCE );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "west" )
+	{
+		//entDoor.moveWest( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetX( vecMove, (VENTDOOR_OUTER_DISTANCE * -1) );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+
+}
+
+//---------------------
+// commonOpenVentDoor_CloseOuter
+// entity - entDoor, the door to open
+// closes the outer doors based on the direction in the uservar1
+//---------------------
+void commonCloseVentDoor_Outer( entity entDoor )
+{
+	vector vecMove;
+
+	if( entDoor.getstringvar( "uservar1" ) == "north" )
+	{
+		//entDoor.moveSouth( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetY( vecMove, (VENTDOOR_OUTER_DISTANCE * -1) );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "south" )
+	{
+		//entDoor.moveNorth( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetY( vecMove, VENTDOOR_OUTER_DISTANCE );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "east" )
+	{
+		//entDoor.moveWest( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetX( vecMove, (VENTDOOR_OUTER_DISTANCE * -1) );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+	else if( entDoor.getstringvar( "uservar1" ) == "west" )
+	{
+		//entDoor.moveEast( VENTDOOR_OUTER_DISTANCE );
+
+		//--- set the vector
+		vecMove = vectorSetX( vecMove, VENTDOOR_OUTER_DISTANCE );
+
+		//--- move the door with acceleration
+		thread globalAccelMove( entDoor, vecMove, VENTDOOR_TIME, "rampupdown", "" );
+	}
+
+}
+
+//---------------------
+// commonTricorderPuzzleFailed
+// failed thread for tricorder puzzles to re-initialize them
+//---------------------
+void commonTricorderPuzzleFailed()
+{
+	entity entPuzzle;
+	entPuzzle = getcurrententity();
+
+	entPuzzle.puzzleobject_reset();
+}
+
+//---------------------
+// commonEndLevel
+// end the level
+//---------------------
+void commonEndLevel()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	
+	//--- set the flag that the simulation is over
+	boolSimulationDone = TRUE;
+
+	//--- lock down the player to prevent him from getting stuck in korban
+	//$player.immobilize( 1 );
+	
+	ePlayer.simplePlayDialog( "localization/sound/dialog/m2l2/comp_simcomp.mp3", 1, 20000 );
+	waitDialogLength( "localization/sound/dialog/m2l2/comp_simcomp.mp3" );
+	wait( .2 );
+	
+	globalCoop_objectives_set("$$EscapeFacility$$","complete",1,1);
+
+	//--- remove weapons
+	globalLoadout_TakeWeapon( "models/weapons/worldmodel-batleth.tik" );
+	globalLoadout_TakeWeapon( "models/weapons/worldmodel-phaser-STX.tik" );
+	globalLoadout_TakeWeapon( "models/weapons/worldmodel-burstrifle.tik" );
+	globalLoadout_TakeWeapon( "models/weapons/worldmodel-compressionrifle.tik" );
+
+	$korban.useActorWeapon( "none" );
+	
+    $munro.playdialog( "localization/sound/dialog/m2l2/munro_thanks3.mp3", 1, 20000, 1 ); //Thanks, Korban. Good work.
+    waitForDialog( $munro );
+	//wait( 2 );
+
+   	$korban.ai_off();
+   
+	ePlayer = globalCoop_return_playerClosestPreferActive($weaponBatleth);
+	$korban.walkTo( ""+ePlayer.getTargetName(), "run", 0, -1 );
+	
+	float fDistance;
+	do
+	{
+		fDistance = globalMath_GetXYDistance( $korban.getOrigin(), ePlayer.getOrigin() );
+   		wait( 0.1 );
+		if(!doesEntityExist(ePlayer) || ePlayer.getTargetName() == "$world" || fDistance < 384 ){
+			wait( 2 );
+			ePlayer = globalCoop_return_playerClosestPreferActive($weaponBatleth);
+			$korban.walkTo( ""+ePlayer.getTargetName(), "run", 0, -1 );
+		}
+	}
+   	while( fDistance >= 128 );
+
+   	$korban.anim( "idle" );
+   	thread seqGreatHall_HolodeckTransition();
+
+   	//--- set objective
+	//$player.setobjectivecomplete( "EscapeFacility", 1 );
+
+	//--- level transition to m2l3
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m2l3-sfa" );
+	//wait ( .1 );
+	//trigger ( "$trigger_endlevel" );
+}
+
+
+
+//---------------------
+// commonAmbientExplosions
+// random screen shakes, sounds, and dust
+//---------------------
+void commonAmbientExplosions()
+{
+	string basesoundname1, basesoundname2;
+
+	float mag, fltDuration;
+
+	basesoundname1 = "sound/impact/explosion/expl_inside";
+	basesoundname2 = "sound/impact/explosion/expl_muffledeb";
+
+	while( boolSimulationDone == FALSE )
+	{
+		//--- calculate the values for the earthquake
+		mag = randomfloat( 0.6 ) + 0.4;
+		fltDuration = randomfloat( 1.0 ) + 0.5;
+
+		//--- select a sound
+		if( randomint( 2 ) == 0 )
+		{
+			fullsoundname = basesoundname1;
+		}
+		else
+		{
+			fullsoundname = basesoundname2;
+		}
+
+		//--- concactinate the sound to play
+		fullsoundname = fullsoundname + (1 + randomint( 3 )) + ".wav";
+
+		//--- play the sound and the earthquake
+		
+		
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 ){
+					ePlayer.earthquake( mag, fltDuration );
+				}
+			}
+		}
+		wait( .5 );
+
+		//--- trigger the dust emitters
+		thread commonAmbientExplosions_TriggerDust();
+
+		//--- wait before doing another
+		wait( randomint( 15 ) + 15 );
+	}
+}
+
+//---------------------
+// commonAmbientExplosions_TriggerDust
+// pick and trigger dust
+//---------------------
+void commonAmbientExplosions_TriggerDust()
+{
+	entity entSpawner;
+
+	float i;
+
+	//--- setup array for dust emiters
+	//globalArray_FloatSetup( "dustEmitterCount", DUST_EMITTERS );
+	
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestActive($korban);
+	
+
+	for( i = 1 ; i <= DUST_EMITTERS ; i++ )
+	{
+		entSpawner = getEntity( "spawnDust" + i );
+
+		if( (globalMath_GetDistance( entSpawner.getOrigin(), ePlayer.getOrigin() ) < DUST_EMITTER_DISTANCE_TOLERANCE) && (randomInt( 2 ) == TRUE) )
+		{
+			entSpawner.playsound( fullsoundname, 1, 1, 10000 );
+			triggerEntity( entSpawner );
+			wait( randomFloat( .125 ) + .125 );
+			//globalArray_FloatSet( "dustEmitterCount", i, TRUE );
+		}
+	}
+}
+
+//---------------------
+// commonAccessDenied
+// play the access denied sound
+//---------------------
+void commonAccessDenied()
+{
+	entity entEntity;
+
+	entEntity = getCurrentEntity();
+
+	//--- play the sound on the entity that called this function
+	entEntity.playsound( M2_SOUND_ACCESS_DENIED, 0, 1, 128 );
+}
+
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+//  CINEMATIC FUNCTIONS
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+//---------------------
+// cinematicArm_MeetPicard_Start
+// munro meets picard with stemmons after the holotraining mission
+//---------------------
+void cinematicArm_MeetPicard_Start()
+{
+	//--- set the variable that the cinematic is active
+	//boolPicardCinematicActive = TRUE;
+
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- position korban and munro
+	cinematicArm_MeetPicard_Setup();
+
+	//--------------------------------------------------------
+	//--- shot of munro and korban exiting the holodeck
+
+	$cam1.follow( $m2l3_picard_shot1 );
+	$cam1.fov( 70 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .25 );
+
+	//--- fade in
+	cam_fadein( .75, 0, 0, 0, 1, 0 );
+	forcemusic ( "aux3" );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_MeetPicard_ArmEnd" );
+
+	//--- walk munro to his first spot
+	thread cinematicArm_MeetPicard_ActionMunro();
+	thread cinematicArm_MeetPicard_ActionKorban();
+	wait( 7 );
+
+	$cam1.pause();
+	wait( 3 );
+
+	//--------------------------------------------------------
+	//--- start the actual armature and set the flag
+	cinematicArm_MeetPicard.beginCinematic( "cin-m2l3-picard" );
+}
+
+
+//---------------------
+// cinematicArm_MeetPicard_ArmEnd
+// end thread for cinematic
+//---------------------
+void cinematicArm_MeetPicard_ArmEnd()
+{
+	//--- fade out
+	cam_fadeout( 0.25, 0, 0, 0, 1, 0 );
+	
+	//kill the cinematic
+	skipthread( "null" );
+
+	//--- tell the game to not translate the player's orientation
+	dontSaveOrientation();
+
+	//--- release the cinematic
+	noncinematic();
+	clearLetterbox( .1 );
+
+	//--- level transition to first IGN mission
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "ent-deck8" );
+	setfloatvar ( "game.globalMissionEnterprise", 1 );
+	//wait ( .1 );
+	//triggerentity ( $trigger_endlevel );
+	
+	coop_endLevel();
+
+/*
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait(.6);
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	if( boolPicardArmatureActive == TRUE )
+	{
+		cinematicArm_MeetPicard.endCinematic( FALSE );
+	}
+
+	killthread( "cinematicArm_MeetPicard_Start" );
+	killthread( "cinematicArm_MeetPicard_ActionMunro" );
+	killthread( "cinematicArm_MeetPicard_ActionKorban" );
+
+	//--- remove korban if he hasn't been already
+	if( doesEntityExist( $korban ) )
+	{
+		$korban.remove();
+	}
+
+	//--- show picard and stemmons, and hide munro
+	globalCommon_AiDummy( $picard, "" );
+	globalCommon_AiDummy( $stemmons, "" );
+	globalCommon_AiDummyHide( $munro );
+
+	//--- setup stemmons
+	$stemmons.headwatchtarget( "none", .2 );
+
+	//--- set the player
+	$player.solid();
+	$player.show();
+	$player.warp( $nodeMunro_PostPicardCinematic.getOrigin() );
+	$player.turnTowardsEntity( $picard );
+
+	//--- load +use dialog on picard and stemmons
+	initDialog_Picard( $picard );
+	initDialog_Stemmons( $stemmons );
+
+	//--- release the cinematic
+
+	noncinematic();
+	clearletterbox( .1 );
+	wait( .2 );
+
+	cueplayer();
+	releaseplayer();
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1.5 );
+
+	//--- set the variable that the cinematic is active
+	$picard.lookAt( $stemmons );
+	$stemmons.lookAt( $picard );
+	wait( 1 );
+*/
+	//boolPicardCinematicActive = FALSE;
+	//wait( 3 );
+
+	//--- chell comms munro to tell him to meet in the cafeteria
+	//thread gameChellCommsMunro();
+
+	//cinematicArm_MeetChell_Start();
+}
+
+
+//---------------------
+// cinematicArm_MeetPicard_Setup
+// position munro and korban, and walk them off
+//---------------------
+void cinematicArm_MeetPicard_Setup()
+{
+	globalCommon_AiDummy( $munro, "" );
+	globalCommon_AiDummy( $korban, "" );
+	$munro.warp( $nodeMunro_StartCinematic.getOrigin() );
+	$korban.warp( $nodeKorban_StartCinematic.getOrigin() );
+	wait( .1 );
+
+	$korban.turnToAngle( 180 );
+	$munro.turnToAngle( 180 );
+	wait( .1 );
+}
+
+
+//---------------------
+// cinematicArm_MeetPicard_ActionMunro
+// munro's actions for the opening shots
+//---------------------
+void cinematicArm_MeetPicard_ActionMunro()
+{
+	//--- walk munro and korban out of the door
+	$munro.walkto( "$nodeMunro_ExitDoorWait", "walk" );
+	waitFor( $munro );
+
+	//$munro.lookAt( $korban );
+
+	//$munro.turnTowardsEntity( $korban );
+	$munro.headWatchTarget( "korban", 5 );
+	wait( 1.5 );
+
+	$munro.anim( "conv-affirmative" );
+	//waitForAnimation( $munro, "conv-gestureL" );
+	wait( 1 );
+
+	$munro.anim( "idle" );
+	wait( 3 );
+
+	$munro.headWatchTarget( "picard", 5 );
+	wait( 1 );
+
+	//--- turn munro and have him walk to his first spot
+	$munro.headWatchTarget( "none", 20 );
+	$munro.turnTowardsEntity( $picard );
+	wait( .5 );
+
+	$munro.walkto( "$nodeMunro_WalkToFirst", "walk" );
+	waitFor( $munro );
+	//wait( 6.75 );
+
+	$munro.walkto( "$nodeMunro_WalkToSecond", "walk" );
+}
+
+
+//---------------------
+// cinematicArm_MeetPicard_ActionKorban
+// korban's actions for the opening shots
+//---------------------
+void cinematicArm_MeetPicard_ActionKorban()
+{
+	$korban.walkto( "$nodeKorban_ExitDoorWait", "walk" );
+	waitFor( $korban );
+
+	//$munro.turnTowardsEntity( $korban );
+
+	$korban.headWatchTarget( "munro", 4 );
+	wait( 1.5 );
+
+	$korban.headWatchTarget( "korban", 7 );
+	wait( .2 );
+
+	$korban.headWatchTarget( "munro", 5 );
+	wait( 1.3 );
+
+	$korban.headWatchTarget( "none", 10 );
+	$korban.walkto( "$nodeKorban_WalkToRemove", "walk" );
+	waitFor( $korban );
+
+	$korban.remove();
+}
+
+
+
+void test1()
+{
+	$romulan1_1.suicide();
+	$romulan1_2.suicide();
+	$romulan1_3.suicide();
+	$romulan1_4.suicide();
+	$romulan1_5.suicide();
+	$romulan1_6.suicide();
+	$romulan1_7.suicide();
+}
+
+void test2()
+{
+	$romulan2_1.suicide();
+	$romulan2_2.suicide();
+	$romulan2_3.suicide();
+	$romulan2_4.suicide();
+	$romulan2_5.suicide();
+}
+
+void test3()
+{
+	$romulan3_1.suicide();
+	$romulan3_2.suicide();
+	$romulan3_3.suicide();
+	$romulan3_4.suicide();
+	$romulan3_5.suicide();
+	$romulan3_6.suicide();
+}
+
+void test4()
+{
+	$korban.ai_off();
+	$korban.warpTo( "$nodeDoorLocked3_Panel" );
+}
+
+void test5()
+{
+	$korban.ai_off();
+	$korban.warpTo( "$nodeDoorLocked5_Panel" );
+}
+
+//------------------------------------------------------------------------------
+//[b607] chrissstrahl - Move given actor if he did not get close to the location with the given timeframe
+//------------------------------------------------------------------------------
+void coop_moveToOnTimeOut(entity eactor, vector vec,float ftime,float fdistance){
+	float fStartLevelTime = 0;
+	fStartLevelTime = getLevelTime();
+	//$player0.hudprint("timeout tingy start");
+	while(doesEntityExist(eactor) == 1 && eactor.getHealth() > 0 && (fStartLevelTime + ftime) > getLevelTime()){
+		if(vectorLength(eactor.getOrigin() - vec) <= fdistance){
+			//$player0.hudprint("timeout tingy succsess");
+			return;
+		}
+		globalCoop_main_waitAFrame();
+	}
+	if(doesEntityExist(eactor) == 1 && eactor.getHealth() > 0){
+		eactor.origin(vec);
+		globalCoop_player_makeSolidASAP(eactor);
+	}
+	//$player0.hudprint("timeout tingy failed");
+} //location, time, max distance
+
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+void coop_endLevel()
+{
+	/*
+	stuffCMD("seta coop_lcT 0\n"); //set ???
+	stuffCMD("seta coop_lcK 0\n"); //set ???
+	globalCoop_main_waitAFrame();
+	stuffCMD("seta coop_igm 1\n"); //set igm mission
+	stuffCMD("seta coop_igmH 0\n");//set spawn in holodeck
+	globalCoop_main_waitAFrame();
+	stuffCMD("seta coop_igmR 0\n");//set rooms visited
+	stuffCMD("seta coop_igmT 0\n");//set ??? turbolift
+	globalCoop_main_waitAFrame();
+	stuffCMD("seta coop_igmTr 0\n");//set ???
+	*/
+	
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	setfloatvar("game.statusM5L2CUnlocked",0);//make sure the level that gets loaded twiche (m5l2a) starts at the beginning
+	//eof HZM
+	
+	setfloatvar("game.globalMissionEnterprise",1);
+	setfloatvar("game.holoDeckIGM1Done",0);
+	
+	thread globalCoop_mission_completed("ent-deck8");
+}
+
+

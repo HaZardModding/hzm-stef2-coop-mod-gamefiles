@@ -1,0 +1,103 @@
+float currentGroupId = 0;
+float leftToKill = 0;
+float numAlive = 0;
+float maxAlive = 3;
+
+void beginAttackSequence ( );
+//-----------------------------------------------------------------------------------------------
+// Function			: beginAttackSequence
+// Parameters		: (all stored inside of a trigger_multiple
+//					: basename (name of the attackspawn)
+//					: numSpawnChoices (total spawners to choose from)
+//					: numAttackers (number of attackers allowed to spawn)
+//					: spawnIntensity (number of seconds to wait before spawning again)
+// Returns			: none
+// Comments
+//	Spawns an alien in and makes him fly along a spline path
+//	Target the func_spawn to the splinepath
+//
+//-----------------------------------------------------------------------------------------------
+
+void doLaunch ( entity spawner)
+{
+	entity alien;
+//	float x;
+//	x = randomint ( 3 );
+	
+//	if ( x==0 )
+		alien = globalFlyin_SpawnLaunch ( spawner , "models/char/alien-type1a-lurker.tik" , currentGroupId, "" , "creatureTouched" , 0 );
+//	else if ( x==1 )
+//		alien = globalFlyin_SpawnLaunch ( spawner , "models/char/alien-type1b-chewer.tik" , currentGroupId, "" , "creatureTouched" , 0 );
+//	else if ( x==2 )
+//		alien = globalFlyin_SpawnLaunch ( spawner , "models/char/alien-type1c-basher.tik" , currentGroupId, "" , "creatureTouched" , 0 );
+		
+	if ( alien.getfloatvar ( "killed" ) == 0 )
+	{
+		numAlive++;
+		alien.killthread ( "alienKilled" );
+		alien.allowfall ( 1 );
+		
+		//hzm coop mod chrissstrahl - get player closest to 
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestPreferActive($cityBridge_AttackWave1_1);
+		
+		if ( randomint ( 2 ) ==	1 )
+			alien.attack ( ePlayer );
+		else
+			alien.attack ( $krindo );
+	}
+	else
+		leftToKill--;
+}
+
+void beginAttackSequence ( )
+{
+	entity alien , caller,spawner,path;
+	string basename;
+	float  numSpawnChoices , numAttackers , currentSpawnChoice , spawnIntensity , probability;
+
+	caller = getcurrententity();
+
+	//stored inside the trigger_multiple near the attack site
+	basename        = caller.getstringvar ( "uservar1" );
+	numSpawnChoices = caller.getfloatvar  ( "uservar2" );
+	numAttackers    = caller.getfloatvar  ( "uservar3" );
+	spawnIntensity  = caller.getfloatvar  ( "uservar4" );
+
+	if ( spawnIntensity < 0.1 )
+		spawnIntensity = 0.1;
+
+	leftToKill=numAttackers;
+
+	currentGroupId++;
+	while ( leftToKill > 0 )
+	{
+		while ( numAlive >= maxAlive )
+		{
+//			print ( "numAlive: " + numAlive + "\n" );
+			wait ( .5 );
+		}
+
+		//choose a random spawner
+		currentSpawnChoice = randomint ( numSpawnChoices ) + 1;
+		spawner = getentity ( basename + currentSpawnChoice );
+
+//		probability = spawner.getfloatvar ( "uservar1" );	//stored on our func_spawner
+//		if ( (probability <= 0.0) || (probability > 1.0) )
+//			probability = 1.0;
+//		print ( "Left: " +leftToKill + "\n" );
+
+		thread doLaunch ( spawner );
+		wait ( spawnIntensity );
+	}
+
+	if (basename == "attack3_" )	//don't let the player (or krindo) trigger
+		$bobTrigger.triggerable (); //the explosion sequence until its all done
+
+}
+
+void alienKilled ()
+{
+	leftToKill--;
+	numAlive--;
+}

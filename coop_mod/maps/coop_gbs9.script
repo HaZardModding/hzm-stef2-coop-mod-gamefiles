@@ -1,0 +1,656 @@
+//  EF2 Level Script File
+//
+//  Level:		map8.bsp
+//  Script By:	DrBob, ltiefland, TickNSwisted
+//  Geometry By:	TickNSwisted
+//  Created on:	17/04/04
+// Last Edited on:  $Date: 2007-06-20 22:47:49 +0200 (Wed, 20 Jun 2007) $
+// Last Edited by:	$Author: avenger $
+
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+float FARPLANE_DISTANCE = 1500;
+void	coop_aiMakeEnemy(entity e);
+void	coop_levelEndGather();
+void	coop_endLevel();
+void	coop_moveSpawn1();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+//INCLUDES
+	#include "maps/global_scripts/global_debugUtils.scr"
+	#include "maps/global_scripts/global_tricorderBase.scr"
+	#include "maps/global_scripts/global_tricorderKeypad.scr"
+    #include "maps/global_scripts/global_archetype.scr"
+
+//FUNCTIONS
+	void openFirstDoor();
+	void closeFirstDoor();
+	void remove_forcefield();
+	void remove_cave_forcefield();
+	void b03_door_01_unlock();
+	void b03_door_01_relock();
+	void b02_door_01_relock();
+
+    void finish_intro_cin();
+	void initArchetypes();
+
+	void main();
+	void setupWorld();
+	void intro_cin();
+
+	void Puzzle_Used();
+	void Puzzle_Reset();
+	void Puzzle_Solved();
+
+//VARIABLE DECLARATIONS
+	float func_rem_ff_used = 0;
+
+////////////////////////
+/////////SCRIPT/////////
+////////////////////////
+void main()
+{
+	cam_fadeout( 0.01, 0, 0, 0, 1, 0 );
+	
+	$world.weather( "snow", 200 ); 
+	$world.entity_fade_dist( 2100 ); 
+
+	$world.farplane( FARPLANE_DISTANCE );
+	$world.farplane_color ( '0.0875 0.1 0.145' ); //match skybox fog colour
+	$world.farplane_cull( 0 );
+	$world.farplane_fog( 1 );
+	
+	$world.soundtrack( "music/m7l1-attrexian_colony.mus");
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-FieldAssaultRifle.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon4 = "models/weapons/worldmodel-rom-disruptor.tik";
+	coop_string_weapon5 = "models/weapons/worldmodel-BurstRifle.tik";
+	coop_string_weapon6 = "models/weapons/worldmodel-Batleth.tik";
+
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	coop_string_objectiveItem4 = "Find an entrance to the remains of the outpost.";
+	coop_string_objectiveItem5 = "Go to the bridge of the warbird.";
+	coop_string_objectiveItem6 = "Reroute power to the transporter and beam off the ship.";
+	coop_string_objectiveItem7 = "Find Alexander Stammheim. He will be in a holding cell.";
+	//Get to Stammheim's shuttle and escape with Stammheim.
+	//
+	//Time until Collision
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	coop_string_objectiveItem4_deu = "Finde einen Eingang zu den $$Ue$$berresten des Außenpostens.";
+	coop_string_objectiveItem5_deu = "Gehe auf die Brücke des Warbirds.";
+	coop_string_objectiveItem6_deu = "Leite Energie zum Transporter um und beame Dich vom Schiff.";
+	coop_string_objectiveItem7_deu = "Finde Alexander Stammheim. Er wird in einer Zelle sein.";
+	//Gehe zu Stammheims shuttle und fliehe mit Stammheim.
+	//
+	//Zeit bis zur Kollision
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed"		, 1 , 0 );
+	globalCoop_objectives_update("complete"		, 2 , 0 );
+	globalCoop_objectives_update("complete"		, 3 , 0 );
+	globalCoop_objectives_update("complete"		, 4 , 0 );
+	globalCoop_objectives_update("complete"		, 5 , 0 );
+	globalCoop_objectives_update("complete"		, 6 , 0 );
+	globalCoop_objectives_update("incomplete"	, 7 , 1 );
+	
+	setupWorld();
+
+	thread intro_cin();
+
+}
+
+void setupWorld()
+{
+	//hzm coop mod chrisstrahl - add/remove mission objective to/from radar
+	$useSymbol1.missionobjective(1);
+
+	//$illia.remove();
+	//fakeplayer();
+
+	////DOOR SETUP////
+	$b03_door_01.lock();
+	$b03_door_02.lock();
+	//$b02_door_02.unlock();
+	$b02_door_01.unlock();
+	if(doesEntityExist($b01_door_02)){
+		$b01_door_02.unlock();
+	}
+
+	//initialize hintes
+        initArchetypes();
+	
+	//Setup onUse threads...
+
+	//globalLoadout_GiveWeapon( WEAPON_GRENADE_LAUNCHER );
+	$illia_prisoner.removeactorweapon ( "CompressionRifle" );
+	$illia_prisoner.removeactorweapon ( "AssaultRifle" );
+	$illia_prisoner.removeactorweapon ( "CompressionRifleEnhanced" );
+
+	//Spawn cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	spawn( "Camera", "targetname", "cam3" );
+
+	//Remove NPCs AI
+	$illia.ai_off();
+	$illia_prisoner.ai_off();
+	$tebok.ai_off();
+
+	//Set NPCs sides
+
+	//Setup NPC animations
+
+	//Setup NPC facial animation
+	if(doesEntityExist($stammheim)){
+		$stammheim.morph( "exp_eyes_heavy" );
+		$stammheim.morph( "exp_Nervous" );
+		$stammheim.morph( "exp_Fear" );
+		$stammheim.morph( "exp_Sad" );
+	}
+
+	//Make NPCs non-pushable
+	$illia_prisoner.pushable( 0 );
+	$tebok.pushable( 0 );
+	$illia.pushable( 0 );
+//	$fakeplayer.pushable( 0 );
+
+	//Hide and notsolid certain things...
+	$illia_prisoner.hide();
+	$tebok.hide();
+	$illia.pushable( 0 );
+//	$fakeplayer.hide();
+
+	$illia_prisoner.notsolid();
+	$tebok.notsolid();
+	$illia.pushable( 0 );
+//	$fakeplayer.notsolid();
+
+	wait(0.05);
+
+	//hzm coop mod chrissstrahl - remove archetype
+	//$explosiveDecoCrate.archetype("");//disabled 2018.03.22
+	
+	//hzm coop mod chrissstrahl - make neutral ai to enemy ai
+	coop_aiMakeEnemy($brigitteDieKnitte);
+	coop_aiMakeEnemy($magaretheDieKnete);
+	coop_aiMakeEnemy($dieAlkoholikerin);
+	coop_aiMakeEnemy($dieBurgDommina);
+	coop_aiMakeEnemy($sieLangweiltSichInDerEcke);
+	coop_aiMakeEnemy($frida);
+	coop_aiMakeEnemy($berta);
+}
+
+//CINEMATIC FUNCTIONS
+void intro_cin()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	skipthread ( "finish_intro_cin" );
+
+	//Make the fakeplayer use the same weapon as you
+//	globalCommon_AiActorUseWeapon( $fakeplayer, "current" );
+	globalCommon_AiActorUseWeapon( $illia, "fieldassaultrifle" );
+	$cam3.follow( $map8_intro2 );
+	$cam3.cut();
+	waitForPlayer();
+	//Load the mission objectives
+	stuffCmd("set mp_bigGunMode 0\n");
+	playerDeathThread("playergotKilled");
+
+	freezeplayer();
+	cinematic();
+	letterbox ( 0.1 );
+	wait( 0.5 );
+	cuecamera( $cam3 );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	$illia.DisplayEffect( "TransportIn", "Romulan" );
+	wait( 2.7 );
+
+	$illia.show();
+	$illia.solid();
+/*	$fakeplayer.show();
+	$fakeplayer.solid();*/
+	$cam1.follow( $map8_intro1 );
+	$cam1.cut();
+	wait( 1 );
+
+	cuecamera( $cam1 );
+	wait( 5 );
+
+	cuecamera( $cam3 );
+
+/*	$fakeplayer.playdialog( "localization/sound/dialog/map09/illia/inshorttime.mp3", 1, 10000, 0 );
+	waitfordialog( $fakeplayer );*/
+	$illia.playdialog( "localization/sound/dialog/map09/illia/inshorttime.mp3", 1, 10000, 0 );
+	waitfordialog( $illia );
+
+	wait( 0.05 );
+
+	$cam2.follow( $cell_cam );
+	$cam2.cut();
+	wait( 0.5 );
+
+	cuecamera( $cam2 );
+
+	$world.farplane( 99999 );
+	
+	$illia_prisoner.show();
+	$illia_prisoner.solid();
+	$illia_prisoner.anim( "cin-m8_situp" );
+
+	cam_fadein( 3, 0, 0, 0, 1, 0 );
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map09/Illia/iwasaware.mp3", 1, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	$illia_prisoner.playdialog( "localization/sound/dialog/map09/Illia/stillalive.mp3", 1, 10000, 0 );
+	waitfordialog( $illia_prisoner );
+
+	wait( 2 );
+
+	cuecamera( $cam3 );
+	$world.farplane( FARPLANE_DISTANCE );
+
+/*	$fakeplayer.playdialog( "localization/sound/dialog/map09/illia/nochoice.mp3", 1, 10000, 0 );
+	waitfordialog( $fakeplayer );*/
+	$illia.playdialog( "localization/sound/dialog/map09/illia/nochoice.mp3", 1, 10000, 0 );
+	waitfordialog( $illia );
+
+	wait( 0.2 );
+
+	thread finish_intro_cin();
+}
+
+void finish_intro_cin()
+{
+   	killthread("intro_cin");
+	cam_fadein( 3, 0, 0, 0, 1, 0 );
+	$illia_prisoner.remove();
+	$illia.hide();
+	$illia.notsolid();
+	
+	$world.farplane( FARPLANE_DISTANCE );
+
+	/*
+	$player.show();
+	$player.solid();
+	$player.origin('192.00 -1.00 -20.00');//Chrisstrahl 2007.05.07, warped player to illia cin possition back to avoid char stuck
+	*/
+	
+	clearletterbox( 0.1 );
+	releaseplayer();
+	noncinematic();
+	cueplayer();
+	globalCommon_Autosave();
+
+	//Make a new objective appear: find the entrance to the caves
+	//Make the blip appear on your radar
+	/*$player.missionobjective( 1 );*/
+	//Make the mission objective appear
+	/*$player.setobjectiveshow( "findentrance", 1 );
+	$player.setobjectiveshow( "findstammheim", 1 );*/
+}
+
+//PUZZLE FUNCTIONS
+void Puzzle_Used()
+{
+	//hzm coop mod chrissstrahl - used to be romulan, but that would be to much, how many players know pi in romulan ?
+	/*globalTricorderKeypad_SetType( "federation" );*/
+	
+	globalTricorderKeypad_SetScannedCodeFlag( 0 );
+	globalTricorderKeypad_SetSecretCode( 3, 1, 4, 1, 5, 0, 0, 0, 0 );
+		//Edited by TICKNSWISTED:changed SecretCode to Pi for ingame clue.
+		//Edited By Argyle: Sorry, the code was too long, good idea about Pi though.
+		//hzm coop mod chrissstrahl - give player 20 sec in coop, after this another player might try
+	globalTricorderKeypad_Run( $cave_forcefield_puzzle, 20, 3);
+}
+
+void Puzzle_Reset()
+{
+	$cave_forcefield_puzzle.puzzleobject_reset();
+}
+
+void Puzzle_Solved()
+{
+	//hzm coop mod chrisstrahl - add/remove mission objective to/from radar
+	$symbol_piepuzzle.missionobjective(0);
+	$triggerExit.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - remove puzzle tricorder use symbol
+	$symbol_piepuzzle.remove();
+
+
+	$cave_forcefield_puzzle.playsound( "sound/ships/romulan/rom_beep_yes.wav", 0, 1 );
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	freezeplayer();
+	cinematic();
+	letterbox ( 0.1 );
+	
+	$cam3.follow( $map8_ff0 );
+	$cam3.cut();
+	wait( 0.5 );
+
+	cuecamera( $cam3 );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait(1.5);
+
+	remove_cave_forcefield();
+
+
+	wait(4);
+
+	clearletterbox( 0.1 );
+	releaseplayer();
+	noncinematic();
+	cueplayer();
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area
+	thread coop_levelEndGather();
+}
+
+void playergotKilled()
+//played when player dies
+{
+	return;//hzm coop mod chrissstrahl - we don't do this in multiplayer
+	$player.setobjectivefailed("findentrance", 1);
+	$player.setobjectivefailed("findstammheim", 1);
+	$player.missionfailed("GBS10FindStammheim");
+}
+
+void openFirstDoor ()
+{
+	$openDoorTrigger.playsound ( "sound/environment/switches/switch_01.wav" , 3, .3, 10000 );
+	$openDoorTrigger.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 7, .3, 10000 );
+	wait( .1 );
+
+	$openDoorTrigger.nottriggerable ();
+	
+	/*
+	$reinhard.setTargetType(1);//Chrisstrahl 2007.05.07
+	$reinhard.sethatemodifier( 1 );//Chrisstrahl 2007.05.07
+	$reinhard0.kill();//Chrisstrahl 2007.05.07
+	*/
+    $OuterDoorPart1.playsound ( "sound/doors/drull_bigdoor_01.wav", 5, 1, 300);
+	$OuterDoorPart1.time( 5 );
+	$OuterDoorPart1.moveUp( 6 );
+	$OuterDoorPart2.time( 5 );
+	$OuterDoorPart2.moveUp( 36 );
+	$OuterDoorPart3.time( 5 );
+	$OuterDoorPart3.moveUp( 66 );
+	
+	$OuterDoorPart4.time( 5 );
+	$OuterDoorPart4.moveUp( 96 );
+	$OuterDoorPart5.time( 5 );
+	$OuterDoorPart5.moveUp( 126 );
+	$OuterDoorPart5.playsound ( "sound/doors/drull_bigdoor_stop_01.wav", 5, 1, 300);
+	
+	//hzm coop mod chrissstrahl - make to enemy now
+	wait(1.5);
+	$reinhard.actortype("Enemy");
+
+    waitfor ( $OuterDoorPart5 );
+
+	wait ( 5 );
+    	closeFirstDoor();
+}
+
+
+void initArchetypes()
+{
+      thread globalArchetype_Setup( $hint_riddle, "number");
+      thread globalArchetype_Setup( $hint2, "hint2");
+      thread globalArchetype_Setup( $hint3, "hint3");
+      thread globalArchetype_Setup( $hint4, "hint4");
+      thread globalArchetype_Setup( $hint5, "hint5");
+
+}
+
+void closeFirstDoor()
+{
+	$openDoorTrigger.playsound ( "sound/environment/switches/switch_01.wav" , 3, .3, 10000 );
+	$openDoorTrigger.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 7, .3, 10000 );
+
+    	$OuterDoorPart1.playsound ( "sound/doors/drull_bigdoor_01.wav", 5, 1, 300);
+	$OuterDoorPart1.time( 3 );
+	$OuterDoorPart1.moveDown( 6 );
+	$OuterDoorPart2.time( 3 );
+	$OuterDoorPart2.moveDown( 36 );
+	$OuterDoorPart3.time( 3 );
+	$OuterDoorPart3.moveDown( 66 );
+	$OuterDoorPart4.time( 3 );
+	$OuterDoorPart4.moveDown( 96 );
+	$OuterDoorPart5.time( 3 );
+	$OuterDoorPart5.moveDown( 126 );
+	waitfor( $OuterDoorPart1 );
+
+    	$OuterDoorPart1.playsound ( "sound/doors/drull_bigdoor_stop_01.wav", 5, 1, 300);
+
+	$openDoorTrigger.triggerable ();
+}
+
+void removeHint3()
+{
+	$hint3.remove();
+
+	//hzm coop mod chrisstrahl - add/remove mission objective to/from radar
+	$useSymbol1.missionobjective(0);
+	$symbol_useOpenDoor.missionobjective(1);
+}
+
+void remove_forcefield()
+{
+ if (func_rem_ff_used == 0)	//see if this thread was used previous
+  {
+  
+	//hzm coop mod chrisstrahl - add/remove mission objective to/from radar
+	$symbol_useOpenDoor.missionobjective(0);
+	$symbol_piepuzzle.missionobjective(1);
+  
+  $hint2.remove();
+   $b03_door_02.unlock();	//unlock second door of third building
+	if(doesEntityExist($forcefield)){
+		$forcefield.remove();	//remove force field in third building
+	}
+	if(doesEntityExist($forcefield_speaker)){
+		$forcefield_speaker.stoploopsound();
+		$forcefield_speaker.playsound("sound/ships/enterprise/ent_forcefield_down.wav",0,1);
+		$forcefield_speaker.remove();//delete the forcefield from the world
+	}
+
+   func_rem_ff_used = 1;
+  }
+ else
+  {
+   if (func_rem_ff_used == 1)	//if used prior, just play this sound
+    {
+     $forcefield_speaker.playsound( "sound/ships/romulan/rom_beep3.wav", 0, 1 );
+    }
+  } 
+}
+
+
+void b03_door_01_unlock()
+{
+ $b03_door_01.unlock();
+ 
+	//hzm coop mod chrissstrahl - don't lock players in or out in coop
+	if(getCvarInt("g_gametype") != 0){
+		return;
+	}
+
+	// unlock bunker 3's door_01.
+	 $b02_door_01.lock();
+}
+
+void b03_door_01_relock()
+{
+	//hzm coop mod chrissstrahl - don't lock players in or out in coop
+	if(getCvarInt("g_gametype") != 0){
+		return;
+	}
+
+	 $b03_door_01.lock();
+	 // relock bunker 3's door_01.
+}
+
+void b02_door_01_relock()
+{
+	//hzm coop mod chrissstrahl - don't lock players in or out in coop
+	if(getCvarInt("g_gametype") != 0){
+		return;
+	}
+
+	if(doesEntityExist($b01_door_02)){
+		$b02_door_01.lock();//Patched 06.sep.2007 @ Chrissstrahl
+	}
+}
+
+
+void remove_cave_forcefield()
+{//remove cave forcefield and speaker
+
+	if(doesEntityExist($cave_forcefield)){
+		$cave_forcefield.playsound( "sound/ships/borg/borg_forcefield1_down.wav");	
+	}
+	if(doesEntityExist($cave_forcefield)){
+		$cave_forcefield.remove();	 	//remove cave forcefield and speaker
+		$cave_forcefield_speaker.remove();	//remove cave forcefield and speaker
+	}
+}
+
+
+void coop_aiMakeEnemy(entity e)
+//------------------------------------------------------------------------------
+//make neutral ai to aggressive enemy ai
+//------------------------------------------------------------------------------
+{
+	e.actortype("enemy");
+	e.aggressive(1);
+}
+
+void coop_moveSpawn1()
+//------------------------------------------------------------------------------
+//move spawnpoints, for new players and players vaporized or killed at where they can't respawn
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('-96 1555 96');
+	$ipd2.origin('-48 1555 96');
+	$ipd3.origin('0 1555 96');
+	$ipd4.origin('48 1555 96');
+	$ipd5.origin('96 1555 96');
+	$ipd6.origin('144 1555 96');
+	$ipd7.origin('192 1555 96');
+	$ipd8.origin('240 1555 96');
+}
+void coop_moveSpawn2()
+//------------------------------------------------------------------------------
+//move spawnpoints, for new players and players vaporized or killed at where they can't respawn
+//------------------------------------------------------------------------------
+{
+	$ipd1.angle(270);
+	$ipd2.angle(270);
+	$ipd3.angle(270);
+	$ipd4.angle(270);
+	$ipd5.angle(270);
+	$ipd6.angle(180);
+	$ipd7.angle(180);
+	$ipd8.angle(180);
+	$ipd1.origin('96 4928 168');
+	$ipd2.origin('144 4928 168');
+	$ipd3.origin('192 4928 168');
+	$ipd4.origin('240 4928 168');
+	$ipd5.origin('288 4928 168');
+	$ipd6.origin('288 4848 168');
+	$ipd7.origin('288 4800 168');
+	$ipd8.origin('288 4752 168');
+	
+	//make sure the door is unlocked always, juct in case players want to go back
+	thread b03_door_01_unlock();
+}
+void coop_moveSpawn3()
+//------------------------------------------------------------------------------
+//move spawnpoints, for new players and players vaporized or killed at where they can't respawn
+//------------------------------------------------------------------------------
+{
+	$ipd1.angle(180);
+	$ipd2.angle(180);
+	$ipd3.angle(180);
+	$ipd4.angle(180);
+	$ipd5.angle(0);
+	$ipd6.angle(0);
+	$ipd7.angle(0);
+	$ipd8.angle(0);
+	$ipd1.origin('2912 7984 0');
+	$ipd2.origin('2912 7936 0');
+	$ipd3.origin('2912 7888 0');
+	$ipd4.origin('2912 7888 0');
+	$ipd5.origin('2592 7800 0');
+	$ipd6.origin('2592 7848 0');
+	$ipd7.origin('2592 7896 0');
+	$ipd8.origin('2592 7944 0');
+}
+void coop_moveSpawn4()
+//------------------------------------------------------------------------------
+//move spawnpoints, for new players and players vaporized or killed at where they can't respawn
+//------------------------------------------------------------------------------
+{
+	$ipd1.angle(270);
+	$ipd2.angle(270);
+	$ipd3.angle(270);
+	$ipd4.angle(270);
+	$ipd5.angle(270);
+	$ipd6.angle(270);
+	$ipd7.angle(270);
+	$ipd8.angle(270);
+	$ipd1.origin('-160 7656 -148');
+	$ipd2.origin('-76 7758 -142');
+	$ipd3.origin('-160 7704 -148');
+	$ipd4.origin('-76 7806 -137');
+	$ipd5.origin('-160 7752 -140');
+	$ipd6.origin('-160 7800 -136');
+	$ipd7.origin('-76 7854 -132');
+	$ipd8.origin('-76 7902 -130');
+}
+void coop_levelEndGather()
+//------------------------------------------------------------------------------
+//spawn a gather location at this point, all plaers must be present to proceed
+//------------------------------------------------------------------------------
+{
+	globalCoop_level_gatheringArea("coop_gatheringArea","coop_endLevel",100,'360 360 240',$triggerExit.getOrigin());
+}
+
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs10");
+}
+
+

@@ -1,0 +1,1167 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck8 - Enterprise Deck 8 - Transporter, Armory, SickBay - MISSION 1
+//  Script By:    Luke W.
+//  Created on:   07/08/2002
+//	Last Edited:  07/08/2002 - LW
+//-----------------------------------------------------------------
+
+// Setup
+void setupMission1Deck8();
+void justLoadedDeckThreadIGM1();
+
+void cinematicArm_IGM1_Intro_Start();
+void cinematicArm_IGM1_Intro_ArmEnd();
+
+void triggerArmoryTriggered();
+
+void cinematicKorbanShotGunIGM1();
+void cinematicKorbanShotGunIGM1Skipthread();
+void cinematicKorbanShotGunIGM1End();
+
+void korban_workIGM1();
+void korbanDialog1_1();
+void korbanDialog1_2();
+void korbanDialog1_4();
+
+void dialogPicardToMunroIGM1();
+
+void ambientActorsIGM1();
+
+void dorchevThompsonTalkIGM1();
+
+void dorchev_workIGM1();
+void dorchevDialog1_1();
+void dorchevDialog1_2();
+
+void thompson_workIGM1();
+void thompsonDialog1_1();
+
+void stevenson_workIGM1();
+void stevensonDialog1_1();
+void stevensonDialog1_2();
+
+void kretar_workIGM1();
+void kretarDialog1_1();
+void kretarDialog1_2();
+
+void stockman_workIGM1();
+void stockmanDialog1_1();
+
+void waters_workIGM1();
+void watersDialog1_1();
+
+
+// Floats
+
+float teamHasLeftTransporter;
+
+// --- String of latest dialoge playing if you need to kill it.
+string lastThreadToPlayDialog;
+entity cinematicArm_IGM1_Intro;
+
+void coop_ambientDialog64Statementsaver(entity e, string d)
+{
+	e.playdialog(d, 1, 64, 0);
+	waitForDialog(e);
+}
+void coop_usedialogStatementsaver(entity e, string d)
+{
+	e.playdialog(d, 1, 128, 0);
+	waitForDialog(e);
+}
+void coop_camin05Statementsaver()
+{
+	cam_fadein( 0.5, 0, 0, 0, 1 );
+}
+void coop_camout05Statementsaver()
+{
+	cam_fadeout( 0.5 , 0, 0, 0, 1 );
+}
+
+
+//===================================================================================================================
+// Setup 
+//===================================================================================================================
+//---------------------
+// setupMission1	
+// does all the little setup stuff for the mission
+//---------------------
+void setupMission1Deck8()
+{
+	thread globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '-9760 -1240 36', 270 );
+
+//hzm coop mod chrissstrahl, manage stuff for igm mission1 (get/setFloatVar [will be saved to ini])
+	if( 1 == getfloatvar( "game.holoDeckMissionIGM1Done" ) || getFloatVar("game.igmHolodeckSpawn") == 1 )
+	{
+		//hzm coop mod chrissstrahl, set spawn location
+		coop_spawnHolodeck();	
+	
+		cam_fadeout( .05, 0, 0, 0, 1, 0 );
+		setfloatvar( "game.holoDeckMissionIGM1Done", 2 );
+		//getfloatvar( "game.checkEntMission1RoomsVisited" );
+		
+		//hzm coop mod chrissstrahl - call holodeck end sequence
+		globalCoop_level_callReliably("holoMissionIGM1Over");
+		
+		//hzm coop mod chrissstrahl - spawn the required actors
+		thread coop_korbanSpawnInArmory();
+		globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '-9760 -1240 36', 270 );
+		globalCommon_SpawnActor( "char/starfleet_picard.tik", "picard", '-10088 -1452 16', 0 );
+		globalCommon_AiDummyHide( $picard );
+		globalCommon_AiDummyHide( $scriptmunro );
+		
+		$korban.nodamage();
+		$korban.mass(999999);
+		
+		// Ambient actor stuff
+		ambientActorsIGM1();
+		
+		//hzm coop mod chrissstrahl - do not execute any further code in here
+		return;
+	}
+	else
+	{
+		//hzm coop mod chrissstrahl, set spawn location
+		coop_spawnTransporter();
+		
+		setfloatvar( "game.holoDeckMissionIGM1Done",0 );
+		
+		//--- Prepare Cinimatic Fade in
+		cam_fadeout( .05, 0, 0, 0, 1, 0 );
+		
+		coop_igm_mapToLoad = "ent-training_weap1";
+		
+		//--- set the player
+		waitforplayer();
+		
+		//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+		globalCoop_main_waitForWarmupTime();
+		
+		freezeplayer();
+		
+		cinematic ();
+		letterbox ( .05 );
+		
+		spawn( "Camera", "targetname", "cam1" );	
+		spawn( "Camera", "targetname", "cam2" );
+		spawn( "Camera", "targetname", "cam3" );
+		spawn( "Camera", "targetname", "cam4" );
+		spawn( "Camera", "targetname", "cam5" );
+		
+		cam.load( "cam_igm1_deck8_1" );
+		cam.load( "cam_igm1_deck8_2" );
+		cam.load( "cam_igm1_deck8_3" );
+		cam.load( "cam_igm1_deck8_4" );
+		cam.load( "cam_igm1_deck8_5" );
+		
+		// Ambient actor stuff
+		ambientActorsIGM1();
+		
+		setfloatvar ("game.checkEntMission1RoomsVisited", 0 );
+		
+		//--- globalCommon_SpawnActor( string spawnedTikiName, string spawnedTargetName, vector spawedOrigin, float spawnedAngle );
+		globalCommon_SpawnActor( "char/hazardteam_sf-chell.tik", "chell", '-9832 -1144 36', 270 );
+		globalCommon_SpawnActor( "char/hazardteam_sf-jurot.tik", "jurot", '-9648 -1240 36', 270 );
+		globalCommon_SpawnActor( "char/hazardteam_sf-chang.tik", "chang", '-9576 -1144 36', 270 );
+		
+		thread coop_korbanSpawnInArmory();
+		
+		globalCommon_SpawnActor( "char/starfleet_picard.tik", "picard", '-10088 -1452 16', 0 );
+		globalCommon_SpawnActor( "char/starfleet_tuvok.tik", "tuvok", '-9728 -1376 12', 90 );
+		wait( .1 );
+		
+		//--- setup characters
+		globalCommon_AiDummyHide( $tuvok );
+		globalCommon_AiDummyHide( $picard );
+		globalCommon_AiDummyHide( $scriptmunro );
+		globalCommon_AiDummy( $chell, "" );
+		globalCommon_AiDummy( $chang, "" );
+		globalCommon_AiDummy( $jurot, "" );
+		$chell.forceAlpha( 1 );
+		$chang.forceAlpha( 1 );
+		$jurot.forceAlpha( 1 );
+		$chell.alpha( 0 );
+		$chang.alpha( 0 );
+		$jurot.alpha( 0 );
+					
+		// activated when player enters armory
+		// Increment Objectives Counter
+		$triggerArmory.thread( "triggerArmoryTriggered" );
+
+		//--- armature setup
+		cinematicArm_IGM1_Intro = createCinematic( "igm1_intro" );
+		cinematicArm_IGM1_Intro.setendthread( "cinematicArm_IGM1_Intro_ArmEnd" );
+			
+		//Init global Telsia and Kleeya Variables
+		setfloatvar( "game.globalKleeyaChoice", 0 ); 
+		setfloatvar( "game.globalTelsiaChoice", 0 ); 
+
+		//--- Start Intro Cinimatic
+		Intro1 ();
+
+		//--- Start Game Cinimatic
+		thread cinematicArm_IGM1_Intro_Start();
+	}
+}
+
+//voided from IGM1 script
+void holoMissionIGM1Over();
+
+//---------------------
+// justLoadedDeckThreadIGM1
+// Triggered and check to see if A cinematic should happen.
+//------------------------
+void justLoadedDeckThreadIGM1()
+{
+/*
+	if( getfloatvar( "game.armoryRoomVisited" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM1VisitArmory", 1 );
+	}
+	if( getfloatvar( "game.armoryRoomVisited" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM1VisitArmory", 1 );
+	}	
+
+	if( getfloatvar( "game.breifingRoomVisited" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM1VisitBreifing", 1 );
+	}
+	if( getfloatvar( "game.breifingRoomVisited" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM1VisitBreifing", 1 );
+	}
+
+	if( getfloatvar( "game.lockerRoomVisited" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM1VisitLockers", 1 );
+	}
+	if( getfloatvar( "game.lockerRoomVisited" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM1VisitLockers", 1 );
+	}
+
+	if( getfloatvar( "game.holoMissionVisited" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM1HoloDeck", 1 );
+	}
+	if( getfloatvar( "game.holoMissionVisited" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM1HoloDeck", 1 );
+	}
+
+	if( getfloatvar( "game.goToBridge" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM1GoToBridge", 1);
+	}
+	if( getfloatvar( "game.goToBridge" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM1GoToBridge", 1);
+	}
+*/
+}
+
+//===================================================================================================================
+// Dialog and Cinematics
+//===================================================================================================================
+
+//---------------------
+// cinematicArm_IGM1_Intro_Start	
+// armature cinematic for first mission on beaming in to transporter room
+//---------------------
+void cinematicArm_IGM1_Intro_Start()
+{
+	//Lock the doors
+	$transporterDoor.close();
+	$transporterDoor.lock();
+
+	//--- start the armature
+	cinematicArm_IGM1_Intro.beginCinematic( "igm1_intro" );
+	globalCoop_main_waitZeroDot2();
+	
+	//--- fade in
+	//cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--- set the skipthread
+	skipthread( "cinematicArm_IGM1_Intro_ArmEnd" );
+	globalCoop_main_waitZeroDot5();
+	
+	$chell.displayEffect( "TransportIn", "Federation" );
+	globalCoop_main_waitZeroDot2();
+	
+	$chang.displayEffect( "TransportIn", "Federation" );
+	wait( .1 );
+	
+	$jurot.displayEffect( "TransportIn", "Federation" );
+	globalCoop_main_wait2DotZero();
+	
+	$chell.headwatchTarget( "armPicard", 5 );
+	$chang.headwatchTarget( "armPicard", 5 );
+	$jurot.headwatchTarget( "armPicard", 5 );
+}
+
+//---------------------
+// cinematicArm_IGM1_Intro_ArmEnd	
+// skipthread for cinematic
+//---------------------
+void cinematicArm_IGM1_Intro_ArmEnd()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	coop_camout05Statementsaver();
+	wait( .6 );
+	
+	killAllTalking();
+	
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_IGM1_Intro.endCinematic( FALSE );
+
+	killthread( "cinematicArm_IGM1_Intro_Start" );
+	
+	$transporterDoor.unlock();
+	
+	//Turn Exit Triggers On
+	$triggerExit.triggerable();
+	
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalMissionEnterprise",0);//set igm mission
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	//eof HZM
+
+	setfloatvar( "game.checkEntMission1RoomsVisited", 1 );
+	//setfloatvar( "game.armoryRoomVisited", 1 );
+	//setfloatvar( "game.breifingRoomVisited",1 );
+	//setfloatvar( "game.lockerRoomVisited", 1 );
+	
+	killAllTalking();
+	
+	$picard.hide();
+	$picard.notsolid();
+	
+	$tuvok.remove();	
+	$jurot.remove();
+	$chell.remove();
+	$chang.remove();
+	
+	//Move actor close for ambient effect Transporter
+	$russel.origin( '-10092 -944 16' );
+//	$jameson.origin( '-10184 -1120 16' );	
+	$gray.origin( '-10184 -1460 16' );
+	
+	$russel.ai_off();
+	$jameson.ai_off();	
+	$gray.ai_off();
+	globalCoop_main_waitZeroDotZero5();
+	$russel.ai_on();
+	$jameson.ai_on();	
+	$gray.ai_on();
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	globalCoop_main_waitZeroDot2();
+	
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( .75 );
+
+//hzm coop mod chrissstrahl, set objective	
+	globalCoop_objectives_set("$$IGM1VisitArmory$$","incomplete",1,1);
+}
+
+//---------------------
+// triggerArmoryTriggered
+// activated when player enters armory
+// Increment Objectives Counter
+//---------------------
+void triggerArmoryTriggered()
+{
+	float localEntMission1RoomsVisited = 0;
+	
+	$triggerArmory.nottriggerable();
+	
+	localEntMission1RoomsVisited = getfloatvar( "game.checkEntMission1RoomsVisited" );
+	localEntMission1RoomsVisited ++;
+	setfloatvar ( "game.checkEntMission1RoomsVisited", localEntMission1RoomsVisited  );
+	setfloatvar( "game.armoryRoomVisited", 2 );
+		
+	thread cinematicKorbanShotGunIGM1();
+}
+
+//---------------------
+// cinematicKorbanShotGunIGM1
+// setup and begin cinematicKorbanShotGunIGM1
+//---------------------
+void cinematicKorbanShotGunIGM1()
+{
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	ePlayerCinematic	= eTrigger.getLastActivatingEntity();
+	
+	if(doesEntityExist(ePlayerCinematic)){
+		ePlayerCinematic.immobilize(1);
+	}
+	
+	//--- Fade Out
+	cam_fadeout( .25, 0, 0, 0, 1, 0 );
+	wait( .3 );	
+	
+	// --- Setup
+	freezeplayer();
+	cinematic();
+	
+	$scriptmunro.origin( '-12192 -1312 -8' );
+	$scriptmunro.angle( 180 );
+	$scriptmunro.show();
+	$scriptmunro.solid();
+	
+	$armoryDoor.close();
+	$armoryDoor.lock();
+	
+	// --- Que Cams
+	$cam1.follow ( $cam_igm1_deck8_1 ); //close Korban
+	$cam2.follow ( $cam_igm1_deck8_2 ); //close Munro
+	$cam3.follow ( $cam_igm1_deck8_3 ); //Behind Monro to Korban
+	$cam4.follow ( $cam_igm1_deck8_4 ); //Behind Korban to Munro
+	$cam5.follow ( $cam_igm1_deck8_5 ); //Both
+
+	letterbox( .05 );
+
+	$cam1.cut();
+	$cam1.fov( 30 );
+	$cam2.cut();
+	$cam2.fov( 30 );
+	$cam3.cut();
+	$cam3.fov( 60 );
+	$cam4.cut();
+	$cam4.fov( 60 );
+	$cam5.cut();
+	$cam5.fov( 60 );
+	
+	cuecamera ( $cam5 );
+
+	// --- Skip Thread
+	skipthread( "cinematicKorbanShotGunIGM1Skipthread");	wait( 1 );
+	
+	//--- Start & Fade in
+	coop_camin05Statementsaver();
+	
+	wait( .6 );
+	
+	$scriptmunro.walkto( "armoryCinematicNode0" );
+	waitfor( $scriptmunro );
+	
+	$scriptmunro.origin( '-12332 -1288 -8' );
+	$scriptmunro.angles( '0 180 0' );
+	$scriptmunro.headwatch( $korban, 5 );
+	
+	$korban.anim( "idle" );
+	$korban.headwatch( $scriptmunro, 5 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_hkorban.mp3", 1, 10000, 0); //No.  Sorry. My first stop on the Enterprise wasn't the weapons locker.
+	waitForDialog( $scriptmunro );	
+	
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_ass.mp3", 1, 10000, 0); //Have you seen the new federation assault rifle?
+	waitForDialog( $korban );
+	
+	cuecamera ( $cam4 );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_stop.mp3", 1, 10000, 0); //No.  Sorry. My first stop on the Enterprise wasn't the weapons locker.
+	waitForDialog( $scriptmunro );
+	
+	cuecamera ( $cam1 );
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_overlook.mp3", 1, 10000, 0); //I will overlook your human failings.
+	waitForDialog( $korban );
+	
+	cuecamera ( $cam2 );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_heartless.mp3", 1, 10000, 0); //And they say Klingons are heartless.
+	waitForDialog( $scriptmunro );
+	
+	cuecamera ( $cam3 );
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_comprifle.mp3", 1, 10000, 0); //This Assault Rifle will be a good compliment to the Compression Rifle. It's more powerful at short range, and has added functionality. 
+	waitForDialog( $korban );
+	
+	cuecamera ( $cam2 );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_thanks4.mp3", 1, 10000, 0); //Thanks.
+	waitForDialog( $scriptmunro );
+	
+	cuecamera ( $cam1 );
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_mythanks.mp3", 1, 10000, 0); //You have my thanks, as well, for assigning me to the Hazard Team. You do me a great honor.
+	waitForDialog( $korban );
+	
+	cuecamera ( $cam4 );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_honor2.mp3", 1, 10000, 0); //The honor's ours. You're the best person for the job.
+	waitForDialog( $scriptmunro );
+	
+	cuecamera ( $cam3 );
+	$korban.playdialog("localization/sound/dialog/ent_m1/korban_toassist.mp3", 1, 10000, 0); //To assist your training with the Shotgun, I have loaded a holodeck training program. I think you will find it... invigorating.
+	waitForDialog( $korban );
+	
+	//--- fade out and set the level up
+	coop_camout05Statementsaver();
+	wait( .6 );
+	
+	//--- End Thread
+	thread cinematicKorbanShotGunIGM1End();
+}
+
+//---------------------
+// cinematicKorbanShotGunIGM1Skipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicKorbanShotGunIGM1Skipthread()
+{
+	//--- kill the cinematicKorbanShotGunIGM1 thread
+	skipthread( "Null" );
+	killthread( "cinematicKorbanShotGunIGM1" );
+	
+	//--- fade out and set the level up
+	coop_camout05Statementsaver();
+	wait( 2 );
+	
+	//--- call the ending of the cinematicKorbanShotGunIGM1
+	thread cinematicKorbanShotGunIGM1End();
+}
+
+//---------------------
+// cinematicKorbanShotGunIGM1End
+// wrapup the cinematicKorbanShotGunIGM1
+//------------------------
+void cinematicKorbanShotGunIGM1End()
+{
+//hzm coop mod chrissstrahl, set objective	
+	globalCoop_objectives_set("$$IGM1VisitArmory$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM1HoloDeck$$","incomplete",2,1);
+	
+	$armoryDoor.unlock();
+	$armoryDoor.open($world);
+	
+	$scriptmunro.hide();
+	$scriptmunro.notsolid();
+	$scriptmunro.resethead();
+
+	killAllTalking();
+	
+	//Move actor close for ambient effect Holo Deck
+//	$russel.origin( '-12056 -1184 16' );
+	$jameson.origin( '-11936 -1584 16' );
+	$gray.origin( '-11940 -1016 16' );
+	
+	$russel.ai_off();
+	$jameson.ai_off();	
+	$gray.ai_off();
+	wait( .5 );
+	$russel.ai_on();
+	$jameson.ai_on();	
+	$gray.ai_on();	
+	
+	//--- Make Kourban Work
+	$korban.resethead();
+	$korban.origin( '-12431 -1313 0' );
+	$korban.angle( 300 );
+	
+	thread korban_workIGM1();
+	thread randomlyAnimateActor( $korban, "ent-stand" );
+	
+	$korban.setfloatVar( "actorToRandomlyUseTricorder", 1 );
+	
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .01 );
+	
+	globalCoop_main_waitAFrame();
+	
+	if(doesEntityExist(ePlayerCinematic)){
+		ePlayerCinematic.origin( '-12332 -1288 -8' );
+		ePlayerCinematic.angle( 180 );
+		ePlayerCinematic.immobilize(0);
+		ePlayerCinematic.origin( '-12332 -1288 -8' );
+	}
+	
+	coop_camin05Statementsaver();	
+	
+	$triggerHoloDeck.thread( "startHoloTrainingMissionIGM1" );
+	
+	$holoDeckWeaponStand.show();
+	
+	globalCommon_SpawnScriptModel( "weapons/staticmodel-fieldassaultrifle.tik", "fieldassaultrifle", '-12495 -336 16', 0 );
+
+	$fieldassaultrifle.missionobjective( 1 );
+	
+	thread makeWeaponBob( $fieldassaultrifle );
+}
+
+///////////////////////////
+// korbanOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void korban_workIGM1()
+{
+	setNextDialog( $korban, 1 );
+	setDialogFunction( $korban, "korbanDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $korban, "", "", 0 );
+		talkUntilDone( $korban );
+	}
+}
+
+///////////////////////////
+// korbanDialog1_1
+// Player and actor talk
+///////////////////////////
+void korbanDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	$korban.headwatch( ePlayer, 10 );
+	
+	coop_usedialogStatementsaver($korban,"localization/sound/dialog/ent_m1/korban_newshot.mp3");
+//The new assault rifle is a pleasure to fire. 
+	
+	setNextDialog( $korban, 2 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanDialog1_2
+// Player and actor talk
+///////////////////////////
+void korbanDialog1_2()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	$korban.headwatch( ePlayer, 10 );
+	
+	coop_usedialogStatementsaver($korban,"localization/sound/dialog/ent_m1/korban_warm.mp3");
+	//May all our missions be filled with glorious battles.
+	
+	setNextDialog( $korban, 3 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanDialog1_3
+// Player and actor talk
+///////////////////////////
+void korbanDialog1_3()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	$korban.headwatch( ePlayer, 10 );
+	
+	coop_usedialogStatementsaver($korban,"localization/sound/dialog/ent_m1/korban_truemeans.mp3");
+	//I believe the Bat’leth is the purest path to delivering an honorable death.
+	
+	setNextDialog( $korban, 4 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// korbanDialog1_4
+// Player and actor talk
+///////////////////////////
+void korbanDialog1_4()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($korban);
+	$korban.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$korban.anim( "ent-stand-scan" );
+	$korban.headwatch( ePlayer, 10 );
+	
+	coop_usedialogStatementsaver($korban,"localization/sound/dialog/ent_m1/korban_smooth.mp3");
+	//I am honored to serve by your side.
+	
+	setNextDialog( $korban, 1 );
+	$korban.resethead();
+	setDialogFinished( $korban );
+	$korban.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+//---------------------
+// dialogPicardToMunro	
+// Picard tells Munro to join him on the brige (all events completed)
+// This thread is repeated on Deck7a
+//---------------------
+void dialogPicardToMunroIGM1()
+{
+	killAllTalking();
+	
+	setfloatvar( "game.goToBridge", 1 );
+	thread justLoadedDeckThreadIGM1();
+	
+	$picard.playdialog("localization/sound/dialog/ent_m1/picard_munro.mp3", 1, 10000, 1); //Lieutenant Munro.  Please report to the Bridge for your official tour.
+	waitForDialog( $picard );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_mhere.mp3", 1, 10000, 1); //Aye sir.
+	waitForDialog( $scriptmunro );
+}
+
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM1	
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM1()
+{
+	globalCommon_SpawnActor( "char/starfleet_crew-male2.tik", "dorchev", '-9734 -1588 24', 90 );
+	$dorchev.pushable( 0 );
+	thread randomlyAnimateActor( $dorchev, "ent-transporter-front" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt2.tik", "thompson", '-9674 -1588 24', 90 );
+	$thompson.pushable( 0 );
+	thread randomlyAnimateActor( $thompson, "ent-transporter-front" );
+	
+	//hzm coop mod chrissstrahl, we don't want them to be here after holodeck mission, this way they don't say their dialog twiche
+	if(getFloatVar("game.igmHolodeckSpawn") != 1 && getfloatvar("game.holoDeckIGM1Done") != 1){
+		$triggerTransporterStation1.thread( "dorchevThompsonTalkIGM1" );
+	}
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-female3.tik", "stevenson", '-11744 -847  2', 180 );
+	$stevenson.pushable( 0 );
+	thread stevenson_workIGM1();
+	thread randomlyAnimateActor( $stevenson, "ent-table-laptop" );
+	
+	
+	globalCommon_SpawnScriptModel( "enviro/enterprise_electronic_laptop.tik", "laptop", '-11753 -847 46', 0 );
+	//hzm coop mod chrissstrahl - wait one frame, the smallest ammount we can wait
+	//also used to wait for objects to spawn -> they need to be proceessed by the server, this makes them work on the next frame
+	wait( coop_float_oneFrameTime );
+	$laptop.anim( "open_idle" );
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-female4.tik", "kretar", '-11319 -1051 0', 90 );
+	$kretar.pushable( 0 );
+	$kretar.setfloatVar( "actorToRandomlyUseTricorder", 1 );
+	thread kretar_workIGM1();
+	thread randomlyAnimateActor( $kretar, "ent-sickbed" );
+	
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt3.tik", "stockman", '-11320 -956  0', 270 );
+	$stockman.pushable( 0 );
+	thread stockman_workIGM1();
+	thread randomlyAnimateActor( $stockman, "ent-sickbed-laying" );
+	
+	//hzm coop mod chrissstrahl, I don't think anyone will notice, where he is missing
+	if(getFloatVar("game.igmHolodeckSpawn") != 1 && getfloatvar("game.holoDeckIGM1Done") != 1){
+		globalCommon_SpawnActor( "char/starfleet_crew-male6.tik", "russel", '-10188 -960 16', 0 );
+		$russel.setnodeid( 50 );
+		$russel.alias( "russelIGMA1", "localization/sound/dialog/ent_m1/crewm_welcome.mp3" );
+		$russel.dialog( "russelIGMA" );	
+		$russel.ai_on();
+		
+		//hzm coop mod chrissstrahl - make sure players can't push the ai
+		//you could make the npc get stuck if you talk to it and push it in a corner
+		$russel.pushable( 0 );
+	}
+
+	//hzm coop mod chrissstrahl, nobody should miss her, she is giving us trouble, so we simply don't spawn her then
+	if(getFloatVar("game.igmHolodeckSpawn") == 1 || getfloatvar("game.holoDeckIGM1Done") == 1){
+		globalCommon_SpawnActor( "char/starfleet_crew-female6.tik", "jameson", '-12016 -1712 26', 0 );
+		$jameson.setnodeid( 51 );
+		$jameson.alias( "jamesonIGMA1", "localization/sound/dialog/ent_m3/myamoto_helpyou.mp3" );
+		$jameson.alias( "jamesonIGMA2", "localization/sound/dialog/ent_m3/myamoto_whatit.mp3" );
+		$jameson.dialog( "jamesonIGMA" );
+		$jameson.ai_on();
+		
+		//hzm coop mod chrissstrahl - make sure players can't push the ai
+		//you could make the npc get stuck if you talk to it and push it in a corner
+		$jameson.pushable( 0 );
+	}
+	
+	globalCommon_SpawnActor( "char/starfleet_crew-male5.tik", "gray", '-11004 112 16', 0 );
+	$gray.setnodeid( 52 );
+	$gray.alias( "grayIGMA1", "localization/sound/dialog/ent_m1/crewm1_newhaz.mp3" ); //I haven’t seen you before… you must be part of the new Hazard Team.
+	$gray.alias( "grayIGMA2", "localization/sound/dialog/ent_m1/crewm1_quiteadv.mp3" ); //That must be quite an adventure, going to new and dangerous places and actually leaving the ship!  I spend most of my day in a Jefferies Tube.
+	$gray.alias( "grayIGMA3", "localization/sound/dialog/ent_m1/crewm1_shotat.mp3" ); //It's not very exciting, but it's also not as dangerous as your assignment.
+	$gray.dialog( "grayIGMA" );	
+	$gray.ai_on();
+	
+	//hzm coop mod chrissstrahl - make sure players can't push the ai
+	//you could make the npc get stuck if you talk to it and push it in a corner
+	$gray.pushable( 0 );
+
+	globalCommon_SpawnActor( "char/hazardteam_sf-redshirt4.tik", "waters", '-9712 -748  0', 270 );
+	$waters.pushable( 0 );
+	thread waters_workIGM1();
+	thread randomlyAnimateActor( $waters, "ent-compstation" );
+}
+
+////////////////////////////
+// Dorchev and Thompson Talk
+/////////////////////////////
+void dorchevThompsonTalkIGM1()
+{
+	$triggerTransporterStation1.thread( "" );
+	
+	$thompson.anim( "ent-transporter-front-gesture1" ); //human_male 2
+	$dorchev.anim( "ent-transporter-front-gesture" ); //human_male 3
+	
+	coop_ambientDialog64Statementsaver($thompson,"localization/sound/dialog/ent_m1/crewm1_detan.mp3");
+	//Sir, detecting anomalies in the Molecular Imaging scanners.
+
+	coop_ambientDialog64Statementsaver($dorchev,"localization/sound/dialog/ent_m1/crewm2_sensec.mp3");
+	//Can you locate where the anomaly is occuring?
+	
+	coop_ambientDialog64Statementsaver($thompson,"localization/sound/dialog/ent_m1/crewm1_okayb.mp3");
+	//I'm isolating it now... It appears that Scanner 2 is offset by 4 arc seconds from the ACB axis.
+	
+	coop_ambientDialog64Statementsaver($dorchev,"localization/sound/dialog/ent_m1/crewm2_notmaj.mp3");
+	//I see.  I'll contact engineering to get Scanner 2 recalibrated.
+
+	coop_ambientDialog64Statementsaver($thompson,"localization/sound/dialog/ent_m1/crew1_ustroub.mp3");
+	//Until it's repaired, the offset could ripple throught the rest of the system.  It could cause the other scanners to malfunction during transport.
+
+	coop_ambientDialog64Statementsaver($dorchev,"localization/sound/dialog/ent_m1/crew2_lookinto.mp3");
+	//Take all scanners offline until repairs are complete.  I don't want to be known as the guy who turned an admiral into protoplasmic jelly.
+	
+	coop_ambientDialog64Statementsaver($thompson,"localization/sound/dialog/ent_m1/crew1_okok.mp3");
+	//Good idea.
+	
+	thread dorchev_workIGM1();
+	thread thompson_workIGM1();
+}
+
+///////////////////////////
+// dorchevOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void dorchev_workIGM1()
+{
+	setNextDialog( $dorchev, 1 );
+	setDialogFunction( $dorchev, "dorchevDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $dorchev, "", "", 0 );
+		talkUntilDone( $dorchev );
+	}
+}
+
+///////////////////////////
+// dorchevDialog1_1
+// Player and actor talk
+///////////////////////////
+void dorchevDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($dorchev);
+	$dorchev.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$dorchev.anim( "ent-transporter-front-scan" );
+	$dorchev.headwatch( ePlayer, 10 );
+		
+	$dorchev.playdialog("localization/sound/dialog/ent_m2/stratton_busy1.mp3", 1, 128, 0); //I'm busy.
+	waitForDialog( $dorchev );
+	
+	setNextDialog( $dorchev, 2 );
+	$dorchev.resethead();
+	setDialogFinished( $dorchev );
+	$dorchev.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// dorchevDialog1_2
+// Player and actor talk
+///////////////////////////
+void dorchevDialog1_2()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($dorchev);
+	$dorchev.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$dorchev.anim( "ent-transporter-front-scan" );
+	$dorchev.headwatch( ePlayer, 10 );
+			
+	$dorchev.playdialog("localization/sound/dialog/ent_m2/stratton_chat1.mp3", 1, 128, 0); //Sorry.  No time for chit-chat
+	waitForDialog( $dorchev );
+
+	setNextDialog( $dorchev, 1 );
+	$dorchev.resethead();
+	setDialogFinished( $dorchev );
+	$dorchev.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// thompsonOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void thompson_workIGM1()
+{
+	setNextDialog( $thompson, 1 );
+	setDialogFunction( $thompson, "thompsonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $thompson, "", "", 0 );
+		talkUntilDone( $thompson );
+	}
+}
+
+///////////////////////////
+// thompsonDialog1_1
+// Player and actor talk
+///////////////////////////
+void thompsonDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($thompson);
+	$thompson.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$thompson.anim( "ent-transporter-front-scan" );
+	$thompson.headwatch( ePlayer, 10 );
+	
+	$thompson.playdialog("localization/sound/dialog/ent_m2/manaan_attend1.mp3", 1, 128, 0); //I must attend to my duties.  Perhaps we can chat later.
+	waitForDialog( $thompson );
+	
+	setNextDialog( $thompson, 1 );
+	$thompson.resethead();
+	setDialogFinished( $thompson );
+	$thompson.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// stevensonOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void stevenson_workIGM1()
+{
+	setNextDialog( $stevenson, 1 );
+	setDialogFunction( $stevenson, "stevensonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $stevenson, "", "", 0 );
+		talkUntilDone( $stevenson );
+	}
+}
+
+///////////////////////////
+// stevensonDialog1_1
+// Player and actor talk
+///////////////////////////
+void stevensonDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($stevenson);
+	$stevenson.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$stevenson.anim( "ent-table-laptop-scan" );
+	$stevenson.headwatch( ePlayer, 10 );
+	
+	$stevenson.playdialog("localization/sound/dialog/ent_m1/doc_greetings.mp3", 1, 128, 0); //Greetings Lieutenant, I am Dr. Stevenson.
+	waitForDialog( $stevenson );
+
+	setNextDialog( $stevenson, 2 );
+	$stevenson.resethead();
+	setDialogFinished( $stevenson );
+	$stevenson.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// stevensonDialog1_2
+// Player and actor talk
+///////////////////////////
+void stevensonDialog1_2()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($stevenson);
+	$stevenson.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$stevenson.anim( "ent-table-laptop-scan" );
+	$stevenson.headwatch( ePlayer, 10 );
+	
+	$stevenson.playdialog("localization/sound/dialog/ent_m1/doc_temp.mp3", 1, 128, 0); //While onboard the Enterprise we can assist you with your medical needs.
+	waitForDialog( $stevenson );
+
+	setNextDialog( $stevenson, 1 );
+	$stevenson.resethead();
+	setDialogFinished( $stevenson );
+	$stevenson.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// kretarOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void kretar_workIGM1()
+{
+	setNextDialog( $kretar, 1 );
+	setDialogFunction( $kretar, "kretarDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $kretar, "", "", 0 );
+		talkUntilDone( $kretar );
+	}
+}
+
+///////////////////////////
+// kretarDialog1_1
+// Player and actor talk
+///////////////////////////
+void kretarDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($kretar);
+	$kretar.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$kretar.anim( "ent-sickbed-scan" );
+	$kretar.headwatch( ePlayer, 10 );
+	
+	$kretar.playdialog("localization/sound/dialog/ent_m1/kretar_hello1.mp3", 1, 128, 0); //Hello, Lieutenant.
+	waitForDialog( $kretar );
+
+	setNextDialog( $kretar, 2 );
+	$kretar.resethead();
+	setDialogFinished( $kretar );
+	$kretar.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// kretarDialog1_2
+// Player and actor talk
+///////////////////////////
+void kretarDialog1_2()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($kretar);
+	$kretar.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$kretar.anim( "ent-sickbed-scan" );
+	$kretar.headwatch( ePlayer, 10 );
+	
+	$kretar.playdialog("localization/sound/dialog/ent_m1/kretar_healing.mp3", 1, 128, 0); //Please come see me if you require medical attention.
+	waitForDialog( $kretar );
+
+	setNextDialog( $kretar, 1 );
+	$kretar.resethead();
+	setDialogFinished( $kretar );
+	$kretar.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// stevensonOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void stockman_workIGM1()
+{
+	setNextDialog( $stockman, 1 );
+	setDialogFunction( $stockman, "stockmanDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $stockman, "", "", 0 );
+		talkUntilDone( $stockman );
+	}
+}
+
+///////////////////////////
+// stockmanDialog1_1
+// Player and actor talk
+///////////////////////////
+void stockmanDialog1_1()
+{		
+	$stockman.playdialog("localization/sound/dialog/ent_m1/crewm_busy1.mp3", 1, 128, 0); //I am very busy, can we chat later?
+	waitForDialog( $stockman );
+
+	setNextDialog( $stockman, 1 );
+	setDialogFinished( $stockman );
+}
+
+///////////////////////////
+// watersOnUseWaitIGM1
+// Wait for player to talk to actor
+///////////////////////////
+void waters_workIGM1()
+{
+	setNextDialog( $waters, 1 );
+	setDialogFunction( $waters, "watersDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $waters, "", "", 0 );
+		talkUntilDone( $waters );
+	}
+}
+
+///////////////////////////
+// watersDialog1_1
+// Player and actor talk
+///////////////////////////
+void watersDialog1_1()
+{
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($waters);
+	$waters.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$waters.anim( "ent-compstation-scan" );
+	$waters.headwatch( ePlayer, 10 );
+
+	coop_usedialogStatementsaver($waters,"localization/sound/dialog/ent_m1/crewm_busy1.mp3");
+	//Sorry, but I’m very busy.  Can we chat later?
+
+	setNextDialog( $waters, 1 );
+	$waters.resethead();
+	setDialogFinished( $waters );
+	$waters.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM1	
+//---------------------
+void checkForDeckChangeIGM1()
+{
+/*
+	//hzm coop mod chrissstrahl, play dialog
+	if( getfloatvar(  "level.deckToChangeToIGM" ) == 71 && $world.getFloatVar("turboliftDialogPlayed") != 1 )
+	{
+		$world.setFloatVar("turboliftDialogPlayed",1);
+		$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_dhazaps.mp3", 1, 10000, 0);
+	}
+*/
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

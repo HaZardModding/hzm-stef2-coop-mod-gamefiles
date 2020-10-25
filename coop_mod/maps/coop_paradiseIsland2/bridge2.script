@@ -1,0 +1,172 @@
+void bridge2_approach()
+{
+//player approaching the secound bridge
+	thread setOnDamageThread($bridge2_ladder1,"bridge2_lader");
+	thread setOnDamageThread($bridge2_ladder2,"bridge2_lader");
+	thread setOnDamageThread($bridge2_ladder3,"bridge2_lader");
+	thread setOnDamageThread($bridge2_ladder4,"bridge2_lader");
+	thread startFallschirmspringer(0,'-26281 21973 1990','-26335 20221 -750',"models/char/romulan-m11-rebel-sniper-f.tik");
+	thread startFallschirmspringer(1,'-24111 19371 1990','-25755 19507 -736',"models/char/romulan-m11-rebel-sniper-f.tik");
+	
+	//update 2015.10.06 make it easier if the player is alone or just 2 players
+	if(globalCoop_return_integerPlayersQuantity(2) > 1){
+		thread startFallschirmspringer(2,'-26530 18671 1990','-26475 19778 -750',"models/char/romulan-m11-rebel-sniper-f.tik");
+		
+		if(globalCoop_return_integerPlayersQuantity(2) >2){
+			thread startFallschirmspringer(3,'-23256 19264 1990','-23256 19264 -656',"models/char/romulan-m11-rebel-sniper-f.tik");
+		}
+		
+	}
+}
+
+
+void bridge2_lader()
+{
+	if($world.getFloatVar("bridge2LadderDone") == 1){
+		return;
+	}
+	$bridge2_ladder1.noDamage();
+	$bridge2_ladder2.noDamage();
+	$bridge2_ladder3.noDamage();
+	$bridge2_ladder4.noDamage();
+	
+	$world.setFloatVar("bridge2LadderDone",1);
+	$bridge2_ladder3.bind($bridge2_ladder2);
+	$bridge2_ladder4.bind($bridge2_ladder2);
+	bridge2_laderPartDown($bridge2_ladder2);
+	$bridge2_ladder4.bind($bridge2_ladder3);
+	bridge2_laderPartDown($bridge2_ladder3);
+	bridge2_laderPartDown($bridge2_ladder4);
+	$bridge2_ladderTrigger.triggerable();
+	$bridge2_ladderTrigger.angle(0);
+}
+
+void bridge2_laderPartDown(entity e)
+{
+	e.unbind();
+	e.playsound("sound/environment/rock/rock_slab.wav",0,1,128);
+	e.movedown(127);
+	e.time(.4);
+	waitFor(e);
+	e.stopSound(0);
+	e.playsound("sound/environment/rock/rock_slabstop.wav",0,1,128);
+}
+float fDoneBlowing = 0;
+void bridge2_bombPlant()
+{
+	if(fDoneBlowing == 1){
+		return;
+	}
+	
+	entity e;
+	e.notTriggerable();
+	e=getCurrentEntity();	
+	if(doesEntityExist(e)){
+		entity e2;
+		e2=e.getLastActivatingEntity();
+			if(doesEntityExist(e2)){
+				if(e2.getFloatVar("hasBomb") != 1){
+					e2.setFloatVar("hasBomb",0);
+					
+					if(!cvar_bool_multiplayer){
+						if(getStringPlayerLanguage(e2) == "Deu" ){
+							centerprint("^5INFO:^8 Sie brauchen eine Sprengladung um zum Sprengen!\n");
+						}else{
+							centerprint("^5INFO:^8 You need a Explosive Device to demolish!\n");
+						}
+					}else{
+						if(getStringPlayerLanguage(e2) == "Deu" ){
+							e2.hudprint("^5INFO:^8 Sie brauchen eine Sprengladung um zum Sprengen!\n");
+						}else{
+							e2.hudprint("^5INFO:^8 You need a Explosive Device to demolish!\n");
+						}
+					}
+
+					$bomb.missionobjective(1);
+					e.triggerable();					
+					return;
+				}
+				
+				//allow blowing up to happen only once
+				fDoneBlowing=1;
+				
+				//remove bomb hud, showing a bomb on player screen
+				globalCoop_huds_Remove(e2,"coopbugs_bomb");
+			}
+		$bomb1Symbol.remove();
+		if(!cvar_bool_multiplayer){
+			if($player.getHealth() > 1){
+				thread globalCommon_AutoSaveWithName("Coop_paradiseIsland2 - Bridge2");
+			}
+		}
+
+		$bridge2_bomb.missionobjective(0);
+		$bridge2_bomb.forceAlpha(1);
+		$bridge2_bomb.fade(0.01,1);
+//remove Trigger, bomb will be removed later
+		$bridge2_bombPlant.remove();
+		wait(1);
+		float fCount=7;
+		while(fCount>1){
+			fCount--;			
+			if(!cvar_bool_multiplayer){
+				if(getStringPlayerLanguage(e2) == "Deu" ){
+					centerprint("^5INFO:^8 Detonation in:^3 "+fCount+"\n");
+				}else{
+					centerprint("^5INFO:^8 Detonation in:^3 "+fCount+"\n");
+				}
+			}else if(doesEntityExist(e2) == 1){
+				if(getStringPlayerLanguage(e2) == "Deu" ){
+					e2.hudprint("^5INFO:^8 Detonation in:^3 "+fCount+"\n");
+				}else{
+					e2.hudprint("^5INFO:^8 Detonation in:^3 "+fCount+"\n");
+				}
+			}
+			wait(1);
+		}
+//EXPLOSION
+		spawn("sfx","model","fx/fx-explosion-warpcore.tik","origin",""+$bridge2_bomb.getOrigin(),"scale","4");
+		$bomb.missionobjective(0);
+		$comm2Display.missionobjective(1);
+		$bomb.remove();
+		$bridge2_bomb.hide();
+		$bridge2_bow.remove();
+		$bridge2_body.notsolid();
+		$bridge2_rff.remove();
+		$bridge2_s0.takedamage();
+		$bridge2_s0.kill();
+		$bridge2_s1.takedamage();
+		$bridge2_s1.kill();
+		$bridge2_s2.takedamage();
+		$bridge2_s2.kill();
+		$bridge2_s3.takedamage();
+		$bridge2_s3.kill();
+		$bridge2_bomb.playsound("sound/environment/rock/impact3.wav",1,2,1024);
+		spawn("sfx","model","fx/fx-explosion-debris-idryllruins-xtralarge.tik","origin",""+$bridge2_bomb.getOrigin(),"scale","4");
+//REMOVE PARTS
+		$bridge2_ladderTrigger.remove();
+		$bridge2_ladder1.remove();
+		$bridge2_ladder2.remove();
+		$bridge2_ladder3.remove();
+		$bridge2_ladder4.remove();
+		$bridge2_ffEmitter.remove();
+		$bridge2Forcefield.stopLoopSound();
+		$bridge2Forcefield.remove();
+		$bridge2_body.rotateZ(randomInt(50));
+		$bridge2_body.rotateX(randomInt(40));
+		$bridge2_body.rotateY(randomInt(60));
+		$bridge2_body.moveDown(645);
+		$bridge2_body.time(.5);
+		waitFor($bridge2_body);
+		$bridge2_bomb.playsound("sound/environment/earthquake/earthquake01.wav",0,2,1024);
+		$bridge2_body.solid();
+		$bridge2_body.rotateZ(0);
+		$bridge2_body.rotateX(0);
+		$bridge2_body.rotateY(0);
+		wait(5);
+		$bridge2_bomb.remove();
+		return;
+	}
+	e.triggerable();
+}
+

@@ -1,0 +1,1037 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      m8l1b-drull_ruins2 (Swamp World)
+//  Script By:    J. Keehan, J. Hefty
+//  Geometry By:  Adam 'Senn' Bellefeuil, J. 'Powzer' Keehan
+//  Created on:   06/27/2002
+//	Last Edited:  09/26/2002 - JK
+//-----------------------------------------------------------------
+
+
+
+
+void main();
+void checkForEndingCinematic();
+void setupWorld();
+void setupArchetypes();
+void setupArmatureCinematics();
+void initCombatRebels();
+
+void changeRebelState1();
+void changeRebelState2();
+
+void setupCameras();
+
+void tricorderPuzzle();
+void resetTricorderPuzzle();
+
+//void ambientLeviathanSwimmer();
+
+void mortarColumnSequence();
+void setupBridgeCollapseSequence();
+void bridgeColumnDestroy();
+void bridgeCollapse();
+
+void cutsceneLeviathan1();
+void cutsceneLeviathan1_SkipThread();
+void cutsceneLeviathan2();
+void cutsceneLeviathan2_SkipThread();
+void leviathanKillThread_check();
+void cutsceneFinal();
+void cutsceneFinal_SkipThread();
+
+//--- armature cinematics
+void cutsceneCaptureEnable();
+void cinematicArm_MunroCaptured_Start();
+void cinematicArm_MunroCaptured_ArmEnd();
+
+void levelTransition();
+void spawnStairWave();
+
+void mortarBridgeSequence();
+void setupBridgeSequence();
+void bridgeDestroy();
+
+void bridgeSwitchOn();
+void bridgeMoveToPosition();
+void bridgeMoveToFinalPos();
+
+void shuttleDoorsOpen();
+void idryllRejectSound();
+
+//--------------------------------------
+//--variables
+
+float leviathanKillThread_counter = 0;
+
+entity cinematicArm_MunroCaptured;
+
+
+
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_manageEntitiesForMultiplayer();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugutils.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+//=============================================================================
+// Main Stuff
+//=============================================================================
+
+//---------------------
+// main
+// call main
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 90;
+	coop_vector_spawnOrigin1 			= '280 -6218 70';
+	coop_vector_spawnOrigin2 			= '130 -6218 70';
+	coop_vector_spawnOrigin3 			= '320 -6368 70';
+	coop_vector_spawnOrigin4 			= '210 -6368 70';
+	coop_vector_spawnOrigin5 			= '130 -6368 70';
+	coop_vector_spawnOrigin6 			= '320 -6500 70';
+	coop_vector_spawnOrigin7 			= '210 -6500 70';
+	coop_vector_spawnOrigin8 			= '130 -6500 70';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins2LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	soundtrack( "music/m8l1b.mus" );
+	$sky.rendereffects( "+skyorigin" );
+	$world.weather( "rain", 400 );
+	$world.entity_fade_dist( 10000 );
+	$world.farplane_color ( '0.1 0.12 0.1' );
+	$world.farplane ( 3200 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m8l1b_drull_ruins2" );
+
+	setupWorld();
+	setupCameras();
+	setupArchetypes();
+	setupArmatureCinematics();
+	initCombatRebels();
+
+//	while( 1 )
+//	{
+//	centerprint( getfloatvar ( "game.enable_m8l1a_cinematic") );
+//	wait( 3 );
+//	}
+
+	//coop mod chrissstrahl - handle objects we can not directly access via targetname
+	thread coop_manageEntitiesForMultiplayer();
+}
+
+//----------------------
+// checkForEndingCinematic
+// checks to see if cinematic should play
+//----------------------
+float numberOfTries = 0;	//jhefty -- this is my hack around the way that used to be here, which was to check this stuff EVERY server frame
+							//let's avoid this when it's reimplimented as a CA
+void checkForEndingCinematic()
+{
+	$triggerCheckForEndingCinematic.thread( "" );
+
+	if ( getfloatvar ( "game.enable_m8l1a_cinematic") == 1 )
+	{
+		cam.load ( "m8l1b_final_cinematic" );
+		wait ( .1 );
+		cutsceneFinal();
+	}
+	else
+	{
+		numberOfTries++;
+		if ( numberOfTries < 100 )
+		{
+			wait( .05 );
+			$triggerCheckForEndingCinematic.thread( "checkForEndingCinematic" );
+		}
+		else
+		{
+			$triggerCheckForEndingCinematic.remove ();
+		}
+
+	}
+}
+
+//----------------------
+// setupWorld
+// initialize world items
+//----------------------
+void setupWorld()
+{
+	//--set specific ai_off at beginning of level
+	$leviathan1.ai_off();
+	$leviathan1.immortal( 1 );
+	$leviathan1.nodamage();
+	$leviathan2.ai_off();
+	$leviathan3.ai_off();
+
+	$leviathan2.killthread( "leviathanKillThread_check" );
+	$leviathan3.killthread( "leviathanKillThread_check" );
+
+	$leviathan1.killthread( "cutsceneLeviathan2" );
+
+	$leviathan1.anim( "sleeping" );
+	$leviathan2.anim( "sleeping" );
+	$leviathan3.anim( "sleeping" );
+
+	$leviathan2.setgroupid( 1 );
+	$leviathan3.setgroupid( 1 );
+	$leviathan2.groupdeaththread( "cutsceneCaptureEnable" );
+
+	//---idryll rebel guards for cinematic end
+	$guard1.ai_off();
+	$guard1.hide();
+	$guard2.ai_off();
+	$guard2.hide();
+	$guard3.ai_off();
+	$guard3.hide();
+
+	$cinematicMunro1.hide();
+	$cinematicMunro1.ai_off();
+	$cinematicMunro1.notsolid();
+
+	$cutsceneCapture_trigger.nottriggerable();
+
+	$branchFall.hide();
+	$bridgeDebris.hide();
+
+	//--open bridge at level start
+	$bridge1.moveTo( $bridgeStartPos );
+
+	//--bridge over leviathan pit
+	thread setupBridgeCollapseSequence();
+
+	//--small bridge near entrance to level
+	thread setupBridgeSequence();
+
+	//--trigger waits til power is restorted
+	$bridgeSwitch.nottriggerable();
+
+	//--hide power on panels
+	$power_on.hide();
+
+	//--puzzle stuff --setup
+	$bridgePower.puzzleobject_solvedthread( "bridgeSwitchOn" );
+	$bridgePower.puzzleobject_canceledthread( "resetTricorderPuzzle" );
+	$bridgePower.puzzleobject_itemusedthread( "tricorderPuzzle" );
+
+	$shuttlepuzzle.puzzleobject_timeToUse( 5 );
+	$shuttlepuzzle.puzzleobject_itemtouse( "Tricorder" );
+	$shuttlepuzzle.puzzleobject_solvedthread( "shuttleDoorsOpen" );
+	$power_on_shuttle.hide();
+
+	//--- set the first objective
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindEntrance$$","incomplete",1,1);
+	
+	$pit_door1.missionobjective( 1 );
+
+	wait( 2 );
+	//--move stairs to close position
+	trigger( "$staircase1" );
+}
+
+//---------------------
+// tricorderPuzzle
+// tricorder puzzle stuff
+//---------------------
+void tricorderPuzzle()
+{
+	globalTricorderMod_SetNumWaves ( 2 );
+	globalTricorderMod_SetAllRandomParms();
+	globalTricorderMod_Run( $bridgePower, 0 );
+}
+
+void resetTricorderPuzzle()
+{
+	$bridgePower.puzzleobject_reset();
+}
+
+//---------------------
+// setupArchetypes
+// setting up the archetypes
+//---------------------
+void setupArchetypes()
+{
+	$archetypeBridgeSwitch.contents( "targetable" );
+	$archetypeBridgeSwitch.archetype( "IdryllBridgeSwitch" );
+
+	$archetypeBridgePower.contents( "targetable" );
+	$archetypeBridgePower.archetype( "IdryllPowerRegulator" );
+}
+
+//---------------------
+// setupArmatureCinematics
+// setup the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	cinematicArm_MunroCaptured = createCinematic( "m8l1b_knockout" );
+	cinematicArm_MunroCaptured.setendthread( "cinematicArm_MunroCaptured_ArmEnd" );
+}
+
+//---------------------
+// initMortarCombatRebels
+// initialize status of Idryll Rebels
+//---------------------
+void initCombatRebels()
+{
+	//--Mortar Soldiers
+	$idryll_mortar1.visiondistance ( 2048 );
+	$idryll_mortar2.visiondistance ( 2048 );
+	$idryll_mortar3.visiondistance ( 2048 );
+	$idryll_mortar4.visiondistance ( 2048 );
+
+	//--Regular Soldiers
+	$idryll_soldier1.visiondistance( 512 );
+	$idryll_soldier2.visiondistance( 512 );
+	$idryll_soldier3.visiondistance( 768 );
+	$idryll_soldier4.visiondistance( 512 );
+	$idryll_soldier5.visiondistance( 1024 );
+	$idryll_soldier6.visiondistance( 1024 );
+
+	//--Elite Soldiers
+	$idryll_sniper1.fov( 360 );
+	$idryll_sniper2.fov( 360 );
+
+	$idryll_sniper1.settendency ( "snipeenemy" , 1 );
+	$idryll_sniper2.settendency ( "snipeenemy" , 1 );
+}
+
+//---------------------
+// changeRebelState1
+// change the status of Mortar Combat Rebels from turreted only position
+//---------------------
+void changeRebelState1()
+{
+	$idryll_mortar3.setturretmode( 0 );
+}
+
+//---------------------
+// changeRebelState2
+// when triggered turn specifice idryll ai on
+//---------------------
+void changeRebelState2()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle1 				= 86;
+	coop_float_spawnAngle2 				= 86;
+	coop_float_spawnAngle3 				= 86;
+	coop_float_spawnAngle4 				= 86;
+	coop_float_spawnAngle5 				= 86;
+	coop_float_spawnAngle6 				= 86;
+	coop_float_spawnAngle7 				= 86;
+	coop_float_spawnAngle8 				= 86;
+	coop_vector_spawnOrigin8 			= '120 520 140';
+	coop_vector_spawnOrigin7 			= '120 450 140';
+	coop_vector_spawnOrigin6 			= '50 520 140';
+	coop_vector_spawnOrigin5 			= '50 450 140';
+	coop_vector_spawnOrigin4 			= '-20 520 140';
+	coop_vector_spawnOrigin3 			= '-20 450 140';
+	coop_vector_spawnOrigin2 			= '-90 520 140';
+	coop_vector_spawnOrigin1 			= '-90 450 140';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+	
+	$idryll_soldier1.show();
+	$idryll_soldier1.solid();
+	$idryll_soldier1.ai_on();
+
+	$idryll_soldier2.show();
+	$idryll_soldier2.solid();
+	$idryll_soldier2.ai_on();
+
+	$idryll_soldier4.ai_on();
+	$idryll_soldier5.ai_on();
+	$idryll_soldier6.ai_on();
+	$idryll_sniper1.ai_on();
+	$idryll_sniper2.ai_on();
+	$idryll_mortar1.ai_on();
+	$idryll_mortar2.ai_on();
+	$idryll_mortar4.ai_on();
+}
+
+//=============================================================================
+// Cinematics
+//=============================================================================
+
+//---------------------
+// setupCameras
+// setting up cameras
+//---------------------
+void setupCameras()
+{
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+
+	//load camera paths
+	cam.load( "m8l1b_leviathan1" );
+	cam.load( "m8l1b_leviathan2" );
+	cam.load( "m8l1b_capturecam" );
+
+}
+
+//---------------------
+// cutsceneLeviathan1
+// first cutscene intro to leviathan battle
+//---------------------
+void cutsceneLeviathan1()
+{
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+	
+	allowMusicDucking( 0 );
+    forcemusic ("aux1");
+
+	//--------------------------------------------------------
+	//shot1 leviathan wakes up
+	
+	//--- set music
+	music ("aux1","normal");
+	wait( .2 );
+	
+	//--- set camera
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $m8l1b_leviathan1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--set skipthread
+	skipthread( "cutsceneLeviathan1_SkipThread");
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 6.5 );
+		
+	//--- wake up mr. sleepy head.....
+	$leviathan1.takedamage();
+	$leviathan1.immortal( 0 );
+	trigger( "$waterExplode1" );
+	$leviathan1.anim( "idle1" );
+	waitForAnimation( $leviathan1, "idle1" );
+
+	//--- end the cutscene	
+	thread cutsceneLeviathan1_SkipThread();
+}
+
+//---------------------
+// cutsceneLeviathan1_SkipThread
+// cutsceneLeviathan1 end cinematic and skip thread
+//---------------------
+void cutsceneLeviathan1_SkipThread()
+{
+	skipthread( "null" );
+	killthread( "cutsceneLeviathan1" );
+	wait(.1);
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+	//$cinematicMunro1.remove();
+	$cinematicMunro1.hide();
+	$cinematicMunro1.notsolid();
+	$cinematicMunro1.warpTo( "$playerOrigin1" );
+	noncinematic();
+	clearletterbox( 1 );
+	cueplayer();
+	releaseplayer();
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+	
+	$leviathan1.maxbosshealth( $leviathan1.gethealth() );
+	$leviathan1.updatebosshealth( 1, 1 );
+	
+	$leviathan1.ai_on();
+    	forcemusic ("suspense");
+	//---set players next objective
+	//$player.setobjectiveshow ( "defeatLeviathan" , 1 );
+}
+
+//---------------------
+// cutsceneLeviathan2
+// first cutscene intro to leviathan battle
+//---------------------
+void cutsceneLeviathan2()
+{
+	//--- NOTE: I had to change this cinematic from the leviathans originally running out
+	//--- NOTE: to them being in their alcoves because the player could be on one of their spots
+	//--- NOTE: that they run to, and thus after the cinematic the player could be stuck inside one of them
+	//--- start cinematic commands
+	wait ( 2 );
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+	
+	allowMusicDucking( 0 );
+    	forcemusic ("aux2");
+
+	//--------------------------------------------------------
+	//shot1 leviathan in cubby alcove......awwwwwww.....isn't he soooo cuuute!!!!!!
+	
+	//--- set music
+	music ("aux1","normal");
+	wait( .2 );
+	
+	//--- set the fx
+	$waterExplode1.origin( $leviathan3.getOrigin() );
+	
+	//--- set camera
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $m8l1b_leviathan2 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--set skipthread
+	skipthread( "cutsceneLeviathan2_SkipThread");
+	wait( 3 );
+
+	$leviathanDoor2.open( $world );
+	$leviathanDoor3.open( $world );
+	wait ( 4 );
+
+	$leviathan3.anim( "idle1" );
+	triggerEntity( $waterExplode1 );
+	wait( 2 );
+
+	thread cutsceneLeviathan2_SkipThread();
+}
+
+//---------------------
+// cutsceneLeviathan2_SkipThread
+// cutsceneLeviathan2 end cinematic and skip thread
+//---------------------
+void cutsceneLeviathan2_SkipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cutsceneLeviathan2" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- put them in idle in case the player skipped the cutscene
+	$leviathan2.anim( "idle1" );
+	$leviathan3.anim( "idle1" );
+
+	//--- open the doors incase the player skipped the cutscene
+	$leviathanDoor2.open( $world );
+	$leviathanDoor3.open( $world );
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .3 );
+
+	//--- fade in	
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .3 );
+
+	//--- run the leviathans forward and activate them
+	$leviathan2.walkto( "$leviathan2_position" , "run" , 0 );
+	$leviathan3.walkto( "$leviathan3_position" , "run" , 0 );
+	wait( 2 );
+		
+	$leviathan2.ai_on();
+	$leviathan3.ai_on();
+    	forcemusic ("suspense");
+	//---set players next objective
+	//$player.setobjectiveshow ( "defeatLeviathan" , 1 );
+}
+
+//---------------------
+// leviathanKillThread_check
+// kill thread for the leviathans
+//---------------------
+void leviathanKillThread_check()
+{
+	leviathanKillThread_counter++;
+	if( leviathanKillThread_counter >= 2 )
+	{
+		trigger( "$staircase1" );
+		$cutsceneCapture_trigger.triggerable();
+	}
+}
+
+//---------------------
+// cutsceneCaptureEnable
+// enable trigger for capture cutscene when all leviathan are dead
+//---------------------
+void cutsceneCaptureEnable()
+{
+	$cutsceneCapture_trigger.triggerable();
+}
+
+//---------------------
+// cinematicArm_MunroCaptured_Start
+// munro getting captured
+//---------------------
+void cinematicArm_MunroCaptured_Start()
+{
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	globalCommon_AiDummyHide( $munro );
+	globalCommon_AiDummyHide( $idryll );
+	globalCommon_AiDummyHide( $guard1 );
+	globalCommon_AiDummyHide( $guard2 );
+	globalCommon_AiDummyHide( $guard3 );
+
+	//--- start the armature
+	cinematicArm_MunroCaptured.beginCinematic( "m8l1b_knockout" );
+	wait( .2 );
+    	forcemusic ("aux2");
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_MunroCaptured_ArmEnd" );
+
+	thread globalAccelMove( $pit_door1, '0 0 128', 4, "rampupdown", "" );
+}
+
+//---------------------
+// cinematicArm_MunroCaptured_ArmEnd
+// end cinematic
+//---------------------
+void cinematicArm_MunroCaptured_ArmEnd()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_MunroCaptured.endCinematic( FALSE );
+
+	killthread( "cinematicArm_MunroCaptured_Start" );
+
+	//--- end the level
+	thread levelTransition();
+}
+
+//---------------------
+// cutsceneFinal
+// cutscene of munro and krindo leaving ruins
+//---------------------
+void cutsceneFinal()
+{
+	setfloatvar ( "game.enable_m8l1a_cinematic" , 0 );	//reset this so people can properly replay m8l1b next time
+
+	spawn ( "Camera" , "targetname" , "cam3" );
+	wait ( .1 );
+
+	//--hide enemy ai for cinematic
+	$drullRebel1.hide();
+	$drullRebel2.hide();
+	$drullRebel3.hide();
+
+	freezeplayer();
+
+	//--begin cinematic
+	cinematic();
+	letterbox( 1 );
+        allowMusicDucking( 0 );
+    	forcemusic ("suspense");
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	$cam3.follow( $m8l1b_final_cinematic );
+	$cam3.watch ( "$cinematicMunro2" );
+
+	wait( 1 );
+
+	$cinematicMunro2.ai_off();
+	$cinematicKrindo.ai_off();
+	$cinematicMunro2.show();
+	$cinematicKrindo.show();
+
+	cuecamera( $cam3 );
+
+	//--fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	//--set skipthread
+	skipthread( "cutsceneFinal_SkipThread");
+
+	trigger( "$cinematicFinalDoor1" );
+	wait( 2 );
+
+	$cinematicMunro2.blindlyfollowpath ( "run", 0 , "pathToShuttle_munro" );
+	$cinematicKrindo.blindlyfollowpath ( "run", 0 , "pathToShuttle_krindo" );
+
+	waitfor ( $cinematicMunro2 );
+
+	thread cutsceneFinal_SkipThread();
+}
+
+//---------------------
+// cutsceneFinal_SkipThread
+// end of the cutscene of munro and krindo leaving ruins
+//---------------------
+void cutsceneFinal_SkipThread()
+{
+	//noncinematic();
+	//cam_fadeout ( 1, 0, 0, 0, 1, 0 );
+
+	spawn ( "trigger_changelevel", "targetname", "trigger_changeToIGM", "map", "ent-deck8" );
+	setfloatvar ( "game.globalMissionEnterprise", 6 );
+	wait ( 1 );
+	//clearletterbox ( 1 );
+	trigger ( "$trigger_changeToIGM" );
+}
+//=============================================================================
+// Level Sequences
+//=============================================================================
+void mortarColumnSequence()
+{
+	$mortarLaunchPos2.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$bridgeColumn" );
+}
+
+void setupBridgeCollapseSequence()
+{
+	$bridgeColumn.onDamage( "bridgeColumnDestroy" );
+	pause();
+}
+
+void bridgeColumnDestroy()
+{
+	$bridgeColumn.remove();
+	//waitfor( $bridgeColumn );
+	thread bridgeCollapse();
+}
+
+//----------------------
+// bridgeCollapse
+// collapse bridge to leviathan battle
+//----------------------
+void bridgeCollapse()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 90;
+	coop_vector_spawnOrigin1 			= '530 3580 -700';
+	coop_vector_spawnOrigin2 			= '630 3580 -700';
+	coop_vector_spawnOrigin3 			= '430 3580 -700';
+	coop_vector_spawnOrigin4 			= '330 3580 -700';
+	coop_vector_spawnOrigin5 			= '230 3580 -700';
+	coop_vector_spawnOrigin6 			= '730 3580 -700';
+	coop_vector_spawnOrigin7 			= '830 3580 -700';
+	coop_vector_spawnOrigin8 			= '130 3580 -700';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	//make players falling resistance, so they can jump down there
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.resistance("falling",100);//fall damage
+		}
+	}
+	
+	//$bridge_clip.solid(); //hzm coop mod chrissstrahl - do not make solid in coop, will get player stuck
+	
+	trigger ( "$bridgeExplosion" );
+	trigger ( "$bridgeFallQuake" );
+
+        forcemusic ("aux4","normal");
+
+    $bridgeSection01.playsound ( "sound/impact/explosion/explo_towerfall.wav", 8, 1, 1500 );
+	$bridgeSection01.time ( 1.5 );
+	$bridgeSection01.rotateZup ( 40 );
+	$bridgeSection01.rotateYdown ( 40 );
+	waitfor( $bridgeSection01 );
+
+	$bridgeSection01.time ( 1.5 );
+	$bridgeSection01.moveWest ( 64 );
+	$bridgeSection01.moveDown ( 1376 );
+	$bridgeSection01.rotateZdown ( 40 );
+	waitfor( $bridgeSection01 );
+        $bridgeSection01.playsound ( "sound/impact/explosion/explo_wall1.wav", 8, 1, 1500 );
+	trigger ( "$bridgeSection01_debris" );
+	wait( .1 );
+	$bridgeSection01.remove();
+	wait( 2.5 );
+	$idryll_soldier7.remove();
+}
+
+//---------------------
+// levelTransition
+// transition to M8L2A
+//---------------------
+void levelTransition()
+{
+	
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindEntrance$$","complete",1,1);
+	
+	$pit_door1.missionobjective( 0 );
+	
+	wait(1);
+
+	//--send player to M8L2A
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+	
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m8l2a-drull_ruins2" );
+	wait ( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+//---------------------
+// ambientLeviathanSwimmer
+// when triggered, show leviathan swimming in water
+//---------------------
+/*void ambientLeviathanSwimmer()
+{
+	$ambientLeviathan1.blindlyfollowpath ( "swim", 0 , "leviathan_swimPath1" );
+	waitfor( $ambientLeviathan1 );
+	$ambientLeviathan1.remove();
+}
+*/
+
+//---------------------
+// spawnStairWave
+// when triggered, spawn idryll rebels down stairs in waves
+//---------------------
+void spawnStairWave()
+{
+	trigger( "$stairSpawn1" );
+	wait ( .33 );
+	
+	
+	//hzm coop mod chrissstrahl - make only aggressive and let the ai select the target on its own
+	$stairidryll_1west.aggressive( 1 );
+	$stairidryll_1east.aggressive( 1 );
+	
+	/*
+	$stairidryll_1west.attack( $player, 1 );
+	$stairidryll_1east.attack( $player, 1 );
+	*/
+	
+	//wait( 10 );
+/*
+	trigger( "$stairSpawn2" );
+	wait ( .33 );
+	$stairidryll_2west.attack( $player, 1 );
+	$stairidryll_2east.attack( $player, 1 );
+	wait( 10 );
+
+	trigger( "$stairSpawn3" );
+	wait ( .33 );
+	$stairidryll_3west.attack( $player, 1 );
+	$stairidryll_3east.attack( $player, 1 );
+	wait( 2 );
+*/
+
+}
+
+//---------------------
+// mortarBridgeSequence
+// destroy first bridge with mortar attack
+//---------------------
+void mortarBridgeSequence()
+{
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$bridgeSection" );
+}
+
+void setupBridgeSequence()
+{
+	$bridgeSection.onDamage( "bridgeDestroy" );
+	pause();
+}
+
+void bridgeDestroy()
+{
+	$bridgeSection.remove();
+	$bridgeDebris.show();
+	trigger( "$bridgeQuake" );
+	trigger( "$bridgeCollapseEffect" );
+}
+
+void bridgeSwitchOn()
+{
+	$archetypeBridgePower.remove();
+	//$archetypeBridgePower.archetype( "IdryllPowerRegulatorUsed" );
+	$bridgeSwitchReject.nottriggerable();
+	$bridgeSwitch.triggerable();
+	$bridgeSwitch.playsound( "sound/ships/drull/drull-beepaccept.wav", 5, 1, 1600 );
+	$bridgeSwitch.playsound( "sound/ships/attrexian/att-powerup.wav", 6, 1, 1600 );
+	$power_off.hide();
+	$power_on.show();
+}
+
+void bridgeMoveToPosition()
+{
+	//hzm coop mod chrissstrahl - allow players to activate the bridge only once
+	$bridgeSwitch.nottriggerable();
+	
+	$bridgeSwitch.playsound( "sound/ships/drull/drull-beepaccept.wav", 5, 1, 1600 );
+
+	//--shake screen on initial start of bridge movement
+	trigger( "$bridge1_quake_start" );
+
+	$bridge1.time( 15 );
+	$bridge1.moveTo( $bridgePos1 );
+
+	//--small shake while bridge extends
+	trigger( "$bridge1_quake_open" );
+
+	$bridge1.loopsound( "sound/environment/machine/bridge_move.wav", 1, 1600 );
+
+	//waitfor( $bridge1 );
+	wait( 15 );
+
+	thread bridgeMoveToFinalPos();
+}
+
+void bridgeMoveToFinalPos()
+{
+
+
+	$bridge1.playsound( "sound/environment/machine/bridge_stop.wav", 8, 1, 1500 );
+
+	$bridge1.time( 4 );
+	$bridge1.moveTo( $bridgePos2 );
+
+
+	waitfor( $bridge1 );
+	$bridge1.stoploopsound();
+	$bridge1.playsound( "sound/environment/machine/bridge_stop.wav", 8, 1, 1500 );
+	wait( .5 );
+	//--shake screen on bridge stop
+	trigger( "$bridge1_quake_end" );
+}
+
+//---------------------
+// Function: shuttleDoorsOpen
+// Comments:
+// opens the doors on the shuttle when the player solves the tricorder puzzle
+//---------------------
+void shuttleDoorsOpen()
+{
+	$power_on_shuttle.playsound( "sound/ships/drull/drull-beepaccept.wav", 5, 1, 1600 );
+	$power_off_shuttle.remove();
+	$power_on_shuttle.show();
+	
+	$shuttleDoors1.anim( "opening" );
+	waitForAnimation( $shuttleDoors1 , "opening" );
+	
+	$shuttleDoors1.anim( "open_idle" );
+
+	$drullShuttleDoorOpen1.solid();
+	$drullShuttleDoorClosed1.notsolid();
+}
+
+//---------------------
+// Function: idryllRejectSound
+// Comments:
+// sound used when something is rejected
+//---------------------
+void idryllRejectSound()
+{
+	$bridgeSwitch.playsound( "sound/ships/drull/drull-beepreject.wav", 5, 1, 1600 );
+	wait( 3 );
+}
+
+void idryllShuttleRejectSound()
+{
+	//hzm coop mod chrissstrahl, get activated trigger, and play the sound from the trigger, rather than originating from $player
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/ships/drull/drull-beepreject.wav", 5, 1, 1600 );
+	wait( 2 );
+}
+
+
+void coop_manageEntitiesForMultiplayer()
+//this map mas massive issues with to many entities messing up
+//the trafic on the server, since we do not want to edit the bsp
+//we try it this way, deleting the entities before the first player
+//enter the level and trafic data has been send...
+{	
+	float fEntity,fDelete;
+	entity e;
+	vector vOrigin;
+	for(fEntity=0;fEntity<1024;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+//grab the data and put it into vars, for significant faster processing!
+			vOrigin		= e.getOrigin();			
+//give targetname so we can delte the trigger after use
+			if(vOrigin == '88 -1568 -604'){
+				e.damagetype("falling");
+			}
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m8l2a-drull_ruins2");
+}
+
+

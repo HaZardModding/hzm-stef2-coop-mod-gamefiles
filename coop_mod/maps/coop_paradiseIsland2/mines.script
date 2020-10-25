@@ -1,0 +1,83 @@
+void mines_setup(float fMinesMax,entity eField)
+{
+//SETUP MINE FILEDS
+	float	fMines,
+			fOkay,
+			fCheck;
+	vector	vPlant,vPlanted;
+	entity	eMine;
+	
+	if(doesEntityExist(eField)){
+		if(fMinesMax > 30){
+			fMinesMax=30;
+		}
+		for(fMines=1;fMines<=fMinesMax;fMines++){
+			fOkay=0;
+			while(fOkay==0){
+				fOkay=1;
+				vPlant = randomVectorIndside(eField);
+				for(fCheck=1;fCheck<=(float_landMineNumber+1);fCheck++){
+					vPlanted = $world.getVectorVar("landMineOrigin"+fCheck);
+					vPlanted_z = vPlant_z;//only check x-y
+					if(vectorLength(vPlanted - vPlant) < 30){
+						fOkay=0;
+					}
+					//print("landMineOrigin"+fCheck+"\n");
+				}
+				wait(.001); 
+			}
+			mines_plant(vPlant);
+		}
+	}else{
+		print("mineFieldDoesNotExist!!!\n");
+	}
+}
+
+void mines_blow()
+//a landmine got touched, BOOOOOOOOOOOOOOOOOOM
+{
+	entity eLandMine,eLandMineModel;
+	eLandMine = getCurrentEntity();
+	if(doesEntityExist(eLandMine)){
+		eLandMineModel = eLandMine.getTargetEntity();
+		eLandMine.selfdetonate();
+		eLandMine = eLandMine.getLastActivatingEntity();
+		if(doesEntityExist(eLandMineModel)){
+			eLandMineModel.selfdetonate();
+			if(doesEntityExist(eLandMine)){
+				eLandMine.selfdetonate();
+				eLandMine.kill();
+			}
+			wait(.1);
+			eLandMineModel.remove();
+		}
+	}
+}
+
+void mines_plant(vector vOrigin)
+//plant a landmine
+{
+	if(vOrigin != '0 0 0'){
+		float  flandMineNo;
+		float_landMineNumber++;
+		$world.setVectorVar("landMineOrigin"+float_landMineNumber,vOrigin);
+		flandMineNo = float_landMineNumber;
+		entity eLandMine,eLandMineModel;
+		//eLandMineModel = spawn("script_model","model","projectile/projectile_rom-grenade.tik","origin",vectorToString(vOrigin),"targetname","landMine"+flandMineNo,"hide","1");
+		eLandMineModel = spawn("script_model","model","fx/fx-energyburn-borgsphere.tik","origin",vectorToString(vOrigin),"targetname","landMine"+flandMineNo,"hide","1");
+		wait(.01);
+		eLandMineModel.dropToFloor();
+		wait(.05);
+		vOrigin = eLandMineModel.getOrigin();
+		eLandMine = spawn("trigger_once","thread","mines_blow","origin",vectorToString(vOrigin),"target","landMine"+flandMineNo);
+		eLandMineModel.scale(.3);
+		eLandMineModel.viewMode("tripwire");
+		eLandMineModel.show();
+		wait(.01);
+		eLandMine.setSize('-25 -25 -10','25 25 10');
+		//this was creating to much net traffic!!!!
+		//eLandMine.loopSound("sound/environment/computer/telemetry_mine.wav",1,25);
+	}else{
+		print("mines_plant(INVALID_VECTOR)\n");
+	}
+}

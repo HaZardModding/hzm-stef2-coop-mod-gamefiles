@@ -1,0 +1,456 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  ent-deck
+//  Script By:    Kenny "Gullie" Thompson
+//  Created on:   6/28/2002
+//
+//  Last Edited:  7/10/02 - LW
+//
+//-----------------------------------------------------------------
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEFINE SCRIPT
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void entTurboLiftSetup();
+
+void entTurboLiftCheck();
+void endTurboliftRide();
+
+void turboLiftDeckChangeWait();
+
+//Defined in each deck's IGM script
+void checkForDeckChangeIGM1();
+void checkForDeckChangeIGM2();
+void checkForDeckChangeIGM3();
+void checkForDeckChangeIGM4();
+void checkForDeckChangeIGM5();
+void checkForDeckChangeIGM6();
+void checkForDeckChangeIGM7();
+void checkForDeckChangeIGM8();
+
+void turboLiftDeckChangeGo();
+void turboLiftLeave();
+
+void randomlyAnimateActor( entity actorToAnimate, string animationToUse );
+void randomlyAnimateActorOnce( entity actorToAnimate, string animationToUse );
+void makeActorUseTricorder( entity actorToAnimate );
+
+void threadLockedDoor();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float checkTurboLiftRide = 0;
+
+
+void coop_scriptmunroDialogStatmentsaver(string sDialog)
+{
+	$scriptmunro.playdialog(sDialog, 1, 10000, 0);
+	globalCoop_main_wait1DotZero();
+}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+/////////////////////////////
+// setup stuff
+/////////////////////////////
+void entTurboLiftSetup()
+{
+	entTurboLiftCheck();
+	
+	$turboLiftPlayerClip.notsolid();
+	thread turboLiftDeckChangeWait();
+}
+
+//////////////////////////////
+// Check to see if the turbolift ride just ended
+//////////////////////////////
+void entTurboLiftCheck()
+{	
+	if ( getfloatvar( "game.globalTurboliftRide" ) == 1 )
+	{
+		setfloatvar( "game.globalTurboliftRide", 1 );
+		thread endTurboliftRide();
+		// sets flag to say the turbolift isn't active
+		setfloatvar ( "game.globalTurboliftRide" , 0 ); 
+	}
+}
+
+//////////////////////////////
+//---Make it sound like you just rode the lift to the level
+//////////////////////////////
+void endTurboliftRide()
+{
+	//Kills thread so player can't retrigger lift untill elevator stops.
+	killthread( "turboLiftDeckChangeWait" );
+	
+	$turboLift.lock();
+	$turboLiftPlayerClip.solid();
+	
+	$turboLift.loopsound( "sound/ships/enterprise/ent_turbolift_runloop.wav", 1, 500 );
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	globalCoop_main_wait2DotZero();
+	$turboLift.stoploopsound();
+	$turboLift.playsound ( "sound/ships/enterprise/ent_turbolift_stop.wav", 3, 1, 500 );
+	
+	wait( 3 );
+	//open door
+	$turboLift.unlock();
+	$turboLiftPlayerClip.notsolid();
+	
+	$turboLift.open( $world );
+	
+	//Re-call this thread now that it is ok.
+	thread turboLiftDeckChangeWait();
+}
+
+//////////////////////////////
+// Wait for player to use button
+//////////////////////////////
+void turboLiftDeckChangeWait()
+{
+	//hzm coop mod chrissstrahl - prevent this thread from overwriting while we are hijacking this triggerLockedDoor
+	//igm8 ent-deck1_bridge - branchdialog seqence
+	if($elevatorButton.getFloatVar("coopNoOverWrite") == 1){
+		return;
+	}
+	$elevatorButton.onuse( "turboLiftDeckChangeGo" );
+	pause();
+}
+
+//////////////////////////////
+// check to see if anything is going to happen
+//////////////////////////////
+void turboLiftDeckChangeGo()
+{
+	//hzm cooop mod chrissstrahl, create vars
+	entity ePlayer;
+	
+	
+	$elevatorButton.nouse();
+	
+	float validTurboLiftButtonRange;
+	float enterpriseMissionNumber;
+	float sendPlayerToNewDeckNumber;
+	
+	vector playerPos, buttonPos, dist;
+	
+	entity currentElevatorButton;
+	
+	currentElevatorButton = getcurrententity();
+	currentElevatorButton.nottriggerable();
+	
+	ePlayer		= currentElevatorButton.getLastActivatingEntity();
+	playerPos	= ePlayer.getorigin();
+	buttonPos	= currentElevatorButton.getorigin();
+	
+
+	dist = playerPos - buttonPos;
+	dist = vectorsetz( dist, 0 );
+	
+	validTurboLiftButtonRange = vectorlength( dist );
+
+	/*
+	if(getCvar("username") == "Chrissstrahl" ){
+		//print( "\n" + "Deck To Go To " + (getfloatvar( "level.deckToChangeToIGM" )) + "\n Rooms Visited " + (getfloatvar( "game.checkEntMission7RoomsVisited" )) );
+		ePlayer.hudprint("Range " + validTurboLiftButtonRange + ". Mission Number " + (getfloatvar( "game.globalMissionEnterprise" )) + "\n");
+		ePlayer.hudprint(getfloatvar( "level.deckToChangeToIGM" ) + "\n");
+	}
+	*/
+	
+	
+	//If you are close enough 
+	if( validTurboLiftButtonRange <= 84 )
+	{
+		
+		enterpriseMissionNumber = getfloatvar ( "game.globalMissionEnterprise" );
+		if(	enterpriseMissionNumber == 0 ){
+			enterpriseMissionNumber = 1;
+			setfloatvar ( "game.globalMissionEnterprise", enterpriseMissionNumber );
+		}
+		/*
+		if( enterpriseMissionNumber == 1 ){ checkForDeckChangeIGM1(); }
+		if( enterpriseMissionNumber == 2 ){ checkForDeckChangeIGM2(); }
+		if( enterpriseMissionNumber == 3 ){ checkForDeckChangeIGM3(); }
+		if( enterpriseMissionNumber == 4 ){ checkForDeckChangeIGM4(); }
+		if( enterpriseMissionNumber == 5 ){ checkForDeckChangeIGM5(); }
+		if( enterpriseMissionNumber == 6 ){ checkForDeckChangeIGM6(); }
+		if( enterpriseMissionNumber == 7 ){ checkForDeckChangeIGM7(); }
+		if( enterpriseMissionNumber == 8 ){ checkForDeckChangeIGM8(); }
+		*/
+		
+	//print( "\n" + "Deck To Go To " + (getfloatvar( "level.deckToChangeToIGM" )) + "\n Rooms Visited " + (getfloatvar( "game.checkEntMission7RoomsVisited" )) );
+	//print( "\nRange " + validTurboLiftButtonRange + "\n Mission Number " + (getfloatvar( "game.globalMissionEnterprise" )) + " \n" );
+	
+		//and the deck to travel to is diffrent than the current one
+		if( getfloatvar( "level.deckToChangeToIGM" ) != currentDeck && getfloatvar( "level.deckToChangeToIGM" ) > 0 )
+		{		
+			sendPlayerToNewDeckNumber = getfloatvar(  "level.deckToChangeToIGM" );
+			
+			// sets flag for checking next level if the turbolift should be moving
+			setfloatvar ( "game.globalTurboliftRide" , 1 );
+			
+			if( currentDeck == sendPlayerToNewDeckNumber )
+			{
+				$turboLift.playsound ( "sound/environment/computer/lcars_error.wav", 3, .5, 10000);
+				centerprint("^3Allready on deck "+sendPlayerToNewDeckNumber+"\n");
+				return;
+			}
+			
+			if( sendPlayerToNewDeckNumber == 1  ){
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_d1bridge.mp3");
+				//Deck 1; Bridge
+				coop_igm_mapToLoad = "ent-deck1_bridge";
+			}
+			if( sendPlayerToNewDeckNumber == 71 ){
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_dhazaps.mp3");
+				coop_igm_mapToLoad = "ent-deck7a";
+			}
+			if( sendPlayerToNewDeckNumber == 72 ){
+				/*$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_deck7.mp3", 1, 10000, 0);*/
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_d7shutt.mp3");
+				coop_igm_mapToLoad = "ent-deck7b";
+			}
+			if( sendPlayerToNewDeckNumber == 73 ){
+				/*if(enterpriseMissionNumber == 4){
+				$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_hazcrew.mp3", 1, 10000, 0); //Hazard Crew Quarters
+				}*/
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_hazcrew.mp3");
+				//Hazard Crew Quarters
+				coop_igm_mapToLoad = "ent-deck7c";
+			
+			}
+			if( sendPlayerToNewDeckNumber == 8  ){
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_deck8.mp3");
+				coop_igm_mapToLoad = "ent-deck8";
+			}
+			if( sendPlayerToNewDeckNumber == 11 ){
+				if(missionEnterprise != 3){
+					coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_d11astro.mp3");
+					//Deck 11: Atrometry
+				}else{
+					coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_d11lib.mp3");
+					//Deck 11: Library
+				}
+				coop_igm_mapToLoad = "ent-deck11";
+			}
+			if( sendPlayerToNewDeckNumber == 16 ){
+				coop_scriptmunroDialogStatmentsaver("localization/sound/dialog/ent_m1/munro_d16eng.mp3");
+				coop_igm_mapToLoad = "ent-deck16_engineering";
+			}
+			
+			//hzm coop mod chrissstrahl - check if any player is blocking the lift doors
+			float fBlocking;
+			entity ePlayer;
+			vector vOriginPlayer;
+			float fPlayerIdInUse;
+			do
+			{
+				wait(0.25);
+				fBlocking = 0;
+				while(fPlayerIdInUse<coop_integer_maxPlayers)
+				{
+					ePlayer = getentity("player"+fPlayerIdInUse);
+					if(doesEntityExist(ePlayer)){
+						if(globalCoop_check_playerSpectator(ePlayer) == 0){
+							if(globalCoop_check_isEntityInsideOfEntity(ePlayer,$turboLiftPlayerClip,2)){
+								if( ePlayer.getFloatVar("coopElevatorMessage") < getLevelTime() ){
+									ePlayer.hudPrint("Please move, you are blocking the elevator\n");
+									ePlayer.hudPrint("Sie blockieren den Aufzug, bitte bewegen\n");
+									ePlayer.setFloatVar("coopElevatorMessage",(getLevelTime() + 2));
+								}
+								fBlocking = 1;
+							}
+						}
+					}
+					fPlayerIdInUse++;
+				}
+			}while(fBlocking);
+			
+			//---Lock Turbolift door
+			$turboLiftPlayerClip.solid();
+			$turboLift.lock();
+			$turboLift.close();
+			
+			//hzm coop mod chrissstrahl - wait a moment, load next map
+			globalCoop_main_wait2DotZero();
+			coop_endLevel();
+		}
+		//else you are on the correct deck.
+		else
+		{
+			currentElevatorButton.playsound ( "sound/environment/computer/lcars_error.wav", 3, 2, 256);
+			$turboLiftPlayerClip.notsolid();
+			globalCoop_main_wait2DotZero();
+			currentElevatorButton.triggerable();
+		}
+	}
+	else{
+		currentElevatorButton.triggerable();
+	}
+	globalCoop_main_waitZeroDotZero5();
+	thread turboLiftDeckChangeWait();
+}
+
+
+void turboLiftLeave()
+{
+	globalCoop_main_wait2DotZero();
+	$turboLift.stoploopsound();
+	$turboLift.playsound( "sound/ships/enterprise/ent_turbolift_run.wav", 3, .5, 10000);
+	wait( 2.5 );
+	
+	$turboLift.loopsound( "sound/ships/enterprise/ent_turbolift_runloop.wav", .5, 100000 );
+	globalCoop_main_wait2DotZero();
+	$turboLift.stoploopsound();
+}
+
+///////////////////////////
+// randomlyAnimateActor
+// Keeps an actor animating
+///////////////////////////
+void randomlyAnimateActor( entity actorToAnimate, string animationToUse )
+{
+	while( 1 )
+	{
+		if ( actorToAnimate.doesVarExist( "pauseRandomAnimate" ) )
+		{
+			while( 1 == actorToAnimate.getFloatVar( "pauseRandomAnimate" ) )
+			{
+				wait( .25 );
+			}
+		}
+		//This will make the actor use the tricorder; set > 1 for longer use.
+		if ( actorToAnimate.doesVarExist( "actorToUseTricorder" ) )
+		{
+			if( actorToAnimate.getfloatVar( "actorToUseTricorder" ) >= 1 )
+			{
+				makeActorUseTricorder( actorToAnimate );
+			}
+		}
+		randomlyAnimateActorOnce( actorToAnimate, animationToUse );
+	}
+}
+
+///////////////////////////
+// randomlyAnimateActorOnce
+// Make an Actor Animate a random animation once
+///////////////////////////
+void randomlyAnimateActorOnce( entity actorToAnimate, string animationToUse )
+{
+	float randomNumber;
+	string appendedAnimationName;
+	
+	//This will make the actor randomly use his tricorder instead of other animation if set.
+	if ( actorToAnimate.doesVarExist( "actorToRandomlyUseTricorder" ) )	
+	{
+		if( 1 == actorToAnimate.getfloatVar( "actorToRandomlyUseTricorder" ) )
+		{
+			randomNumber = randomint( 18 ) + 1;
+			//uncomment to make them tricorder more
+			//randomNumber = randomint( 4 ) + 15;
+		}
+	}
+	else
+	{
+		randomNumber = randomint( 16 ) + 1;
+	}
+	
+	//wait( .05 );
+	if( randomNumber <=8 ){ appendedAnimationName = animationToUse + "-idle"; }
+	else if( randomNumber <= 10 ){ appendedAnimationName = animationToUse + "-idle-look"; }
+	else if( randomNumber <= 14 ){ appendedAnimationName = animationToUse + "-gesture"; }		
+	else if( randomNumber <= 16 ){ appendedAnimationName = animationToUse + "-gesture1"; }
+	else if( randomNumber <= 17 )
+	{
+		actorToAnimate.setfloatVar( "actorToUseTricorder", 1 );
+		return;
+	}
+	else if( randomNumber <= 18 )
+	{
+		actorToAnimate.setfloatVar( "actorToUseTricorder", 2 );
+		return;
+	}
+
+	actorToAnimate.anim( appendedAnimationName );
+	waitforanimation( actorToAnimate, appendedAnimationName );
+}
+
+///////////////////////////
+// makeActorUseTricorder
+// Make an Actor use the tricorder
+///////////////////////////
+void makeActorUseTricorder( entity actorToAnimate )
+{
+	float actorToUseTricorderFloat;
+	
+	actorToUseTricorderFloat = actorToAnimate.getfloatVar( "actorToUseTricorder" );
+
+	globalCommon_AiActorUseWeapon( actorToAnimate, "tricorder" );
+	
+	while( actorToUseTricorderFloat >= 1 )
+	{
+		actorToAnimate.anim( "tricorder_use_loop" );
+		waitforanimation( actorToAnimate, "tricorder_use_loop" );
+
+		actorToUseTricorderFloat--;
+	}
+	
+	actorToAnimate.setfloatVar( "actorToUseTricorder", actorToUseTricorderFloat );
+	
+	globalCommon_AiActorUseWeapon( actorToAnimate, "none" );
+}
+
+///////////////////////////
+// threadLockedDoor
+// Makes doors play locked sound
+///////////////////////////
+void threadLockedDoor()
+{
+	$triggerLockedDoor.nottriggerable();
+	$triggerLockedDoor.playsound ( "sound/environment/computer/lcars_no.wav", 3, 1, 10000 );
+	globalCoop_main_waitZeroDot5();
+	$triggerLockedDoor.triggerable();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

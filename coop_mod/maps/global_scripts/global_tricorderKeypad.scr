@@ -1,0 +1,359 @@
+//[b607] chrissstrahl - this was changed to suite only multiplayer needs
+//do not include this file directly!
+//include the file from maps/global_scripts/
+//the coop mod dll will detect and select the right file for single or multiplayer
+
+
+//=============================================================================
+//  ATTN:	You can never erase successfully entered digits (there's no point), so there is
+//  		essentially a pointer that 'walks' through the secret code passed into the setup
+//			function as the player enters digits.  When I refer to "the current digit" in the
+//			comments, I'm talking about the digit index (_tricorderKeypad_currentDigiti) that
+//			is currently awaiting input; I.E., the digit that the walking pointer is pointing
+//			to.  When I specifically say "value" is conjunction with "the current digit", I'm
+//			talking about the actual symbol that is stored in the secret code at the current
+//			index.
+//			E.G.:
+//			9-digit code: 	A	F	D	R	T	I	O	N	M
+//			If "the current digit" is 3, the then "the current digit's value" is "D".
+//			Also, "code" or "secret code" refers to the symbolic (but internally numeric) code
+//			that the player is trying to guess.  "Code" usually doesn't mean actual source code here.
+//=============================================================================
+
+//=============================================================================
+// Prototypes, quick docs; see definitions for more detail
+//
+// 	globalTricorderKeypad_Run		- called from level script at level startup
+// 	tricorderKeypad_[1-9]pressed- called from UI, referenced in URC
+//
+//	_tricorderKeypad_entry		- slave function called from tricorderKeypad_[1-9]pressed; main chunk of game logic
+//	_tricorderKeypad_doesDigitMatchCode - tests if the passed value matches the value of the current digit
+//	_tricorderKeypad_getSecretCodeValueAtIndex - returns the value of the digit at the passed position in the secret code
+//=============================================================================
+// Public
+void globalTricorderKeypad_SetScannedCodeFlag( float val );
+void globalTricorderKeypad_SetSecretCode( float dig1, float dig2, float dig3, float dig4, float dig5, float dig6, float dig7, float dig8, float dig9 );
+void globalTricorderKeypad_Run( entity entPuzzleObject, float timeLimit, float numTries );
+void globalTricorderKeypad_SetType( string type );
+
+// Private
+void _tricorderKeypad_entry( float enteredDigit );
+float _tricorderKeypad_doesDigitMatchCode( float testValue );
+float _tricorderKeypad_getSecretCodeValueAtIndex( float index );
+
+//=============================================================================
+// Global variables
+//
+// _tricorderKeypad_currentDigit 	- keeps track of which digit is being entered.
+// _tricorderKeypad_triesRemain		- number of failed attempts before puzzle failed;
+//										immediate failure when this value is zero
+// _tricorderKeypad_dig[1-9]		- the n-digit code that the player is expected to enter.
+// _tricorderKeypad_locked			- crude critical section; "don't execute this code if it is already
+//										executing in another thread."
+// _entryEntity						- used during the duration of the puzzle to keep track of the puzzleentity
+// _tricorderKeypadSetup_alreadyScanned -  Set to 1 if the player already knows the code but hasn't entered it yet
+//=============================================================================
+float _tricorderKeypad_currentDigit;
+float _tricorderKeypad_triesRemain;
+float _tricorderKeypad_dig1, _tricorderKeypad_dig2, _tricorderKeypad_dig3, _tricorderKeypad_dig4, _tricorderKeypad_dig5, _tricorderKeypad_dig6, _tricorderKeypad_dig7, _tricorderKeypad_dig8, _tricorderKeypad_dig9;
+float _tricorderKeypad_locked;
+entity _entryEntity;
+float _tricorderKeypadSetup_alreadyScanned;
+
+//=============================================================================
+// Functions
+//=============================================================================
+
+void globalTricorderKeypad_SetType( string type )
+{
+	if( type == "romulan" )
+	{
+		_tricorderBase_keypadType = "r";
+		_globalTricorder_keypadURC = "RomulanKeypad";
+	}
+	else
+	{
+		_tricorderBase_keypadType = "";
+		_globalTricorder_keypadURC = "TricorderKeypad";
+	}
+}
+
+//---------------------
+// tricorderKeypadSetup_setScannedCode
+// Call this BEFORE tricorderKeypadSetup
+// Set to 1 if the player already knows the code but hasn't entered it yet
+//---------------------
+void globalTricorderKeypad_SetScannedCodeFlag( float val )
+{
+	_tricorderKeypadSetup_alreadyScanned = val;
+}
+
+//=================================================================================================
+// globalTricorderKeypad_Solve
+//=================================================================================================
+void globalTricorderKeypad_Solve()
+{
+	_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_success.wav", 9, 1, 64);
+	wait( 1 );
+	globalTricorder_BaseClose();
+	_tricorderBase_entity.puzzleobject_solved();
+	
+	//hzm gameupdate chrissstrahl - reenables sv_floodProtect if it was activated, needs to be disabled when using puzzles
+	if( _globalTricorder_svFloodProtectEnable )
+	{
+		stuffcmd("set sv_floodProtect 1\n");
+		_globalTricorder_svFloodProtectEnable = 0;
+	}
+	
+	//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	_globalTricorder_lockedDown = 0;
+}
+
+//---------------------
+// globalTricorderKeypad_SetSecretCode
+// See setScannedCode for explanation.
+// dig[1-9]		- The 9 digit code.  Pass in zero to disable that digit and all after it.
+//					Valid values are 1 through 9.  ZERO is not valid!  Zero means 'no digit in this place'
+//					e.g., a 3-digit code would be 1,2,3,0,0,0,0,0,0
+//---------------------
+void globalTricorderKeypad_SetSecretCode(
+	float dig1, float dig2, float dig3, float dig4,
+	float dig5, float dig6, float dig7, float dig8, float dig9 )
+{
+	// notice: 2 per line
+	_tricorderKeypad_dig1 = dig1;	_tricorderKeypad_dig2 = dig2;
+	_tricorderKeypad_dig3 = dig3;	_tricorderKeypad_dig4 = dig4;
+	_tricorderKeypad_dig5 = dig5;	_tricorderKeypad_dig6 = dig6;
+	_tricorderKeypad_dig7 = dig7;	_tricorderKeypad_dig8 = dig8;
+	_tricorderKeypad_dig9 = dig9;
+
+	//print( "Code is: " + dig1 + dig2 + dig3 + dig4 + dig5 + dig6 + dig7 + dig8 + dig9 + "\n" );
+
+	if( _tricorderKeypad_dig1 <= 0 )
+	{
+		globalTricorder_BaseError( "TRICORDER KEYPAD:  INVALID CODE!!!" );
+	}
+}
+
+//---------------------
+// globalTricorderKeypad_Run
+// Initializes a keypad tricorder puzzle.
+// timeLimit	- How long they have to solve it before the puzzle is failed.
+// numTries 	- How many tries they get to try and solve it before the puzzle is failed.
+//					Pass zero for unlimited tries.
+//---------------------
+void globalTricorderKeypad_Run( entity entPuzzleObject, float timeLimit, float numTries )
+{
+	//print("debug globalTricorderKeypad_Run\n");
+	if( doesEntityExist( entPuzzleObject ) == 0 || _globalTricorder_lockedDown == 1)//hzm gameupdate chrissstrahl - set/reset currently bussy status
+		return;
+	
+	// initialize base variables
+	globalTricorder_BaseSetEntity( entPuzzleObject );
+	//print("debug globalTricorderKeypad_Run player ok\n");
+	
+	
+	entity ePlayer;
+	ePlayer = getentity("player"+entPuzzleObject.getFloatVar("_activator"));
+
+	if( !doesEntityExist( ePlayer ) )
+		return;	
+	
+	//hzm gameupdate chrissstrahl - sets sv_floodProtect to be reenabled after player has finished using the puzzle
+	if( getCvarInt("sv_floodProtect") == 1){
+		_globalTricorder_svFloodProtectEnable = 1;
+		stuffcmd("set sv_floodProtect 0");
+	}	
+	
+	_globalTricorder_lockedDown = 1;
+	globalTricorder_doClientCommand( "pushmenu "+_globalTricorder_keypadURC );
+	
+	//print("debug globalTricorderKeypad_Run continuing\n");
+	
+	tricorderBaseExiting = 0;
+	tricorderBaseSetPuzzleType( TRICORDER_PUZZLE_KEYPAD );
+	thread globalTricorder_BaseRunTimer( entPuzzleObject, timeLimit );
+	
+	_tricorderKeypad_locked	= 0;
+	_tricorderKeypad_currentDigit = 1;
+	if( numTries > 0 )
+		_tricorderKeypad_triesRemain = numTries + 1;
+	else
+		_tricorderKeypad_triesRemain = 0;
+	_entryEntity = entPuzzleObject;
+
+	// disable the cancel button if there are a set number of tries
+	if( numTries > 0 )
+		globalTricorder_BaseCancelDisable();
+
+	// display scanned code
+	_entryEntity.playsound( "sound/weapons/tricorder/tri_puzz_begin.wav", 9, 1, 64);
+
+	if( _tricorderKeypadSetup_alreadyScanned )
+	{
+		string displayNumber;
+		float i;
+
+		for( i = 1; i <= 9; i++ )
+		{
+			if( 0 == _tricorderKeypad_getSecretCodeValueAtIndex( i ) )
+				i = 10; // ugh, break out of the loop; yes, this is a Bad Thing (tm)
+			else
+				displayNumber = displayNumber + _tricorderKeypad_getSecretCodeValueAtIndex( i );
+		}
+		//SendClientCommand( $player, "globalwidgetcommand tri_kp_code_display enable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_kp" + _tricorderBase_keypadType + "_secret_code_label title " + displayNumber );
+	}
+	else
+	{
+		//SendClientCommand( $player, "globalwidgetcommand tri_kp_code_display disable" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_kp" + _tricorderBase_keypadType + "_secret_code_label title \"\"" );
+	}
+
+	// FIXME: display tries remain
+
+	// get rid of leftover puzzles by clearing the entered code
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_kp" + _tricorderBase_keypadType + "_entered_code_label title \"\"" );
+}
+
+
+//---------------------
+// tricorderKeypad_[n]pressed
+// Called from UI when the corresponding keypad button is pressed.
+//---------------------
+void tricorderKeypad_1pressed() { _tricorderKeypad_entry( 1 ); }
+void tricorderKeypad_2pressed() { _tricorderKeypad_entry( 2 ); }
+void tricorderKeypad_3pressed() { _tricorderKeypad_entry( 3 ); }
+void tricorderKeypad_4pressed() { _tricorderKeypad_entry( 4 ); }
+void tricorderKeypad_5pressed() { _tricorderKeypad_entry( 5 ); }
+void tricorderKeypad_6pressed() { _tricorderKeypad_entry( 6 ); }
+void tricorderKeypad_7pressed() { _tricorderKeypad_entry( 7 ); }
+void tricorderKeypad_8pressed() { _tricorderKeypad_entry( 8 ); }
+void tricorderKeypad_9pressed() { _tricorderKeypad_entry( 9 ); }
+
+
+
+//---------------------
+// _tricorderKeypad_entry
+// Slave function called indirectly from UI to register the next digit.  This function will
+// do the appropriate thing based on if the digit is correct or not.
+// enteredDigit - the digit that was pressed by the player.
+//---------------------
+void _tricorderKeypad_entry( float enteredDigit )
+{
+	string widgetCommand;
+	float digitMatches;
+	string displayNumber;
+	float i;
+	entity entPuzzleObject;
+
+	// ---- lock the "critical section"
+	if( _tricorderKeypad_locked ) {	return; }
+	_tricorderKeypad_locked = 1;
+	// ---- lock the "critical section"
+
+	//hzm gameupdate chrissstrahl - make sure the player is actually pressing buttons, not just blocking the damn puzzle
+	globalTricorder_Base_lastClick();
+	
+	displayNumber = "";
+
+	// FIXME: update display to show the digit just pressed
+
+	// determine if the value matches the expected one
+	digitMatches = _tricorderKeypad_doesDigitMatchCode( enteredDigit );
+	if( digitMatches )
+	{
+		//print( "DIGIT ACCEPTED\n" );
+		// update internal variable that keeps track of which digit is being entered
+		// don't bother incrementing if the digit doesn't match because it will just be
+		// immediately decremented again.
+		_tricorderKeypad_currentDigit++;
+
+		// update the display to show the correct digit
+		for( i = 1; i <= (_tricorderKeypad_currentDigit - 1); i++ )
+		{
+			displayNumber = displayNumber + _tricorderKeypad_getSecretCodeValueAtIndex( i );
+		}
+		//print( displayNumber + "\n" );
+		globalTricorder_doClientCommand( "globalwidgetcommand tri_kp" + _tricorderBase_keypadType + "_entered_code_label title " + displayNumber );
+
+		// if that solves it, play a happy sound and get out; 0 means end of code
+		if( _tricorderKeypad_getSecretCodeValueAtIndex( _tricorderKeypad_currentDigit ) == 0 )
+		{
+			wait( 0.5 );
+			// SND: solved the puzzle
+			_entryEntity.playsound( "sound/weapons/tricorder/tri_puzz_success.wav", 9, 1, 64 );
+
+			// don't allow any more input and stop the timer
+			globalTricorder_BaseClose();
+			_entryEntity.puzzleobject_solved();
+			_entryEntity = $world;
+			//print( "SOLVED\n" );
+		}
+	}
+	else
+	{
+		// number was bad, play sound, pause a second and undo the entry
+		//print( "DIGIT REJECTED\n" );
+
+		// update number of tries remaining if necessary
+		if( _tricorderKeypad_triesRemain > 1 )
+		{
+			_tricorderKeypad_triesRemain--;
+		}
+
+		// end puzzle with failure if no more tries remaining
+		// note that if triesRemain is 0, it's infinite
+		if( _tricorderKeypad_triesRemain == 1 )
+		{
+			// SND: puzzle failed, you fucked it up
+			_entryEntity.playsound( "sound/weapons/tricorder/tri_puzz_failure.wav", 9, 1, 64 );
+			globalTricorder_BaseClose();
+			_entryEntity.puzzleobject_failed();
+		}
+
+		// SND: invalid key pressed
+		_entryEntity.playsound( "sound/weapons/tricorder/tri_puzz_incorrect.wav", 9, 1, 64 );
+		//wait( 0.1 );
+	}
+
+	// if the puzzle is shutting down, don't unlock the critical section and thus no more input will be accepted
+	if( !tricorderBaseExiting )
+	{
+		//hzm gamupdate chrissstrahl - enable puzzles again
+		_globalTricorder_lockedDown = 0;
+	
+		// ---- unlock the "critical section"
+		_tricorderKeypad_locked = 0;
+		// ---- unlock the "critical section"
+	}
+}
+
+//---------------------
+// _tricorderKeypad_doesDigitMatchCode
+//---------------------
+float _tricorderKeypad_doesDigitMatchCode( float testValue )
+{
+	//print( testValue + " " + _tricorderKeypad_getSecretCodeValueAtIndex( _tricorderKeypad_currentDigit ) + "\n" );
+	return ( testValue == _tricorderKeypad_getSecretCodeValueAtIndex( _tricorderKeypad_currentDigit ) );
+}
+
+//---------------------
+// _tricorderKeypad_getSecretCodeValueAtIndex
+//---------------------
+float _tricorderKeypad_getSecretCodeValueAtIndex( float index )
+{
+	if( index == 1 )		return _tricorderKeypad_dig1;
+	else if( index == 2 )	return _tricorderKeypad_dig2;
+	else if( index == 3 )	return _tricorderKeypad_dig3;
+	else if( index == 4 )	return _tricorderKeypad_dig4;
+	else if( index == 5 )	return _tricorderKeypad_dig5;
+	else if( index == 6 )	return _tricorderKeypad_dig6;
+	else if( index == 7 )	return _tricorderKeypad_dig7;
+	else if( index == 8 )	return _tricorderKeypad_dig8;
+	else if( index == 9 )	return _tricorderKeypad_dig9;
+	else return 0;
+}
+
+
+

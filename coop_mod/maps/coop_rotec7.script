@@ -1,0 +1,595 @@
+void main();
+void setupLevel();
+void introCinematic();
+void introCinematic_skip();
+void interactive_takeGear();
+void chargobay_romShuttle();
+void chargobay_romShuttleScanner();
+void space_derelictRomShuttle();
+void space_derelictRomImpactBox();
+void cargobay_teamMemberGoOpenGate();
+void turboliftToggle();
+void hovercar_move();
+void fedShuttleClip_block();
+void fedShuttleClip_blockPause();
+
+float cinematic_skipped;
+float status_unequipped;
+
+//kneel_working_idle
+//hypo_idle
+//hypo_fire
+//hypo_fire_duck
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+
+#include "coop_mod/matrix/main.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+{
+	$world.entity_fade_dist(30000);
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to the Hazard Ops and put down your gear.";
+	coop_string_objectiveItem2 = "Take the Turbolift to get to your quarters.";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Gehen Sie zu Hazard Operations und legen Sie die Ausr$$u$$stung ab.";
+	coop_string_objectiveItem2_deu = "Nehmen Sie den Turbolift zu Ihrem Quatier.";
+	coop_string_objectiveTacticalInfo1_deu = "";//N$$u$$tzen Sie die Verwirrung zu Ihrem Vorteil
+
+	coop_string_story = "You are back on the USS Odyssey-A. Have some off duty time for your self.";
+	coop_string_story_deu = "Sie sind wieder auf der USS Odyssey-A. Nehmen Sie sich eine kleine Auszeit.";
+	
+	
+	thread setupLevel();
+	thread introCinematic();
+	
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Luke^0_^8Sutton";	
+	
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	vector vOrigin,vMax;
+	vOrigin = $turboliftInsideTrigger.getOrigin();
+	vOrigin_z -= vectorGetZ($turboliftInsideTrigger.getMaxs());//correct centroid position
+	vMax = $turboliftInsideTrigger.getMaxs();
+	vMax_z = vectorGetZ($turboliftInsideTrigger.getMaxs() * 2);//correct height
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,vMax,vOrigin);
+}
+
+void setupLevel()
+{
+	thread space_derelictRomShuttle();
+	thread chargobay_romShuttle();
+	thread chargobay_romShuttleScanner();
+	
+	//team member
+	$hazardTeam1.mass(99999);
+	$hazardTeam1.pushable(0);
+	
+	//objectives
+	
+	//set missionobjective on radar
+	$hazGearTakeTrigger0.missionObjective(1);
+	$hazGearTakeTrigger1.missionObjective(1);
+	
+	//rom cargobay shuttle
+	$romShuttleCargobayClip.bind($romShuttleCargobayOrigin);
+	$romShuttleCargobay.bind($romShuttleCargobayOrigin);
+	
+	//fed shuttle
+	$fedShuttleClip.bind($fedShuttleOrigin);
+	$fedShuttleModel.bind($fedShuttleOrigin);
+	$fedShuttleOrigin.hide();
+	$fedShuttleOrigin.moveForward(1024);
+	$fedShuttleOrigin.moveUp(256);
+	$fedShuttleOrigin.time(0.1);
+	//make sure players do not respawn inside the shuttle if they are killed by it
+	$fedShuttleClip.setStringVar("uservar1","badspot");
+	$fedShuttleClip.setStringVar("uservar1","killmessage  was crushed by a Shuttle");
+	$fedShuttleClip.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem Shuttle");
+	
+	//fed shuttle 2
+	$fedShuttleClip2.bind($fedShuttleOrigin2);
+	$fedShuttleModel2.bind($fedShuttleOrigin2);
+	$fedShuttle2Actor.bind($fedShuttleOrigin2);
+	$fedShuttleOrigin2.rotatexdown(20);
+	$fedShuttle2Actor.anim("ent-idryll-shuttle-idle-look");
+	
+	//floating stuff
+	$romToolboxFloatingModel0.bind($romToolboxFloatingOrigin0);
+	$romToolboxFloatingModel1.bind($romToolboxFloatingOrigin1);
+	$romToolboxFloatingModel2.bind($romToolboxFloatingOrigin2);
+	
+	$romToolboxFloatingOrigin0.rotatex(22);
+	$romToolboxFloatingOrigin0.rotatey(12);
+	$romToolboxFloatingOrigin0.rotatez(2);
+	
+	$romToolboxFloatingOrigin2.rotatex(14);
+	$romToolboxFloatingOrigin2.rotatey(11);
+	$romToolboxFloatingOrigin2.setvelocity('-10 0 3');
+	
+	//hazard operations room
+	//$hazLaptop.anim("closed");
+	$hazardTeam3.anim("ent-frontchair-idle-look");
+	$hazardTeam3.useactorweapon("None");
+	
+	wait(3);//give the server a rest
+	
+	$shuttlebay_laptop.anim("open_idle");
+	
+	//cleanup crew
+	$crewCleanup0.useactorweapon( "EnterpriseDatapad" );
+	$crewCleanup0.anim( "datapad-use" );
+	
+	//hovercar
+	$hovercar3.bind($hovercar3_origin);
+	$hovercar3_sound.bind($hovercar3_origin);
+	$hovercar3_load.bind($hovercar3_origin);
+	$hovercar3_load.solid();
+	$hovercar3_playerClip.solid();	
+	$hovercar3_clip.bind($hovercar3_origin);
+	$hovercar3_clip.solid();
+	
+
+	$turbolift_doorRight.bind($turbolift_doorRight_origin);
+	$turbolift_doorLeft.bind($turbolift_doorLeft_origin);
+	$turbolift_trigger.bind($turbolift_origin);
+	$turbolift.bind($turbolift_origin);	
+	$turbolift_doorLeft_origin.bind($turbolift_origin);
+	$turbolift_doorRight_origin.bind($turbolift_origin);
+	
+	$level0_turbolift_doorLeft.bind($level0_turbolift_doorLeft_origin);
+	$level0_turbolift_doorRight.bind($level0_turbolift_doorRight_origin);
+}
+
+void introCinematic()
+{
+	cinematic_skipped=1;
+	cam_fadeout( 0.01 , 0, 0, 0, 1, 0 );
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	
+	cinematic();
+	letterbox(0.1);
+	freezeplayer();
+	
+	wait(0.1);
+	
+	$cam1.cut();
+	$cam1.follow($sequence1);
+	cuecamera($cam1);
+	
+	wait(0.5);
+	
+	cam_fadeIn( 1 , 0, 0, 0, 0, 0 );
+	$shuttlebayBigGate.open($world);
+	
+	//rotate the secound fed shuttle
+	$fedShuttleOrigin2.rotatey(5);
+	
+	skipthread("introCinematic_skip");
+	
+	thread space_derelictRomImpactBox();
+
+	//warpflash fed shuttle
+	$fedShuttleOrigin.followpath($fedShuttlePath);
+	//$fedShuttleOrigin.setvelocity('0 -400 0');
+	//$fedShuttleOrigin.rotateydown(90);
+	wait(0.01);
+	entity e;
+	//e=spawn("sfx","model","models/fx/fx-warpflash-federation.tik","origin",""+$fedShuttleOrigin.getOrigin(),"scale","4");
+	wait(0.1);
+	$fedShuttleOrigin.show();
+	wait(3);
+	
+	//e.remove();
+	wait(11);
+	
+	$cam2.cut();
+	$cam2.follow($sequence2);
+	wait(0.1);
+	//e=spawn("explosion","model","models/fx/fx-explosion-enterprise-huge.tik","origin","-2443 -76 -796","scale","1");
+	$fedShuttleModel.playsound ( "sound/vehicles/shuttlecraft/shuttle_decelerate.wav",1,4,256);
+	cuecamera($cam2);
+	
+	waitfor($fedShuttleOrigin);
+	cinematic_skipped=0;
+	
+	wait(1);
+	thread introCinematic_skip();
+}
+
+void introCinematic_skip()
+{
+	skipthread("");
+	killthread("introCinematic");
+	
+	cam_fadeout( 1 , 0, 0, 0, 1, 0 );
+	wait(1);
+	
+	if(cinematic_skipped){
+		$fedShuttleOrigin.endpath();
+		
+		$fedShuttleOrigin.moveto($t27);
+		$fedShuttleOrigin.time(0.1);
+		waitfor($fedShuttleOrigin);
+		
+		$fedShuttleOrigin.rotateydown(90);
+		$fedShuttleOrigin.time(1);
+		waitfor($fedShuttleOrigin);
+		
+		$fedShuttleOrigin.moveup(10);
+		$fedShuttleOrigin.time(0.1);
+		waitfor($fedShuttleOrigin);
+	}
+	
+	wait(1);
+	releaseplayer();
+	cueplayer();
+	noncinematic();
+	clearletterbox( .1 );
+	cam_fadeIn( 1 , 0, 0, 0, 0, 0 );
+	
+	thread cargobay_teamMemberGoOpenGate();
+	
+//update objectives
+	globalCoop_objectives_update("incomplete" , 1 , 1 );//go to hazardops
+}
+
+void cargobay_teamMemberGoOpenGate()
+{
+	$hazardTeam1.useactorweapon("None");
+	
+	$hazardTeam1.solid();
+	$hazardTeam1.show();
+	wait(1);
+	$hazardTeam1.walkto("cargobay_triggerNode");
+	waitfor($hazardTeam1);
+	$hazardTeam1.useactorweapon( "None" );
+	$hazardTeam1.anim( "idle" );
+	wait(0.05);
+	
+	$hazardTeam1.anim( "conv-overthere" );
+	waitforanimation( $hazardTeam1, "conv-overthere" );
+	$hazardTeam1.anim( "idle" );
+	wait(0.5);
+	
+	$t7.open($world);//baydoor
+	
+	$hazardTeam1.turntowardsentity($fedShuttleOrigin);
+	$hazardTeam1.headwatch($fedShuttleOrigin);
+	
+	wait(0.75);
+	
+	thread fedShuttleClip_blockPause();
+	
+	$fedShuttleModel.loopsound ( "sound/vehicles/shuttlecraft/shuttle_interior_loop1.wav",3,256);
+	$fedShuttleOrigin.moveto($chargobay_fedShuttleFlyToHangar);
+	$fedShuttleOrigin.time(2);
+	waitfor($fedShuttleOrigin);
+	
+	$fedShuttleOrigin.rotateydown(180);
+	$fedShuttleOrigin.time(10);
+	waitfor($fedShuttleOrigin);
+	
+	$fedShuttleOrigin.followpath($chargobay_fedShuttleFlyToHangar);
+	wait(4);
+	$fedShuttleLandClip.remove();
+	
+	wait(2);
+	
+	$hazardTeam1.headwatchtarget("None",30);
+	$hazardTeam1.walkto("cargobay_fedShuttleEnterBayNode");	
+	
+	waitfor($fedShuttleOrigin);
+	$fedShuttleModel.stoploopsound();
+	
+	$hazardTeam1.walkto("cargobay_fedShuttleScannerNode");
+	waitfor($hazardTeam1);
+	
+	$shuttlebayTrigger1.triggerable();
+	$shuttlebayTrigger2.triggerable();
+	
+	$hazardTeam1.useactorweapon( "Tricorder" );
+	$hazardTeam1.anim( "tricorder_draw" );
+
+	float fScans = 0;
+	while(1)
+	{
+		
+		// dude waves his tricorder around like hes doing stuff
+		$hazardTeam1.anim( "tricorder_scan180" );
+		waitForAnimation( $hazardTeam1 , "tricorder_scan180" );
+		$hazardTeam1.anim( "tricorder_calm_idle" );
+		
+		wait(0.5);
+		
+		$hazardTeam1.anim( "tricorder_fire" );
+		waitForAnimation($hazardTeam1 , "tricorder_fire" );
+		$hazardTeam1.anim( "tricorder_calm_idle" );
+		
+		$hazardTeam1.headwatch($fedShuttleOrigin);
+		wait(randomint(5) + 4 );
+		$hazardTeam1.resethead();
+		
+		fScans++;
+		
+		if(fScans == 3){
+			$hazardTeam1.walkto("shuttlebay_laptopNode");
+			waitfor($hazardTeam1);
+			
+			//push dude as close to laptop as possible, because the pathnodes don't go so close
+			$hazardTeam1.setvelocity('0 1000 0');
+			wait(0.1);
+			
+			$hazardTeam1.anim( "tricorder_fire" );
+			waitForAnimation($hazardTeam1 , "tricorder_fire" );
+			$hazardTeam1.anim( "tricorder_calm_idle" );
+
+			$hazardTeam1.anim( "tricorder_putaway" );
+			waitForAnimation($hazardTeam1 , "tricorder_putaway" );
+			$hazardTeam1.useactorweapon("None");
+			$hazardTeam1.anim( "idle" );
+			wait(0.1);
+			
+			$hazardTeam1.anim("ent-sickbed-gesture1");
+			wait(5);
+			$shuttlebay_laptopHologramShuttle.forcealpha ( 1 );
+			$shuttlebay_laptopHologramShuttle.alpha ( .5 );
+			$shuttlebay_laptopHologramShuttle.show();
+			$shuttlebay_laptopHologramShuttle.surface( "material3" ,"+nodraw");
+			wait(5);
+			
+			$shuttlebay_laptopHologramShuttle.setcustomshader("textures/common/fracture_small");
+			
+			wait(5);
+			
+			//make engines blink a few times
+			float fBlinki;
+			while(fBlinki < 200){
+				fBlinki++;
+				$shuttlebay_laptopHologramShuttle.surface( "material2" ,"+nodraw");
+				wait(.2);
+				$shuttlebay_laptopHologramShuttle.surface( "material2" ,"-nodraw");
+				wait(.6);
+			}
+			
+			$shuttlebay_laptopHologramShuttle.clearcustomshader("textures/common/fracture_small");
+			$shuttlebay_laptopHologramShuttle.setcustomshader("textures/attrexian-colony/acwater1_noEnvMap");
+			return;
+		}
+	}
+}
+
+void interactive_takeGear()
+{
+	//hzm coop mod chrissstrahl - fix this being called multiple times
+	if(status_unequipped){
+		return;
+	}
+	status_unequipped=1;
+	
+	$hazGearTakeTrigger0.missionObjective(0);
+	$hazGearTakeTrigger1.missionObjective(0);
+	
+//update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//go to hazardops
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//take turbolift
+	
+	$hazDoor1.unlock();
+	$shuttlebayOpsDoor0.unlock();
+	
+	thread hovercar_move();
+}
+
+void space_derelictRomImpactBox()
+{
+	$romToolboxFloatingOrigin0.moveto($derelictRomBoxImpact);
+	$romToolboxFloatingOrigin0.time(8);
+	waitFor($romToolboxFloatingOrigin0);
+	$derelictRomBoxImpactFieldEffect.show();
+	$romToolboxFloatingOrigin0.moveto($derelictRomBoxFlyAway1);
+	$romToolboxFloatingOrigin0.time(3);
+	
+	$derelictRomBoxImpactFieldEffect.playsound("sound/ships/enterprise/ent_forcefield_down.wav",1,4,256);
+	//playsound( String soundName, [ Integer channel ], [ Float volume ], [ String min_distance ] )
+	wait(0.05);$derelictRomBoxImpactFieldEffect.hide();
+	$derelictRomBoxImpactFieldEffect.playsound("sound/ships/enterprise/ent_forcefield_down.wav",1,4,256);
+	wait(0.05);$derelictRomBoxImpactFieldEffect.show();
+	wait(0.05);$derelictRomBoxImpactFieldEffect.hide();
+	wait(0.05);$derelictRomBoxImpactFieldEffect.show();
+	wait(0.05);$derelictRomBoxImpactFieldEffect.remove();
+	
+	waitFor($romToolboxFloatingOrigin0);
+	$romToolboxFloatingOrigin0.moveto($derelictRomBoxFlyAway2);
+	$romToolboxFloatingOrigin0.time(10);
+	waitFor($romToolboxFloatingOrigin0);
+	$romToolboxFloatingOrigin0.remove();
+	$romToolboxFloatingModel0.remove();
+	
+	wait(240);
+	$romToolboxFloatingModel2.remove();
+	$romToolboxFloatingOrigin2.remove();
+}
+
+void space_derelictRomShuttle()
+{
+	$romShuttleDerelictSteamEffect.bind($romShuttleDerelict_origin);
+	$romShuttleDerelictElectricEffect.bind($romShuttleDerelict_origin);
+	$romShuttleDerelict_clip.bind($romShuttleDerelict_origin);
+	$romShuttleDerelict_model.bind($romShuttleDerelict_origin);
+	
+	//$romShuttleDerelict_origin.angles('195.000000 30.000000 330.000000');
+	
+	$romShuttleDerelict_origin.movedown(128);
+	
+	$romShuttleDerelict_origin.rotatex(11);
+	$romShuttleDerelict_origin.rotatez(-11);
+	$romShuttleDerelict_origin.moveto($fedShuttlePath);
+	$romShuttleDerelict_origin.time(200);
+	waitfor($romShuttleDerelict_origin);
+	
+	$romShuttleDerelictSteamEffect.remove();
+	
+	float fScale;
+	fScale = 0.9;
+	while(fScale > 0){
+		fScale = fScale - 0.01;
+		$romShuttleDerelict_model.scale( fScale );
+		wait(0.25);
+	}
+	
+	$romShuttleDerelict_origin.remove();
+	$romShuttleDerelict_model.remove();
+	$romShuttleDerelictElectricEffect.remove();
+}
+
+void chargobay_romShuttleScanner()
+{
+	$hazardTeam2.mass(99999);
+	$hazardTeam2.pushable(0);
+	$hazardTeam2.useactorweapon( "Tricorder" );
+	$hazardTeam2.anim( "tricorder_draw" );
+	
+	float fWalk;
+	fWalk=1;
+	
+	while(1)
+	{
+		fWalk++;
+		if(fWalk > 3){
+			fWalk=0;
+		}
+		// dude waves his tricorder around like hes doing stuff
+		$hazardTeam2.anim( "tricorder_scan180" );
+		waitForAnimation( $hazardTeam2 , "tricorder_scan180" );
+		$hazardTeam2.anim( "tricorder_calm_idle" );
+		
+		wait(0.5);
+		
+		$hazardTeam2.anim( "tricorder_fire" );
+		waitForAnimation($hazardTeam2 , "tricorder_fire" );
+		$hazardTeam2.anim( "tricorder_calm_idle" );
+		
+		$hazardTeam2.headwatch($romShuttleCargobay);
+		wait(randomint(5) + 4 );
+		$hazardTeam2.resethead();
+		
+		//fix to prevent ai from walking into nowhere before it decides that it can reach the node
+		if( fWalk == 3){
+			$hazardTeam2.walkto("romShuttleCargobayScan2HelperNode");
+			waitFor($hazardTeam2);
+		}
+		
+		$hazardTeam2.walkto("romShuttleCargobayScan"+fWalk);
+		waitFor($hazardTeam2);
+	}
+}
+void chargobay_romShuttle()
+{
+//clock and decloak romulan shuttle
+	while(1)
+	{
+		return;
+		$romShuttleCargobay.show();$romShuttleCargobay.playsound("sound/environment/computer/holo_changesml2.wav",1,3,128);
+		wait(1.2);
+		$romShuttleCargobay.hide();$romShuttleCargobay.playsound("sound/environment/computer/holo_changesml2.wav",1,3,128);
+		wait(.2);
+		$romShuttleCargobay.show();$romShuttleCargobay.playsound("sound/environment/computer/holo_changesml2.wav",1,3,128);
+		wait(.1);
+		$romShuttleCargobay.hide();$romShuttleCargobay.playsound("sound/environment/computer/holo_changesml2.wav",1,3,128);
+		wait(.5);
+	}
+}
+
+void hovercar_move()
+{
+	$hovercar3_playerClip.remove();
+	
+	$hovercar3_origin.moveforward(400);
+	$hovercar3_origin.time(5);
+	wait(1);
+	$crewCleanup0.walkto("hovercar3_origin");
+	
+	waitfor($hovercar3_origin);	
+	//$repair_lady.anim("hunch");//cin-m3_hunch
+	$crewCleanup0.anim("cin-m3_hunch");
+}
+
+void fedShuttleClip_block()
+{
+	entity e;
+	e = getCurrentEntity();
+	entity ePlayer;
+	ePlayer = e.getLastActivatingEntity();	
+	ePlayer.killed(e, 999999 , e , 3 );
+	//e.dmg(999999);
+	//ePlayer.kill();
+	thread fedShuttleClip_blockPause();
+}
+void fedShuttleClip_blockPause()
+{
+	$fedShuttleClip.onblock("fedShuttleClip_block");
+	pause();
+}
+
+void turboliftToggle()
+{
+}
+
+void turboliftOpenDoors()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	
+	eTrigger.setFloatVar("lastActivated",getLevelTime());
+	if( eTrigger.getFloatVar("isBusy") != 0 || eTrigger.getFloatVar("isOpen") != 0){
+		return;
+	}
+	
+	eTrigger.setFloatVar("isBusy",1);
+	
+	//open the doors
+	$turbolift_doorLeft_origin.moveLeft(200);
+	$turbolift_doorLeft_origin.time(1);
+	$level0_turbolift_doorLeft_origin.time(1);
+	$level0_turbolift_doorLeft_origin.moveleft(200);
+	
+	$turbolift_doorRight_origin.moveRight(200);
+	$turbolift_doorRight_origin.time(1);
+	$level0_turbolift_doorRight_origin.time(1);
+	$level0_turbolift_doorRight_origin.moveRight(200);
+	
+	eTrigger.setFloatVar("isopen",1);
+	
+	while( eTrigger.getFloatVar("lastActivated") + 3 > getLevelTime() ){
+		wait(0.1);
+	}
+	
+	//eTrigger.setFloatVar("isBusy",0);
+	//eTrigger.setFloatVar("isopen",0);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_rotec8");
+}
+

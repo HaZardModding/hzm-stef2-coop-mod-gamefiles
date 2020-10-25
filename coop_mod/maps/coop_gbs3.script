@@ -1,0 +1,1377 @@
+// EF2 Level Script File
+//
+// Level:		map3.bsp
+// Script By:	Cortex, Argyle, ltiefland
+// Geometry By:	Argyle, Cortex, Alpharaptor
+// Created on:	17/11/03
+// Last Edited on:  $Date: 2007-06-14 22:59:20 +0200 (Thu, 14 Jun 2007) $
+// Last Edited by:	Chrissstrahl
+
+void main();
+void init();
+void setupPlayer();
+void warning();
+void attack_p();
+void initArchetypes();
+void turbo();
+void eng_beccy();
+void eng_harm();
+void eng_mac();
+void closed_door_sound();
+void closed_door_sound_2();
+void cpanel();
+void panel();
+void secretopen();
+void secretprint();
+void secret();
+void comp_found();
+void gas1();
+void redalert();
+void enviromentalcontrols();
+void maincomputercontrols();
+void compcontrolsa();
+void compcontrolsb();
+void eng_cin();
+void skip_eng_cin();
+void com_cin();
+void com_cin_end();
+//void switch_alert_on();
+
+float alert_on;
+float eng_door=0;
+float lift_state=0;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/coop_gbs/attackplayer.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+void main()
+{	
+//--------------------------------------------------
+//	General Level Setup
+//--------------------------------------------------
+	
+	//hzm coop mod chrissstrahl - paint it black
+	cam_fadeout( 0.05, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	
+	$world.light_lightstyle( "redalert3", "a", 1 ); //switch off red alert lights
+	$alert_green.show();
+	$alert_red.hide();
+	$roof_hatch.show();
+	$roof_hatch.solid();
+	$roof_hatch_floor.hide();
+	$roof_hatch_floor.notsolid();
+	$roof_hatch_cover.hide();
+	$roof_hatch_cover.notsolid();
+
+	soundtrack( "music/m6l1.mus" );
+	
+	//hzm coop mod chrissstrahl - do player related setup
+	thread setupPlayer();
+	
+	//hzm coop mod chrissstrahl - do inizial setup
+	thread init();
+	
+
+	//hzm coop mod chrissstrahl - inizial turbolift
+	thread turbo();
+}
+
+void init()
+//hzm coop mod chrissstrahl - split up main thread, it is overloadad
+{
+	$illia_prisoner.pushable(0);
+	$illia_prisoner.hide();
+	$illia_prisoner.notsolid();
+	
+	//hzm coop mod chrissstrahl - remove weapon this way, this is much safer
+	$illia_prisoner.killattach();
+
+	//--------------------------------------------------
+	//	Red Alert Setup
+	//--------------------------------------------------
+
+	$panel_alert_on.hide();
+	$panel_alert_off.show();
+
+
+	//--------------------------------------------------
+	//	Camera Setup
+	//--------------------------------------------------
+
+	spawn ( "Camera" , "targetname" , "cam1" );
+	spawn ( "Camera" , "targetname" , "cam2" );
+	spawn ( "Camera" , "targetname" , "cam3" );
+	spawn ( "Camera" , "targetname" , "cam4" );
+
+	//--------------------------------------------------
+	//	Cargobay 4 Setup
+	//--------------------------------------------------
+	$cargopanelg.hide();
+	$cargopanelr.show();
+	$cargodoors.unlock();
+
+	//--------------------------------------------------
+	//	Jefferies Tube Setup
+	//--------------------------------------------------
+	//	SECRET SETUP
+	$secret_red.show();
+	$secret_green.hide();
+	//	GENERAL SETUP
+	$jdoor1.unlock();
+	$jdoor2g.hide();
+	$jdoor2r.show();
+
+	//--------------------------------------------------
+	//	Main Compter Control Room Setup
+	//--------------------------------------------------
+	//$engcong.show(); //NULL E
+	//$engconr.hide(); //NULL E
+	$gas3.hide();
+	$gas4.hide();
+	$gas5.hide();
+	$gas6.hide();
+
+	//--------------------------------------------------
+	//	Main Engineering Setup
+	//--------------------------------------------------
+	$bails.killattach ();//hzm coop mod chrissstrahl - kill spawn weapon, instead of removing a specific weapon by name
+	$bails.useactorweapon( "Tricorder" );
+	$bails.anim( "tricorder_use_loop" );
+	$bails.pushable( 0 );
+
+	$jones.anim("curvedconsole-gesture");
+	$jones.killattach ();//hzm coop mod chrissstrahl - kill spawn weapon, instead of removing a specific weapon by name
+	$jones.useactorweapon( "none" );
+	$jones.pushable( 0 );
+	
+	/*shaun was removed in order to save frames //Chrisstrahl
+	$shaun.ai_off();
+	$shaun.anim("ent-compstation-idle");
+	$shaun.removeactorweapon ( "CompressionRifle" );
+	$shaun.useactorweapon( "none" );
+	$shaun.pushable( 0 );*/
+
+	$jenks.anim("compstation-gesture");
+	$jenks.killattach ();//hzm coop mod chrissstrahl - kill spawn weapon, instead of removing a specific weapon by name
+	$jenks.useactorweapon( "none" );
+	$jenks.pushable( 0 );
+
+	/*  //NULL E
+	$eddie.ai_off();
+	$eddie.anim("ent-compstation-gesture1");
+	$eddie.removeactorweapon ( "CompressionRifle" );
+	$eddie.useactorweapon( "none" );
+	$eddie.pushable( 0 );*/
+
+	/*  //NULL E
+	$catrin.ai_off();
+	$catrin.removeactorweapon ( "CompressionRifle" );
+	$catrin.useactorweapon( "none" );
+	$catrin.pushable( 0 );*/
+
+	$engdoor1.time(0.1);
+	$engdoor1.moveDown(176);
+	$engdoor1.notsolid();
+	$engdoor1.hide();
+
+	$beccy.killattach ();//hzm coop mod chrissstrahl - kill spawn weapon, instead of removing a specific weapon by name
+	$beccy.useactorweapon( "none" );
+	$beccy.pushable( 0 );
+	
+	$mac.killattach ();//hzm coop mod chrissstrahl - kill spawn weapon, instead of removing a specific weapon by name
+	$mac.useactorweapon( "none" );
+	$mac.pushable( 0 );
+	
+	/* Jane was removed in order to save frames //Chrissstrahl
+	$jane.ai_off();
+	$jane.removeactorweapon ( "CompressionRifle" );
+	$jane.useactorweapon( "none" );
+	$jane.pushable( 0 );
+	$jane.anim("ent-library-stand-scan");*/
+
+	//This ship was removed for performance issues
+	//$holo_excelsior.bind($holo_excelsior_origin);
+	//$holo_excelsior.followpath( $holo_excelsior_nav1 );
+
+	//--------------------------------------------------
+	//	Main Engineering Cinematic Setup
+	//--------------------------------------------------
+
+	$illia.pushable( 0 );
+	$illia.notsolid();
+	$illia.hide();
+
+	wait(0.1);
+
+	$moya.ai_off();
+	$moya.nodamage();//Patch Update 07.sep.2007 @ Chrissstrahl
+	$moya.pushable( 0 );
+	$moya.useactorweapon( "EnterpriseDatapad" );
+	$moya.anim( "datapad-use" );
+
+	thread initArchetypes();
+
+
+	//--------------------------------------------------
+	//	Computer Control Room Cinematic Setup
+	//--------------------------------------------------
+
+	wait(0.1);
+	
+	$eng_field.notsolid();
+	$eng_field.hide();
+	$eng_field.notsolid();
+
+	//--------------------------------------------------
+	//	Security Team Setup
+	//--------------------------------------------------
+
+	//hzm coop mod chrissstrahl - we recycle dudes from engenieering
+	
+	/*
+	$security1.setgroupid ( 666 );
+	$security1.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$security1.useactorweapon( "CompressionRifle" );
+	$security1.pushable( 0 );
+
+	$security2.setgroupid ( 666 );
+	$security2.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$security2.useactorweapon( "CompressionRifle" );
+	$security2.pushable( 0 );
+
+	//Hide team till red alert
+	$security1.hide();
+	$security1.notsolid();
+	$security2.hide();
+	$security2.notsolid();
+	*/
+}
+
+
+void setupPlayer()
+//hzm coop mod chrissstrahl - split up main thread, it is overloadad
+{
+	//hzm coop mod chrissstrahl - make sure no player can wander
+	thread globalCoop_player_imobilizeAll(1);
+	
+	waitForPlayer();//Wait until the player is ready
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("incomplete" , 1 , 1 );
+	$mainengdoor.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+}
+
+void climbing_up()
+{
+	AIShowGroup    ( 667, "Federation" );
+	//$security1.ai_on();
+	//$security2.ai_on();
+	CommandToGroup ( 667 , "groupactortype" , "enemy" , "");
+	CommandToGroup ( 667 , "visiondistance" , "4000" , "" );
+	CommandToGroup ( 667 , "fov" , "360" , "" );
+	
+	//hzm coop mod chrissstrahl - ,ake aggressive, rather than attacking $player
+	CommandToGroup ( 667 , "aggressive" , "1" , "" );
+}
+
+
+
+//--------------------------------------------------
+// Archetype Setup
+//--------------------------------------------------
+
+// These let you see the information the tricorder displays about an object
+
+void initArchetypes()
+{
+
+	thread globalArchetype_Setup( $tubedoor_controls, "tubedoorc");
+	thread globalArchetype_Setup( $environmental_controls, "enviroc");
+	thread globalArchetype_Setup( $maincomputer_controls, "compc");
+	thread globalArchetype_Setup( $computer_a, "compa");
+	thread globalArchetype_Setup( $computer_b, "compb");
+	thread globalArchetype_Setup( $tubedoor_controls_2, "tubed");
+
+	$bails.archetype ( "bails" );
+	$jones.archetype ( "jones" );
+	$jenks.archetype ( "jenks" );
+	/*$shaun.archetype ( "shaun" );*/ //shaun was removed in order to save frames
+	//$eddie.archetype ( "eddie" ); //NULL E
+	//$catrin.archetype ( "catrin" ); //NULL E
+}
+
+void turbo()
+{
+	//hzm coop mod chrissstrahl - wait for any player to join
+	waitforplayer();
+
+	//hzm coop mod chrissstrahl - have the turbolift door play the sound rather than $player
+	$turboliftSpSpawn.loopsound( "sound/ships/enterprise/ent_turbolift_runloop.wav",2,512);
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - paint it black
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	
+	wait(1);
+	$turboliftSpSpawn.stoploopsound();
+	$turbo_door.playsound( "sound/ships/enterprise/ent_turbolift_stop.wav");
+	
+	//hzm coop mod chrissstrahl - allow movement
+	thread globalCoop_player_imobilizeAll(0);
+	
+	wait(2);
+	$turbo_door.unlock();
+}
+
+void eng_beccy()
+{
+	$beccy.useactorweapon( "Tricorder" );
+	$beccy.anim( "tricorder_use_loop" );
+	wait(3);	
+	$beccy.anim("idle");
+	$beccy.useactorweapon( "none" );
+	wait(0.2);
+	$beccy.turntoangle( 315 );
+	$beccy.walkto("$beccy_eng_nav1", "walk" );
+	waitfor( $beccy );
+	$beccy.useactorweapon( "Tricorder" );
+	$beccy.anim( "tricorder_use_loop" );
+	wait(4);
+	$beccy.useactorweapon( "none" );
+	$beccy.anim( "idle" );
+	$beccy.walkto("$beccy_eng_nav2", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav2", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav3", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav4", "walk" );
+	waitfor( $beccy );
+	$beccy.useactorweapon( "EnterpriseDatapad" );
+	$beccy.anim( "datapad-use" );
+	wait(5);
+	$beccy.walkto("$beccy_eng_nav5", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav6", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav7", "walk" );
+	waitfor( $beccy );
+	$beccy.useactorweapon( "none" );
+	$beccy.anim( "idle" );
+	wait(0.1);
+	$beccy.useactorweapon( "Tricorder" );
+	$beccy.anim( "tricorder_use_loop" );
+	wait(3);
+	$beccy.walkto("$beccy_eng_nav8", "walk" );
+	waitfor( $beccy );
+	$beccy.walkto("$beccy_eng_nav9", "walk" );
+	waitfor( $beccy );
+	
+	thread eng_beccy();
+}
+
+void eng_harm()
+{
+	return;//hzm coop mod chrissstrahl - not present in coop mod
+	$harm.useactorweapon( "EnterpriseDatapad" );
+	$harm.anim( "datapad-use" );
+	$harm.walkto("$harm_eng_nav1", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav2", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav3", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav4", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav5", "walk" );
+	waitfor( $harm );
+	$harm.useactorweapon( "none" );
+	$harm.anim( "idle" );
+	wait(1);
+	$harm.useactorweapon( "Tricorder" );
+	$harm.anim( "tricorder_use_loop" );
+	wait(3);
+	$harm.useactorweapon( "none" );
+	$harm.anim( "idle" );
+	$harm.walkto("$harm_eng_nav6", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav7", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav8", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav9", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav10", "walk" );
+	waitfor( $harm );
+	$harm.useactorweapon( "Tricorder" );
+	$harm.anim( "tricorder_use_loop" );
+	wait(4);
+	$harm.useactorweapon( "none" );
+	$harm.anim( "idle" );
+	$harm.walkto("$harm_eng_nav11", "walk" );
+	waitfor( $harm );
+	wait(0.2);
+	$harm.useactorweapon( "EnterpriseDatapad" );
+	$harm.anim( "datapad-use" );
+	wait(2);
+	$harm.walkto("$harm_eng_nav12", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav13", "walk" );
+	waitfor( $harm );
+	$harm.walkto("$harm_eng_nav14", "walk" );
+	waitfor( $harm );
+	$harm.useactorweapon( "none" );
+	$harm.anim( "idle" );
+	wait(0.1);
+	$harm.useactorweapon( "Tricorder" );
+	$harm.anim( "tricorder_use_loop" );
+	wait(5);
+	$harm.useactorweapon( "none" );
+	$harm.anim( "idle" );
+	$harm.turntoangle( 135 );
+
+	thread eng_harm();
+	
+}
+
+void eng_mac()
+{
+	$mac.walkto("$mac_eng_nav1", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav2", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav3", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav4", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav5", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav6", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav7", "walk" );
+	waitfor( $mac );
+	$mac.useactorweapon( "Tricorder" );
+	$mac.anim( "tricorder_use_loop" );
+	wait(4);
+	$mac.useactorweapon( "none" );
+	$mac.anim( "idle" );
+	$mac.walkto("$mac_eng_nav8", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav9", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav10", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav11", "walk" );
+	waitfor( $mac );
+	$mac.useactorweapon( "Tricorder" );
+	$mac.anim( "tricorder_use_loop" );
+	wait(3);
+	$mac.useactorweapon( "none" );
+	$mac.anim( "idle" );
+	$mac.walkto("$mac_eng_nav12", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav13", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav14", "walk" );
+	waitfor( $mac );
+	$mac.walkto("$mac_eng_nav15", "walk" );
+	waitfor( $mac );
+	$mac.useactorweapon( "Tricorder" );
+	$mac.anim( "tricorder_use_loop" );
+	wait(3);
+	$mac.useactorweapon( "none" );
+	$mac.anim( "idle" );
+
+	thread eng_mac();
+}
+
+void closed_door_sound()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/doors/door_locked.wav");
+}
+
+void closed_door_sound_2()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/environment/computer/lcars_no.wav");
+}
+//===================================================================
+//	Cargo Bay 4
+//===================================================================
+
+void cpanel()
+{
+//-------------------------------------------------------------------
+//	This moves the panels covering the power re-routing controls
+//-------------------------------------------------------------------
+	$cargoPuzzle.missionobjective(0);
+
+	//hzm coop mod chrissstrahl - fix the pannel
+	$cpanel1.bind($cpanel1_origin);
+	$cpanel2.bind($cpanel2_origin);
+	$cpanel3.bind($cpanel3_origin);
+
+	$cpanel1_origin.time(1.5);
+	$cpanel1_origin.moveleft(73);
+	
+	$cpanel2_origin.time(1.5);
+	$cpanel2_origin.moveright(75);
+	
+	$cpanel3_origin.time(1.5);
+	$cpanel3_origin.moveleft(73);
+
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cpanel3.loopsound( "sound/doors/lrg_01_start.wav" );
+	wait(1.5);
+	
+	$cpanel3.stoploopsound();
+	$cpanel3.playsound( "sound/doors/lrg_01_stop.wav" );
+}
+
+void panel()
+{
+
+//-------------------------------------------------------------------
+//	This changes the colour of the power re-routing panel and plays
+//	the power-up and power-down sounds
+//-------------------------------------------------------------------
+
+	//hzm coop mod chrissstrahl - remove tricorder symbol
+	$symbolModulateOpen.remove();
+	$test6.missionobjective(1);
+
+	$cargopanelr.hide();
+	$cargopanelg.show();
+	
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cargopanelg.playsound("sound/ships/forever/for_poweron.wav");
+
+	wait(3);
+
+	$cargopanelg.hide();
+	$cargopanelr.show();
+	
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cargopanelr.playsound("sound/environment/computer/lcars_error.wav");
+
+	wait(1);
+
+	$cargopanelr.hide();
+	$cargopanelg.show();
+	
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cargopanelg.playsound("sound/ships/forever/for_poweron.wav");
+
+	wait(3);
+
+	$cargopanelg.hide();
+	$cargopanelr.show();
+	
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cargopanelr.playsound("sound/environment/computer/lcars_error.wav");
+
+	wait(1);
+
+	$cargopanelr.hide();
+	$cargopanelg.show();
+	
+	//hzm coop mod chrissstrahl - have the pannel play the sounds rather than $player
+	$cargopanelg.playsound("sound/environment/computer/lcars_yes.wav");
+
+	wait(1);
+
+	music( "success" );
+
+	wait(1);
+
+	$jdoorpanel1.movenorth(2);
+
+	wait(2);
+
+	$jdoorpanel1.moveup(70);
+
+	$cargotubedoor.unlock();
+	$jdoorpanel1.playsound("sound/ships/forever/for_floorhatch.wav");
+}
+
+//==========================================================================
+//	The Secret
+//==========================================================================
+
+void secretopen()
+{
+	$secret_locked.nottriggerable();
+	$secretdoor.unlock();
+	$secret_red.hide();
+	$secret_green.show();
+}
+
+void secretprint()
+{
+      centerprint("Secret Area!");
+}
+
+void secret()
+{
+	$bob.ai_off();
+	$phil.ai_off();
+	$bob.playdialog("localization/sound/dialog/map03/bob/secret.mp3",1,10000,0);
+	waitfordialog($bob);
+	$phil.playdialog("localization/sound/dialog/map03/phil/secret.mp3",1,10000,0);
+    waitfordialog($phil);
+	wait(15);
+	$bob.walkto("$nav2");
+	wait(0.7);
+	$phil.walkto("$nav2");
+}
+
+//===========================================================================
+//	Main Computer Control Room
+//===========================================================================
+
+//---------------------------------------------------------------------------
+//	Tells the player you've found what your looking for
+//---------------------------------------------------------------------------
+
+void comp_found()
+{
+	$illia.playdialog("localization/sound/dialog/map03/Illia/maincomputer.mp3",1,10000,0);//Main Computer Control.
+	waitfordialog( $illia );
+	wait(1);
+	$illia.playdialog("localization/sound/dialog/map03/Illia/perfect.mp3",1,10000,0);//Perfect.
+	waitfordialog( $illia );
+	wait(1);
+}
+
+//---------------------------------------------------------------------------
+//	Activates the trap
+//---------------------------------------------------------------------------
+
+void gas1()
+{
+	
+	//hzm coop mod chrissstrahl - remove tricorder symbol
+	$symbolModulateGas.hide();
+
+	$gas3.show();
+	$gas4.show();
+	$gas5.show();
+	$gas6.show();
+	
+	//hzm coop mod chrissstrahl - we down't want this to happen in coop
+	//$jcomdoor.close();
+	//$jcomdoor.lock();
+	//$comroomdoor.close();
+	//$comroomdoor.lock();
+	
+	//hzm coop mod chrissstrahl - remove tricorder symbol
+	$gas4.playsound( "sound/environment/machine/poisongas_start.wav",0,2,128);
+	$gas3.loopsound( "sound/environment/machine/poisongas_loop.wav",1.5,128);
+	
+	$environmental.playsound( "sound/environment/computer/access_denied.wav",0,2,128);
+	
+	$hurt1.triggerable();
+	$hurt1.setStringVar("uservar1","badspot");
+	
+	//hzm coop mod chrissstrahl - wait and dissable the gas again
+	
+	
+	
+	wait(15);
+	$gas3.stoploopsound();
+	$gas4.playsound( "sound/environment/machine/poisongas_stop.wav",0,2,128);
+	$hurt1.nottriggerable();
+	$symbolModulateGas.show();
+	$gas3.hide();
+	$gas4.hide();
+	$gas5.hide();
+	$gas6.hide();
+	$puzzleGas.puzzleobject_reset();
+}
+
+//---------------------------------------------------------------------------
+//	Red Alert Setup
+//---------------------------------------------------------------------------
+
+void redalert()
+{
+	while( 1 ) {
+		$world.light_fade( "redalert3", .85, .4 );
+		wait( .7 );
+		$world.playsound("sound/coop_gbs/redalert.mp3", 0, 1, 111111);
+		$world.light_fade( "redalert3", .2, .6 );
+		wait( 1.8 );
+	}
+
+}
+
+//-------------------------------------------------------------------------
+// Move the control panels in the computer room
+//-------------------------------------------------------------------------
+
+void enviromentalcontrols()
+{
+	$environmental.moveeast(17);
+}
+
+void maincomputercontrols()
+{
+	$maincomputercontrols.movewest(17);
+}
+
+void compcontrolsa()
+{
+	$computera.moveeast(17);
+}
+
+void compcontrolsb()
+{
+	$computerb.movewest(17);
+}
+
+//===========================================================================
+//	Cinematics
+//===========================================================================
+
+void eng_cin()
+{
+	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+
+	thread eng_beccy();
+	thread eng_harm();
+	thread eng_mac();
+	
+	//---------------------------------------------------------------------------
+	//	The sequence stopping you from entering engineering
+	//---------------------------------------------------------------------------
+	
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	
+	cinematic();
+	wait(1);
+	
+	//hzm coop mod chrissstrahl - this might have crashed the players
+	//freezeplayer();
+
+	letterbox ( .1 );
+
+	wait( .05 );
+
+	$mainengdoor.close();
+	$cam1.follow( $map3_cam1 );
+	$cam1.cut();
+	wait( .5);
+	cuecamera($cam1);
+	wait(0.5);
+
+	skipthread("skip_eng_cin");
+
+	cam_fadein( 3, 0, 0, 0, 1, 0 );
+
+	//hzm coop mod chrissstrahl - get this sequence right
+	$illia.solid();
+	$illia.show();
+	$illia.anim( "idle" );
+	$illia.useactorweapon( "none" );
+
+	wait(13);
+	$moya.headwatchtarget( "illia" , 7 );
+	
+	$illia.walkto("$illia_eng_nav4");
+	wait(2);
+	$moya.anim( "idle" );
+	$moya.useactorweapon( "none" );	
+	$moya.walkto("$moya_eng_nav3");
+	$illia.walkto("$illia_eng_nav5");
+	waitfor( $illia );
+
+	wait(0.5);
+
+	$moya.playdialog("localization/sound/dialog/map03/moya/sorry.mp3", 1, 10000, 0);// I'm Sorry Ms Ericsson.
+	waitfordialog( $moya );
+	$moya.playdialog("localization/sound/dialog/map03/moya/authorized.mp3", 1, 10000, 0);// Only Authorised Personnel May Enter Engineering.
+	waitfordialog( $moya );
+
+	wait(1);
+
+	$illia.walkto("illia_eng_nav_return");
+
+	wait(1);
+
+	$mainengdoor.close();
+
+	wait(1);
+
+	thread skip_eng_cin();
+}
+
+void skip_eng_cin()
+{
+	killthread("eng_cin");
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+
+	$moya.walkto("$moya_eng_nav3");
+	waitfor( $moya );
+
+	$illia.notsolid();
+	$illia.hide();
+	
+	//hzm coop mod chrissstrahl - grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( '-27 1655 -254' );
+		entityPlayerGlobal.playerviewangles( '0 180 0' );
+	}
+	
+	$moya.useactorweapon( "EnterpriseDatapad" );
+	$moya.anim( "datapad-use" );
+	$moya.headwatchtarget( "none" , 7 );
+
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();	
+	cueplayer();
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed" , 1 , 0 );
+	globalCoop_objectives_update("incomplete" , 2 , 1 );
+	
+	$mainengdoor.missionobjective(0);
+	$cargoPuzzle.missionobjective(1);
+}
+
+void com_cin()
+{
+	//hzm coop mod chrissstrahl - remove tricorder symbol - remove gas trap puzzle
+	$symbolModulateVirus.remove();
+	$symbolModulateGas.remove();
+	$puzzleGas.remove();
+	
+	//hzm coop mod chrissstrahl - remove marker
+	$test6.missionobjective(0);
+
+
+	//---------------------------------------------------------------------------
+	//	The sequence where you get caught messing with the engines.......Doh!
+	//---------------------------------------------------------------------------
+	
+	freezeplayer();
+	cinematic();
+
+	wait(1);
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait(2);
+
+	letterbox ( .1 );
+
+	wait( .05 );
+
+	$cam3.follow($map3_cam3);
+	$cam3.cut();
+	wait( .5);
+	cuecamera($cam3);
+
+	skipthread("com_cin_end");
+
+	$buds_case.hide();
+	$buds_case.notsolid();
+	
+	//hzm coop mod chrissstrahl - have her removed, what good is she spamming the console with error messages ?
+	$mac.remove();
+	
+	$illia_prisoner.show();
+	$illia_prisoner.solid();
+	$illia_prisoner.anim("cin-m8_situp");
+	$comroomdoor.unlock();
+
+	wait(1);
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait(1);
+
+	$illia_prisoner.playdialog("localization/sound/dialog/map03/Illia/thesabotage.mp3",1,10000,0);// Sabotaging The Atlantic Was No Big Deal.
+	waitfordialog( $illia_prisoner );
+
+	wait(0.1);
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	$illia.origin('-848.00 1324.00 -55.00');
+	$illia.angle(0);
+	$illia.show();
+	$illia.solid();
+	
+	$moya.origin('-1283.00 2392.00 -55.00');
+	$moya.show();
+	$moya.solid();
+	$jcomdoor.close();
+	$jcomdoor.lock();
+
+	$moya.useactorweapon( "EnterpriseDatapad" );
+	$moya.anim( "datapad-use" );
+
+	$illia.giveactorweapon( "models/actorweapons/fed-tricorder.tik" );
+	$illia.useactorweapon( "Tricorder" );
+	$illia.anim( "tricorder_use_loop" );
+
+	$cam2.follow( $map3_cam2 );
+	$cam2.cut();
+	wait(0.5);
+	cuecamera ( $cam2 );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	wait(7);
+
+	$illia.useactorweapon( "none" );
+	$illia.anim( "idle" );
+
+	$illia.turntoangle( 125 );
+	$illia.walkto("$illia_com_nav1", "walk" );
+	waitfor( $illia );
+	$illia.walkto("$illia_com_nav2", "walk" );
+	waitfor( $illia );
+	$illia.walkto("$illia_com_nav3", "walk" );
+	waitfor( $illia );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait(2);
+	$cam3.follow($map3_cam3);
+	$cam3.cut();
+	wait(0.5);
+	cuecamera($cam3);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$illia_prisoner.playdialog("localization/sound/dialog/map03/Illia/virus.mp3",1,10000,0);//I Inserted a Virus Into The Main Compute That Was To Stop Every Attempt At Entering Warp For The Next Few Days.   
+	waitfordialog( $illia_prisoner );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait(2);
+	$cam4.follow( $map3_cam4 );
+	$cam4.cut();
+	wait(1.5);
+	cuecamera ( $cam4 );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$illia.turntoangle( 90 );
+	$illia.walkto("$illia_eng_nav2_top", "walk" );
+	waitfor( $illia );
+	$illia.walkto("$illia_eng_nav3_top", "walk" );
+	waitfor( $illia );
+	
+	$illia.useactorweapon( "Tricorder" );
+	$illia.anim( "tricorder_use_loop" );
+	
+	wait(3);	
+
+	$illia.useactorweapon( "none" );
+	$illia.anim( "idle" );
+
+	$illia.walkto("$illia_eng_nav4_top", "walk" );
+	waitfor( $illia );
+	$illia.walkto("$illia_eng_nav5_top", "walk" );
+	waitfor( $illia );
+
+	$illia.useactorweapon( "Tricorder" );
+	$illia.anim( "tricorder_use_loop" );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait(2);
+
+	$cam3.follow($map3_cam3);
+	$cam3.cut();
+	wait(0.5);
+	cuecamera($cam3);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$illia_prisoner.playdialog("localization/sound/dialog/map03/Illia/complete.mp3",1,10000,0);//When I Was Finished With My Small Manipulation Things Began To Take A Turn For The Worse.
+	waitfordialog($illia);
+	wait(2);
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	wait(2);
+
+	$cam3.follow($map3_cam5);
+	$cam3.cut();
+	wait(0.5);
+	cuecamera($cam3);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$eng_lift.time(3);
+	$eng_lift.moveup(201);
+	$camnode_map3_cam4_6.playsound("sound/ships/enterprise/ent_lift01.wav",1,10000,0);
+	$eng_lift.playsound("sound/ships/enterprise/ent_lift01.wav",1,10000,0);
+	$console1.playsound("sound/ships/enterprise/ent_lift01.wav",1,10000,0);
+	$cam4.playsound("sound/ships/enterprise/ent_lift01.wav",1,10000,0);
+	waitfor( $eng_lift );
+	$camnode_map3_cam4_6.playsound("sound/ships/enterprise/ent_lift01_stop.wav",1,10000,0);
+	$console1.playsound("sound/ships/enterprise/ent_lift01_stop.wav",1,10000,0);
+	$eng_lift.playsound("sound/ships/enterprise/ent_lift01_stop.wav",1,10000,0);
+	$cam4.playsound("sound/ships/enterprise/ent_lift01_stop.wav",1,10000,0);
+	lift_state=1;
+
+
+
+	$illia.useactorweapon( "none" );
+	$illia.anim( "idle" );
+
+	$moya.useactorweapon( "none" );
+	$moya.anim( "idle" );
+
+	$moya.headwatchtarget( "core" , 7 );
+
+	$moya.walkto("$moya_eng_navTop");
+	waitfor( $moya );
+
+	$moya.headwatchtarget( "illia" , 7 );
+
+	wait(1);
+
+	$moya.playdialog("localization/sound/dialog/map03/Moya/msericsson.mp3",1,10000,0);// Ms Ericsson?
+	waitfordialog( $moya );
+	wait(1);
+	$moya.playdialog("localization/sound/dialog/map03/Moya/doing.mp3",1,10000,0);// What Are You Doing?
+	waitfordialog( $moya );
+	wait(1);
+	//--- Ensign Moya taps his comm badge and calls security
+	$moya.anim( "tap_comm" );
+	waitforanimation( $moya, "tap_comm" );
+	$moya.anim ("idle");
+	$moya.playdialog("localization/sound/dialog/map03/Moya/security.mp3",1,10000,0);// I Need A Security Team In Engineering.
+	waitfordialog( $moya );
+
+	wait(0.5);
+	
+	$console1.loopsound( "sound/redalert.mp3" );
+	$console2.loopsound( "sound/redalert.mp3" );
+	$camnode_map3_cam4_9.loopsound( "sound/redalert.mp3" );
+	$camnode_map3_cam4_8.loopsound( "sound/redalert.mp3" );
+
+	$alert_green.hide();
+	$alert_red.show();
+	$engcong.hide();
+	$engconr.show();
+
+	
+	thread redalert();
+	$panel_alert_on.show();
+	$panel_alert_off.hide();
+
+	$illia.useactorweapon( "Tricorder" );
+	$illia.anim( "tricorder_use_loop" );
+
+	$jcomdoor.unlock();
+
+	wait(2);
+
+	$eng_field.solid();
+	$eng_field.show();
+	$eng_field.solid();
+	$eng_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$engdoor1.solid();
+	$engdoor1.show();
+	$engdoor1.time( 8 );
+	$engdoor1.moveUp( 176 );
+	eng_door=1;
+
+	$eng_field.playsound("localization/sound/dialog/map03/Computer/shutdown_init.mp3", 0, 1, 1111111); //System lockdown initialized.
+	$eng_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	wait(2);
+	
+	com_cin_end();
+}
+
+void com_cin_end()
+{
+	killthread("com_cin");
+	$eng_field.solid();
+	$eng_field.show();
+	$eng_field.solid();
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(3);
+	$moya.show();
+	$moya.solid();
+	$moya.useactorweapon( "none" );
+	$moya.warp( '-1211.00 2080.00 -55.00' );
+	$moya.turntoangle( 90 );
+	$moya.anim ("idle");
+	$moya.headwatchtarget( "player" , 7 );
+
+	if(lift_state==0)
+	{
+		$eng_lift.time(.1);
+		$eng_lift.moveup(201);
+	}
+	
+
+	if(eng_door==0)
+	{
+		$engdoor1.solid();
+		$engdoor1.show();
+		$engdoor1.time( .1 );
+		$engdoor1.moveUp( 176 );
+	}	
+	
+	//hzm coop mod chrissstrahl - make illia NOT block any player
+	$illia.notsolid();
+	
+	$illia.hide();
+	
+	$eng_door3.lock();
+	$jack.solid();
+	$jack.show();
+	$jill.solid();
+	$jill.show();
+
+	wait(2);
+
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	
+	//hzm coop mod chrissstrahl - position all players, except the player that triggred the cinematic
+	entity ePlayer,eSpawn;
+	float fPlayerIdInUse;
+	//position spawn locations ipd1 to ipd8
+	$ipd1.origin('-1016 1700 -55');
+	$ipd2.origin('-1064 1700 -55');
+	$ipd3.origin('-1112 1700 -55');
+	$ipd4.origin('-1160 1700 -55');
+	$ipd5.origin('-1016 1600 -55');
+	$ipd6.origin('-1064 1600 -55');
+	$ipd7.origin('-1112 1600 -55');
+	$ipd8.origin('-1160 1600 -55');
+	for(fPlayerIdInUse=1;fPlayerIdInUse<9;fPlayerIdInUse++){
+		eSpawn = getentity("ipd"+fPlayerIdInUse);
+		if(doesEntityExist(eSpawn) ){
+			eSpawn.angle(90);
+		}
+	}
+	//position players
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				eSpawn = getEntity("ipd" + ( fPlayerIdInUse + 1));
+				ePlayer.origin( eSpawn.getOrigin() );
+				ePlayer.angle( 90 );
+			}
+		}
+	}
+	
+	cueplayer();
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	
+	//Make the objective complete
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("complete" , 2 , 0 );
+	globalCoop_objectives_update("incomplete" , 3 , 1 );
+	
+	$near_end.triggerable();
+	forcemusic( "action" );
+	//-------------------------------------------------------------------------
+	// Activates Red Alert and locks and unlocks several doors
+	//-------------------------------------------------------------------------
+
+	$jdoor2.unlock();
+	$secretdoor.lock();
+	$secret_red.show();
+	$secret_green.hide();
+	$jdoor1.lock();
+	$jdoor1_red.show();
+	$jdoor1_green.hide();
+	$jdoor2g.show();
+	$jdoor2r.hide();
+	$jdoor1_locked.triggerable();
+	$jdoor2_locked.nottriggerable();
+	$secret_locked.triggerable();
+	$secrettrigger.nottriggerable();
+	$cargotubedoor.lock();
+	$jdoorpanel1.movesouth(3);
+	$exitdoor.unlock();
+	$exitdoor_sound.nottriggerable();
+
+
+	//-------------------------------------------------------------------------
+	// Close Off Access To Engineering
+	//-------------------------------------------------------------------------
+
+	$mainengdoor.lock();
+	$mainengdoor2.lock();
+	$cargodoors.lock();
+	$cargodoors_sound.triggerable();
+	$exitdoor.unlock();
+
+	$roof_hatch.hide();
+	$roof_hatch.notsolid();
+	$roof_hatch_floor.show();
+	$roof_hatch_floor.solid();
+	$roof_hatch_cover.show();
+	$roof_hatch_cover.solid();
+
+	wait(2);
+
+	$jdoorpanel1.movedown(70);
+	$cargobaydoor.lock();
+
+	//hzm coop mod chrissstrahl - do not allow passing the security guards
+	$clipPlayerFlee.solid();
+	
+	//hzm coop mod chrissstrahl - use standard security, I think I fucked up the ai
+	//$attackPlayerSecurity1.ai_on();
+	$attackPlayerSecurity1.archetype("");
+	$attackPlayerSecurity1.pushable(0);
+	$attackPlayerSecurity1.show();
+	$attackPlayerSecurity1.solid();
+	$attackPlayerSecurity1.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$attackPlayerSecurity1.useactorweapon( "CompressionRifle" );
+	$attackPlayerSecurity1.anim("compressionrifleenhanced_idle1");
+	
+	$attackPlayerSecurity2.archetype("");
+	$attackPlayerSecurity2.pushable(0);
+	$attackPlayerSecurity2.show();
+	$attackPlayerSecurity2.solid();
+	$attackPlayerSecurity2.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	$attackPlayerSecurity2.useactorweapon( "CompressionRifle" );
+	$attackPlayerSecurity2.anim("compressionrifleenhanced_idle1");
+	
+	
+	// Make security team attack player
+	//AIShowGroup    ( 666, "Federation" );	//hzm coop mod chrissstrahl - not used
+	
+	$warn.triggerable();
+	
+	//Patch Update 07.sep.2007 @ Chrissstrahl
+	$jcomdoor.unlock();
+	
+	//hzm coop mod chrissstrahl - set marker
+	$exitArea.missionobjective(1);
+}
+
+void warning()
+{
+	//hzm coop mod chrissstrahl - make em watch the activator
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	//hzm coop mod chrissstrahl - spawn gathering area, will load next map when all players are inside
+	thread globalCoop_level_gatheringArea("","coop_endLevel",100,'230 230 200',$exitArea.getOrigin());
+	
+	
+	$attackPlayerSecurity1.headwatch(ePlayer,10);
+	$attackPlayerSecurity2.headwatch(ePlayer,10);
+
+	wait(0.1);
+	$attackPlayerSecurity2.playdialog("localization/sound/dialog/map03/lee/shoot.mp3",  1, 10000, 0);
+	waitfordialog($attackPlayerSecurity2);
+	$attack.triggerable();
+	globalCommon_Autosave();
+	
+	while(1){
+		ePlayer = globalCoop_return_playerClosestPreferActive($attackPlayerSecurity1);
+		$attackPlayerSecurity1.headwatch(ePlayer,10);
+		ePlayer = globalCoop_return_playerClosestPreferActive($attackPlayerSecurity2);
+		$attackPlayerSecurity2.headwatch(ePlayer,10);
+		wait(0.1);
+	}
+}
+
+void attack_p()
+{
+	$attackPlayerSecurity1.ai_on();
+	$attackPlayerSecurity1.actortype("enemy");
+	$attackPlayerSecurity1.visiondistance(1048);
+	$attackPlayerSecurity1.fov(110);
+	$attackPlayerSecurity1.aggressive(1);
+	
+	$attackPlayerSecurity2.ai_on();
+	$attackPlayerSecurity2.actortype("enemy");
+	$attackPlayerSecurity2.visiondistance(1048);
+	$attackPlayerSecurity2.fov(110);
+	$attackPlayerSecurity2.aggressive(1);
+	
+	//hzm coop mod chrissstrahl - kill thread where they watch closest player
+	killthread("warning");
+	
+	//hzm coop mod chrissstrahl - attack closest player
+	entity ePlayer;
+	while(1){
+		ePlayer = globalCoop_return_playerClosestPreferActive($attackPlayerSecurity1);
+		$attackPlayerSecurity1.headwatch(ePlayer,10);
+		$attackPlayerSecurity1.attack(ePlayer);
+		
+		ePlayer = globalCoop_return_playerClosestPreferActive($attackPlayerSecurity2);
+		$attackPlayerSecurity2.headwatch(ePlayer,10);
+		$attackPlayerSecurity2.attack(ePlayer);
+		wait(0.1);
+	}
+}
+
+
+void SecertForceUnlock()
+//hzm coop mod chrissstrahl - makes sure that no player gets locked in inside the sercert area
+{
+	$secretdoor.unlock();
+}
+
+void coop_endLevel()
+
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs4");
+}
+

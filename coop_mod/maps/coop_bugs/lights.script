@@ -1,0 +1,78 @@
+//coop_bugs, killable AI dynamic lights stuff
+
+
+void lights_activate()
+//activate dynamic lights, they are off on level start
+{
+//definy number of dynlights(not existing light groups print a warning in console)
+	float fLightsNum = 45;
+	
+//activate each group
+	float fLights;
+	for(fLights=0;fLights<=fLightsNum;fLights++)
+	{
+	//activate dynanic lights
+		$world.light_intensity("coopbugs_lightLamp"+fLights,1);
+		if(!mod(fLights,20)){globalCoop_main_waitAFrame();}
+	}
+}
+
+void lights_newPlayer()
+//call this if a new player entered the map
+//this will update the dynamic lights
+//otherwise the player will not see the Lights active
+{
+
+	if(lights_waitingForUpdate)
+	{
+		return;
+	}
+	lights_waitingForUpdate=1;
+	wait( (getCvarInt("mp_warmuptime") - getLevelTime()) + 10 );	
+//definy number of dynlights(not existing light groups print a warning in console)	
+	float fLightsNum = 45;
+//make each light flicker once, so they update and get send to the player
+	float fLights;
+	for(fLights=0;fLights<=fLightsNum;fLights++)
+	{
+		if(!$world.getFloatVar("coopbugs_lightLamp"+fLights+"killed"))
+		{
+			$world.light_lightstyle("coopbugs_lightLamp"+fLights,"yz",1);
+		}
+		//if(fLights==20 || fLights == 40){globalCoop_main_waitAFrame();}
+		if(!mod(fLights,20)){globalCoop_main_waitAFrame();}
+	}
+	lights_waitingForUpdate=0;
+}
+
+
+void lights_killed()
+//a lamp actor was killed, shutdown its light
+{
+	entity eLight;
+	eLight = getCurrentEntity();
+	
+	if(doesEntityExist(eLight))
+	{
+		string sTargetname;
+		sTargetname = eLight.getStringVar("uservar1");
+		
+		if(sTargetname != "")
+		{
+			$world.light_intensity(sTargetname,0);
+			$world.setFloatVar(sTargetname+"killed",1);
+			wait(3);
+			if(doesEntityExist(eLight))
+			{
+				eLight.clearcustomshader("electriclines");
+			}
+		}
+		else
+		{
+			centerprint("ERROR uservar1 on killed lamp was empty!\nShould have been group-name for dynamic light!\n");
+		}
+	}
+}
+
+
+

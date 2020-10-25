@@ -1,0 +1,115 @@
+
+
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+//	Function Implematations
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+
+float STAGE1_TIME = 160;	//seconds
+float STAGE1_PROMPT1 = 120;
+float STAGE1_PROMPT2 = 60;
+float STAGE1_PROMPT3 = 30;
+
+void stage1Timer ()
+{
+	if( coop_fForceStage2 ){//if map (not)loaded with parameter to force stage 2
+		return;
+	}
+	
+	
+	threadname ( "stage1Timer" );
+
+	//hzm coop mod chrissstrahl - add timer hud
+	thread globalCoop_huds_manageAll("m6SabotageTimer",1,1);
+	
+	//$player.setstat ( "generic" , 100 );
+	//$player.addhud("m6SabotageTimer" );
+	
+	float timer;
+	for ( timer = 1 ; timer <= STAGE1_TIME ; timer++ )
+	{
+		if ( timer == STAGE1_PROMPT1 )
+			$tuvok.playdialog("localization/sound/dialog/m6l2/tuvok_hullwarn1.mp3", 1, 80000, 1); //Lieutenant Munro, disable the cruiser’s weapons, engines, and warp drive without destroying the vessel.
+		else if ( timer == STAGE1_PROMPT2 )
+			$tuvok.playdialog("localization/sound/dialog/m6l2/tuvok_hullwarn2.mp3", 1, 80000, 1); //Lieutenant Munro, disable the cruiser’s weapons, engines, and warp drive without destroying the vessel.
+		else if ( timer == STAGE1_PROMPT3 )
+			$tuvok.playdialog("localization/sound/dialog/m6l2/tuvok_hullwarn3.mp3", 1, 80000, 1); //Lieutenant Munro, disable the cruiser’s weapons, engines, and warp drive without destroying the vessel.
+
+		//we have to hijack a different stat since modulation uses playerstat.generic
+		
+		//hzm coop mod chrissstrahl - send statistic to all players
+		float fPlayerIdInUse;
+		entity ePlayer;
+		float fStats;
+		
+		fStats = ( 100.0 * (STAGE1_TIME - timer) / STAGE1_TIME );
+		
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setstat ( "mp_generic1" , fStats );
+			}
+		}
+		wait ( 1 );
+	}
+	
+	//hzm coop mod chrissstrahl - remove timer hud
+	thread globalCoop_huds_manageAll("m6SabotageTimer",0,1);
+
+	cinematicDeathBrig();
+}
+
+float playShieldDialog = 1;
+
+//called as soon as you kill one of the idryll
+void disableTuvokShieldDialog ()
+{
+	playShieldDialog = 0;
+}
+
+void endStage1Timer ()
+{
+	killthread ( "stage1Timer" );
+	
+	//hzm coop mod chrissstrahl - remove timer hud
+	thread globalCoop_huds_manageAll("m6SabotageTimer",0,0);
+	
+	//hzm coop mod chrissstrahl - notify script
+	STAGE1_ISOVER = 1;
+}
+
+void beginStage1()
+{
+	if( coop_fForceStage2 ){//if map (not)loaded with parameter to force stage 2
+		return;
+	}
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$ClearHullOfSaboteurs$$","incomplete",2,1);
+
+	thread stage1Timer ();
+	waitfordialog ( $tuvok );
+	wait ( 7 );
+
+	if ( playShieldDialog )
+		$tuvok.playdialog("localization/sound/dialog/m6l2/tuvok_hulltip.mp3", 1, 80000, 1);
+}
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+
+void sweepBeam ( entity b ) {
+	float i;
+	b.time ( 5 );
+
+	while ( 1 ) {
+		i = randomfloat ( 10 );
+		b.rotateZup ( 15 + i );
+		waitfor ( b );
+
+		b.rotateZdown ( 15 + i );
+		waitfor( b );
+	}
+}
+
+

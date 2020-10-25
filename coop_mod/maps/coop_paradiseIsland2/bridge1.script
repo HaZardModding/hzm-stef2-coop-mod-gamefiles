@@ -1,0 +1,435 @@
+void bridge1_powerCouple_setup(entity e)
+//SETUP THE POWER COUPLE DEVICE
+{
+	e.movedown(32);
+	e.time(1);
+	waitfor(e);
+	thread setOnUseThread(e,"bridge1_powerCupleUsed");
+}
+
+void bridge1_playerFoundShutdown()
+//PLAYER FIGURED HOW TO DISABLE FORCEFIELD1
+{
+	$use1Symbol.missionobjective(0);
+	$use1Symbol.origin('-14956 19579 -784');//move inside bride1 hidden room
+	$use1Symbol.missionobjective(1);
+	
+	/*
+	cinematic();
+	if(!cvar_bool_multiplayer){//singleplayer
+		globalCoop_level_hideAndNotSolid($player);
+		$player.nodamage();//damage from (hurt)triggers
+	}
+	cam_fadeOut(0.4, 0, 0, 0,1);
+	wait(.5);
+	freezeplayer();
+	letterbox(.01);
+	*/
+	
+//Start Fallschirmspringers
+	//1 player
+	thread startFallschirmspringer(4,'-18296 20792 1567','-15074 20212 -790',"models/char/romulan-m11-rebel-sniper-f.tik");
+	//2 players
+	if(globalCoop_return_integerPlayersQuantity(2) > 1){
+		thread startFallschirmspringer(5,'-18215 19262 1567','-15424 19393 -656',"models/char/romulan-m11-rebel-sniper-f.tik");
+	}
+	//3 players
+	if(globalCoop_return_integerPlayersQuantity(2) > 2){
+		thread startFallschirmspringer(6,'-17715 18475 1728','-14071 19128 -408',"models/char/romulan-m11-rebel-sniper-f.tik");
+	}
+	
+	/*
+	wait(1);	
+	//$cam2.follow($cam1,$bridge1_ffShutdown2);
+	$cam2.follow($bridge1_ffShutdown2,$fallschirm5);
+	$cam2.cut();
+	cuecamera($cam2);
+	cam_fadeIn(0.25, 0, 0, 0,1);
+	wait(6.5);
+	cam_fadeOut(0.4, 0, 0, 0,1);
+	wait(.5);
+//end cinematic
+	clearletterbox( .01 );
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	if(!cvar_bool_multiplayer){
+		globalCoop_level_showAndSolid($player);
+		$player.takedamage();
+	}
+	*/
+	globalCoop_level_removePath($bridge1_ffShutdown2);//remove camera path (trafic)
+	/*cam_fadeIn(0.25, 0, 0, 0,1);*/
+}
+
+void bridg1_objective1()
+{
+	thread globalCoop_objectives_update("InComplete",3,1);//State,Item,ShowIt
+}
+
+void bridg1_objective2()
+{
+	thread globalCoop_objectives_update("InComplete",4,1);//State,Item,ShowIt
+}
+
+void bridg1_objective3()
+{
+	globalCoop_objectives_update("InComplete",5,0);//State,Item,ShowIt
+	thread globalCoop_objectives_update("InComplete",6,1);//State,Item,ShowIt
+}
+
+void bridge1_forceFieldGroup1Down()
+//PLAYER, HAS DISABLED BRIDGE1 FF1+FF2
+{
+	$use1Symbol.missionobjective(0);
+
+	spawn("script_model","model","modulate.tik","origin","-20464 19553 -607","targetname","modulate1Symbol");
+	spawn("script_model","model","modulate.tik","origin","-20464 18976 -607","targetname","modulate2Symbol");
+	spawn("script_model","model","modulate.tik","origin","-20984 18976 -607","targetname","modulate3Symbol");
+	spawn("script_model","model","modulate.tik","origin","-20984 19553 -607","targetname","modulate4Symbol");
+
+	$use1Symbol.origin('-20464 19553 -607');//move to Bridge1 power pannel
+	spawn("script_model","model","use.tik","origin","-20464 18976 -607","targetname","use2Symbol");
+	spawn("script_model","model","use.tik","origin","-20984 18976 -607","targetname","use3Symbol");
+	spawn("script_model","model","use.tik","origin","-20984 19553 -607","targetname","use4Symbol");
+	entity e;
+	e = getCurrentEntity();
+	if(doesEntityExist(e)){
+		entity e2;
+		e2=e.getLastActivatingEntity();
+		if(doesEntityExist(e2)){
+			e2.playsound("sound/environment/rock/rock_powerup.wav",0,1,64);
+		}
+	}
+	wait(.5);	
+	$bridge1_forcefieldPower.remove();
+	wait(1.5);
+//hide em
+	$modulate1Symbol.hide();
+	$modulate2Symbol.hide();
+	$modulate3Symbol.hide();
+	$modulate4Symbol.hide();
+	
+	thread forceFields_deactivate($bridge1_forceField1);
+	thread forceFields_deactivate($bridge1_forceField2);
+	
+	thread globalCoop_objectives_update("complete",3,1);//State,Item,ShowIt
+//Mark Power cuples
+	$bridge1_powerCuple0.missionobjective(1);
+	$bridge1_powerCuple1.missionobjective(1);
+	wait(.1);
+	$bridge1_powerCuple2.missionobjective(1);
+	$bridge1_powerCuple3.missionobjective(1);
+}
+
+void bridge1_playerOnBridge()
+{
+	if(fbridge1_playerOnBridge){
+		return;
+	}
+	fbridge1_playerOnBridge++;
+	
+	if(!cvar_bool_multiplayer)
+	{
+		thread globalCommon_AutoSaveWithName("Coop_paradiseIsland2 - Bridge1");
+	}
+	
+//spawn Tower enemy
+	spawn("actor","model","char/romulan-m11-rebel-sniper-f.tik","angle","-12","origin","-23960 20384 313","targetname","sniper1");
+	spawn("actor","model","char/romulan-m11-rebel-sniper-f.tik","angle","-35","origin","-24000 20320 313","targetname","sniper2");
+	wait(.5);
+	$sniper1.ai_off();
+	$sniper2.ai_off();
+	$sniper1.nodamage();
+	$sniper2.nodamage();
+	thread bridg1_objective2();
+	
+	//Mark Power cuples - Failsafe, for Forcefiledwalkers
+	$bridge1_powerCuple0.missionobjective(1);
+	$bridge1_powerCuple1.missionobjective(1);
+	wait(.1);
+	$bridge1_powerCuple2.missionobjective(1);
+	$bridge1_powerCuple3.missionobjective(1);
+	
+//setup rom shuttles
+//START ROM SHUTTLE
+/*	$romulanAssaultModel0.notsolid();//model shall not be shot
+	$romulanAssaultModel0.forceAlpha(1);
+	$romulanAssaultModel0.fade(0.1,1);
+	$romulanAssaultOrigin0.moveToPos('-13432 19208 1840	');
+	$romulanAssaultOrigin0.time(.1);
+	waitFor($romulanAssaultOrigin0);
+	float fDir;
+	while(1){
+		$romulanAssaultOrigin0.angles('0 -90 13');
+		$romulanAssaultOrigin0.show();
+		$romulanAssaultModel0.fade(2,1);
+		thread romulanShuttle_shieldsUp(0);
+		
+		$romulanAssaultOrigin0.moveToPos('-14616 19208 372');//472
+		$romulanAssaultOrigin0.time(1);
+		waitFor($romulanAssaultOrigin0);
+		
+		
+		fDir = randomInt(100);
+		if(fDir<50)
+			$romulanAssaultOrigin0.rotateY(-4);
+		else
+			$romulanAssaultOrigin0.rotateY(4);
+			
+		thread romulanShuttle_fire(0,8);
+		$romulanAssaultOrigin0.moveToPos('-14944 19208 -364');//264
+		$romulanAssaultOrigin0.time(1);
+		$romulanAssaultOrigin0.rotateZ(-4);
+		waitFor($romulanAssaultOrigin0);
+		
+		$romulanAssaultOrigin0.moveToPos('-15432 19208 -370');//400
+		$romulanAssaultOrigin0.time(1);
+		waitFor($romulanAssaultOrigin0);
+		
+		
+		if(fDir<50)
+			$romulanAssaultOrigin0.rotateY(2);
+		else
+			$romulanAssaultOrigin0.rotateY(-2);
+		
+		$romulanAssaultOrigin0.rotateZ(0);
+		$romulanAssaultOrigin0.moveToPos('-20984 19208 -348');//248
+		$romulanAssaultOrigin0.time(7);
+		waitFor($romulanAssaultOrigin0);
+		thread romulanShuttle_shieldsDown(0);
+		
+		if(fDir<50)
+			$romulanAssaultOrigin0.rotateY(-2);
+		else
+			$romulanAssaultOrigin0.rotateY(4);
+
+		$romulanAssaultOrigin0.rotateZ(-20);
+		$romulanAssaultOrigin0.moveToPos('-21968 19208 436');//536
+		$romulanAssaultOrigin0.time(1);
+		waitFor($romulanAssaultOrigin0);
+		
+		$romulanAssaultModel0.fade(2,0);
+		$romulanAssaultOrigin0.moveToPos('-23104 19208 1144');
+		$romulanAssaultOrigin0.time(1);
+		$romulanAssaultOrigin0.rotateZ(0);
+		waitFor($romulanAssaultOrigin0);
+		
+		$romulanAssaultOrigin0.rotateY(0);
+		$romulanAssaultOrigin0.moveToPos('-24456 19208 2160');
+		$romulanAssaultOrigin0.time(1);
+		waitFor($romulanAssaultOrigin0);
+		
+		$romulanAssaultOrigin0.hide();
+
+		$romulanAssaultOrigin0.moveToPos('-13432 19208 1840');
+		$romulanAssaultOrigin0.time(3);
+		waitFor($romulanAssaultOrigin0);
+	}
+*/
+}
+
+void bridge1_powerCupleUsed()
+{
+	entity e;
+	e=getCurrentEntity();
+	if(doesEntityExist(e)){
+		e.nouse();
+		e.moveUp(32);	
+		e.time(3);
+		e.playsound("sound/environment/rock/rock_slab.wav",0,1,128);
+		waitFor(e);
+		vector vOrigin;
+		vOrigin = e.getOrigin();
+		vOrigin_z += 30;
+		e.stopSound(0);
+		e.playsound("sound/environment/rock/rock_slabstop.wav",0,1,128);
+		string sRawTargetname;
+		sRawTargetname = e.getRawTargetname();
+		
+ 		if("bridge1_powerCuple0" == sRawTargetname){
+			$use1Symbol.hide();$modulate1Symbol.show();
+			$bridge1_powerCuple0_puzzle.puzzleobject_activate();
+			$bridge1_powerCuple0_puzzle.puzzleobject_reset();
+		}
+ 		else if("bridge1_powerCuple3" == sRawTargetname){
+			$use2Symbol.hide();$modulate2Symbol.show();
+			$bridge1_powerCuple3_puzzle.puzzleobject_activate();
+			$bridge1_powerCuple3_puzzle.puzzleobject_reset();
+		}
+ 		else if("bridge1_powerCuple2" == sRawTargetname){
+			$use3Symbol.remove();$modulate3Symbol.show();
+			$bridge1_powerCuple2_puzzle.puzzleobject_activate();
+			$bridge1_powerCuple2_puzzle.puzzleobject_reset();
+		}
+ 		else if("bridge1_powerCuple1" == sRawTargetname){
+			$use4Symbol.remove();$modulate4Symbol.show();
+			$bridge1_powerCuple1_puzzle.puzzleobject_activate();
+			$bridge1_powerCuple1_puzzle.puzzleobject_reset();
+		}
+		else{
+			cprint("bridge1_powerCupleUsed failed");
+		}
+	}
+}
+
+
+void bridge1_powerCupleSolvedShutdown(entity e)
+{
+	e.playsound("sound/environment/rock/rock_slab.wav",0,1,128);
+	e.moveDown(32);	
+	e.time(3);
+	e.missionobjective(0);
+	waitFor(e);
+	e.stopSound(0);
+	e.playsound("sound/environment/rock/rock_slabstop.wav",0,1,128);
+	wait(.5);
+}
+
+
+
+void bridge1_powerCuple0Solved()
+{
+	$modulate1Symbol.hide();//will be used later again
+//Move them all down again, that looks kewl and isn't much work at all
+	bridge1_powerCupleSolvedShutdown($bridge1_powerCuple0);
+	thread bridge1_powerCupleSolved();
+}
+void bridge1_powerCuple1Solved()
+{
+	$modulate4Symbol.remove();
+	bridge1_powerCupleSolvedShutdown($bridge1_powerCuple1);
+	thread bridge1_powerCupleSolved();
+}
+void bridge1_powerCuple2Solved()
+{
+	$modulate3Symbol.remove();
+	bridge1_powerCupleSolvedShutdown($bridge1_powerCuple2);
+	thread bridge1_powerCupleSolved();
+}
+void bridge1_powerCuple3Solved()
+{
+	$modulate2Symbol.remove();
+	bridge1_powerCupleSolvedShutdown($bridge1_powerCuple3);
+	thread bridge1_powerCupleSolved();
+}
+
+
+void bridge1_powerCupleSolved()
+{
+	fBridge1_powerCuplesSolved++;
+	if(fBridge1_powerCuplesSolved == 4){
+		$disableCommunicationDevice1HologramTrigger.missionobjective(1);
+		$ipd1.origin('-22783 19457 -453');
+		$ipd2.origin('-22782 19362 -453');
+		$ipd3.origin('-22781 19257 -453');
+		$ipd4.origin('-22781 19153 -453');
+		$ipd5.origin('-22895 19417 -453');
+		$ipd6.origin('-22894 19322 -453');
+		$ipd7.origin('-22893 19217 -453');
+		$ipd8.origin('-22893 19113 -453');
+		$ipd1.angle(180);
+		$ipd2.angle(180);
+		$ipd3.angle(180);
+		$ipd4.angle(180);
+		$ipd5.angle(180);
+		$ipd6.angle(180);
+		$ipd7.angle(180);
+		$ipd8.angle(180);
+		wait(.5);
+//cinematic here,
+		//film the tower ladder
+		//film a solider beaming in and blowing up in the mine field
+
+		
+		cinematic();
+		if(!cvar_bool_multiplayer){//singleplayer
+			globalCoop_level_hideAndNotSolid($player);
+			$player.nodamage();//damage from (hurt)triggers
+		}
+		cam_fadeOut(0.25, 0, 0, 0,1);
+		wait(.25);
+		freezeplayer();
+		letterbox(.01);
+	
+		$cam1.follow($bridge1_ff2ShutdownShot,$bridge1_towerConnectorForcefield);
+		$cam1.cut();
+		cuecamera($cam1);
+		cam_fadeIn(0.25, 0, 0, 0,1);
+//ALLOW PLAYER TO CROSS THE BRIDGE NOW
+		$bridge1ForcefieldClip.remove();
+		thread forceFields_deactivate($bridge1_forceField3);
+		thread forceFields_deactivate($bridge1_forceField4);
+		wait(3);
+//moveup the ladder thingy
+		$cam2.follow($t86,$bridge1_towerConnectorForcefield);
+		$cam2.cut();
+		wait(.1);
+		cuecamera($cam2);
+		thread bridge1_towerPuzleSolved();
+		wait(4);
+		$cam1.follow($blowUpShot,$beaminRomBlowMeUp);
+		$cam1.cut();
+		wait(1);
+		cuecamera($cam1);
+		globalCoop_level_triggerEntity($beaminRomBlowMeUp);
+		wait(2);
+		$blowMeUp.selfdetonate();
+		$blowMeUp.suicide();
+		$blowMeUp.displayEffect("FadeOut","Phaser");
+		wait(3);
+		cam_fadeOut(0.25, 0, 0, 0,1);
+		wait(.5);
+
+//end cinematic
+		clearletterbox( .01 );
+		cueplayer();
+		noncinematic();
+		releaseplayer();
+		if(!cvar_bool_multiplayer){
+			globalCoop_level_showAndSolid($player);
+			$player.takedamage();
+		}
+		
+		thread bridg1_objective3();
+		cam_fadeIn(0.25, 0, 0, 0,1);
+		globalCoop_level_removePath($bridge1_ff2ShutdownShot);
+		globalCoop_level_removePath($blowUpShot);
+		thread globalCoop_objectives_update("complete",4,1);//State,Item,ShowIt
+		
+		
+		if(!cvar_bool_multiplayer)
+		{
+			thread globalCommon_AutoSaveWithName("Coop_paradiseIsland2 - Minefield");
+			wait(3);
+		}
+		
+		$sniper1.ai_on();
+		$sniper2.ai_on();
+	}
+}
+
+void bridge1_towerPuzleSolved()
+{
+	$use1Symbol.origin('-24027 20286 338');
+	$use1Symbol.show();
+	
+	$bridge1_towerConnectorOrigin.playsound("sound/environment/rock/rock_slabstop.wav",0,1,128);
+	wait(1);
+	$bridge1_towerConnectorOrigin.stopSound(0);
+	$bridge1_towerConnectorOrigin.playsound("sound/environment/rock/rock_slab.wav",1,1,256);
+	$bridge1_towerConnectorOrigin.moveToPos('-23879 19549 -41');
+	$bridge1_towerConnectorOrigin.time(4);
+	wait(.29);
+	spawn("sfx","model","fx/fx-explosion-rockdebris-brown-falling-sparse.tik","origin",$bridge1_towerConnectorOrigin.getOrigin()+"","scale","2");
+	wait(.1);
+	spawn("sfx","model","fx/fx-explosion-rockdebris-brown-falling-sparse.tik","origin",$bridge1_towerConnectorOrigin.getOrigin()+"","scale","2");
+	$bridge1_towerConnectorForcefield.loopSound("sound/ships/drull/drull_forcefield1.wav",1,128);
+	$bridge1_towerConnectorForcefield.show();
+	waitFor($bridge1_towerConnectorOrigin);
+	$bridge1_towerConnectorOrigin.stopSound(1);
+	$bridge1_towerConnectorOrigin.playsound("sound/environment/rock/rock_slabstop.wav",0,3,236);
+	$bridge1_towerConnectorLadder.triggerable();
+}
+
+

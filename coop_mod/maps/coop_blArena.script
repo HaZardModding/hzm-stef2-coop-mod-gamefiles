@@ -1,0 +1,320 @@
+//for details check: http://www.ritualistic.com/games/ef2/gdkdocs/content/allclasses_g.html
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+//
+//  EF2 Map Script File
+//
+//  Map:	  	    bl_arena
+//  Script By:      Christian Strahl
+//  Geometry By:    Mario Langer (Antiker), Christain Strahl (Chrissstrahl)
+//  Created on:     9/11/2006
+//
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+
+
+// Definie Start Vars
+//----------------------------------------------------------------------
+// Definie them at first so each included script can read them.
+// Do not type the vars in Lowerchase, this makes you harder to find them.
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+float RANDOM_INT;						//Random integer will be generated
+float ROUNDS;							//Counter for the rounds
+string warrior;							//warior name
+entity kWarrior;						//Entity/warrior name
+
+
+//Include scriptfiles
+//----------------------------------------------------------------------
+//	Include files from wich we require stuff
+//----------------------------------------------------------------------
+//Co-op
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/matrix/main.scr"
+//#include "coop_mod/matrix/optional_modules/forcefields.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//Declare the script functions
+//----------------------------------------------------------------------
+// So you can call each function from each position in the script
+// If you do so, you can save you a lot time by simplier scripting
+//----------------------------------------------------------------------
+void main();				//Main Thread
+void setupWorld();			//Get Level Ready
+void playerInArena();		//Player is ready to fight
+void coop_newPlayerEntered();//called from a trigger, so declaring is not needed, but we do it anyway
+void victory();
+void coop_waitForTeam();
+void coop_endLevel();
+void ifDoesExistHeadWatchEntity(entity eGaffer,entity eWatchMe);
+entity returnMeARandomPlayer();
+
+
+// main()
+//----------------------------------------------------------------------
+// Here you can put stuff in wich shoud start on map start
+// If you wana have a thread keep running you shoud better
+// Start a new Thread and not use this one!!!
+//----------------------------------------------------------------------
+void main()
+{
+//Co-Op
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//OVERWRITE CO-OP SETTINGS
+	coop_bool_showMissionSucessHud				= 1;//show sucess hud instead of just loading
+//AUTHOR
+	coop_string_levelAuthor			= "^5H^8a^5Z^8ard^5M^8odding";//level creator, team and involved, keep it short(10 chars)!!!
+	coop_string_objectiveItem1		= "Defeat the Klingons to proof you are a true Warrior";
+	coop_string_objectiveItem1_deu	= "Beweisen Sie dass Sie ein Krieger sind, besiegen Sie die Klingonen";
+//STORY - max of 272 chars
+	coop_string_story		= "This old Arena might not look like much, but it is the one very important traditional place where every great Klingon started...";
+	coop_string_story_deu	= "Diese alte Arena scheint nicht viel her zu machen, aber sie ist ein sehr wichtiger traditionelle Ort an dem jeder grosse Klingone angefangen hat...";
+//WEAPONS
+	coop_string_weapon1 			= "models/weapons/worldmodel-Batleth.tik";
+//spawnorigins, Spawn Players on those locations, at map start
+	coop_float_spawnAngle0 			= 0;
+	coop_vector_spawnOrigin1 		= '0 0 0'; //set '0 0 0' to disable co-op spawn control
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+waitforplayer();//Wait until... SP-Modus: player is spawned/MP-Modus: Server is ready)
+thread setupWorld();
+//SHOW OBJECTIVE NOW
+thread globalCoop_objectives_update("inComplete",1,1);//State,Item,ShowIt
+}
+
+entity returnMeARandomPlayer()
+//----------------------------------------------------------------------
+//returns a random player - used for the klingons to select a player
+//----------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("blArena_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	for(fTries=6;fTries>0;fTries--){
+		fRandom = randomint(fExistingPlayers);
+		fPlayerIdInUse = $world.getFloatVar("blArena_activeplayer"+fRandom);
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer)){
+				fTries = 666;
+				eRandomPlayer = ePlayer;
+			}
+		}
+	}
+	
+	//return the world if no player could be found
+	if(!doesEntityExist(eRandomPlayer)){
+		eRandomPlayer = $world;
+	}
+	return eRandomPlayer;
+}
+
+
+void coop_newPlayerEntered()
+//----------------------------------------------------------------------
+//Welcome Player to this map
+//----------------------------------------------------------------------
+{
+//LET THE BATTLE COMMENCE
+	entity ePlayer;
+	float fPlayerIdInUse=0;
+	while(fPlayerIdInUse<coop_integer_maxPlayers)
+	{
+		globalCoop_main_waitAFrame();
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getFloatVar("coop_newPlayerEnteredPROCESSED") != 1){
+				ePlayer.setFloatVar("coop_newPlayerEnteredPROCESSED",1);
+				//ePlayer.playsound ("sound/coop_blArena/chars/klingon/batleth_f3.wav",7,3,30);
+			}
+		}
+		fPlayerIdInUse++;
+	}
+}
+
+
+void setupWorld()
+//----------------------------------------------------------------------
+//Makesure that this map is a place with honor, no cheating here...
+//----------------------------------------------------------------------
+{
+	soundtrack( "music/coop_blArena.mus" );
+//Prevent players from using these weapons
+	$world.addbroken( "phaser" );
+	$world.addbroken( "phaser-stx" );
+	$world.addbroken( "burstrifle" );
+	$world.addbroken( "compressionrifle" );
+	$world.addbroken( "fieldassaultrifle" );
+	$world.addbroken( "i-mod" );
+	$world.addbroken( "FederationSniperRifle" );
+	$world.addbroken( "PhotonBurst" );//It does not work, dono why :(
+	$world.addbroken( "AttrexianRifle" );
+	$world.addbroken( "DrullStaff" );
+	$world.addbroken( "GrenadeLauncher" );
+	$world.addbroken( "RomulanDisruptor" );
+	$world.addbroken( "RomulanRadGun" );
+	$world.addbroken( "TetryonGatlingGun" );
+	$world.addbroken( "EnterpriseCannon" );
+//SETUP LOOP SOUNDS
+	$antiCheatWall.loopsound ( "sound/ships/enterprise/ent_forcefield.wav", .5, 150 );
+	$lavasound1.loopsound ( "sound/environment/lava/lava_loop2.wav", 1, 50 );
+	$lavasound2.loopsound ( "sound/environment/lava/lava_loop2.wav", 1, 50 );
+	$firesound1.loopsound ( "sound/environment/fire/fire_med01.wav", 1, 50 );
+	$firesound2.loopsound ( "sound/environment/fire/fire_med01.wav", 1, 50 );
+	$firesound3.loopsound ( "sound/environment/fire/fire_med01.wav", 1, 50 );
+	
+//Make the big red FF interactive
+	//globalCoop_forcefield_makeInteractive($antiCheatWall);
+}
+
+void ifDoesExistHeadWatchEntity(entity eGaffer,entity eWatchMe)
+//WATCH DUDE
+{
+	if(doesEntityExist(eGaffer) == 1 && doesEntityExist(eWatchMe) == 1){
+		eGaffer.headwatch(eWatchMe);
+	}
+}
+
+void playerInArena()//If player is in Arena and is ready for Fight
+{
+	while(1)
+	{
+		RANDOM_INT = randomint(6);
+		if(RANDOM_INT == 0)
+		{
+		warrior = "knife_m1";	
+		}
+		else if(RANDOM_INT == 1)
+		{
+		warrior = "knife_m2";
+		}	
+		else if(RANDOM_INT == 2)
+		{
+		warrior = "batleth_f1";
+		}
+		else if(RANDOM_INT == 3)
+		{
+		warrior = "batleth_f2";
+		}
+		else if(RANDOM_INT == 4)
+		{
+		warrior = "batleth_m1";
+		}		
+		else if(RANDOM_INT == 5)
+		{
+		warrior = "batleth_m2";
+		}
+
+		kWarrior = getentity( warrior );
+		if(globalCoop_check_existingLivingEntity(kWarrior))//if our chosen entity is alive: Walk the stairs down and activate ur brain
+		{
+		//Setup the chars, let them watch the WARRIOR
+			ifDoesExistHeadWatchEntity($knife_m1,kWarrior);
+			ifDoesExistHeadWatchEntity($knife_m2,kWarrior);
+			ifDoesExistHeadWatchEntity($batleth_f1,kWarrior);
+			ifDoesExistHeadWatchEntity($batleth_f2,kWarrior);
+			ifDoesExistHeadWatchEntity($batleth_m1,kWarrior);
+			ifDoesExistHeadWatchEntity($batleth_m2,kWarrior);
+			wait(.5);
+		
+			kWarrior.headwatch(globalCoop_return_playerClosestPreferActive(kWarrior));
+			wait(.1);
+			kWarrior.playsound ( "sound/coop_blarena/chars/klingon/"+warrior+".wav", 7, 3, 200);
+			wait(1.5);
+			kWarrior.fov(360);
+			kWarrior.setTendency("patrol",1);
+			
+			if(warrior == "batleth_m1")
+			{
+				kWarrior.health(200);//make him strong, just a little surprise :D
+			}
+			else{
+				if(cvar_bool_multiplayer){
+					kWarrior.health(150);
+				}
+				else{
+					kWarrior.health(90);
+				}
+			}
+			kWarrior.killThread("victory");
+			kWarrior.resethead();
+			wait(.1);
+			kWarrior.ai_on();
+			wait(4);
+			kWarrior.takeDamage();
+			kWarrior.immortal(0);
+			
+			//Next time i'll do it otherwise, when the actor dies she/he will start a thread then...
+			while(globalCoop_check_existingLivingEntity(kWarrior) > 0)//As long as the actor is alive (health higher then 0) stick here and rechek every 2 secounds
+			{
+				wait(2);
+			}
+		//Setup the chars, let them watch a player
+			ifDoesExistHeadWatchEntity($knife_m1,returnMeARandomPlayer());
+			ifDoesExistHeadWatchEntity($knife_m2,returnMeARandomPlayer());
+			ifDoesExistHeadWatchEntity($batleth_f1,returnMeARandomPlayer());
+			ifDoesExistHeadWatchEntity($batleth_f2,returnMeARandomPlayer());
+			ifDoesExistHeadWatchEntity($batleth_m1,returnMeARandomPlayer());
+			ifDoesExistHeadWatchEntity($batleth_m2,returnMeARandomPlayer());
+		}
+		wait(.01);
+	}
+}
+
+
+float float_victory;
+void victory()
+{
+	float_victory++;
+	if(float_victory != 6){
+		return;
+	}
+	thread coop_waitForTeam();
+	globalCoop_main_globalCommand("health");
+	$world.playsound ( "sound/coop_blarena/misc/victory.wav", 7, 3, 1000);
+	$antiCheatWall.remove();//(Protects the chars)
+	$sp_forcefield1.stoploopsound();//Stop Sound
+	$sp_forcefield1.remove();//(RedForcefields)
+	thread globalCoop_objectives_update("complete",1,1);//State,Item,ShowIt
+}
+
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'200 200 400','423 30 280');
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_bugs");
+}
+

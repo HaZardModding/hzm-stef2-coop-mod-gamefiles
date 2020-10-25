@@ -1,0 +1,756 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      ent-deck7a - Enterprise Deck 8 - Hazard Ops - MISSION 1
+//  Script By:    Luke W.
+//  Created on:   07/08/2002
+//	Last Edited:  07/08/2002 - LW
+//-----------------------------------------------------------------
+
+// Setup
+void setupMission2Deck1();
+
+// Dialog and Cinematics
+void cinematicBridgeIGM2();
+void cinematicBridgeIGM2Skipthread();
+void cinematicBridgeIGM2End();
+
+void checkForChellCommIGM2();
+void chellCallsForMunro();
+
+void ambientActorsIGM2();
+
+void ringReadyRoomDoorIGM2();
+void ringReadyRoomDoorGoIGM2();
+
+void picard_workIGM2();
+void picardDialog2_1();
+void picardDialog2_2();
+
+void tuvok_workIGM2();
+void tuvokDialog2_1();
+void tuvokDialog2_2();
+void tuvokDialog2_3();
+void tuvokDialog2_4();
+
+void jacobs_workIGM2();
+void jacobsDialog2_1();
+void jacobsDialog2_2();
+void jacobsDialog2_3();
+
+void manaan_workIGM2();
+void manaanDialog2_1();
+void manaanDialog2_2();
+
+void johnson_workIGM2();
+void johnsonDialog2_1();
+void johnsonDialog2_2();
+
+void stratton_workIGM2();
+void strattonDialog2_1();
+void strattonDialog2_2();
+
+//-----------------------------
+//--- variables
+
+entity cinematicArm_IGM2_Conference;
+
+
+//===================================================================================================================
+// Setup
+//===================================================================================================================
+//---------------------
+// setupMission2Deck1
+// does all the little setup stuff for the mission
+//---------------------
+void setupMission2Deck1()
+{
+	//--- Fade Out
+	cam_fadeout( .05, 0, 0, 0, 1, 0 );
+
+	waitforplayer();
+	freezeplayer();
+	setfloatvar( "game.checkEntMission2RoomsVisited", 0 );
+
+	spawn( "Camera", "targetname", "cam1" );
+
+	cam.load( "cam_ent_deck1_igm2" );
+
+	globalCommon_SpawnActor( "char/starfleet_picard.tik", "picard", '2095.45 -4570.55 -16.00', 160 );
+	globalCommon_SpawnActor( "char/starfleet_tuvok.tik", "tuvok", '1952 -4996 2', 270 );
+	globalCommon_SpawnActor( "char/hazardteam_sf-munro.tik", "scriptmunro", '2078.38 -4536.62 -16.00', 250 );
+	globalCommon_SpawnActor( "char/hazardteam_sf-telsia.tik", "telsia", '1988.00 -4513.00 -16.00', 265 );
+	globalCommon_SpawnActor( "char/starfleet_katarina.tik", "katarina", '1922.50 -4514.50 -16.00', 275 );
+
+	//Needed For dialog
+	globalCommon_SpawnActor( "char/hazardteam_sf-chell.tik", "chell", '1988.00 -4513.00 -16.00', 265 );
+	$chell.hide();
+	$chell.notsolid();
+
+	$picard.anim( "ent-seta_sit-idle1" );
+	$tuvok.anim( "ent-seta_sit-idle1" );
+	$scriptmunro.anim( "ent-seta_sit-idle1" );
+	$telsia.anim( "ent-seta_sit-idle1" );
+	$katarina.anim( "ent-seta_sit-idle1" );
+
+	//--- armature setup
+	cinematicArm_IGM2_Conference = createCinematic( "igm2_debrief" );
+	cinematicArm_IGM2_Conference.setendthread( "cinematicBridgeIGM2End" );
+
+	thread cinematicBridgeIGM2();
+}
+
+
+//===================================================================================================================
+// Dialog and Cinematics
+//===================================================================================================================
+
+
+//---------------------
+// cinematicBridgeIGM2
+// Cinamtic with Picard talking to Munro about
+//---------------------
+void cinematicBridgeIGM2()
+{
+	//--- starting cinematic commands
+	cinematic();
+	letterbox( .1 );
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//--- hide the player and AI
+	globalCommon_AiDummyHide( $scriptmunro );
+	globalCommon_AiDummyHide( $telsia );
+	globalCommon_AiDummyHide( $katarina );
+	globalCommon_AiDummyHide( $tuvok );
+	globalCommon_AiDummyHide( $picard );
+
+	//--- start the armature
+	cinematicArm_IGM2_Conference.beginCinematic( "igm2_debrief" );
+	wait( .2 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	//allowMusicDucking ( 0 );
+	music ( "aux2" );
+
+	//--- set the skipthread
+	skipthread( "cinematicBridgeIGM2End" );
+}
+
+
+//---------------------
+// cinematicSkipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicBridgeIGM2Skipthread()
+{
+	//--- kill the cinematic thread
+	skipthread( "Null" );
+	killthread( "cinematicBridgeIGM2" );
+	thread cinematicBridgeIGM2End();
+}
+
+
+//---------------------
+// cinematicEnd
+// wrapup the cinematic
+//------------------------
+void cinematicBridgeIGM2End()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	music ("normal");
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_IGM2_Conference.endCinematic( FALSE );
+
+	killthread( "cinematicBridgeIGM2" );
+
+	//--- position and setup ambient actors
+	ambientActorsIGM2();
+
+	$scriptmunro.hide();
+	$scriptmunro.notsolid();
+
+	$telsia.hide();
+	$telsia.notsolid();
+
+	$katarina.hide();
+	$katarina.notsolid();
+
+	$picard.show();
+	$picard.solid();
+
+	$tuvok.solid();
+	$tuvok.show();
+
+	//--- unlock the ready room door
+	unlockReadyRoomDoor();
+
+	//Turn Exit Triggers On
+	$triggerExit.triggerable();
+
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .75 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	setfloatvar( "game.checkEntMission2RoomsVisited", 1 );
+
+	// Make turbo lift trigger triggerable so chell can call
+	$justLoadedDeckTrigger.thread( "checkForChellCommIGM2" );
+
+	wait( 3 );
+
+	// Make turbo lift trigger not triggerable and force chell to call
+	$justLoadedDeckTrigger.thread( "" );
+	chellCallsForMunro();
+	
+	//hzm coop mod chrissstrahl, set next deck 7b
+	setfloatvar(  "level.deckToChangeToIGM", 72 );
+}
+
+/////////////////////////////
+// Check to see if chell should call the player
+/////////////////////////////
+void checkForChellCommIGM2()
+{
+	$justLoadedDeckTrigger.thread( "" );
+
+	if( getfloatvar ( "game.checkEntMission2RoomsVisited" ) == 1 )
+	{
+		killthread( "cinematicBridgeIGM2End" );
+	}
+	else{ $justLoadedDeckTrigger.thread( "checkForChellCommIGM2" ); }
+	
+}
+
+/////////////////////////////
+// Chell calls the player
+/////////////////////////////
+void chellCallsForMunro()
+{
+	$chell.playdialog("localization/sound/dialog/ent_m2/chell_final.mp3", 1, 800, 1);
+	waitfordialog( $chell );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$IGM2GoToShuttleBay$$","incomplete",1,1);
+}
+
+//===================================================================================================================
+// Ambient Actors
+//===================================================================================================================
+//---------------------
+// ambientActorsIGM2
+// Set up ambient Actors
+//---------------------
+void ambientActorsIGM2()
+{
+	globalCommon_SpawnActor( "char/starfleet_crew-male.tik", "jacobs", '2190.39 -5209.61  0.00', 210 );
+	thread randomlyAnimateActor( $jacobs, "ent-vchair" );
+	thread jacobs_workIGM2();
+
+	globalCommon_SpawnActor( "char/starfleet_crew-female.tik", "manaan", '2020.97 -5059.03 -14.00', 225 );
+	thread randomlyAnimateActor( $manaan, "ent-vchair-sm" );
+	thread manaan_workIGM2();
+
+	globalCommon_SpawnActor( "char/starfleet_crew-male4.tik", "johnson", '1910.00 -5319.00 -32.00', 270 );
+	thread randomlyAnimateActor( $johnson, "ent-frontchair" );
+	thread johnson_workIGM2();
+
+	globalCommon_SpawnActor( "char/starfleet_crew-male3.tik", "stratton", '1878.97 -5058.03 -16.00', 315 );
+	thread randomlyAnimateActor( $stratton, "ent-vchair-sm" );
+	thread stratton_workIGM2();
+
+	globalCommon_SpawnScriptModel( "enviro/enterprise_electronic_laptop.tik", "laptop", '1593.53 -5846.49  2.81', 300 );
+	$laptop.anim( "open_idle" );
+
+	$picard.origin( '1601 -5855 -46' );
+	$picard.angle( 120 );
+	thread randomlyAnimateActor( $picard, "ent-table-laptop" );
+	thread picard_workIGM2();
+
+	thread randomlyAnimateActor( $tuvok, "ent-seta_sit" );
+	thread tuvok_workIGM2();
+
+	$triggerReadyRoomDoor.thread( "ringReadyRoomDoorIGM2" );
+
+}
+
+///////////////////////////
+// ringReadyRoomDoorIGM2
+// Thread used to ring Picards Door
+///////////////////////////
+void ringReadyRoomDoorIGM2()
+{
+	$triggerReadyRoomDoor.thread( "" );
+
+	$readyRoomDoor.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+	wait( 2 );
+
+	$picard.playdialog("localization/sound/dialog/ent_m1/picard_come2.mp3", 1, 800, 0); //Come.
+	waitForDialog( $picard );
+
+	wait( .5 );
+
+	$readyRoomDoor.open( $world );
+
+	$triggerReadyRoomDoor.thread( "ringReadyRoomDoorGoIGM2" );
+}
+
+void ringReadyRoomDoorGoIGM2()
+{
+	$triggerReadyRoomDoor.thread( "" );
+
+	if( readyRoomDoorIsLocked == 1 )
+	{
+		$readyRoomDoor.playsound( "sound/environment/computer/lcars_door.wav", 8 ,1 ,10000 );
+		wait( 2 );
+	}
+	else if( readyRoomDoorIsLocked == 0 )
+	{
+		$readyRoomDoor.open( $world );
+	}
+
+	$triggerReadyRoomDoor.thread( "ringReadyRoomDoorGoIGM2" );
+}
+
+///////////////////////////
+// picardOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void picard_workIGM2()
+{
+	setNextDialog( $picard, 1 );
+	setDialogFunction( $picard, "picardDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $picard, "", "", 0 );
+		talkUntilDone( $picard );
+	}
+}
+
+///////////////////////////
+// picardDialog2_1
+// Player and actor talk
+///////////////////////////
+void picardDialog2_1()
+{
+	$picard.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$picard.anim( "ent-table-laptop-scan" );
+	$picard.headwatch( $player, 10 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_captain1.mp3", 1, 10000, 0); //Captain.
+	waitForDialog( $scriptmunro );
+	$picard.playdialog("localization/sound/dialog/ent_m2/picard_goodluck1.mp3", 1, 128, 0); //Good luck, Lieutenant.
+	waitForDialog( $picard );
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_thanksir3.mp3", 1, 10000, 0); //Thank you, sir.
+	waitForDialog( $scriptmunro );
+
+	setNextDialog( $picard, 2 );
+	$picard.resethead();
+	setDialogFinished( $picard );
+	$picard.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// picardDialog2_1
+// Player and actor talk
+///////////////////////////
+void picardDialog2_2()
+{
+	$picard.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$picard.anim( "ent-table-laptop-scan" );
+	$picard.headwatch( $player, 10 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_sir.mp3", 1, 10000, 0); //Sir.
+	waitForDialog( $scriptmunro );
+	$picard.playdialog("localization/sound/dialog/ent_m2/picard_onyourway1.mp3", 1, 128, 0); //On your way, Lieutenant.
+	waitForDialog( $picard );
+
+	setNextDialog( $picard, 2 );
+	$picard.resethead();
+	setDialogFinished( $picard );
+	$picard.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// tuvokOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void tuvok_workIGM2()
+{
+	setNextDialog( $tuvok, 1 );
+	setDialogFunction( $tuvok, "tuvokDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $tuvok, "", "", 0 );
+		talkUntilDone( $tuvok );
+	}
+}
+
+///////////////////////////
+// tuvokDialog2_1
+// Player and actor talk
+///////////////////////////
+void tuvokDialog2_1()
+{
+	$tuvok.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$tuvok.anim( "ent-seta_sit-scan" );
+	$tuvok.headwatch( $player, 10 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/ent_m2/munro_sir2.mp3", 1, 10000, 0); //Sir.
+	waitForDialog( $scriptmunro );
+	$tuvok.playdialog("localization/sound/dialog/ent_m2/tuvok_frankdead.mp3", 1, 128, 0); //Your team’s performance on the ship
+	waitForDialog( $tuvok );
+
+	setNextDialog( $tuvok, 2 );
+	$tuvok.resethead();
+	setDialogFinished( $tuvok );
+	$tuvok.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// tuvokDialog2_2
+// Player and actor talk
+///////////////////////////
+void tuvokDialog2_2()
+{
+	$tuvok.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$tuvok.anim( "ent-seta_sit-scan" );
+	$tuvok.headwatch( $player, 10 );
+
+	$tuvok.playdialog("localization/sound/dialog/ent_m2/tuvok_inforec.mp3", 1, 128, 0); //I was pleased to see your team working efficiently.
+	waitForDialog( $tuvok );
+
+	setNextDialog( $tuvok, 3 );
+	$tuvok.resethead();
+	setDialogFinished( $tuvok );
+	$tuvok.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// tuvokDialog2_3
+// Player and actor talk
+///////////////////////////
+void tuvokDialog2_3()
+{
+	$tuvok.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$tuvok.anim( "ent-seta_sit-scan" );
+	$tuvok.headwatch( $player, 10 );
+
+	$tuvok.playdialog("localization/sound/dialog/ent_m2/tuvok_chellwait.mp3", 1, 128, 0); //I believe Ensign Chell is waiting for you in Shuttle Bay 2 Lieutenant.
+	waitForDialog( $tuvok );
+
+	setNextDialog( $tuvok, 4 );
+	$tuvok.resethead();
+	setDialogFinished( $tuvok );
+	$tuvok.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// tuvokDialog2_4
+// Player and actor talk
+///////////////////////////
+void tuvokDialog2_4()
+{
+	$tuvok.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$tuvok.anim( "ent-seta_sit-scan" );
+	$tuvok.headwatch( $player, 10 );
+
+	$tuvok.playdialog("localization/sound/dialog/ent_m2/tuvok_suggest.mp3", 1, 128, 0); //I suggest you prepare for your next mission.
+	waitForDialog( $tuvok );
+
+	setNextDialog( $tuvok, 2 );
+	$tuvok.resethead();
+	setDialogFinished( $tuvok );
+	$tuvok.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// jacobsOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void jacobs_workIGM2()
+{
+	setNextDialog( $jacobs, 1 );
+	setDialogFunction( $jacobs, "jacobsDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $jacobs, "", "", 0 );
+		talkUntilDone( $jacobs );
+	}
+}
+
+///////////////////////////
+// jacobsDialog2_1
+// Player and actor talk
+///////////////////////////
+void jacobsDialog2_1()
+{
+	$jacobs.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$jacobs.anim( "ent-vchair-scan" );
+	$jacobs.headwatch( $player, 10 );
+
+	$jacobs.playdialog("localization/sound/dialog/ent_m2/jacobs_onroute.mp3", 1, 128, 0); //We are en route to the Attrexian Space Station.
+	waitForDialog( $jacobs );
+
+	setNextDialog( $jacobs, 2 );
+	$jacobs.resethead();
+	setDialogFinished( $jacobs );
+	$jacobs.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// jacobsDialog2_2
+// Player and actor talk
+///////////////////////////
+void jacobsDialog2_2()
+{
+	$jacobs.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$jacobs.anim( "ent-vchair-scan" );
+	$jacobs.headwatch( $player, 10 );
+
+	$jacobs.playdialog("localization/sound/dialog/ent_m2/jacobs_speed.mp3", 1, 128, 0); //At our current speed, we should arrive soon.  I suggest you prepare for your mission.
+	waitForDialog( $jacobs );
+
+	setNextDialog( $jacobs, 3 );
+	$jacobs.resethead();
+	setDialogFinished( $jacobs );
+	$jacobs.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// jacobsDialog2_3
+// Player and actor talk
+///////////////////////////
+void jacobsDialog2_3()
+{
+	$jacobs.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$jacobs.anim( "ent-vchair-scan" );
+	$jacobs.headwatch( $player, 10 );
+
+	$jacobs.playdialog("localization/sound/dialog/ent_m2/jacobs_busy1.mp3", 1, 128, 0); //Sorry. I'm kinda busy here.
+	waitForDialog( $jacobs );
+
+	setNextDialog( $jacobs, 1 );
+	$jacobs.resethead();
+	setDialogFinished( $jacobs );
+	$jacobs.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// manaanOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void manaan_workIGM2()
+{
+	setNextDialog( $manaan, 1 );
+	setDialogFunction( $manaan, "manaanDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $manaan, "", "", 0 );
+		talkUntilDone( $manaan );
+	}
+}
+
+///////////////////////////
+// manaanDialog2_1
+// Player and actor talk
+///////////////////////////
+
+void manaanDialog2_1()
+{
+	$manaan.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$manaan.anim( "ent-vchair-sm-scan" );
+	$manaan.headwatch( $player, 10 );
+
+	$manaan.playdialog("localization/sound/dialog/ent_m3/myamoto_whatit.mp3", 1, 128, 0); //What is it?
+	waitForDialog( $manaan );
+
+	setNextDialog( $manaan, 2 );
+	$manaan.resethead();
+	setDialogFinished( $manaan );
+	$manaan.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// manaanDialog2_2
+// Player and actor talk
+///////////////////////////
+
+void manaanDialog2_2()
+{
+	$manaan.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$manaan.anim( "ent-vchair-sm-scan" );
+	$manaan.headwatch( $player, 10 );
+
+	$manaan.playdialog("localization/sound/dialog/ent_m3/myamoto_sorry.mp3", 1, 128, 0); //Sorry, I can't chat right now.
+	waitForDialog( $manaan );
+
+	setNextDialog( $manaan, 1 );
+	$manaan.resethead();
+	setDialogFinished( $manaan );
+	$manaan.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// johnsonOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void johnson_workIGM2()
+{
+	setNextDialog( $johnson, 1 );
+	setDialogFunction( $johnson, "johnsonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $johnson, "", "", 0 );
+		talkUntilDone( $johnson );
+	}
+}
+
+///////////////////////////
+// johnsonDialog2_1
+// Player and actor talk
+///////////////////////////
+void johnsonDialog2_1()
+{
+	$johnson.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$johnson.anim( "ent-frontchair-scan" );
+	$johnson.headwatch( $player, 10 );
+
+	$johnson.playdialog("localization/sound/dialog/ent_m3/devald_canihelp.mp3", 1, 128, 0); //Can I help you?
+	waitForDialog( $johnson );
+
+	setNextDialog( $johnson, 2 );
+	$johnson.resethead();
+	setDialogFinished( $johnson );
+	$johnson.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// johnsonDialog2_2
+// Player and actor talk
+///////////////////////////
+void johnsonDialog2_2()
+{
+	$johnson.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$johnson.anim( "ent-frontchair-scan" );
+	$johnson.headwatch( $player, 10 );
+
+	$johnson.playdialog("localization/sound/dialog/ent_m3/devald_sorry.mp3", 1, 128, 0); //Sorry, I can't chat right now.
+	waitForDialog( $johnson );
+
+	setNextDialog( $johnson, 1 );
+	$johnson.resethead();
+	setDialogFinished( $johnson );
+	$johnson.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// strattonOnUseWaitIGM2
+// Wait for player to talk to actor
+///////////////////////////
+void stratton_workIGM2()
+{
+	setNextDialog( $stratton, 1 );
+	setDialogFunction( $stratton, "strattonDialog" );
+	while( 1 )
+	{
+		workUntilUsed( $stratton, "", "", 0 );
+		talkUntilDone( $stratton );
+	}
+}
+
+///////////////////////////
+// strattonDialog2_1
+// Player and actor talk
+///////////////////////////
+void strattonDialog2_1()
+{
+	$stratton.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$stratton.anim( "ent-vchair-sm-scan" );
+	$stratton.headwatch( $player, 10 );
+
+	$stratton.playdialog("localization/sound/dialog/ent_m2/stratton_busy1.mp3", 1, 128, 0); //I'm busy.
+	waitForDialog( $stratton );
+
+	setNextDialog( $stratton, 2 );
+	$stratton.resethead();
+	setDialogFinished( $stratton );
+	$stratton.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+///////////////////////////
+// strattonDialog2_2
+// Player and actor talk
+///////////////////////////
+void strattonDialog2_2()
+{
+	$stratton.setFloatVar( "pauseRandomAnimate", 1 );
+	wait( .25 );
+	$stratton.anim( "ent-vchair-sm-scan" );
+	$stratton.headwatch( $player, 10 );
+
+	$stratton.playdialog("localization/sound/dialog/ent_m2/stratton_chat1.mp3", 1, 128, 0); //Sorry, no time for chit chat.
+	waitForDialog( $stratton );
+
+	setNextDialog( $stratton, 1 );
+	$stratton.resethead();
+	setDialogFinished( $stratton );
+	$stratton.setFloatVar( "pauseRandomAnimate", 0 );
+}
+
+//===================================================================================================================
+// Deck Change Check
+//===================================================================================================================
+//---------------------
+// checkForDeckChangeIGM2
+//---------------------
+void checkForDeckChangeIGM2()
+{
+	if( getfloatvar( "game.checkEntMission2RoomsVisited" ) == 1 )
+	{
+		setfloatvar(  "level.deckToChangeToIGM", 72 );
+
+		$scriptmunro.playdialog("localization/sound/dialog/ent_m1/munro_d7shutt.mp3", 1, 10000, 0); //Deck 7: Shuttle Bay
+	}
+	
+	//hzm coop mod chrissstrahl, set the map to load
+	coop_igm_mapToLoad = "ent-deck7b";
+}
+
+
+
+
+
+
+
+

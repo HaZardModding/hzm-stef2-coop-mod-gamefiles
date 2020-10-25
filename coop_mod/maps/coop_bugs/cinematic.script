@@ -1,0 +1,257 @@
+//coop_bugs, cinematic related stuff
+
+void cinematic_bugplants()
+//player aproaches the bugplants
+{
+	spawn("camera","targetname","cam1");
+	forcemusic("aux4");
+
+	cinematic();
+	if(!cvar_bool_multiplayer){//singleplayer
+		globalCoop_level_hideAndNotSolid($player);
+		$player.nodamage();//damage from (hurt)triggers
+	}
+	cam_fadeOut(0.4, 0, 0, 0,1);
+	wait(.5);
+	freezeplayer();
+	letterbox(.01);
+	
+	$cam1.follow($bugplantsShot1,$bugplantsShot1);
+	$cam1.cut();
+	cuecamera($cam1);
+	wait(1);
+	cam_fadeIn(0.25, 0, 0, 0,1);
+	skipthread("cinematic_bugplantsSkip");
+	wait(2.5);
+	if(!cinematic_bugPlantsSpawned)
+	{
+		cinematic_bugPlantsSpawned=1;
+		globalCoop_level_triggerEntity($spawnerCinematicBugplantsBug1);
+	}
+	wait(1);
+	$CinematicBugplantsBug1.ai_off();
+	$CinematicBugplantsBug1.walkto("$CinematicBugplantsBug1Walkto","walk");
+	globalCoop_level_triggerEntity($spawnerCinematicBugplantsBug2);
+	globalCoop_level_triggerEntity($spawnerCinematicBugplantsBug3);
+	wait(1);
+	$CinematicBugplantsBug2.ai_off();
+	$CinematicBugplantsBug2.walkto("$CinematicBugplantsBug2Walkto");
+	$CinematicBugplantsBug3.ai_off();
+	$CinematicBugplantsBug3.walkto("$CinematicBugplantsBug3Walkto");
+	wait(7);
+	thread cinematic_bugplantsSkip();
+	globalCoop_level_removePath($bugplantsShot1);//remove camera path (trafic)
+}
+
+void cinematic_bugplantsSkip()
+{
+	killthread("cinematic_bugplants");
+
+	thread globalCoop_level_removePath($bugplantsShot1);//remove camera path (trafic)
+	cam_fadeOut(0.25, 0, 0, 0,1);
+	wait(.3);
+	
+//bugs not yet spawned
+	if(!cinematic_bugPlantsSpawned)
+	{
+		cinematic_bugPlantsSpawned=1;
+		globalCoop_level_triggerEntity($spawnerCinematicBugplantsBug1);
+	}
+	
+//end cinematic
+	clearletterbox( .01 );
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	if(!cvar_bool_multiplayer){
+		globalCoop_level_showAndSolid($player);
+		$player.takedamage();
+	}
+	
+	globalCoop_level_removePath($bugplantsShot1);//remove camera path (trafic)
+//fade camera back in
+	cam_fadeIn(0.25, 0, 0, 0,1);
+	forcemusic("normal");
+	
+//save game
+	if(cvar_bool_multiplayer)
+		return;
+	
+	string command,sName;	
+	command = "ui_savegamewithname ";
+	command = command + "\"";
+	command = command + "^5Coop^8 Bugs - Hungry Plants";
+	command = command + "\"\n";
+	stuffcmd( command );
+}
+
+void cinematic_lift()
+{
+	$swimmerClip.remove();
+
+	forcemusic("aux4");
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		ePlayer = eTrigger.getLastActivatingEntity();
+	}
+	
+	
+	cinematic();	
+	if(!cvar_bool_multiplayer){//singleplayer
+		globalCoop_level_hideAndNotSolid($player);
+		$player.nodamage();//damage from (hurt)triggers
+	}
+	
+	cam_fadeOut(0.4, 0, 0, 0,1);
+	wait(.5);
+	freezeplayer();
+	letterbox(.01);
+	
+	$liftPannel2On.hide();
+	$liftPannel2Off.show();
+	$liftOrigin.movetopos($liftLocation2.getOrigin());
+	$liftOrigin.time(4.5);
+	
+	spawn("actor","model","coop_bugs/munro.tik","targetname","munro","origin","11982.00 -4806.00 -867.00","angle","90");
+	globalCoop_main_waitAFrame();
+	$cam1.follow($cinematic_liftOperational,$cinematic_liftOperational);
+	$cam1.cut();
+	cuecamera($cam1);
+	wait(0.5);
+	cam_fadeIn(0.25, 0, 0, 0,1);
+//wait for camera
+	$munro.ai_off();
+	$munro.headwatch($lift_dude,20);
+	$lift_dude.headwatch($munro,20);
+//wait for lift
+	waitFor($liftOrigin);
+//open lift door
+	$liftDoorOrigin.rotateZdown(90);
+	$liftDoorOrigin.time(2.5);
+	wait(2);
+//start dialog
+	$munro.playDialog("localization/sound/dialog/m7l1/munro_federation.mp3",1,10000,0);
+	waitForDialog($munro);
+//animate dude
+	$lift_dude.anim("conv-yes");
+//be greathful
+	$lift_dude.playDialog("localization/sound/dialog/m4l1/attrex_help.mp3",1,10000,0);
+	waitForDialog($lift_dude);
+	wait(0.5);
+	$munro.hide();
+	$munro.notsolid();
+	cam_fadeOut(0.25, 0, 0, 0,1);
+	wait(1);
+
+//end cinematic
+	clearletterbox( .01 );
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	if(!cvar_bool_multiplayer){
+		globalCoop_level_showAndSolid($player);
+		$player.takedamage();
+	}
+	
+	globalCoop_level_removePath($cinematic_liftOperational);//remove camera path (trafic)
+//relocate player
+	if(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		ePlayer.origin('12262 -5051 -967');
+		ePlayer.playerviewangles('0 0 0');
+	}
+	forcemusic("normal");
+//fade camera back in
+	cam_fadeIn(0.25, 0, 0, 0,1);
+//end cinematic
+
+	$patternenhancer10_useSymbol.missionobjective(1);
+}
+
+void pyramid_cinematicEnd()
+{
+	$pyramid_cinematicEnd_symbol.missionobjective(0);
+	$pyramid_cinematicEnd_symbol.remove();
+
+	if(cvar_bool_multiplayer)
+	{
+		$pyramid_callVolumeVisual.remove();
+	}	
+	forcemusic("aux4");
+	$pyramid_beam0.show();
+	$pyramid_beam1.show();
+	$pyramid_beam2.show();
+	$pyramid_beam3.show();
+	$pyramid_cinematicEnd2.angles('35 180 0');
+	wait(2);
+	
+	cinematic();	
+	if(!cvar_bool_multiplayer){//singleplayer
+		globalCoop_level_hideAndNotSolid($player);
+		$player.nodamage();//damage from (hurt)triggers
+	}
+	cam_fadeout(0.4,0,0,0,1);
+	wait(.5);
+	freezeplayer();
+	letterbox(.01);
+	if(!doesEntityExist($munro))
+	{
+		spawn("actor","model","coop_bugs/munro.tik","targetname","munro","origin","19281 -4565 -70","angle","90");
+		wait(0.1);
+	}
+	else{
+		$munro.origin('19281 -4565 -70');
+	}
+	
+	if(!doesEntityExist($picard))
+	{
+		spawn("actor","model","coop_bugs/picard.tik","targetname","picard","origin","19047 -6310 -113","angle","90");
+		wait(0.1);
+	}
+	else{
+		$picard.origin('19047 -6310 -113');
+	}
+	$picard.ai_off();
+	$munro.ai_off();
+	$munro.angle(90);
+	$munro.show();
+	$cam1.follow($pyramid_cinematicEnd,$pyramid_cinematicEnd);
+	$cam1.cut();
+	cuecamera($cam1);
+	wait(0.5);
+	cam_fadeIn(0.25, 0, 0, 0,1);
+	$munro.walkto("$pyramid_cinematicEnd_walk");
+	wait(3);
+	//waitfor($munro);
+	globalCoop_actor_useWeapon($munro,"fed-tricorder-STX");
+	$munro.anim("tricorder_scan180");
+	wait(3);
+//fade out bright white
+	cam_fadeout(1,1,1,1,1);
+	wait(2);
+	$munro.remove();
+	$picard.playDialog("localization/sound/dialog/combat/picard_report.mp3",1,10000,0);
+	waitForDialog($picard);
+	wait(2);
+	cam_fadein(10,0,0,0,1);
+	cam_fadeout(0.01,0,0,0,1);
+	
+//end cinematic
+	clearletterbox( .01 );
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	if(!cvar_bool_multiplayer){
+		globalCoop_level_showAndSolid($player);
+		$player.takedamage();
+	}
+	
+//mission completed
+	wait(3);
+	coop_endLevel();
+	globalCoop_mission_completed("secret1");
+}
+

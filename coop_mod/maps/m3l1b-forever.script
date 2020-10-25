@@ -1,0 +1,2048 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m3l1b-forever - USS Dallas 
+//  Script By:    Kenny 'Gullie' Thompson, Richard "Charon" H., Adam 'Senn' Bellefeuil
+//  Geometry By:  Adam 'Senn' Bellefeuil
+//  Created on:   02/05/2002
+//
+//  Last Edited:  02/05/2003 - Adam
+//-----------------------------------------------------------------
+
+void main();
+void init();
+
+void doorJTubeFloor_Open();
+
+void setupCameras();
+void setup_archetypes();
+void setupAI();
+void setup_sounds();
+void brokenhall_setup();
+
+void firstEncounter1();
+void firstEncounter2();
+void firstEncounter3();
+
+void alienJtube_sequence();
+void sequenceBodyDrag();
+void crewDeadMoving1_move1();
+void deadHole1_thread();
+void sequenceHallwayAlien1_1();
+void sequenceHallwayAlien1_2();
+void brokenhall1_explode1();
+
+void sequenceEngineering();
+void sequenceEngineering_skipThread();
+void sequenceEngineering_end();
+
+void sequenceLoungeAlienSpoof();
+void loungeAlienSpoof_doorbreak2_explode();
+void sequenceLoungeShake();
+void sequenceEngineeringDoorExplode();
+void dialogTeamUnderAttack();
+void sequenceTeamUnderAttack();
+void checkTeamUnderAttackAliensKilled();
+void engineeringRestorePower();
+
+void sequenceSubsystemOn();
+//void Subsystem_ActivateFunction();
+void switchExposeSubsystem_Function();
+
+void randomShipSound();
+void randomAlienSound();
+void doorBroken1Move();
+void doorBroken3Move();
+void soundAlienSounds1();
+void soundAlienSounds2();
+void soundAlienSounds3();
+void soundRandomAlienScratch ( entity entSoundSource , float floatChannel , float floatVolume , float floatRange );
+
+void dialogTurbolift();
+
+void restoreTeamPositions();
+
+void enterTurbolift();
+
+//float counterPanelEngineeringUsed = 0;
+float counterTeamUnderAttackAliensKilled = 0;
+
+
+//=============================================================================
+// Includes
+//=============================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	ePlayerStartedPuzzle;
+void	coop_setVectorIfNotZero(float fIdSpawn);
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_soundPan.scr"
+#include "coop_mod/matrix/global/global_tubeDoor.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+float _turboliftsPowered;
+
+//==========================================================================================
+// Josh's cinematic helper functions
+//==========================================================================================
+void _cineFakePlayerBegin()
+{
+	fakeplayer();
+	freezeplayer();
+}
+
+void _cinePlayerBegin()
+{
+	/*$player.hide();
+	$player.notsolid();*/
+	freezeplayer();
+}
+
+void _cineFakePlayerEnd()
+{
+	removefakeplayer();
+	releaseplayer();
+}
+
+void _cinePlayerEnd()
+{
+	/*$player.show();
+	$player.solid();*/
+	releaseplayer();
+}
+
+void _cineScreenBegin()
+{
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	cinematic ();
+	letterbox( 0.05 );
+	wait( 0.1 );
+}
+
+void _cineScreenEnd()
+{
+	cueplayer();
+	clearletterbox( 0.05 );
+	noncinematic();
+	wait( 0.1 );
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+}
+
+//===================================================================================================================
+// Main Stuff 
+//===================================================================================================================
+
+//---------------------
+// main	
+// do start up stuff
+//---------------------
+void main()
+{
+	$Jurot.ai_off();
+	$Chell.ai_off();
+	$Franklin.ai_off();
+	
+	//hzm coop mod chrissstrahl - set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$DallasLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - Set Tactical information, to be added at the Objectives hud
+	coop_string_objectiveTacticalInfo1 = "UseNightVision";
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_vector_spawnOrigin1 	= '-436 821 0';
+	coop_vector_spawnOrigin2 	= '-360 821 0';
+	coop_vector_spawnOrigin3 	= '-290 821 0';
+	coop_vector_spawnOrigin4 	= '-593 935 0';
+	coop_vector_spawnOrigin5 	= '-136 974 0';
+	coop_vector_spawnOrigin6 	= '-597 1156 0';
+	coop_vector_spawnOrigin7 	= '-142 1143 0';
+	coop_vector_spawnOrigin8 	= '-601 1334 0';
+		
+	//hzm coop mod chrissstrahl - Set spawnangles for this level
+	coop_float_spawnAngle0		= -90;
+	coop_float_spawnAngle1		= 90;
+	coop_float_spawnAngle2		= 90;
+	coop_float_spawnAngle3		= 90;
+	coop_float_spawnAngle4		= 1;
+	coop_float_spawnAngle5		= 180;
+	coop_float_spawnAngle6		= 1;
+	coop_float_spawnAngle7		= 180;
+	coop_float_spawnAngle8		= 1;
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m3l1b_forever" );
+	
+	//hzm coop mod chrissstrahl - get locations from game, from previouse level
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		coop_setVectorIfNotZero(fPlayerIdInUse);
+	}
+	
+	restoreTeamPositions();
+		
+	$sky.hide();
+	$sky.rendereffects ( "+skyorigin" );
+	$world.entity_fade_dist ( 8000 );
+	
+	$stardome.rotateX( 0.2 );
+	$stardome.rotateY( 0.7 );
+
+	thread init();
+	
+    //--- set the soundtrack
+	soundtrack( "music/m3l1b-forever.mus" );
+
+	//thread globalCommon_OnUse ( $doorJTubeFloor , "doorJTubeFloor_Open" );
+	//thread globalCommon_OnUse ( $switchJTubeElevatorLevel1 , "doorJTubeElevatorLevel1_OpenFunction" );
+	//thread globalCommon_OnDamage ( $triggerDoorEngineeringEast , "sequenceEngineeringDoorExplode" );
+	
+	thread doorBroken1Move();
+	thread doorBroken3Move();
+
+	thread randomShipSound();
+	thread randomAlienSound();
+	thread setupCameras();
+	thread setup_archetypes();
+	thread setupAI();
+	thread brokenhall_setup();
+	thread setup_sounds();
+
+	$Jurot.immortal( 1 );
+	$Chell.immortal( 1 );
+	$Franklin.immortal( 1 );
+
+	//--- wait for the player and start the intro cinematic
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	// don't let the teammates move until the player moves so nobody gets stuck
+	$Jurot.ai_on();
+	$Chell.ai_on();
+	$Franklin.ai_on();
+
+	$smalldoor4.open( $world );
+	
+	/*$player.loopsound ( "sound/player/player_rebreath.wav", .7, 51);
+	$player.loadobjectives("m3l1b-forever");
+	$player.setobjectiveshow( "RestorePower", 1 );*/
+	$panelEngineering.missionobjective( 1 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestorePowerInEngineering$$","incomplete",1,1);
+
+	/*$player.model( "models/char/munro_evosuit.tik" );*/
+	
+	//--- teammate roster
+	addRosterTeammate1 ( $Jurot );
+	addRosterTeammate2 ( $Chell );
+	addRosterTeammate3 ( $Franklin );
+	
+	//--- turbolifts have no power
+	_turboliftsPowered = FALSE;
+	
+	$doorEngineeringWest.noise( "sound/doors/door_locked.wav" );
+	$smalldoor5.noise( "sound/doors/door_locked.wav" );
+}
+
+//hzm coop mod chrissstrahl, set specific spawn location that has been saved on the previouse level
+void coop_setVectorIfNotZero(float fIdSpawn)
+{
+	vector vOrigin,vAngle;
+	vOrigin	= getvectorvar( "game.savePlayerOrigin"+fIdSpawn );
+	vAngle	= getvectorvar( "game.savePlayerAngles"+fIdSpawn );
+
+	if( fIdSpawn > -1 && fIdSpawn < 8 && vOrigin != '0 0 0'){
+		//make sure we do not accept spawnpoints outside of the new map
+		if(vOrigin_y < 814 || vOrigin_y < 1385 || vOrigin_x > -134 || vOrigin_x < -601 || vOrigin_z > 15 || vOrigin_z < 0 ){
+			return;
+		}
+	
+		setVectorScriptVariable("coop_vector_spawnOrigin"+(fIdSpawn + 1)	,vOrigin);
+		
+		if(vAngle_y == 0){
+			vAngle_y = getFloatScriptVariable("coop_float_spawnAngle0");
+		}
+		setFloatScriptVariable(	"coop_float_spawnAngle"+(fIdSpawn + 1)		,vAngle_y);
+	}
+}
+
+//---------------------
+// init	
+// world setup stuff
+//---------------------
+void init()
+{
+	// setup lights too off
+	$world.light_lightstyle ( "lightDoorEngineeringWest" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	$world.light_lightstyle ( "lightDoorEngineeringEast" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	$world.light_lightstyle ( "lightEngineeringGroup1" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	$world.light_lightstyle ( "lightEngineeringGroup2" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	$world.light_lightstyle ( "lightAreaFlicker1", "aazzaazzjjaaazzaajaajzzzazazazajjzaazzkahjszwufkjaz", 0 );
+	$world.light_lightstyle ( "lightAreaFire1" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	
+	// set up lights turning back on
+	$world.light_lightstyle ( "lightPowerOn" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 ); 
+	$fieldPowerOn.hide();
+	$panelPowerOn.hide();	
+	
+	$doorEngineeringWest.lock();
+	$turboLift.lock();
+	
+	// binding doors and stuff	
+	$doorJTubeFloor.bind ( $doorJTubeFloorOrigin );
+	$triggerDialogTurbolift.nottriggerable();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	// Jeffries tube doors
+	thread globalTubeDoor_Setup( "doorJTubeLevel2Access_West", "normal", 48, "north_south" , 0 );
+	thread globalTubeDoor_AddComponent( "button", "button1JTubeLevel2Access_West", "doorJTubeLevel2Access_West" );
+	thread globalTubeDoor_AddComponent( "button", "button2JTubeLevel2Access_West", "doorJTubeLevel2Access_West" );
+	thread globalTubeDoor_AddComponent( "lockedlight", "lockedlightJTubeLevel2Access_West", "doorJTubeLevel2Access_West" );
+	thread globalTubeDoor_AddComponent( "unlockedlight", "unlockedlightJTubeLevel2Access_West", "doorJTubeLevel2Access_West" );
+
+	thread globalTubeDoor_Setup( "doorJTubeLevel2Access_East", "normal", 48, "east_west" , 0 );
+	thread globalTubeDoor_AddComponent( "button", "button1JTubeLevel2Access_East", "doorJTubeLevel2Access_East" );
+	thread globalTubeDoor_AddComponent( "button", "button2JTubeLevel2Access_East", "doorJTubeLevel2Access_East" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$doorJTube_broke1_1.moveNorth( 32 );
+	$doorJTube_broke1_2.moveSouth( 32 );
+
+	// dead crew in hole stuff
+	$deadHole1_alien1.forcealpha( 1 );
+	$deadHole1_alien1.hide();
+
+	// Lounge Alien Spoof Stuff
+	$loungeAlienSpoof_doorbreak_clip1.solid();
+	$loungeAlienSpoof_doorbreak1.solid();
+	$loungeAlienSpoof_doorbreak2.hide();
+	$loungeAlienSpoof_doorbreak2.notsolid();
+	$loungeAlienSpoof_lightbreak2.hide();
+	$loungeAlienSpoof_doorbreak_fracture.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- recess the gravity unit
+	$switchSubsystem.time( .1 );
+	$switchSubsystem.movewest( 36 );
+	waitfor( $switchSubsystem );
+	$switchSubsystem_online.hide();
+	$switchSubsystem_online.notsolid();
+	
+	//$warpcore_forcefield.hide();
+	
+	//--- setup teammate killthreads
+	$Jurot.immortal( 1 );
+	$Chell.immortal( 1 );
+	$Franklin.immortal( 1 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//--- setup nono sounds
+	thread globalCommon_OnUse ( $switchExposeSubsystem , "inaccessible_sound" );
+	
+	thread globalCommon_AiDummy ( $Munro , "idle" );
+	
+	$secretDoorFracture.viewmode( "structuralintegrity" );
+	thread globalCommon_OnDamage( $secretDoor, "secretDoorExplode" );
+	$secretDoor.health( 50 );
+	
+	$smalldoor5.lock();
+	$world.light_lightstyle ( "jeffreydoor_green", 	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle ( "jeffreydoor_red", 	"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	
+	$TurboliftUnitButton.puzzleobject_deactivate();
+
+	$turboliftSwitch.nottriggerable();
+	
+	$world.light_lightstyle( "engineeringLightsWest_green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle( "engineeringLightsWest_red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+
+	$world.light_lightstyle( "jeffyTubs_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle( "jeffyTubs_red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	
+	$secret_shipclip.remove();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	globalCommon_SetupContextDialogForM3( $Chell , "chell" );
+	globalCommon_SetupContextDialogForM3( $Jurot , "jurot" );
+	globalCommon_SetupContextDialogForM3( $Franklin , "franklin" );
+	
+	
+	//hzm coop mod Chrissstrahl, spawn the enterprise e in the skybox, so that it looks like it is parked alomgside the dallas,
+	//this is something ritual actually forgott or removed from the game (maybe due to performace issues)
+	spawn("script_model","model","vehicle/enterprise-e-01.tik","targetname","coop_ent1","origin","2273 264 320");//2273 264 289
+	spawn("script_model","model","vehicle/enterprise-e-02.tik","targetname","coop_ent2","origin","2273 264 320");
+	spawn("script_model","model","vehicle/enterprise-e-03.tik","targetname","coop_ent3","origin","2273 264 320");
+	
+	wait(.5);
+	$coop_ent1.angle(-90);
+	$coop_ent2.angle(-90);
+	$coop_ent3.angle(-90);
+	$coop_ent1.rendereffects("minlight");//fullbright
+	$coop_ent2.rendereffects("minlight");
+	$coop_ent3.rendereffects("minlight");
+}
+
+void restoreTeamPositions()
+{
+	vector v;
+	
+	// restore position/angle of everybody
+	if( ! getfloatvar( "game.savedTeamPos" ) )
+		return;
+		
+	removevar( "game.savedTeamPos" );
+	
+	v = getvectorvar( "game.saveChellOrigin" );	
+	$Chell.warp( v );
+	$Chell.angle( getfloatvar( "game.saveChellAngle" ) );
+	removevar( "game.saveChellOrigin" );
+	removevar( "game.saveChellAngle" );
+	
+	v = getvectorvar( "game.saveJurotOrigin" );	
+	$Jurot.warp( v );
+	$Jurot.angle( getfloatvar( "game.saveJurotAngle" ) );
+	removevar( "game.saveJurotOrigin" );
+	removevar( "game.saveJurotAngle" );
+
+	v = getvectorvar( "game.saveFranklinOrigin" );	
+	$Franklin.warp( v );
+	$Franklin.angle( getfloatvar( "game.saveFranklinAngle" ) );
+	removevar( "game.saveFranklinOrigin" );
+	removevar( "game.saveFranklinAngle" );
+}
+
+//===================================================================================================================
+// Setup Stuff
+//===================================================================================================================
+
+//---------------------
+// setupCameras
+// setting up cameras
+//---------------------
+void setupCameras()
+{
+	wait( .1 );
+	
+	//spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+	spawn( "Camera", "targetname", "cam4");
+	spawn( "Camera", "targetname", "cam5");
+
+	wait( .1 );
+
+	//load camera paths
+	cam.load( "m3l1b_engineering_adam1" );
+	cam.load( "m3l1b_engineering_adam2" );
+	cam.load( "m3l1b_engineering_adam3" );
+	cam.load( "m3l1b_engineering_adam4" );
+	cam.load( "m3l1b_engineering_adam5" );
+}
+
+
+//----------------------------
+
+//-----------------------------------
+void setup_sounds()
+{
+	globalSoundPan_Init();
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/environment/metal/metal_scrape4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/chars/lurker/lurk_ambship5.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );	
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low4.wav", 4, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_low5.wav", 5, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium1.wav", 1, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium2.wav", 2, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_medium3.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	globalSoundPan_AddSound ( "sound/ships/forever/ship_creak_rattle.wav", 3, 1, 1000, 0.5, 3, 200, randomint( 5 ) + 5 );
+	thread globalSoundPan_Start(); 
+}
+
+void setupArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "targetable" );
+	e.archetype( theArchetype );
+}
+
+//---------------------
+// setup_archetypes
+// setting up the archetypes
+//---------------------
+void setup_archetypes()
+{
+	globalArchetype_Setup( $turboLift_archetype, "TurboLiftControls" );
+	globalArchetype_Setup( $panelEngineering_archetype, "EngineeringControls" );
+	globalArchetype_Setup( $switchExposeSubsystem_archetype, "TurboliftPanel" );
+	globalArchetype_Setup( $jdoor1_p_archetype1, "DoorPanel" );
+	globalArchetype_Setup( $jdoor1_p_archetype2, "DoorPanel" );
+	globalArchetype_Setup( $jdoor2_p_archetype1, "DoorPanel" );
+	globalArchetype_Setup( $jdoor2_p_archetype2, "DoorPanel" );
+	globalArchetype_Setup( $turbolift_waypoint, "Waypoint" );
+	setupArchetypeObject( $doorpanelarch, "DoorPanel" );
+}
+
+//---------------------
+// setupAI
+// used to setup the ai
+//---------------------
+void setupAI()
+{
+	$Picard.ai_off();
+
+	$sequenceHallwayAlien1_alien1.ai_off();
+	
+	$alienJTube_alien1.ai_off();
+	$alienJTube_alien1.angles( '0 0 0' );
+	$alienJTube_alien1.notsolid();
+	
+	$sequenceUnderFloor_alien1.ai_off();
+	$sequenceUnderFloor_alien2.ai_off();
+	$sequenceUnderFloor_alien3.ai_off();
+	$sequenceUnderFloor_alien4.ai_off();
+	$sequenceUnderFloor_alien5.ai_off();
+	
+	$sequenceUnderFloor_alien1.ghost();
+	$sequenceUnderFloor_alien2.ghost();
+	$sequenceUnderFloor_alien3.ghost();
+	$sequenceUnderFloor_alien4.ghost();
+	$sequenceUnderFloor_alien5.ghost();
+	
+	$sequenceUnderFloor_alien1.archetype("Lurker");
+	$sequenceUnderFloor_alien2.archetype("Lurker");
+	$sequenceUnderFloor_alien3.archetype("Lurker");
+	$sequenceUnderFloor_alien4.archetype("Lurker");
+	$sequenceUnderFloor_alien5.archetype("Lurker");
+}
+
+//---------------------
+// brokenhall_setup
+// setup for the brokenhallway
+//---------------------
+void brokenhall_setup()
+{
+	$brokehall_brokehall_fires1.hide();
+	$brokenhall_brokenhallwalls2.hide();
+}
+
+
+//===================================================================================================================
+// First Encounter
+//===================================================================================================================
+
+//---------------------
+// Function: firstEncounter1()
+// Comments:
+// first part of the firstEncounter sequence in the hallway
+// triggers a sound when the player steps into the hallway
+//---------------------
+void firstEncounter1()
+{
+	$world.playsound ( "sound/chars/lurker/lurk_alert_amb.wav" , 8 , 1 , 200000 );
+
+	// lock the blasted jeffy tubs
+	/*$doorJeffriesTubeEntrance.lock();
+	$doorJeffriesTubeEntrance.noise( "sound/doors/door_locked.wav" );
+
+	$jeffyTubsLight_red.show();
+	$jeffyTubsLight_green.remove();
+
+	$world.light_lightstyle( "jeffyTubs_green", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+	$world.light_lightstyle( "jeffyTubs_red", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );	*/
+	
+	// move hazard team to hallway for engineering sequence
+	$Chell.origin ( '-368 3344 0' );
+	$Jurot.origin ( '-368 3440 0' );
+	$Franklin.origin ( '-560 3344 0' );
+	
+	$Chell.angle ( 0 );
+	$Jurot.angle ( 0 );
+	$Franklin.angle ( 0 );
+}
+
+//---------------------
+// Function: firstEncounter2()
+// Comments:
+// second part of the firstEncounter sequence in the hallway
+// causes lights to shut off
+// triggers sounds
+//---------------------
+void firstEncounter2()
+{
+	music( "suspense" );
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 8 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light1" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	wait (.75);
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 9 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light2" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	wait (.75);
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 8 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light3" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	wait (.75);
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 9 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light4" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	wait (.75);
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 8 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light5" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	wait (.75);
+	$doorEngineeringEast.playsound ( "sound/ships/forever/for_powerdown.wav" , 9 , 1 , 700 );
+	$world.light_lightstyle ( "firstEncounter_light6" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+
+	wait( 1 );
+
+	$doorEngineeringEast.playsound ( "sound/chars/lurker/lurk_amb4.wav" , 10 , 1 , 20000 );
+	wait( 5 );
+	$doorEngineeringEast.playsound ( "sound/chars/lurker/lurk_amb3.wav" , 11 , 1 , 20000 );
+}
+
+//---------------------
+// Function: firstEncounter3()
+// Comments:
+// this is where the player first meets the lurker alien
+//---------------------
+void firstEncounter3()
+{
+	//hzm coop mod chrissstrahl, position players upon spawn/respawn
+	coop_float_spawnAngle1 				= 90;
+	coop_float_spawnAngle2 				= 90;
+	coop_float_spawnAngle3 				= 90;
+	coop_float_spawnAngle4 				= 90;
+	coop_float_spawnAngle5 				= 90;
+	coop_float_spawnAngle6 				= 90;
+	coop_float_spawnAngle7 				= 90;
+	coop_float_spawnAngle8 				= 142;
+	coop_vector_spawnOrigin8 			= '337 3142 3';
+	coop_vector_spawnOrigin7 			= '250 3110 3';
+	coop_vector_spawnOrigin6 			= '200 3110 3';
+	coop_vector_spawnOrigin5 			= '150 3110 3';
+	coop_vector_spawnOrigin4 			= '100 3110 3';
+	coop_vector_spawnOrigin3 			= '50 3110 3';
+	coop_vector_spawnOrigin2 			= '-09 3110 3';
+	coop_vector_spawnOrigin1 			= '-59 3110 3';
+
+	$firstEncounter_alienspawn1.spawntargetname( "firstEncounter_alien1" );
+	$firstEncounter_alienspawn1.modelname( "char/alien-type1a-lurker.tik" );
+	$firstEncounter_alienspawn2.spawntargetname( "firstEncounter_alien2" );
+	$firstEncounter_alienspawn2.modelname( "char/alien-type1a-lurker.tik" );
+	$firstEncounter_alienspawn1.scale ( 1.25 );
+	triggerentity( $firstEncounter_alienspawn1 );
+	triggerentity( $firstEncounter_alienspawn2 );
+	music( "surprise" );
+	
+	wait( 0.5 );
+	$firstEncounter_alien1.playsound ( "sound/chars/lurker/lurk_ambush.wav" , 8 , 1 , 2000 );
+}
+
+
+//===================================================================================================================
+// Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: alienJtube_sequence
+// Comments:
+// alien in jtube runs down length away from player and then the door shuts
+//---------------------
+void alienJtube_sequence()
+{
+	$alienJTube_alien1.playsound ( "sound/chars/lurker/lurk_spottarget.wav" , 8 , 1 , 2000 );
+	$alienJTube_alien1.walkto( "alienJTube_node1" , "attack_charge_run" );
+	waitfor( $alienJTube_alien1 );
+	
+	$doorJTube_broke1_1.time( .75 );
+	$doorJTube_broke1_2.time( .75 );
+	$doorJTube_broke1_1.moveSouth( 32 );
+	$doorJTube_broke1_2.moveNorth( 32 );
+
+	$doorJTube_broke1_1.solid();
+	$doorJTube_broke1_2.solid();
+
+	wait( 1 );
+
+	$alienJTube_alien1.remove();
+}
+
+//---------------------
+// sequenceBodyDrag
+// Team sees alien drag dead body drug into hole
+//---------------------
+void sequenceBodyDrag()
+{
+	thread crewDeadMoving1_move1();
+	
+	// insert dialog
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_heywhat.mp3", 1, 11111, 1); //Hey! What's that?
+	waitfordialog ( $Franklin );
+	//$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_blip.mp3", 1, 11111, 1); //I got a blip on my tricorder! No, wait. It's gone now.
+	//waitfordialog ( $Chell );
+}
+
+//---------------------
+// Function: deadHole1_thread
+// Comments:
+// alien in hole slashes at player and then fades away
+//---------------------
+void deadHole1_thread()
+{
+	$deadHole1_alien1.show();
+	$deadHole1_alien1.playsound ( "sound/chars/lurker/lurk_ambush.wav" , 8 , 1 , 2000 );
+	$deadHole1_alien1.animonce( "attackcombo1" );
+	waitforanimation( $deadHole1_alien1, "attackcombo1" );
+	
+	//$deadHole1_alien1.fade( 1 , 0 );
+	$deadHole1_alien1.remove();
+}
+
+//---------------------
+// crewDeadMoving1_move1()
+// dead crew member being drug into the hole
+//---------------------
+void crewDeadMoving1_move1()
+{
+    music ("aux5");
+
+	$crewDeadMoving1.playsound ( "sound/chars/lurker/lurk_draggore.wav" , 8 , 1 , 2000 );
+	
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	//$crewDeadMoving1.playsound ( "sound/chars/lurker/lurk_dragloop.wav" , 8 , .65 , 2000 );
+	
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	$crewDeadMoving1.time(.5);
+	$crewDeadMoving1.moveEast( 32 );
+	waitfor( $crewDeadMoving1 );
+	wait( .5 );
+
+	$crewDeadMoving1.playsound ( "sound/chars/lurker/lurk_dragstop.wav" , 9 , .65 , 2000 );
+	$crewDeadMoving1.hide();
+	$crewDeadMoving1.notsolid();
+	wait( 2 );
+	
+	$crewDeadMoving1.remove();
+}
+
+//---------------------
+// sequenceHallwayAlien1_1()
+// this is where the player first meets the lurker alien
+//---------------------
+void sequenceHallwayAlien1_1()
+{
+	$sequenceHallwayAlien1_alien1.notsolid();
+//	$sequenceHallwayAlien1_alien1.origin( '1084 1996 8' );
+	$sequenceHallwayAlien1_alien1.origin( '1084 2116 8' );
+	wait(.1);
+	
+	$sequenceHallwayAlien1_alien1.walkto( "sequenceHallwayAlien1_alien1_node1" , "attack_charge_run" );
+	waitfor( $sequenceHallwayAlien1_alien1 );
+	
+	$sequenceHallwayAlien1_blackwall1.solid();
+}
+
+//---------------------
+// sequenceHallwayAlien1_2()
+// this is where the player first meets the lurker alien
+//---------------------
+void sequenceHallwayAlien1_2()
+{
+	$sequenceHallwayAlien1_alien1.playsound ( "sound/chars/lurker/lurk_spottarget.wav" , 8 , .65 , 2000 );
+	
+	$sequenceHallwayAlien1_alien1.walkto( "sequenceHallwayAlien1_alien1_node2" , "attack_charge_run" );
+	waitfor( $sequenceHallwayAlien1_alien1 );
+	
+	$sequenceHallwayAlien1_alien1.remove();
+	
+	wait( 5 );
+	
+	$world.playsound ( "sound/environment/metal/grate_blow.wav", 4, 1, 100011);
+}
+
+//---------------------
+// brokenhall1_explode1()
+// hallway explodes and forces player to go another direction
+//---------------------
+void brokenhall1_explode1()
+{
+	$brokenhall_brokenhallwalls1.remove();
+	$brokenhall_brokenhallwalls2.show();
+	$brokenhall_brokenhallwalls2.solid();
+	
+	$brokehall_brokehall_fires2.spawntargetname( "brokehall_brokehall_fires2_exploder" );
+	$brokehall_brokehall_fires2.modelname( "fx/fx-explosion-crate-fire.tik" );	
+	
+	trigger( "$brokehall_brokehall_fires2" );
+
+	$brokenhall_brokenhallwalls2.playsound ( "sound/impact/explosion/explo_neonsign.wav", 2, 1, 10001);
+	
+	$brokehall_brokehall_fires1.show();
+	//$world.light_lightstyle ( "lightAreaFire1" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	wait( 2 );
+
+	//COMPUTER VOICE DIALOG
+	$Munro.playdialog( "localization/sound/dialog/dallas01/comp_lifeeffic.mp3", 1, 11111, 0);
+}
+
+
+//===================================================================================================================
+// Observation Lounge and Jeffries Tube Stuff 
+//===================================================================================================================
+
+//---------------------
+// sequenceLoungeAlienSpoof	
+// Aliens appear on radar team says stuff, then they scatter
+//---------------------
+void sequenceLoungeAlienSpoof()
+{
+	forcemusic( "aux2", "normal" );
+
+	$loungeAlienSpoof_explosion1.playsound ( "sound/chars/lurker/lurk_amb4.wav" , 8 , .65 , 2000 );
+	
+	$sequenceUnderFloor_alien1.show();
+	$sequenceUnderFloor_alien2.show();
+	$sequenceUnderFloor_alien3.show();
+	$sequenceUnderFloor_alien4.show();
+	$sequenceUnderFloor_alien5.show();
+	
+	$sequenceUnderFloor_alien1.walkto( "$sequenceUnderFloor_alien1_node2" );
+	$sequenceUnderFloor_alien2.walkto( "$sequenceUnderFloor_alien2_node2" );
+	$sequenceUnderFloor_alien3.walkto( "$sequenceUnderFloor_alien3_node2" );
+	$sequenceUnderFloor_alien4.walkto( "$sequenceUnderFloor_alien4_node2" );
+	$sequenceUnderFloor_alien5.walkto( "$sequenceUnderFloor_alien5_node2" );
+	
+	
+	//hzm coop mod chrissstrahl - show on radar
+	$sequenceUnderFloor_alien1.missionobjective(1);
+	$sequenceUnderFloor_alien2.missionobjective(1);
+	$sequenceUnderFloor_alien3.missionobjective(1);
+	$sequenceUnderFloor_alien4.missionobjective(1);
+	$sequenceUnderFloor_alien5.missionobjective(1);
+	//eof hzm
+	
+	$Jurot.playdialog ( "localization/sound/dialog/dallas01/jurot_lifetri.mp3", 1, 11111, 1); //I've got lifesigns! Check your tricorder!
+	waitfordialog ( $Jurot );	
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_lookall.mp3", 1, 11111, 1); //Look at all of them! What are they?
+	waitfordialog ( $Chell );
+
+	$loungeAlienSpoof_explosion1.playsound ( "sound/environment/metal/metal_scrape3.wav" , 8 , .8 , 2000 );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_blips.mp3", 1, 11111, 1); //Those blips are headed this way! 
+	waitfordialog( $Franklin );
+	
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_closer.mp3", 1, 11111, 1); //They're getting closer! There almost here! They're- 
+	waitfordialog( $Chell );
+
+	$loungeAlienSpoof_explosion1.spawntargetname( "loungeAlienSpoof_exploder1" );
+	$loungeAlienSpoof_explosion1.modelname( "fx/fx-explosion-metaldebris-directional.tik" );
+
+        $loungeAlienSpoof_explosion1.playsound( "sound/ships/drull/drull_doorpound.wav", 6, 2, 690 );
+
+	triggerentity( $loungeAlienSpoof_explosion1 );
+
+	$alienLoungeSpoofInHallway_spawn1.spawntargetname( "alienLoungeSpoofInHallway_spawned1" );
+	$alienLoungeSpoofInHallway_spawn1.modelname( "char/alien-type1a-lurker.tik" );
+	triggerentity( $alienLoungeSpoofInHallway_spawn1 );
+
+	wait( .1 );
+
+	$alienLoungeSpoofInHallway_spawned1.ai_off();
+	$alienLoungeSpoofInHallway_spawned1.playsound ( "sound/chars/lurker/lurk_amb2.wav" , 8 , .65 , 2000 );
+	$alienLoungeSpoofInHallway_spawned1.walkto( "alienLoungeSpoofInHallway_node1" , "attack_charge_run" );
+
+	$sequenceUnderFloor_alien1.walkto( "$sequenceUnderFloor_alien1_node1" , "run" );
+	$sequenceUnderFloor_alien2.walkto( "$sequenceUnderFloor_alien2_node1" , "run" );
+	$sequenceUnderFloor_alien3.walkto( "$sequenceUnderFloor_alien3_node1" , "run" );
+	$sequenceUnderFloor_alien4.walkto( "$sequenceUnderFloor_alien4_node1" , "run" );
+	$sequenceUnderFloor_alien5.walkto( "$sequenceUnderFloor_alien5_node1" , "run" );
+
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_going.mp3", 1, 11111, 1); //They're going away. 
+	waitfordialog( $Jurot );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_hey.mp3", 1, 11111, 1); //Hey!
+	waitfordialog( $Chell );
+	
+	$sequenceUnderFloor_alien1.remove();
+	$sequenceUnderFloor_alien2.remove();
+	$sequenceUnderFloor_alien3.remove();
+	$sequenceUnderFloor_alien4.remove();
+	$sequenceUnderFloor_alien5.remove();
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_disapp.mp3", 1, 11111, 1); //You sound disappointed. 
+	waitfordialog( $Franklin );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_hides.mp3", 1, 11111, 1); //The only thing worse than an alien attack is an alien attack that hides when you see it coming.
+	waitfordialog( $Chell );
+
+	$loungeAlienSpoof_explosion2.spawntargetname( "loungeAlienSpoof_exploder2" );
+	$loungeAlienSpoof_explosion2.modelname( "fx/fx-explosion-debris-metal-forever-small.tik" );
+	triggerentity( $loungeAlienSpoof_explosion2 );
+
+//	$loungeAlienSpoof_lightbreak_sparks1.show();
+	$loungeAlienSpoof_lightbreak2.show();
+//	$loungeAlienSpoof_sparks.show();
+	$loungeAlienSpoof_lightbreak1.remove();
+
+	$loungeAlienSpoof_doorbreak2.show();
+	$loungeAlienSpoof_doorbreak2.solid();
+        $loungeAlienSpoof_doorbreak2.playsound( "sound/ships/drull/drull_doorpound.wav", 6, 1.2, 690 );
+	$loungeAlienSpoof_doorbreak1.remove();
+
+	$alienLoungeSpoofInHallway_spawned1.remove();
+	$loungeAlienSpoof_doorbreak_clip1.remove();
+	$loungeAlienSpoof_doorbreak_fracture.viewmode( "structuralintegrity" );
+	wait( .1 );
+	$loungeAlienSpoof_doorbreak_fracture.show();
+
+	thread globalCommon_OnDamage( $loungeAlienSpoof_doorbreak2, "loungeAlienSpoof_doorbreak2_explode" );
+}
+
+//---------------------
+// Function: loungeAlienSpoof_doorbreak2_explode
+// Comments:
+// explodes the structuralintegrity door in the lounge when you shoot it
+//---------------------
+void loungeAlienSpoof_doorbreak2_explode()
+{
+	$loungeAlienSpoof_explosion1.spawntargetname( "loungeAlienSpoof_exploder1" );
+	$loungeAlienSpoof_explosion1.modelname( "fx/fx-explosion-door-forever.tik" );
+	triggerentity( $loungeAlienSpoof_explosion1 );
+	$loungeAlienSpoof_explosion1.playsound( "sound/impact/explosion/explo_neonsign.wav", 5, 1, 690 );	
+	$loungeAlienSpoof_doorbreak_fracture.remove();
+	$loungeAlienSpoof_doorbreak2.remove();
+}
+
+//---------------------
+// sequenceEnterJeffriesTubes	
+// plays dialog make ai wander and wait for you to open the door
+//---------------------
+void sequenceEnterJeffriesTubes()
+{
+	music( "mystery", "normal" );
+	
+	/*
+	print( "sequenceEnterJeffriesTubes\n" );
+	print( "sequenceEnterJeffriesTubes\n" );
+	print( "sequenceEnterJeffriesTubes\n" );
+	print( "sequenceEnterJeffriesTubes\n" );
+	*/
+	$Chell.ai_off();	
+	$Franklin.ai_off();
+	$Jurot.ai_off();
+}
+
+//---------------------
+// doorJTubeFloor_Open
+// opens door in floor
+//---------------------
+void doorJTubeFloor_Open()
+{
+	$doorJTubeFloor.playsound ( "sound/ships/forever/for_floorhatch.wav" , 21 , 1 , 250 );
+	$doorJTubeFloorOrigin.time( .5 );
+	$doorJTubeFloorOrigin.rotateZdown( 110 );
+	$doorJTubeFloorOrigin.movenorth( 2 );
+	$doorJTubeFloorOrigin.moveUp( 13 );
+	waitfor( $doorJTubeFloorOrigin );
+}
+
+
+//---------------------
+// sequenceLoungeShake	
+// little lounge sequence before aliens attack, big bang some stuff breaks
+//---------------------
+void sequenceLoungeShake()
+{
+	//globalCommon_Autosave();
+	$loungeAlienSpoof_explosion1.playsound ( "sound/environment/metal/grate_blow.wav", 11, 1, 10001);
+}	
+
+
+
+//===================================================================================================================
+// Engine Room and TurbLift Area with Jeffries Tubes
+//===================================================================================================================
+//---------------------
+// dialogTubeEngineering
+// team talks about finding way into engineering
+//---------------------
+void dialogTubeEngineering()
+{
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_reached.mp3", 1, 11111, 1); //We've reached main engineering!
+	waitfordialog( $Jurot );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_locked.mp3", 1, 11111, 1); //Locked.
+	waitfordialog ( $Chell );
+
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_wayin.mp3", 1, 11111, 1); //We have to find a way in.
+	waitfordialog( $Jurot );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_noobs.mp3", 1, 11111, 1); //No, but they should bring you to the observation lounge near Engineering. 
+	waitfordialog( $Franklin );
+
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_goode.mp3", 1, 11111, 0); //Good enough for me. Stay here. 
+	waitfordialog( $Munro );
+}
+
+
+//-------------------------------------------------------------------------------------------------
+void chellLetUsIn()
+{
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_hurry.mp3", 1, 2000, 1 ); // Munro! We're still trapped!
+	waitfordialog( $Chell );
+}
+
+//---------------------
+// dialogTeamUnderAttack
+// team gets attacked on other side of door
+//---------------------
+void dialogTeamUnderAttack()
+{
+	forcemusic( "aux3", "aux3" );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_weblips.mp3", 1, 11111, 1); //We've got blips again!
+	waitfordialog( $Chell );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_movefast.mp3", 1, 11111, 1); //Moving in fast!
+	waitfordialog( $Franklin );
+
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_trapped.mp3", 1, 11111, 1); //Munro!  We’re trapped! Get us in there!
+	waitfordialog( $Jurot  );
+
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_scantri.mp3", 1, 11111, 1); //Scan your tricorder on the main computer station to interface with it.
+	waitfordialog ( $Franklin );
+
+	//thread globalTubeDoor_Setup( "doorJTubeLevel2Access_West", "normal", 36, "north_south" , 1 );
+	
+	sequenceTeamUnderAttack();
+}
+
+void engineeringRestorePower()
+{
+	//COMPUTER VOICE DIALOG FOR RESTORING MAIN POWER HERE
+	$Munro.playdialog( "localization/sound/dialog/dallas01/comp_mainprest.mp3", 1, 11111, 0);
+
+	//globalArchetype_Setup( $panelEngineering_archetype, "EngineeringControlsUsed" );
+	$panelEngineering_archetype.remove();
+	//$panelEngineeringUsed_archetype.show();
+	//$panelEngineering_archetype.archetype( "NonInteractive" );
+	$panelEngineering.hide();
+	
+	forcemusic( "success");
+
+	// removes dialog trigger if it hasn't been used yet
+	$triggerDialogTubeEngineering.remove();
+	// play power on sound
+	$panelEngineering.playsound ("sound/ships/forever/for_poweron.wav" , 2 , .75 , 2000 );
+
+	// turn lights on in engineering
+	$world.light_lightstyle ( "lightDoorEngineeringWest" , "ghjkhjk" , 0 );
+	$world.light_lightstyle ( "lightDoorEngineeringEast" , "ghjkhjk" , 0 );
+	wait (.5);
+	$world.light_lightstyle ( "lightDoorEngineeringWest" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	$world.light_lightstyle ( "lightDoorEngineeringEast" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	
+	$world.light_lightstyle ( "lightEngineeringGroup1" , "ghjajka" , 0 );
+	wait (.5);
+	$world.light_lightstyle ( "lightEngineeringGroup1" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	
+	$world.light_lightstyle ( "lightEngineeringGroup2" , "jgifwfsd" , 0 );
+	wait (.4);
+	$world.light_lightstyle ( "lightEngineeringGroup2" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	
+	$world.light_lightstyle ( "lightPowerOff" , "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" , 0 );
+	$world.light_lightstyle ( "lightPowerOn" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	$world.light_lightstyle ( "lightAreaFlicker1", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy", 0 );
+	
+	//$world.light_lightstyle ( "firstEncounter_light1" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	//$world.light_lightstyle ( "firstEncounter_light2" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	//$world.light_lightstyle ( "firstEncounter_light3" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	//$world.light_lightstyle ( "firstEncounter_light4" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	//$world.light_lightstyle ( "firstEncounter_light5" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	//$world.light_lightstyle ( "firstEncounter_light6" , "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" , 0 );
+	
+	$panelPowerOff.remove();
+	$panelPowerOn.show();
+	
+//	$Warpcore.loopsound( "sound/ships/enterprise/eng_warpcorewav.wav", .27, 1000 );
+	$panelEngineering.loopsound ( "sound/ships/enterprise/eng_pulse01.wav", .37, 1000 );
+	$panelPowerOn.loopsound ( "sound/ships/forever/for_alarm_breach.wav" , .15 , 258.7 );
+	$fieldPowerOn.loopsound ("sound/ships/enterprise/ent_forcefield.wav",  .45, 80 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestorePowerInEngineering$$","complete",1,1);
+	
+	$panelEngineering.missionobjective( 0 );
+
+	$doorEngineeringWest.noise( "sound/ships/forever/for_doorbeep.wav" );
+	$doorEngineeringWest.unlock();
+	trigger( "$doorEngineeringWest" );
+
+	$engineeringLightsWest_green.show();
+	$engineeringLightsWest_red.remove();
+	
+	$world.light_lightstyle( "engineeringLightsWest_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle( "engineeringLightsWest_red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+
+//	$warpcore_forcefield.show();
+//	$warpcore_forcefield.solid();
+	
+	$fieldPowerOn.show();
+	$fieldPowerOn.solid();
+
+	$Chell.followcombatrange( 512 );
+	$Chell.followcombatrangemin( 384 );
+	$Jurot.followcombatrange( 512 );
+	$Jurot.followcombatrangemin( 384 );
+	$Franklin.followcombatrange( 512 );
+	$Franklin.followcombatrangemin( 384 );
+
+	$alien1TeamUnderAttack.immortal( 0 );
+	$alien2TeamUnderAttack.immortal( 0 );
+
+	//thread ChellGotoEngNode();
+	//thread JurotGotoEngNode();
+	//thread FrankGotoEngNode();
+	
+	wait(3);
+	$panelEngineering.remove();
+}
+
+//---------------------
+// sequenceTeamUnderAttack
+// moves teammates to place and starts fake battle on other side of door
+//---------------------
+void sequenceTeamUnderAttack()
+{
+	$Chell.immortal( 1 );
+	$Jurot.immortal( 1 );
+	$Franklin.immortal( 1 );
+
+	trigger ( "$spawnTeamUnderAttackAlien" );
+
+	$Chell.ai_on();
+	$Jurot.ai_on();
+	$Franklin.ai_on();
+
+	$Chell.settendency( "follow" , 0 );
+	$Jurot.settendency( "follow" , 0 );
+	$Franklin.settendency( "follow" , 0 );
+
+	$Chell.followcombatrange( 2048 );
+	$Chell.followcombatrangemin( 1024 );
+	$Jurot.followcombatrange( 2048 );
+	$Jurot.followcombatrangemin( 1024 );
+	$Franklin.followcombatrange( 2048 );
+	$Franklin.followcombatrangemin( 1024 );
+
+	//$sequenceEngineering_deadlurker1.show();
+	
+	wait( .5 );
+	
+	$alien1TeamUnderAttack.immortal( 1 );
+	$alien2TeamUnderAttack.immortal( 1 );
+	
+	wait( .1 );
+	
+	$alien1TeamUnderAttack.masterstatemap ( "ai/Lurk/MS_Aln_Lurk.st" );
+	$alien2TeamUnderAttack.masterstatemap ( "ai/Lurk/MS_Aln_Lurk.st" );
+	
+	$alien1TeamUnderAttack.attack( $Chell );
+	$alien2TeamUnderAttack.attack( $Jurot );
+
+	$Chell.attack( $alien1TeamUnderAttack );
+	$Franklin.attack( $alien2TeamUnderAttack );
+	$Jurot.attack( $alien2TeamUnderAttack );
+
+	wait (.1);
+	$alien1TeamUnderAttack.killthread ( "checkTeamUnderAttackAliensKilled" );
+	$alien2TeamUnderAttack.killthread ( "checkTeamUnderAttackAliensKilled" );
+}
+
+//---------------------
+// checkTeamUnderAttackAliensKilled
+// gets runs when aliens in sequence TeamUnderAttack 
+// are killed, checks number killed and if should exit
+//---------------------
+void checkTeamUnderAttackAliensKilled()
+{
+	counterTeamUnderAttackAliensKilled ++;
+	if ( counterTeamUnderAttackAliensKilled == 2 ) // this number equals aliens in sequence
+	{
+		wait (2);
+		thread sequenceEngineering();
+	}
+}
+
+//---------------------
+// sequenceEngineering - adam 4/11/2003
+// engineering sequence events, tricorder puzzle to get main power online 
+//---------------------
+void sequenceEngineering()
+{
+	_cineScreenBegin();
+	_cinePlayerBegin();
+    
+    	wait( .25 );
+    
+   	$Munro.ai_off(); 
+    
+    	$Chell.ai_off();
+
+    	$Franklin.ai_off();
+
+    	$Jurot.ai_off();
+   
+	wait( .25 );
+   
+   	$Munro.anim( "idle" ); 
+    	$Chell.anim( "idle" );
+    	$Franklin.anim( "idle" );
+   	$Jurot.anim( "idle" );  
+    
+    	wait( .25 );
+    
+    	$Munro.origin( '256 4032 0' );
+
+	$Chell.origin( '68 3720 8' );
+
+	$Franklin.origin( '52 3784 8' );	
+
+	$Jurot.origin( '188 3720 8' );	
+
+	wait( .25 );
+
+	$Munro.angle( 225 );
+	$Chell.angle( 60 );
+	$Franklin.angle( 315 );	
+	$Jurot.angle( 150 );	
+
+	$Chell.useactorweapon( "none" );
+	$Jurot.useactorweapon( "Tricorder" );
+	$Franklin.useactorweapon( "none" );
+	$Munro.useactorweapon( "none" );
+
+	$Jurot.anim( "tricorder_calm_idle" );
+
+	$Munro.walkto( "engineering_munroNode1" );
+
+	music( "aux4" );
+
+	skipthread( "sequenceEngineering_skipThread" );
+
+	//SHOT 1
+	$cam1.follow( $m3l1b_engineering_adam1 );
+	wait( .25 );
+	cuecamera( $cam1 );
+
+	wait( .25 );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );	
+
+	$Munro.headwatch( $Franklin );
+	$Chell.headwatch( $Munro );
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_thanks.mp3", 1, 11111, 0); //Thanks
+	waitfordialog( $Chell );
+
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_hellthose.mp3", 1, 11111, 0); //What the hell are those things?
+	waitfordialog( $Franklin );
+
+	$Chell.playdialog("localization/sound/dialog/dallas01/chell_noidea.mp3", 1, 11111, 0); //I have no idea
+	waitfordialog( $Chell );
+
+	wait( 1 );
+
+	//SHOT 2
+	$cam2.follow( $m3l1b_engineering_adam3 );
+	wait( .25 );
+	cuecamera( $cam2 );
+
+	wait( .5 );
+
+	$Chell.headwatch( $Jurot );
+	$Jurot.headwatch( $Franklin );
+	$Jurot.playdialog("localization/sound/dialog/dallas01/jurot_savage.mp3", 1, 11111, 0); //Their attacks seem savage and instinctual. As if they are not a sentient species.
+	wait( 3.5 );
+
+	//SHOT 3
+	$cam2.follow( $m3l1b_engineering_adam5 );
+	wait( 2 );
+	
+	$Franklin.headwatch( $Jurot );
+	$Franklin.playdialog("localization/sound/dialog/dallas01/frank_sentient.mp3", 1, 11111, 0); //Sentient enough to wait until we were cornered before attacking.
+	waitfordialog( $Franklin );
+
+	wait( .5 );
+	
+	//SHOT 4
+	$cam3.follow( $m3l1b_engineering_adam2 );
+	wait( .25 );
+	cuecamera( $cam3 );
+
+	$Munro.headwatch( $Jurot );
+	$Munro.anim( "tap_comm" );
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_toent.mp3", 1, 11111, 0); //Munro to Enterprise
+	waitForAnimation( $Munro, "tap_comm" );
+	$Munro.anim( "idle" );
+	waitfordialog( $Munro );
+
+	$Picard.playdialog("localization/sound/dialog/dallas01/picard_goahead.mp3", 1, 11111, 1); //Go ahead, Lieutenant.
+	waitfordialog( $Picard );
+
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_engage.mp3", 1, 11111, 0); //We’ve engaged hostile aliens, Sir. Unknown lifeforms.
+	waitfordialog( $Munro );
+
+	$Picard.playdialog("localization/sound/dialog/dallas01/picard_status.mp3", 1, 11111, 1); //Team status?
+	waitfordialog( $Picard );
+
+	$Munro.headwatch( $Chell );
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_intact.mp3", 1, 11111, 0); //We’re intact.
+	waitfordialog( $Munro );
+
+	$Picard.playdialog("localization/sound/dialog/dallas01/picard_dallas.mp3", 1, 11111, 1); //And the Dallas?
+	waitfordialog( $Picard );
+
+	$Munro.resethead();
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_ppower.mp3", 1, 11111, 0); //We've restored partial power.
+	waitfordialog( $Munro );
+	
+	$Picard.playdialog("localization/sound/dialog/dallas01/picard_logs.mp3", 1, 11111, 1); //Proceed to the bridge. Find out what happened to Captain Galloway.
+	waitForDialog( $Picard );
+	
+	$Munro.playdialog("localization/sound/dialog/dallas01/munro_yessir.mp3", 1, 11111, 0); //Aye sir.
+	waitForDialog( $Munro );
+	
+	thread sequenceEngineering_skipThread();
+}
+
+//---------------------
+void sequenceEngineering_skipThread()
+{
+	skipthread( "null" );
+	killthread( "sequenceEngineering" );
+	wait( .25 );
+	thread sequenceEngineering_end();
+}
+
+//---------------------
+void sequenceEngineering_end()
+{
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait( 0.5 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RetrieveCaptainLogsOnBridge$$","incomplete",2,1);
+	
+
+	$turboLift_archetype.missionobjective( 1 );
+	$triggerDialogTurbolift.triggerable();
+	thread globalCommon_OnUse ( $switchExposeSubsystem , "switchExposeSubsystem_Function" );
+
+	$Munro.hide();
+	$Munro.notsolid();
+	$Munro.origin( '-448.00 2737.00 -40.00' );
+	
+
+
+	//hzm coop mod Chrissstrahl, make sure no player gets stuck behind the force fields
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0 ){
+				vOriginPlayer = ePlayer.getOrigin();
+				//well, I am really not sure if that is the smartest way to do this, but it works...
+				if(	vOriginPlayer_y > 4077 && vOriginPlayer_x < 711 && vOriginPlayer_x > -383 ||	//warpcore area
+					vOriginPlayer_x < -1113 || 		//first lounge area
+					vOriginPlayer_x > 1337	||		//secound lounge area
+					vOriginPlayer_z < 0		||		//somewhere in the jefreystubes
+					vOriginPlayer_y < 3086 )		//other area beyond the engeniering
+				{
+					globalCoop_player_warpToSpawn(ePlayer);
+				}
+			}
+		}
+	}
+	
+	//hzm coop mod Chrissstrahl, move player that activated the puzzle into position
+	if(doesEntityExist(ePlayerStartedPuzzle)){
+		if(ePlayerStartedPuzzle.getHealth() > 0){
+			ePlayerStartedPuzzle.warp( '256 4032 0' );
+			wait(0.05);
+		}
+	}	
+	
+	
+	$Chell.useactorweapon( "CompressionRifleEnhanced" );
+	$Jurot.useactorweapon( "CompressionRifleEnhanced" );
+	$Franklin.useactorweapon( "CompressionRifleEnhanced" );
+	
+	$Chell.ai_on();
+	$Jurot.ai_on();
+	$Franklin.ai_on();
+
+	$Chell.settendency( "follow" , 1 );
+	$Jurot.settendency( "follow" , 1 );
+	$Franklin.settendency( "follow" , 1 );
+	
+	_cinePlayerEnd();
+	_cineScreenEnd();
+
+	$smalldoor5.noise( "sound/ships/forever/for_doorbeep.wav" );	
+	$smalldoor5.unlock();	
+	$jeffreydoor_red.remove();
+	$jeffreydoor_green.show();
+	
+	$world.light_lightstyle ( "jeffreydoor_green", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" );
+	$world.light_lightstyle ( "jeffreydoor_red", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" );
+}
+
+
+//---------------------
+// sequenceEngineeringDoorExplode
+// engineering door goes boom 
+//---------------------
+void sequenceEngineeringDoorExplode()
+{
+	trigger ( "$doorEngineeringEast" );	
+}
+
+
+//===================================================================================================================
+// Cinematics
+//===================================================================================================================
+
+//---------------------
+// dialogTurbolift
+// Team says turbolift is locked and can be opened nearby
+//---------------------
+void dialogTurbolift()
+{
+	//COMPUTER VOICE DIALOG FOR DEAD TURBOLIFT SYSTEMS HERE
+	$Munro.playdialog( "localization/sound/dialog/dallas01/comp_turbooffl.mp3", 1, 11111, 0);
+	waitForDialog( $Munro );
+
+	wait( .25 );
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_noturb.mp3", 1, 11111, 1); //The turbolift has no power. We need to route power to it. 
+	waitForDialog ( $Chell );
+	$Franklin.playdialog ( "localization/sound/dialog/dallas01/frank_computer.mp3", 1, 11111, 1); //The computer that governs lift power is right near here. That nearby Jeffries Tube goes right to it.
+	waitForDialog ( $Franklin );
+	$Munro.playdialog ( "localization/sound/dialog/dallas01/munro_stayhere.mp3", 1, 11111, 0); //You stay here. I'm taking that Jeffries tube.
+	waitForDialog ( $Munro );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestoreTurboLiftPower$$","incomplete",3,1);
+	
+	$turbolift_waypoint.missionobjective( 1 );
+	//$switchSubsystem_archetype.missionobjective( 1 );
+}
+
+
+//===================================================================================================================
+// Misc
+//===================================================================================================================
+
+//---------------------
+// soundAlienSounds1
+// Aliens scratching in ducts
+//---------------------
+void soundAlienSounds1()
+{
+	thread soundRandomAlienScratch ( $sourceAlienSounds1 , 28 , .35 , 150 );
+}
+
+//---------------------
+// soundAlienSounds2
+// Aliens scratching in ducts
+//---------------------
+void soundAlienSounds2()
+{
+	thread soundRandomAlienScratch ( $sourceAlienSounds2 , 29 , .35 , 200 );
+}
+
+//---------------------
+// soundAlienSounds3
+// Aliens scratching in ducts
+//---------------------
+void soundAlienSounds3()
+{
+	thread soundRandomAlienScratch ( $sourceAlienSounds3 , 30 , .35 , 150 );
+}
+
+
+//---------------------
+// soundRandomAlienScratch	
+// randomly picks an alien scratching sound when the player activates
+//---------------------
+void soundRandomAlienScratch ( entity entSoundSource , float floatChannel , float floatVolume , float floatRange )
+{
+	/*
+	float soundChoice;
+	
+	while ( 1 )
+	{
+		soundChoice = randomint (4);
+		
+		if ( soundChoice == 0)
+		{
+			entSoundSource.playsound ( "sound/environment/metal/metal_scrape1.wav" , floatChannel , floatVolume , floatRange );
+		}
+		else if ( soundChoice == 1)
+		{
+			entSoundSource.playsound ( "sound/environment/metal/metal_scrape2.wav" , floatChannel , floatVolume , floatRange  );
+		}
+		else if ( soundChoice == 2)
+		{
+			entSoundSource.playsound ( "sound/environment/metal/metal_scrape3.wav" , floatChannel , floatVolume , floatRange  );
+		}
+		else if ( soundChoice == 3)
+		{
+			entSoundSource.playsound ( "sound/environment/metal/metal_scrape4.wav" , floatChannel , floatVolume , floatRange  );
+		}		
+		
+		wait ( randomint (9) +5 );
+	}
+	*/
+}
+
+//---------------------
+// randomShipSound	
+// randomly picks a ship sound to play and then randomly waits
+//---------------------
+void randomShipSound()
+{
+	/*
+	float choice;
+	
+	while ( 1 )
+	{
+		choice = randomint (9);
+		
+		if ( choice == 0)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_low1.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 1)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_low2.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 2)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_low3.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 3)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_low4.wav" , 8 , .75 , 2000 );
+		}		
+		else if ( choice == 4)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_low5.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 5)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_medium1.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 6)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_medium2.wav" , 8 , .75 , 2000 );
+		}
+		else if ( choice == 7)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_medium3.wav" , 8 , .75 , 2000 );
+		}	
+		else if ( choice == 8)
+		{
+			$player.playsound ( "sound/ships/forever/ship_creak_rattle1.wav" , 8 , .75 , 2000 );
+		}
+
+		wait ( randomint (15) +17 );
+	
+	}
+	*/
+}
+
+//---------------------
+// randomAlienSound	
+// randomly picks an alien sound to play and then randomly waits
+//---------------------
+void randomAlienSound()
+{
+	/*
+	float choice;
+	
+	while ( 1 )
+	{
+		choice = randomint (7);
+		
+		if ( choice == 0)
+		{
+			$player.playsound ( "sound/chars/lurker/lurk_alert_amb.wav" , 8 , .65 , 2000 );
+		}
+		else if ( choice == 1)
+		{
+			$player.playsound ( "sound/chars/lurker/lurk_amb2.wav" , 8 , .65 , 2000 );
+		}
+		else if ( choice == 2)
+		{
+			$player.playsound ( "sound/chars/lurker/lurk_amb3.wav" , 8 , .65 , 2000 );
+		}
+		else if ( choice == 3)
+		{
+			$player.playsound ( "sound/chars/lurker/lurk_amb4.wav" , 8 , .65 , 2000 );
+		}		
+		else if ( choice == 4)
+		{
+			$player.playsound ( "sound/chars/lurker/lurk_spottarget_amb.wav" , 8 , .65 , 2000 );
+		}
+		else if ( choice == 5)
+		{
+			$player.playsound ( "sound/environment/metal/metal_scrape3.wav" , 8 , .65 , 2000 );
+		}
+		else if ( choice == 6)
+		{
+			$player.playsound ( "sound/environment/metal/metal_scrape1.wav" , 8 , .65 , 2000 );
+		}
+
+		wait ( randomint (19) +19 );
+	
+	}
+	*/
+}
+
+
+//---------------------
+// doorBroken1Move
+// Broken door bangs around 
+//---------------------
+void doorBroken1Move()
+{
+	while( 1 )
+	{
+    	$sparksDoorBroken1.playsound ( "sound/environment/electric/elec_impact.wav", 15, .7, 31);
+    	$sparksDoorBroken1.playsound ( "sound/ships/forever/for_tubelatch.wav", 16, .4, 31);
+                
+		$sparksDoorBroken1.show();
+		$doorBroken1West.time( .2 );
+		$doorBroken1West.moveWest( 2 );
+		$doorBroken1West.rotateXup( 1 );
+		$doorBroken1East.time( .2 );
+		$doorBroken1East.moveEast( 2 );
+		$doorBroken1East.rotateXdown( 1 );
+		waitfor( $doorBroken1West );
+		$sparksDoorBroken1.hide();
+		wait( 2 );
+    	$sparksDoorBroken1.playsound ( "sound/environment/electric/elec_impact.wav", 15, .7, 31);
+    	$sparksDoorBroken1.playsound ( "sound/ships/forever/for_tubelatch.wav", 16, .4, 31);
+		$sparksDoorBroken1.show();
+		$doorBroken1West.time( .4 );
+		$doorBroken1West.moveEast( 2 );
+		$doorBroken1West.rotateXdown( 1 );
+		$doorBroken1East.time( .4 );
+		$doorBroken1East.moveWest( 2 );
+		$doorBroken1East.rotateXup( 1 );
+		waitfor( $doorBroken1West );
+		$sparksDoorBroken1.hide();
+		wait( 2 );	
+	}
+}
+
+//---------------------
+// doorBroken3Move
+// Broken door bangs around 
+//---------------------
+void doorBroken3Move()
+{
+	while( 1 )
+	{
+    	$sparksDoorBroken3.playsound ( "sound/environment/electric/elec_impact.wav", 15, .7, 31);
+    	$sparksDoorBroken3.playsound ( "sound/ships/forever/for_tubelatch.wav", 16, .4, 21);
+		$sparksDoorBroken3.show();
+		$doorBroken3West.time( .2 );
+		$doorBroken3West.moveWest( 2 );
+		$doorBroken3West.rotateXup( 1 );
+		$doorBroken3East.time( .2 );
+		$doorBroken3East.moveEast( 2 );
+		$doorBroken3East.rotateXdown( 1 );
+		waitfor( $doorBroken3East );
+		$sparksDoorBroken3.hide();
+		wait( 2 );
+    	$sparksDoorBroken3.playsound ( "sound/environment/electric/elec_impact.wav", 15, .7, 31);
+    	$sparksDoorBroken3.playsound ( "sound/ships/forever/for_tubelatch.wav", 16, .4, 21);
+		$sparksDoorBroken3.show();
+		$doorBroken3West.time( .4 );
+		$doorBroken3West.moveEast( 2 );
+		$doorBroken3West.rotateXdown( 1 );
+		$doorBroken3East.time( .4 );
+		$doorBroken3East.moveWest( 2 );
+		$doorBroken3East.rotateXup( 1 );
+		waitfor( $doorBroken3East );
+		$sparksDoorBroken3.hide();
+		wait( 2 );	
+	}
+}
+
+//---------------------
+// switchExposeSubsystem_Function
+// opens the door and exposes the elevator unit
+//---------------------
+void switchExposeSubsystem_Function()
+{
+	//--- make the switch unusable
+	$switchExposeSubsystem.nouse();
+	$switchExposeSubsystem.playsound( "sound/ships/forever/for_doorbeep.wav", 3, .9, 10001);
+
+	//$switchExposeSubsystem.archetype( "NonInteractive" );
+
+	$TurboliftUnitButton.puzzleobject_activate();
+	
+	//--- set the times on the objects
+	$switchSubsystem.time( 1.25 );
+	$doorSubsystemNorth.time( .75 );
+	$doorSubsystemSouth.time( .75 );
+	
+	//--- slide the door aside
+	$doorSubsystemNorth.moveNorth( 24 );
+	$doorSubsystemSouth.moveSouth( 24 );
+	//$doorSubsystemNorth.playsound ( "sound/ships/forever/for_doorbeep.wav", 3, .9, 10001);
+	$doorSubsystemSouth.playsound ( "sound/doors/enterprise_jefftube.wav", 2, .3, 10001);
+	waitfor( $doorSubsystemNorth );
+	
+	wait( .5 );
+	$switchSubsystem.playsound ( "sound/ships/forever/for_gravpanel.wav", 3, .9, 10001);	
+	//--- slide the unit forward
+	$switchSubsystem.moveeast( 36 );
+	waitfor( $switchSubsystem );
+	$switchSubsystem.playsound ( "sound/ships/forever/for_gravpanelstop.wav", 3, .9, 10001);	
+	//--- make it so the unit can be used
+	//thread globalCommon_OnUse ( $switchSubsystem , "Subsystem_ActivateFunction");
+	
+	// show the archetype object
+	globalArchetype_Setup( $switchSubsystem_archetype, "TurboLiftControlGrid" );
+
+	wait( .25 );
+
+	$switchSubsystem_archetype.missionobjective( 1 );
+}
+
+void turboliftWaypoint()
+{
+	$turbolift_waypoint.missionobjective( 0 );
+	$turbolift_waypoint.remove();
+}
+
+//---------------------
+// GravityUnitButton_Used
+// button is used, turns on lights, unlocks door
+//---------------------
+void TurboliftUnit_Failed()
+{
+	$TurboliftUnitButton.puzzleobject_reset();
+}
+
+
+void TurboliftUnit_Canceled()
+{
+	$TurboliftUnitButton.puzzleobject_reset();
+}
+
+void TurboliftUnit_Used()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+	
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 7 );
+	globalTricorderRoute_SetDestination1( 5, 7 );
+    globalTricorderRoute_SetDestination2( 9, 7 );
+
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 11,  3, 19, 16 );				
+ 	globalTricorderRoute_SetNextRow( 32, 32,  9, 20, 32,  1,  6,  8, 32 );	
+ 	globalTricorderRoute_SetNextRow( 16, 24, 21,  3,  0,  7, 11,  0, 32 );	
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 11, 32, 18,  1,  7, 32 );	
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32,  3,  1 );				
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );	
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );	
+    
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+ }
+
+//---------------------
+// sequenceSubsystemOn
+// Munro powers on turbo lifts	
+//---------------------
+void sequenceSubsystemOn()
+{
+	music( "success" );
+
+	$switchSubsystem_archetype.remove();
+	//globalArchetype_Setup( $switchSubsystem_archetype, "TurboLiftControlGridUsed" );
+	//$switchSubsystem_archetype.archetype( "NonInteractive" );
+
+	//COMPUTER VOICE DIALOG FOR RESTORING TURBOLIFT SYSTEMS HERE
+	$Chell.playdialog( "localization/sound/dialog/dallas01/comp_turbopow.mp3", 1, 11111, 0);
+	
+	$switchSubsystem.nouse();
+	
+	$switchSubsystem.hide();
+	$switchSubsystem_online.show();
+	$switchSubsystem_online.solid();
+	$switchSubsystem.notsolid();
+	
+	$switchSubsystem_online.playsound ( "sound/ships/forever/for_poweron.wav", 4, 1, 10001);
+	$switchSubsystem_online.loopsound ( "sound/ships/forever/for_rumble3.wav",.4, 401);
+
+	$triggerDialogTurbolift.remove();
+	
+	wait( 3 );
+
+	$Chell.playdialog ( "localization/sound/dialog/dallas01/chell_turbon.mp3", 1, 11111, 1); //Turbolifts are operational again.
+	waitfordialog ( $Chell );
+
+	$turboliftSwitch.triggerable();
+	$turboLift.unlock();
+	$turboLift.wait( -1 );
+	$turboLift.open( $world );
+	$exittrigger.triggerable();
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestoreTurboLiftPower$$","complete",3,1);
+	
+	_turboliftsPowered = TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------
+void testLevelEnd()
+{
+	//--- this is for testing the cinematic without having to play the entire level everytime.
+	//--- I. E. please leave this function in :)
+	_turboliftsPowered = TRUE;
+	
+	thread enterTurbolift();
+}
+
+
+void enterTurbolift()
+{
+	$turboliftSwitch.nottriggerable();
+
+	entity turboliftcam;
+	
+	$turboliftSwitch.playsound( "sound/environment/computer/lcars_yes.wav", 1, 1, 500 );
+	
+	// do a little cine of everybody in the turbolift...
+	cam.load( "m3l1b_turbolift" );
+	turboliftcam = spawn( "Camera", "targetname", "turboliftcam" );
+	_cineScreenBegin();
+	_cinePlayerBegin();
+
+	wait( .25 );
+	
+	$Chell.ai_off();
+	
+	$Franklin.ai_off();
+	
+	$Jurot.ai_off();
+		
+	$Chell.resetHead();
+	$Franklin.resetHead();
+	$Jurot.resetHead();
+	$Munro.resetHead();
+	
+	$Chell.notsolid();
+	$Franklin.notsolid();
+	$Jurot.notsolid();
+	$Munro.notsolid();
+
+	$Munro.anim( "idle" );
+	$Munro.show();
+
+	wait( .25 );
+
+	$Munro.warp( $turboliftMunro.getorigin() );
+	$Munro.angle( 225 );	
+
+	$Chell.warp( $turboliftChell.getorigin() );
+	$Chell.angle( 225 );
+
+	$Franklin.warp( $turboliftFranklin.getorigin() );
+	$Franklin.angle( 225 );
+
+	$Jurot.warp( $turboliftJurot.getorigin() );
+	$Jurot.angle( 225 );
+
+	$Chell.ai_off();
+	$Franklin.ai_off();
+	$Jurot.ai_off();
+	
+	$Chell.anim( "idle" );
+	$Franklin.anim( "idle" );
+	$Jurot.anim( "idle" );
+	
+	//--- get the player out of the way
+	//$player.origin( $Munro.getOrigin() );
+	
+	//--- make sure the door's open
+	$turboLift.open( $world );	
+	wait( .2 );
+	
+	cuecamera( turboliftcam );
+	turboliftcam.follow( $m3l1b_turbolift );
+	turboliftcam.cut();
+	
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	$turboLift.close();
+	wait( 1 );
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	
+	coop_endLevel();
+
+	/*spawn( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m3l2-forever" );
+	wait( .5 );
+	triggerentity( $trigger_endlevel );*/
+}
+
+//-----------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+//-----------------------------------
+void panelEngineering_go()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+	
+    globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 5 );
+	globalTricorderRoute_SetSource2Row( 9 );
+	globalTricorderRoute_SetDestination1( 5, 5 );
+	globalTricorderRoute_SetDestination2( 9, 9 );
+
+	//--- begin row definitions
+    globalTricorderRoute_BeginDef();
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 11, 32, 32, 32, 11, 32 );
+    globalTricorderRoute_SetNextRow(  9, 10,  0,  6,  0,  0,  0,  6,  0 );				
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 17, 32, 32, 32,  1, 32 );	
+    globalTricorderRoute_SetNextRow( 32,  1, 32,  9, 16, 11,  0, 23, 32 );	
+    globalTricorderRoute_SetNextRow( 32,  1, 32,  1, 32, 32, 32,  1, 32 );	
+    globalTricorderRoute_SetNextRow(  1, 10,  0,  8,  0,  0,  0,  8,  0 );				
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 11, 32, 32, 32, 11, 32 );	
+    globalTricorderRoute_SetNextRow( 32,  1, 32, 32, 32, 32, 32, 32, 32 );	
+    
+    //--- run the puzzle
+    globalTricorderRoute_Run( puzzle, 0 );
+	
+	
+	ePlayerStartedPuzzle = puzzle.getLastActivatingEntity();
+}
+
+//-----------------------------------
+void panelEngineering_failed()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+	puzzle.puzzleobject_reset();
+	chellLetUsIn();
+}
+
+//-----------------------------------
+void panelEngineering_canceled()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+	puzzle.puzzleobject_reset();
+	chellLetUsIn();
+}
+
+//-----------------------------------
+void secretDoorExplode()
+{
+	music( "mystery" );
+	$secretDoorSpawn.modelname( "fx/fx-explosion-metaldebris-directional.tik" );
+	triggerentity( $secretDoorSpawn );
+	$secretDoor.remove();
+	$secretDoorFracture.remove();
+	$secret_doorRemove.remove();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	
+	thread globalCoop_mission_completed("m3l2-forever");
+}
+
+
+
+

@@ -1,0 +1,224 @@
+
+//=====================================================================================
+// Begin NPC Dialog code for Information Gathering Missions
+//=====================================================================================
+
+//---------------------
+// Function:		workUseThread
+// Parameters:		none
+// Returns:			none
+// Comments:		
+//---------------------
+void workUseThread() 
+{
+	entity self;
+	self = getcurrententity();
+	self.setfloatvar( "startTalkingNow", 1 );
+	self.nouse();
+}
+
+//---------------------
+// Function:		workUntilUsed (this should be renamed to whatever would be appropriate)
+// Parameters:		
+//		theActor		entity that is supposed to do workUntilUsed
+//		nodePatrolWork	to be passed directly to globalCommon_ActorRandomNodePatrolWork in global_useful.scr
+//		nodeAnimation	ditto
+//		numberOfNodes	ditto
+// Returns:			none
+// Comments:
+//	This function can be called to make the passed entity execute globalCommon_ActorRandomNodePatrolWork and 
+// 	then set up to abort that thread when used.
+//
+//	!NOTE! This function will not return until the actor passed has it's "onuse" event called.
+//
+//---------------------
+void workUntilUsed( entity theActor, string nodePatrolWork, string nodeAnimation, float numberOfNodes )
+{
+	float workThread;
+
+	if( ! doesEntityExist( theActor ) ){
+		centerPrint( "^1WARNING:^3 workUntilUsed ERROR: the passed in actor does not exist\n" );
+		return;
+	}
+
+	workThread = 0;
+	if( (nodePatrolWork != "") && (numberOfNodes > 0) ){
+		// set the actor up to do random node patrol, hang onto the thread ID so it can be killed later
+		workThread = thread globalCommon_ActorRandomNodePatrolWork( theActor, nodePatrolWork, nodeAnimation, numberOfNodes );
+	}
+	else
+	{
+		theActor.ai_off();
+	}
+	
+	// set the onuse thread for the actor to an empty function that does nothing.
+	// this is only used as a method to pause this thread until the player "uses" the actor.
+	// see the end for explanation of why the talkThreadName isn't used here.
+	theActor.onuse( "workUseThread" );
+	
+	// sit and wait for the use thread to execute
+	theActor.setfloatvar( "startTalkingNow", 0 );
+	while( theActor.getfloatvar( "startTalkingNow" ) == 0 )
+	{
+		wait( 0.1 );
+	}
+	
+	// reset the floatvar before talking
+	theActor.setfloatvar( "startTalkingNow", 0 );
+	
+	// stop the work thread started above so they can talk
+	if( workThread != 0 )
+	{
+		//centerprint( "terminating work thread!\n" );
+		terminate( workThread );
+	}
+	
+	// now this function returns and it's up to the caller to determine what to do next
+}
+
+//---------------------
+// Function:	talkUtilDone (this should be renamed to whatever would be appropriate)
+// Parameters:	the entity that the player is talking to
+// Returns:		none
+// Comments:	
+//	This function can be called to make the passed entity execute a dialog function.
+//	It will do all the necessary things to make sure nobody else is talking and will
+//	not return until the dialog is finished.
+//
+//	The entity should have a floatvar set on it called "dialogNumber" that will be used to
+//	determine which function to call (see below).
+//
+// 	The entity should also have a stringvar set on it called "dialogFunc" that will be used
+//	to determine which function to call (see below).
+//
+//	Using the two above variables from the entity, a string is concatenated in the following
+// 	form:
+//		 <dialogFunc><mission number>_<dialogNumber>
+//	So if dialogFunc == "kourbanDialog", dialogNumber == 141, and the current IGM mission is 2, the 
+//	function that will be called (using stuffcmd script thread) is "kourbanDialog2_141".
+//
+//	Just as that function is called, an entity floatvar called "inDialog" is set to 1.  This 
+// 	function will not return until the "inDialog" floatvar is set to 0.
+//
+//	!NOTE! 	I repeat: if the dialog functions don't set "inDialog" to 0 before returning, this
+//				function will never return and that character will be broken from that point on.
+//
+//	!NOTE!	Each dialog function is also responsible for setting the "dialogNumber" value to 
+//				the correct value.
+//
+//---------------------
+void talkUntilDone( entity theActor )
+{
+	float dialogNumber, stillInDialog;
+	float currentMissionNumber;
+	string dialogFunctionName;
+
+	if( ! doesEntityExist( theActor ) ){
+		centerPrint( "^1WARNING:^3 talkUntilUsed ERROR: the passed in actor does not exist\n" );
+		return;
+	}
+
+	// remove the use thread from the actor; stop all talking
+	theActor.ai_off();
+	theActor.nouse();
+
+	// get the dialog function base name and number to run
+	dialogNumber = theActor.getfloatvar( "dialogNumber" );	
+	dialogFunctionName = theActor.getstringvar( "dialogFunc" );
+	
+	// Get current mission number
+	currentMissionNumber = getfloatvar("game.globalMissionEnterprise");
+	if(currentMissionNumber < 1){
+		currentMissionNumber = 1;
+		setfloatvar("game.globalMissionEnterprise",1);
+	}
+	
+	// build the name of the script function to call into a string.
+	// It works like this: <dialogFunc><mission number>_<dialogNumber>
+	dialogFunctionName = dialogFunctionName + currentMissionNumber + "_" + dialogNumber;
+	
+	// call the function
+	//runThreadNamed( dialogFunctionName );
+	thread globalCoop_level_callReliably(dialogFunctionName);
+	
+	// set the "inDialog" float var to 1 before entering the loop that checks for it.
+	// this crappy mechanism has to be used because there's no way for this thread to know when
+	// the dialog thread is done because it has to be called by a stuffcmd.
+	theActor.setfloatvar( "inDialog", 1 );
+	
+	// this loop just waits until the "inDialog" floatvar is set to false, which says the dialog 
+	// is over, return to normal processing.
+	stillInDialog = 1;
+	while( stillInDialog )
+	{
+		globalCoop_main_waitZeroDot5();
+		stillInDialog = theActor.getfloatvar( "inDialog" );
+	}
+	
+	// now this function returns and it's up to the caller to determine what to do next
+}
+
+//---------------------
+// Function:		setNextDialog (this should be renamed to whatever would be appropriate)
+// Parameters:		
+//		theActor			entity that is having its next dialog number set
+//		nextDialogNumber	the dialog number that this entity will call next time it is used	
+// Returns:			none
+// Comments:
+//	This function automates the setting of the "lastDialogNumber" variable that dialog functions
+//	can use to determine which dialog to go to next (if desired).
+//	In other words, it lets you see which dialog you just came from if there are multiple paths.
+//---------------------
+void setNextDialog( entity theActor, float nextDialogNumber )
+{
+	if( ! doesEntityExist( theActor ) )
+	{
+		centerPrint( "^1WARNING:^3 setNextDialog ERROR: the passed in actor does not exist\n" );
+		return;
+	}
+
+	theActor.setfloatvar( "lastDialogNumber", theActor.getfloatvar( "dialogNumber" ) );
+	theActor.setfloatvar( "dialogNumber", nextDialogNumber );
+}
+
+//---------------------
+// Function:		setDialogFinished (this should be renamed to whatever would be appropriate)
+// Parameters:		the entity that is finished with its current dialog
+// Returns:			none
+// Comments:		
+//	Just a helper function so the code is more clear (instead of seeing setfloatvar in every function
+//  you see this function name so the intent is more clear.
+//---------------------
+void setDialogFinished( entity theActor )
+{
+	if( ! doesEntityExist( theActor ) ){
+		centerPrint( "^1WARNING:^3 setDialogFinished ERROR: the passed in actor does not exist\n" );
+		return;
+	}
+
+	theActor.setfloatvar( "inDialog", 0 );
+}
+
+//---------------------
+// Function:		setDialogFunction (this should be renamed to whatever would be appropriate)
+// Parameters:		
+//		theActor			entity that is having its dialog function set
+//		nextDialogNumber	the base name that this entity will use to construct its calls to dialog
+// Returns:			none
+// Comments:		
+//	Just a helper function so the code is more clear.
+//---------------------
+void setDialogFunction( entity theActor, string dialogBase )
+{
+	if( ! doesEntityExist( theActor ) )
+	{
+		centerPrint( "^1WARNING:^3 setDialogFunction ERROR: the passed in actor does not exist\n" );
+		return;
+	}
+
+	theActor.setstringvar( "dialogFunc", dialogBase );
+}
+
+
+
+

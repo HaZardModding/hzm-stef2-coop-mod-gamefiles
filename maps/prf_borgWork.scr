@@ -1,0 +1,209 @@
+//================================================
+// EXAMPLE BORG WORK/PATROL MAP+SCRIPT
+// Chrissstrahl, Ulm - Germany
+// Created:		2017.07.13
+// Last update:	2017.07.17
+// Version:		1.0
+//================================================
+
+void main();
+void borgDrone_activate();
+void droneInAlcove();
+void messagePlayer(entity ePlayer, string sMessage);
+void togglePlayerNotarget();
+void giveWeaponsMultiplayer();
+void killedDrone();
+void borgDrone_activate_specific(entity eDrone);
+void nodeDestroyed();
+void nodeDestroyedHandleAi();
+
+void main()
+{
+//setup level
+	$node0.archetype("");//remove description for tricorder, since it does not quite work
+	$ffYellow.solid();//make forcefield solid, neded to be notsolid 1 for the info_pathnode to connect
+	$forcefieldBlue.solid();//make forcefield solid, neded to be notsolid 1 for the info_pathnode to connect
+	//use console command ai_showroutes 1 to see if pathnodes are connected (use in singleplayer)
+
+//setup drone, do this best at the beginning, if you want to use more drones use different nodeids
+	$drone0.setnodeid( 1 );//set the id of the nodes this drone will exclusivley use
+	$drone0.setactorflag ( "inalcove" , 1 );//let ai know that it is inside a alcove now
+	$drone0.settendency( "hibernate" , 1.0 );//let ai know that it is hibernating now
+	
+	$drone1.setnodeid( 3 );//set the id of the nodes this drone will exclusivley use
+	$drone1.setactorflag ( "inalcove" , 1 );//let ai know that it is inside a alcove now
+	$drone1.settendency( "hibernate" , 1.0 );//let ai know that it is hibernating now
+	
+//scale down the effect to lure player in
+	$lurePlayerEffect.scale(0.1);
+	
+//give player a weapon	
+	if(getCvarInt("g_gametype") == 0){//if singleplayer
+	
+		waitForPlayer();//wait until any player is ready on the server
+		$player.give("models/weapons/worldmodel-batleth.tik");
+		$player.use("models/weapons/worldmodel-batleth.tik");
+		
+	}else{//if multiplayer
+		thread giveWeaponsMultiplayer();//start a seperate function to take care of weapons
+	}
+}
+
+void giveWeaponsMultiplayer()
+{//this gives every player a weapon each secound, this is the easiest way to handle this in mp
+	entity ePlayer;
+	
+	waitForPlayer();//wait until any player is ready on the server
+	wait( getCvarInt("mp_warmuptime") + 0.1 );//wait for warmup time to end plus delay
+	
+	float isCoop=0;
+	float playerCoopId=0;
+	
+	while(1){
+		isCoop=0;
+		playerCoopId=0;
+		ePlayer = getEntity("player");
+		
+		if(!doesEntityExist(ePlayer)){
+			ePlayer = getEntity("player0");
+			isCoop=1;
+			playerCoopId=1;
+		}	
+		
+		while(doesEntityExist(ePlayer))
+		{
+			ePlayer.give("models/weapons/worldmodel-batleth.tik");
+			if(isCoop == 0){
+				ePlayer = getNextEntity(ePlayer);
+			}else{
+				playerCoopId++;
+				ePlayer = getEntity("player"+playerCoopId);
+			}
+		}
+		wait(1);//wait 1 sec before repeating this
+	}
+}
+
+void borgDrone_activate()
+//player activated drone via a trigger he did run into
+{
+	entity eTrigger,eTarget;//create variavles
+	eTrigger = getCurrentEntity();//get trigger calling this function
+	eTarget = eTrigger.getTargetEntity();//get target of trigger (in this case a drone)
+	
+	thread borgDrone_activate_specific(eTarget);//handle the given drone
+}
+
+void borgDrone_activate_specific(entity eDrone)
+//activates a specific drone
+{
+	if(doesEntityExist(eDrone) && eDrone.getHealth() > 0){
+		eDrone.settendency( "hibernate" , 0 );//let ai know that it is no longer hibernating
+		eDrone.setTendency("patrol",1);//make ai patrol the path, assuming this ai supports that
+		eDrone.settendency( "work" , 0 );//do not allow the ai to work
+	}
+	
+	wait(3);//wait a moment, so that the ai will patrol before it will be allowed to work
+	
+	if(doesEntityExist(eDrone) && eDrone.getHealth() > 0){
+		eDrone.settendency( "work" , 1 );//make ai work, if it comes close to a helpernote set to "work"
+	}
+}
+
+void droneInAlcove()
+//started by the info_helpernode when drone is now entering the alcove
+{
+	entity eTrigger,eActivator;
+	eTrigger = getCurrentEntity();
+	eActivator = eTrigger.getLastActivatingEntity();
+	
+	if(doesEntityExist(eActivator) && eActivator.getHealth() > 0){
+		eActivator.setactorflag ( "inalcove" , 1 );//let ai know that it is inside a alcove now
+		eActivator.settendency( "hibernate" , 1 );//let ai know that it is hibernating now
+	}
+}
+
+void messagePlayer(entity ePlayer, string sMessage)
+//shows a message to the player, the best way, depending on single/multiplayer
+{
+	if(getCvarInt("g_gametype") == 0){
+		centerprint(sMessage + "\n");//best for singleplayer
+	}else{
+		ePlayer.hudprint(sMessage + "\n");//best for multiplayer
+	}
+}
+
+void togglePlayerNotarget()
+//checks if the player has notarget turned on from walking nto this trigger
+//turns notarget on/off for the player
+//notifies the player via a message
+{
+	entity eTrigger,eActivator;
+	eTrigger = getCurrentEntity();
+	eActivator = eTrigger.getLastActivatingEntity();
+	
+	if(eActivator.getFloatVar("noTargetIsOn"))
+	{
+		eActivator.setFloatVar("noTargetIsOn",0);
+		eActivator.flags("-notarget");
+		messagePlayer(eActivator,"Turning notarget OFF for you");
+	}
+	else{
+		eActivator.setFloatVar("noTargetIsOn",1);
+		eActivator.flags("+notarget");
+		messagePlayer(eActivator,"Turning notarget ON for you");
+	}
+}
+
+
+void killedDrone()
+//started by the ai when killed
+{
+	float fDrones=2;
+	
+	entity eDrone;
+	float fCurrentDrone=0;
+	
+	for(fCurrentDrone=0;fCurrentDrone<fDrones;fCurrentDrone++)
+	{
+		eDrone = getEntity("drone" + fCurrentDrone);
+		if(doesEntityExist(eDrone) == 1 && eDrone.getHealth() > 0)
+		{
+			//eDrone.health(200);//make the drone very strong
+			borgDrone_activate_specific(eDrone);//activates the drone, will allow it to patrol back to alcove
+			eDrone.aggressive(1);//make drone aggressive
+			eDrone.setTendency("patrol",0);//no more patroling
+			eDrone.setTendency("work",0);//no more working, just killing
+		}
+	}
+}
+
+void nodeDestroyed()
+{
+	entity eTrigger,eModel;
+	eTrigger = getCurrentEntity();
+	eModel = eTrigger.getTargetEntity();
+	
+	string sTargetname;
+	sTargetname = eTrigger.getTargetname();//get targetname of this trigger
+	
+	spawn("sfx","model","fx/fx-explosion-distnode.tik","origin",""+eTrigger.getOrigin(),"scale","0.5");//spawn effect model
+	spawn("script_model","model","models/fx/fx-plasmaburn-flamethrow-red.tik","origin",""+eTrigger.getOrigin(),"angle","-1","scale","0.75");//spawn effect model
+	
+	eModel.playsound ( "sound/impact/explosion/expl_energy2.wav", 5, 1, 500);//play explosion sound
+	
+	eModel.model("models/enviro/borg-sphere_distnode_distnode_damaged.tik");//change model, show damaged model
+	wait(0.05);
+	eModel.archetype("");//remove description for tricorder, since it does not quite work
+	
+	$ffYellow.remove();//remove yellow forcefield
+	
+	thread nodeDestroyedHandleAi();
+}
+
+void nodeDestroyedHandleAi()
+//make drones aggressive
+{
+	thread killedDrone();
+}
+

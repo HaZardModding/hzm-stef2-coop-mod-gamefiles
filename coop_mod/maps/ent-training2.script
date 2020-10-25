@@ -1,0 +1,960 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	      ent-training2
+//  Script By:    Richard "Charon" H.
+//  Geometry By:  Richard "Charon" H.
+//  Created on:   09/16/2002
+//
+//	Last Edited:  Richard "Charon" H.
+//-----------------------------------------------------------------
+
+void main();
+//hzm coop mod chrisstrahl - declare functions we use
+void coop_endLevel();
+void coop_toogleLift();
+void coop_playersGather();
+void coop_immobilizeWhenInCoord(vector vCoord,string sLogX,string sLogY,string sLogZ);
+void coop_immobilizeWhenInCoordDrop(entity ePlayer);
+void coop_immobilizeWhenInCoordStop();
+//hzm coop mod eof edit
+
+void init();
+void initArchetypes();
+
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection );
+
+void area2Confirm();
+void area2Start();
+void area2StartDialog();
+void area2Jumping1();
+void area2Jumping1_end();
+void area2Falling1();
+void area2Falling1Dialog();
+void area2Falling2();
+void area2Falling2Dialog();
+
+void healthTerminalUsed();
+void area2doors1();
+void area2doors1Dialog();
+void area2doors1openDialog();
+//void area2Lift1();
+void area2Lift2Dialog();
+void area2Lift1_move();
+void area2End();
+
+float doorSwitchAbleToBeUsed = 0;
+float doorSwitchUsed = 0;
+float saidLiftDialog;
+float saidDoorDialog;
+
+//hazm coop mod chrissstrahl - make sure he does not talk to much (continue while already done)
+float bLiftWasUsed = 0;
+
+//==========================================================================================
+// Includes
+//==========================================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/training/global_training.script"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+//================================================================================
+// Main
+//================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// the main thread run at the start of the level
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - let us move the holodeck here, handling players in void does not work in mp
+	$holoDeck.forcealpha( 1 );
+	$holoDeck.alpha( 1 );
+	$holoDeck.notsolid();
+	$holoDeck.origin( '-1456 70 256' );
+	$holoDeck.angles( '0 90 0' );
+	//--- set the holodeck
+	$holoDeck.rendereffects( "+depthhack" );	
+	
+	//hzm coop mod chrissstrahl - set spawnorigins for the players
+	coop_float_spawnAngle0 		= 90;
+	coop_vector_spawnOrigin1 	= '-1400 -64 256';
+	coop_vector_spawnOrigin2 	= '-1475 -64 256';
+	coop_vector_spawnOrigin3 	= '-1400 -130 256';
+	coop_vector_spawnOrigin4 	= '-1475 -130 256';
+	coop_vector_spawnOrigin5 	= '-1550 -64 256';
+	coop_vector_spawnOrigin6 	= '-1550 -130 256';
+	coop_vector_spawnOrigin7 	= '-1625 -64 256';
+	coop_vector_spawnOrigin8 	= '-1625 -130 256';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$TrainingLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - prevent players from blocking the lift
+	$area2Lift1_lift.dmg(100);
+	
+	//waitforplayer();
+	//$player.model( "models/char/munro_voyager.tik" );
+	//freezeplayer();
+	
+	globalLoadout_ClearAllViewmode();
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	
+	soundtrack( "music/training2.mus" );
+	
+	//$player.warp( '512 1216 0' );
+		
+	thread init();
+	initArchetypes();
+	
+	//hzm coop mod Chrissstrahl - halt players
+	globalCoop_main_globalCommand("immobilize");
+}
+
+//---------------------
+// Function: setupArchetypeObject
+// Comments:
+// archetype setup function
+//---------------------
+void setupArchetypeObject( entity e, string theArchetype )
+{
+	e.contents( "targetable" );
+	e.archetype( theArchetype );
+}
+
+//---------------------
+// Function: init
+// Comments:
+// the initilization thread called at the start of the level via main
+//---------------------
+void init()
+{
+	
+	saidLiftDialog = 0;
+	saidDoorDialog = 0;
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	globalCommon_SpawnActor( "char/starfleet_tuvok-training.tik", "tuvok", '-1880 800 256', 180 );
+	initTuvok();
+
+	$triggerArea2doors1.nottriggerable();
+	//$area2doors_door2button.nottriggerable();
+	$area2Door2.lock();
+	$area2doors_door2.lock();
+	$area2Door2_greenlight.hide();
+	$area2doors_door2_lightgreen.hide();
+	
+	$archetype_elevatorswitch.bind( $area2Lift1_lift );
+	
+	//First door you come to should be locked( for sound )
+	//$controlroom1_door5.lock();
+
+	//thread globalCommon_OnUse( $area2bridge1_button, "area2bridge1_button_OnUse" );
+	//thread globalCommon_OnTouch( $area2Lift1_lift, "area2Lift1_move" );
+	
+	//---setup archetypes
+	globalArchetype_Setup( $archetype_powerpanel, "TrainingPowerPanel" );
+	globalArchetype_Setup( $archetype_doorpanel, "DoorPanel" );
+	
+	thread area2Start();
+	
+	//waitforplayer();
+	//$player.loadobjectives( "ent-training2" );
+}
+
+//---------------------
+// Archetypes Setup
+// Setup the archetypes
+//---------------------
+void initArchetypes()
+{
+	setupArchetypeObject( $archetype_elevatorswitch, "TrainingElevatorSwitch" );
+}
+
+//================================================================================
+// General
+//================================================================================
+
+//------------------------------------------------------------------
+// Function: moveAxisAlignedEntity
+// Comments:
+// moves an entity with acceleration and deceleration.
+//
+// Parameters:
+//   entity name - targetname of entity .
+//
+//   totalTime - A floating point value that represents the 
+//   the total time it takes the entity to move the specified distance.
+//
+//   totalDistance - The total distance the entity will move.
+//
+//   moveDirection - The direction the entity will move. Valid values are:
+//       up
+//       down
+//		 north
+//		 south
+//       east
+//       west
+//------------------------------------------------------------------
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection )
+{
+	entity entityReference;
+	entityReference = getEntity( entityName );
+	
+	//
+	// IMPORTANT timeStep should be about .1 seconds.
+	// Otherwise, you may get jerks at low frame rates (fps < 20).
+	//
+	float iterations = 100;		// Number of iterations
+	float halfDistance;			// Distance at which transition occurs
+	float transitionStep;		// Step at which transition from acceleration to deceleration occurs
+	float timeStep;				// Time duration for a single step
+	timeStep = totalTime / iterations;
+	transitionStep = iterations / 2;
+	halfDistance = totalDistance / 2;
+	
+	float sum;
+	float distanceInc;
+	sum = (transitionStep * (transitionStep + 1)) / 2;
+	distanceInc = halfDistance / sum;
+	
+	float moveDir = 0;
+	if ( moveDirection == "up" )
+	{
+		moveDir = 0;
+	}
+	else if ( moveDirection == "down" )
+	{
+		moveDir = 1;	
+	}
+	else if ( moveDirection == "west" )
+	{
+		moveDir = 2;	
+	}
+	else if ( moveDirection == "east" )
+	{
+		moveDir = 3;
+	}
+	else
+	{
+		centerprint( "Invalid move direction" ); 	
+	}
+
+	float idx;
+	float moveInc = 0;
+	for ( idx = 0; idx < iterations; idx += 1)
+	{	
+	 	if ( idx < transitionStep )
+	 	{
+	 		moveInc += distanceInc;
+	 	}
+	 	else
+	 	{
+	 	    moveInc -= distanceInc;
+	 	}
+		entityReference.time( timeStep );
+		if ( moveDir == 0 )
+		{
+			entityReference.moveUp( moveInc );
+		}
+		else if ( moveDir == 1 )
+		{
+			entityReference.moveDown( moveInc );
+		}
+		else if ( moveDir == 2 )
+		{
+			entityReference.moveWest( moveInc );
+		}
+		else
+		{
+			entityReference.moveEast( moveInc );
+		}
+		waitfor ( entityReference );
+	}
+}
+
+
+//================================================================================
+// Area 2
+//================================================================================
+
+//---------------------
+// Function: area2Confirm
+// Comments:
+// plays a confirmation sound each time the player completes a task
+//---------------------
+void area2Confirm()
+{
+	$world.playsound ( "sound/ships/enterprise/ent_beep_confirm.wav" , 8 , 1 , 200000 );
+}
+
+//---------------------
+// Function: area2Start
+// Comments:
+// very beginning of the level where player is introduced to the training mission
+//---------------------
+void area2Start()
+{	
+	wait( 2 );
+	$tuvok.rendereffects( "+fullbright" );
+	$tuvok.rendereffects( "+depthhack" );
+	$tuvok.setvelocity('0 0 0');
+	$tuvok.origin('-1450 260 256');
+	$tuvok.angle( 270 );
+	fadeTuvokIn();
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_ifyrwb.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_ifyrwb.mp3", 1, 20000, 1); //If you're ready, we'll begin the second examination.
+	waitForDialog( $tuvokDummy );
+	wait( 1 );
+	
+	fadeTuvokOut();
+	
+	$tuvok.rendereffects( "-depthhack" );
+	
+	thread area2StartDialog();
+	
+	//$holoDeck.origin( '-1856 -64 256' );
+	//$player.warp( '-1856 -64 256' );
+	wait( 2 );
+	
+	$world.playsound( "sound/environment/computer/holo_change.wav", 3 ,1 ,10000 );
+	$holoDeck.fade( 1 , 0 );
+	wait( 1 );
+	
+	//move tuvok
+	area2Jumping1();
+	
+	$holoDeck.hide();
+	
+	//hzm coop mod Chrissstrahl - allow move
+	globalCoop_main_globalCommand("mobilize");
+	
+	//$player.immobilize( 0 );
+	//releaseplayer();
+}
+
+//---------------------
+// Function: area2StartDialog
+// Comments:
+// 
+//---------------------
+void area2StartDialog()
+{
+	threadname ( "area2StartDialog" );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_inymiss.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_inymiss.mp3", 1, 80000, 1); //In your missions, you will encounter occasions where jumping will require both distance and precision.  In a situation like this, a miscalculated step will often end in injury or death
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_runtow.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_runtow.mp3", 1, 80000, 1); //For this exercise, cross all three platforms...  While in the air, you will find you can control your velocity to a degree by using your movement keys.  This will allow you to tune your jump for a precision landing.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area2Jumping1
+// Comments:
+// player must jump across gaps
+//---------------------
+void area2Jumping1()
+{
+	$tuvok.rendereffects( "-fullbright" );
+	$tuvok.origin( '-1880 800 256' );
+	$tuvok.angle( 0 );
+	
+	fadeTuvokIn();
+	//killAllTalking();
+
+	//$tuvok.playdialog("localization/sound/dialog/train2/tuvok_jumpac.mp3", 1, 800, 1); //Jump across all three platforms, and we will continue the exercise.
+	//waitForDialog( $tuvok );
+	
+	//$player.setobjectiveshow( "jumpGapT2", 1 );
+	
+	//hzm coop mod Chrissstrahl - set first objective
+	globalCoop_objectives_set("$$jumpGapT2$$","incomplete",1,1);
+}
+
+//---------------------
+// Function: area2Jumping1_end
+// Comments:
+// player completes jumping across the gaps.
+//---------------------
+void area2Jumping1_end()
+{
+	killthread ( "area2StartDialog" );
+	killAllTalking();
+	wait ( 1 );
+	//Need to change as soon as other dialog is recorded, this is okay for now
+	$tuvok.playdialog("localization/sound/dialog/train1/tuvok_vgltc.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train1/tuvok_vgltc.mp3", 1, 20000, 1); //Very good. Lets move on.
+	waitForDialog( $tuvokDummy );
+
+	//hzm coop mod Chrissstrahl - set first objective complete
+	globalCoop_objectives_set("$$jumpGapT2$$","complete",1,1);
+	
+	//$player.setobjectivecomplete( "jumpGapT2", 1 );
+	wait( 1 );
+	
+	$area2Door2_greenlight.show();
+	$area2Door2_redlight.hide();
+	$area2Door2.unlock();
+	
+	fadeTuvokOut();
+}
+
+//---------------------
+// Function: area2Falling1
+// Comments:
+// player must jump down to lower floor
+//---------------------
+void area2Falling1()
+{
+	killAllTalking();
+	//$player.immobilize( 1 );
+	
+	//hzm coop mod chrissstrahl - immobilize only players that have jumped accross, do not immobilize player still jumping
+	thread coop_immobilizeWhenInCoord('-968 1680 0',"g","g","-");
+	
+	//$area2Door2_redlight.show();
+	//$area2Door2_greenlight.hide();
+	//$area2Door2.lock();
+	thread area2Falling1Dialog();
+	
+	wait( 1 );
+	
+	//$player.setobjectiveshow( "jumpDownT2", 1 );
+	
+	//hzm coop mod Chrissstrahl - set second objective
+	globalCoop_objectives_set("$$jumpDownT2$$","incomplete",2,1);
+	
+	wait( 1 );
+	
+	//$player.immobilize( 0 );
+}
+
+//---------------------
+// Function: area2Falling1Dialog
+// Comments:
+// 
+//---------------------
+void area2Falling1Dialog()
+{
+	threadname( "area2Falling1Dialog" );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_injuron.mp3", 1, 80000, 1); //It is unfortunate, but you can expect to be injured on missions.  Jump or run off of this ledge to the floor below.
+	waitForDialog( $tuvok );
+	
+	//hzm coop moc chrissstrahl - allow move
+	coop_immobilizeWhenInCoordStop();
+}
+
+//---------------------
+// Function: area2Falling2
+// Comments:
+// player takes damage from fall and must heal
+//---------------------
+void area2Falling2()
+{
+	//hzm coop mod Chrissstrahl - set second objective
+	globalCoop_objectives_set("$$jumpDownT2$$","complete",2,1);
+	
+	//$player.setobjectivecomplete( "jumpDownT2", 1 );
+	
+	killAllTalking();
+	
+	thread area2Falling2Dialog();
+	
+	//hzm coop mod Chrissstrahl - set third objective
+	globalCoop_objectives_set("$$healthT2$$","incomplete",3,1);
+		
+	//$player.setobjectiveshow( "healthT2", 1 );
+}
+
+//---------------------
+// Function: area2Falling2Dialog
+// Comments:
+// 
+//---------------------
+void area2Falling2Dialog()
+{
+	threadname( "area2Falling2Dialog" );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_siminj.mp3", 1, 80000, 1); //Notice the change in your health status.   While your hazard suit is designed to help absorb the shock of an impact, a fall from too great a height will end in injury… or death.
+	waitForDialog( $tuvok );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_hazted.mp3", 1, 80000, 1); //As I'm sure you remember, your hazard suit provides a great deal of tactical assistance. For example, it continuously monitors your life signs, feeding that information to your Tactical Eye Display… or TED.  This data can be seen in the lower left of your display. 
+	waitForDialog( $tuvok );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_hdoesm.mp3", 1, 80000, 1); //Additionally, your hazard suit does more than just protect and inform… it is also lined with nanites, which when powered, can provide field-level medical assistance.
+	waitForDialog( $tuvok );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_topown.mp3", 1, 80000, 1); //To power the nanites, your suit is equipped with a phase-matrix converter that will allow it to utilize many different energy types.  Your suit will alert you to such an energy source with an identification overlay inside your TED
+	waitForDialog( $tuvok );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_ifyoulkw.mp3", 1, 80000, 1); //Identify the energy terminal on the wall near you.  Approach it, and press your Use key to power the nanites strewn about your suit.  They will provide medical assistance until your life signs are normal or the energy in the terminal is exhausted.
+	waitForDialog( $tuvok );
+}
+
+//---------------------
+// Function: healthTerminalUsed
+// Comments:
+// when player used terminal
+//---------------------
+void healthTerminalUsed()
+{
+	//$player.setobjectivecomplete( "healthT2", 1 );
+	
+	//hzm coop mod Chrissstrahl - set third objective complete
+	globalCoop_objectives_set("$$healthT2$$","complete",3,1);
+	
+	killthread ( "area2Falling2Dialog" );
+	killAllTalking();
+	
+	$triggerArea2doors1.triggerable();
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_progac.mp3", 1, 80000, 1); //Excellent work, Lieutenant; your progress is acceptable.
+	waitForDialog( $tuvok );
+
+	doorSwitchAbleToBeUsed++;	
+}
+
+//---------------------
+// Function: area2doors1
+// Comments:
+// runs the door training sequence
+//---------------------
+float area2thread;
+
+void area2doors1()
+{
+	//hzm coop mod Chrissstrahl - set fourth objective
+	globalCoop_objectives_set("$$panelT2$$","incomplete",4,1);
+	
+	//$player.setobjectiveshow( "panelT2", 1 );
+
+	killAllTalking();
+
+	//$player.immobilize( 1 );
+	
+	//hzm coop mod chrissstrahl - immobilize only players that have jumped accross, do not immobilize player still jumping
+	thread coop_immobilizeWhenInCoord('-490 1950 0',"g","g","-");
+	
+	wait( 1 );
+
+	$tuvok.warpTo( "$tuvokWarpToPos2" );
+	wait( .25 );
+	fadeTuvokIn();
+	
+	area2thread = thread area2doors1Dialog();
+
+	//$player.immobilize( 0 );
+}
+
+//---------------------
+// Function: area2doors1Dialog
+// Comments:
+// runs the door training sequence
+//---------------------
+void area2doors1Dialog()
+{
+	threadname( "area2doors1Dialog" );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_notdoor.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_notdoor.mp3", 1, 80000, 1); //Many of the doors in your environment will open automatically as you approach.  However, some doors -- such as the one with the damaged operations panel -- are malfunctioning, and will not open.
+	
+	wait(1);
+	//hzm coop moc chrissstrahl - allow move
+	coop_immobilizeWhenInCoordStop();
+	
+	waitForDialog( $tuvokDummy );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_arelk.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_arelk.mp3", 1, 80000, 1); //Some doors can open, but are locked.  A door's locked status can be ascertained by looking for a red or green indicator light… Most often found above the door itself.  You will notice the light on the functioning door is red, meaning it is currently locked, and will not open.  If you look around, you should be able to find a switch nearby.  Walk to the switch and press your Use key.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area2DoorUnlock
+// Comments:
+// 
+//---------------------
+void area2DoorUnlock()
+{
+	$area2DoorUnlockTrigger.thread( "" );
+	
+	if( doorSwitchAbleToBeUsed == 1 )
+	{
+		terminate( area2thread );
+
+		$world.playsound ( "sound/ships/klingon/kling_beep3.wav" , 8 , 1.5 , 200000 );
+
+		wait( 1 );
+
+		//$area2doors_door2button.triggerable();
+		$area2doors_door2.unlock();
+		$area2doors_door2_lightgreen.show();
+		$area2doors_door2_lightred.hide();
+
+		doorSwitchUsed = 1;
+
+		if ( saidDoorDialog == 0 )
+		{
+			saidDoorDialog = 1;
+			killAllTalking();		
+			thread area2doors1openDialog();	
+			
+			//hzm coop mod Chrissstrahl - set fourth objective complete
+			globalCoop_objectives_set("$$panelT2$$","complete",4,1);
+			
+			//$player.setobjectivecomplete( "panelT2", 1 );
+		}
+			
+		doorSwitchAbleToBeUsed++;
+	}
+	else
+	{
+		$world.playsound( "sound/environment/computer/lcars_error.wav" , 9 , 1 , 200000 );
+		wait( .5 );
+	}
+	
+	$area2DoorUnlockTrigger.thread( "area2DoorUnlock" );	
+}
+
+//---------------------
+// Function: area2doors1openDialog
+// Comments:
+//---------------------
+void area2doors1openDialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_welldrun.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_welldrun.mp3", 1, 20000, 1); //Well done.  Notice the indicator light is now green, confirming that the door is unlocked.  To open the door and proceed to our next exercise, move to its operations panel and press your Use key.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area2doors1open
+// Comments:
+//---------------------
+void area2doors1open()
+{
+	if ( doorSwitchUsed == 0 )
+	{
+		$world.playsound( "sound/environment/computer/lcars_error.wav" , 9 , 1 , 200000 );
+	}
+	if ( doorSwitchUsed == 1 )
+	{
+		$world.playsound( "sound/ships/klingon/kling_beep1.wav" , 8 , 1 , 200000 );
+		killthread( "area2doors1openDialog" );
+		
+		if ( saidLiftDialog == 0 )
+			{
+				saidLiftDialog = 1;
+				killAllTalking();
+				$tuvok.playdialog("localization/sound/dialog/train1/tuvok_excewrk.mp3", 1, 0, 0);
+				$tuvokDummy.playdialog("localization/sound/dialog/train1/tuvok_excewrk.mp3", 1, 20000, 1); //Excellent work.
+				waitForDialog( $tuvokDummy );
+				wait( .5 );
+				area2Lift2Dialog();	
+				saidLiftDialog = 2;
+				
+				//hzm coop mod Chrissstrahl - set fifth objective
+				globalCoop_objectives_set("$$liftT2$$","incomplete",5,1);
+				//$player.setobjectiveshow( "liftT2", 1 );
+			}	
+	}
+}
+
+//---------------------
+// Function: area2Lift2Dialog
+// Comments:
+// 
+//---------------------
+void area2Lift2Dialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_oplift.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_oplift.mp3", 1, 20000, 1); //You are likely to run into situations where you will be required to operate a lift to achieve a more advantageous position or to advance through a mission itself.  To operate a lift, move on to it, and press your Use key to activate it.  Like many objects you can interact with, the activation switch is indicated with an identification overlay inside your TED.
+	
+	wait(3);
+	saidLiftDialog = 2;
+	
+	waitForDialog( $tuvokDummy );
+	
+	//hzm coop mod chrissstrahl - make sure he doesn't say it when player already used it
+	if(bLiftWasUsed)
+		return;
+		
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_uselift.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_uselift.mp3", 1, 20000, 1); //Use this lift to proceed to our next exercise.
+	waitForDialog( $tuvokDummy );
+}
+
+/*
+//---------------------
+// Function: area2Lift1
+// Comments:
+// tells the player how to use the lift
+//---------------------
+void area2Lift1()
+{
+	$player.setobjectivecomplete( "panelT2", 1 );
+
+	killAllTalking();
+	
+	$player.setobjectiveshow( "liftT2", 1 );
+
+}
+*/
+
+//---------------------
+// Function: area2Lift1_move
+// Comments:
+// moves the lift up with accelleration
+//---------------------
+void area2Lift1_move()
+{
+	//wait for the dialog, before we continnue
+	while(saidLiftDialog != 2)
+	{
+		wait( 0.5 );
+	}
+	bLiftWasUsed = 1;
+
+	$area2doors_door2.close();
+	$area2doors_door2.wait( -1 );
+	
+	$world.playsound ( "sound/ships/klingon/kling_beepyes.wav" , 8 , 1.5 , 200000 );
+	
+	//hzm coop mod Chrissstrahl - set fifth objective complete
+	globalCoop_objectives_set("$$liftT2$$","complete",5,1);
+	
+	//$player.setobjectivecomplete( "liftT2", 1 );
+
+	killthread( "area2Lift2Dialog" );
+	killAllTalking();
+	wait( .25 );
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_ex3.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_ex3.mp3", 1, 20000, 1); //Excellent.
+	waitForDialog( $tuvokDummy );
+	
+	//$area2Lift1_lift.nouse();
+	
+	$area2Lift1_lift.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+	moveAxisAlignedEntity( "area2Lift1_lift" , 4, 448, "up" );
+	$area2Lift1_lift.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+	
+	wait( 4 );
+	
+	spawn("trigger_use","targetname","coop_liftTrigger","origin",""+$archetype_elevatorswitch.getOrigin());
+	wait(0.1);
+	$coop_liftTrigger.bind($area2Lift1_lift);
+	coop_toogleLift();
+	$coop_liftTrigger.thread("coop_toogleLift");
+	
+	//$area2Lift1_lift.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+	//moveAxisAlignedEntity( "area2Lift1_lift" , 4, 448, "down" );
+	//$area2Lift1_lift.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+	
+	//wait( 2 );
+
+	//thread globalCommon_OnTouch( $area2Lift1_lift, "area2Lift1_move" );
+}
+
+//---------------------
+// Function: area2End
+// Comments:
+// player completes area 2
+//---------------------
+void area2End()
+{
+	//hzm coop mod Chrissstrahl - set sixth objective
+	globalCoop_objectives_set("$$consoleT2$$","complete",6,1);
+	
+	//$player.setobjectivecomplete( "consoleT2", 1 );
+	
+	//hzm coop mod chrissstrahl - immobilize only players that have jumped accross, do not immobilize player still jumping
+
+	
+	//$player.immobilize( 1 );
+	
+	wait ( 1 );
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area
+	globalCoop_level_gatheringArea("","coop_playersGather",50,'300 300 200','518 2677 341');
+}
+
+void coop_immobilizeWhenInCoord(vector vCoord,string sLogX,string sLogY,string sLogZ)
+//------------------------------------------------------------------------------
+//immobilizes players if they are within the given coordinates, if a coordinate is set to 0 it will not be checked
+//------------------------------------------------------------------------------
+{
+	float fImmo=0;
+	float fNeed=0;
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	$world.setFloatVar("coop_immobilizeWhenInCoordStop",0);
+	while($world.getFloatVar("coop_immobilizeWhenInCoordStop") != 1)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			fImmo=0;
+			fNeed=0;
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					vOriginPlayer = ePlayer.getOrigin();
+				//check x
+					if(vCoord_x != 0){
+						fNeed++;
+						if(sLogX == "l"){
+							if( vOriginPlayer_x <= vCoord_x ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_x >= vCoord_x ){
+								fImmo++;
+							}						
+						}
+					}
+				//check y
+					if(vCoord_y != 0){
+						fNeed++;
+						if(sLogY == "l"){
+							if( vOriginPlayer_y <= vCoord_y ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_y >= vCoord_y ){
+								fImmo++;
+							}						
+						}
+					}
+				//check z
+					if(vCoord_z != 0){
+						fNeed++;
+						if(sLogZ == "l"){
+							if( vOriginPlayer_z <= vCoord_z ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_z >= vCoord_z ){
+								fImmo++;
+							}						
+						}
+					}
+					if(fImmo == fNeed){
+						thread coop_immobilizeWhenInCoordDrop(ePlayer);
+					}
+				}
+			}
+		}
+		wait( 0.1 );
+	}
+}
+
+void coop_immobilizeWhenInCoordDrop(entity ePlayer)
+//------------------------------------------------------------------------------
+//drops player to floor and then immobilizes him
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist( ePlayer )){
+		ePlayer.droptofloor();
+		wait( coop_float_oneFrameTime );
+		ePlayer.immobilize( 1 );
+	}
+}
+
+void coop_immobilizeWhenInCoordStop()
+//------------------------------------------------------------------------------
+//do no longer immobilize the players
+//------------------------------------------------------------------------------
+{
+	$world.setFloatVar("coop_immobilizeWhenInCoordStop",1);
+	wait(0.1);
+	globalCoop_player_imobilizeAll(0);
+}
+
+
+void coop_toogleLift()
+//------------------------------------------------------------------------------
+//make lift usable multiple times
+//------------------------------------------------------------------------------
+{
+	if($area2Lift1_lift.getFloatVar("liftIsDown") == 0){
+		$area2Lift1_lift.setFloatVar("liftIsDown",2);
+		$area2Lift1_lift.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+		moveAxisAlignedEntity( "area2Lift1_lift" , 4, 448, "down" );
+		$area2Lift1_lift.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+		$area2Lift1_lift.setFloatVar("liftIsDown",1);
+		$area2doors_door2.unlock();
+		$area2doors_door2.open( $world );
+	}
+	else if($area2Lift1_lift.getFloatVar("liftIsDown") == 1){
+		$area2doors_door2.lock();
+		$area2doors_door2.close();
+		$area2Lift1_lift.setFloatVar("liftIsDown",2);
+		$area2Lift1_lift.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+		moveAxisAlignedEntity( "area2Lift1_lift" , 4, 448, "up" );
+		$area2Lift1_lift.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+		$area2Lift1_lift.setFloatVar("liftIsDown",0);
+		wait( 3 );
+		coop_toogleLift();
+	}
+	wait( 3 );
+}
+
+void coop_playersGather()
+//------------------------------------------------------------------------------
+//prepare mission ending, was moved here so that we can have a gathering area
+//------------------------------------------------------------------------------
+{
+	killAllTalking();
+	//$tuvok.playdialog("localization/sound/dialog/train2/tuvok_succ2.mp3", 1, 10000, 1); //You have successfully completed Training Area 2.
+	//waitForDialog( $tuvok );
+	
+	//vector originStash;
+	
+	//originStash =  $player.getorigin();
+	
+	//$holoDeck.origin( originStash );
+	
+	//$holoDeck.show();
+	//$holoDeck.fadein( 1, 1 );
+	
+	$world.playsound( "sound/environment/computer/holo_change.wav", 3 ,1 ,10000 );
+	
+	//--- fade to black
+	cam_fadeout( 1, 0, 0, 0, 1 );
+	wait( 1 );
+
+	//--- tell the game to not translate the player's orientation
+	dontSaveOrientation();
+	
+	coop_endLevel();
+	
+	//spawn ( "trigger_changelevel", "targetname", "endLevel_trigger", "map", "ent-training3" );
+	//wait ( .1 );
+	//trigger ( "$endLevel_trigger" );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("ent-training3");
+}
+

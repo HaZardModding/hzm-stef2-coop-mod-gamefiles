@@ -1,0 +1,2572 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m5l2a-drull_ruins1 - Drull Ruins 1 - Interior
+//  Script By:    R. 'Charon' Heath
+//  Geometry By:  J. Keehan , R. 'Charon' Heath
+//  Created on:   08/13/2002
+//
+//  Last Edited:  R. 'Charon' Heath
+//-----------------------------------------------------------------
+
+void main();
+void init();
+void initSecondTime();
+
+void setupCameras();
+void setupArchetypes();
+void setupLightStyles();
+void setupGasChamber1();
+
+void globalDoorDrull1 ( string strDoorName );
+void globalTurretOnTrigger( entity turret , string turretKillThread );
+void globalTurretMove( entity turret , float turretTime );
+
+void biofactoryAutoSave();
+void secondInitAiOn();
+
+void sequenceLiftStartRoom_Down();
+void sequenceStartRoomActivateTurrets();
+void turret1_fire();
+void turret2_fire();
+void turret3_fire();
+void turret4_fire();
+void turret1_killthread();
+void turret2_killthread();
+void turret3_killthread();
+void turret4_killthread();
+void turretsDeathCheck();
+void sequenceStartRoomTurretsDestroyed();
+void sequenceGasChamber1GasMonitor();
+void gasChamberChellRun();
+
+void mainroomWest_spawnKillThread();
+void mainroomWest_mural1View();
+void mainroomWest_lift1Ready();
+void liftWestRoom_Move();
+
+void dialogFirstRoom();
+void dialogFirstRoomDoor();
+void cinematicGasChamber1Start();
+void cinematicGasChamber1Start_SkipThread();
+void gasChamber_blastDoor_close();
+void gasChamber_blastDoor_open();
+
+void secretRuneCheck();
+void secretRuneFailed();
+void secretRunePassed();
+void secretStaffRecieved();
+void secretDoorCheck();
+void secretStaffRoomAiOff();
+void secretStaffRoomAiOn();
+void secretWallCheck();
+void secretSpawnerThread();
+
+float kourbanAttacking = 0;
+float telsiaAttacking = 0;
+float chellAttacking = 0;
+float mainroomWest_spawnKill = 0;
+float statusLiftWestRoom = 0;
+float statusLevelDirection = 0;
+float statusMission = 0;
+float turretsDeathCounter = 0;
+float secretRuneCounter = 0;
+float secretDoorCounter = 0;
+float secretWallCounter = 0;
+float gasChamber_blastDoors_closed = 0;
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//==========================================================================================
+//  Include Stuff
+//==========================================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_updateSpawns();
+void	coop_handleErrorProducingCrapScripting(string sName);
+entity	entityPlayerGlobal;
+string	stringLevelToLoad;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_weld.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_drullTurret.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+//===================================================================================================================
+// Main Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: main
+// Comments
+// stuff that is called at the start of the level
+//---------------------
+void main()
+{
+	//[b607] fix the trigger not activating
+	thread globalCoop_level_gatheringArea("coop_endlevel1","coop_endLevel",75,'500 500 300','-3935 558 405');
+	thread globalCoop_level_gatheringArea("coop_endlevel2","coop_endLevel",75,'500 500 300','3632 -569 149');
+
+	
+	statusMission = getfloatvar ( "game.statusM5L2CUnlocked" );
+	
+	//hzm coop mod chrissstrahl, this is used to cheat for faster development 
+	/*if(getcvar("username") == "Chrissstrahl"){
+		statusMission = 1;
+	}*/
+	
+	if ( statusMission == 1 ){
+		//hzm coop mod Chrissstrahl - spawn players here
+		coop_float_spawnAngle0 				= 170;
+		coop_vector_spawnOrigin1 			= '665 2022 -42';
+		coop_vector_spawnOrigin2 			= '655 2100 -42';
+		coop_vector_spawnOrigin3 			= '590 2022 -42';
+		coop_vector_spawnOrigin4 			= '590 2100 -42';
+		coop_vector_spawnOrigin5 			= '520 2022 -42';
+		coop_vector_spawnOrigin6 			= '520 2100 -42';
+		coop_vector_spawnOrigin7 			= '450 2022 -42';
+		coop_vector_spawnOrigin8 			= '450 2100 -42';
+		
+		//hzm coop mod Chrissstrahl - set next level to load
+		stringLevelToLoad = "m5l2c-drull_ruins1";
+	}
+	else{
+		//hzm coop mod Chrissstrahl - fade out so we can spawn nicley on the lift
+		cam_fadeout( 0.05, 0, 0, 0, 1, 0 );
+		
+		//hzm coop mod chrissstrahl - staff not yet found
+		setfloatvar( "game.secretWeapon_IdryllStaff", FALSE );
+		
+		//hzm coop mod Chrissstrahl - spawn players here
+		coop_float_spawnAngle0 				= 270;
+		//spawn on lift
+		coop_vector_spawnOrigin1 			= '0 -16 1130';
+		coop_vector_spawnOrigin2 			= '0 74 1130';
+		coop_vector_spawnOrigin3 			= '61 35  1130';
+		coop_vector_spawnOrigin4 			= '-61 35 1130';
+		//spawn off lift		
+		coop_vector_spawnOrigin5 			= '-120 278 200';
+		coop_vector_spawnOrigin6 			= '-50 278 200';
+		coop_vector_spawnOrigin7 			= '20 278 200';
+		coop_vector_spawnOrigin8 			= '90 278 200';
+		
+
+		
+		//hzm coop mod Chrissstrahl - set next level to load
+		stringLevelToLoad = "m5l2b-drull_ruins1";
+	}
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$RuinsLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	soundtrack( "music/m5l2a.mus" );
+
+	$world.entity_fade_dist( 2500 );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.05 0.05 0.1' );
+	$world.farplane ( 2500 );
+	
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	$Chell.ai_off();
+	$Munro.ai_off();
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m5l2a_drull_ruins1" );
+
+	waitForPlayer();
+
+	dontSaveOrientation();
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindScientists$$","incomplete",1,1);
+	
+	if ( statusMission == 1 )
+	{	
+		$checkEntrance_trigger.nottriggerable();
+
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$DestroyTurrets$$","complete",2,0);
+		globalCoop_objectives_set("$$SealGasVents$$","complete",3,0);
+		globalCoop_objectives_set("$$ReuniteWithTeam$$","incomplete",4,0);
+		globalCoop_objectives_set("$$DeactivateTripWires$$","complete",5,1);
+			
+		dontSaveOrientation();
+	
+		thread initSecondTime();
+	}
+	else
+	{
+		init();
+	}
+
+	//hzm coop mod chrissstrahl - set size of trigger, so that players actually touch
+	wait(0.5);
+	$coop_levelEnd.setSize('-250 -250 -50','250 250 300');
+	$coop_levelEnd2.setSize('-250 -250 -50','250 250 300');
+	/*$coop_levelEnd.nottriggerable();*/
+}
+
+//---------------------
+// Function: init	
+// Comments:
+// initilization thread called by main
+// checks to see which way the player entered the level and will play the correct initilization thread
+//---------------------
+void init()
+{
+	setupCameras();
+	setupArchetypes();
+	setupLightStyles();
+	
+	$secondEntranceDoor1.lock();
+	$secondInitAiTrigger.nottriggerable();
+	
+	// setup ai
+	$Munro.ai_off();
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	$Chell.ai_off();
+
+	thread globalCommon_SetupContextDialog( $Chell , "chell" );
+	thread globalCommon_SetupContextDialog( $Telsia, "telsia" );
+	thread globalCommon_SetupContextDialog( $Kourban, "korban" );
+
+//	$Kourban.useactorweapon( "AttrexianRifle" );
+//	$Telsia.useactorweapon( "fieldassaultrifle" );
+//	$Chell.useactorweapon( "CompressionRifle" );
+	$Kourban.useactorweapon( "CompressionRifle" );
+	$Telsia.useactorweapon( "CompressionRifle" );
+	$Chell.useactorweapon( "CompressionRifle" );
+	$Munro.useactorweapon( "fieldassaultrifle" );
+	
+	// make script door in first room solid again (pathing)
+	$doorpart1MainRoomSouthDoor.solid();
+	$doorpart2MainRoomSouthDoor.solid();
+	$doorpart3MainRoomSouthDoor.solid();
+	$doorpart4MainRoomSouthDoor.solid();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	// make chell door dialog triggers nottriggerable
+	$triggerDialogFirstRoomDoor.nottriggerable();
+	
+	// make turrets not damagable until sequence starts
+	$turret1_trigger.nottriggerable();
+	$turret2_trigger.nottriggerable();
+	$turret3_trigger.nottriggerable();
+	$turret4_trigger.nottriggerable();
+
+	// make turrets immune to own damage type and teammates too
+//	$turret1_trigger.damagemodifier( "actortype" , "teammate" , 0 );
+//	$turret2_trigger.damagemodifier( "actortype" , "teammate" , 0 );
+//	$turret3_trigger.damagemodifier( "actortype" , "teammate" , 0 );
+//	$turret4_trigger.damagemodifier( "actortype" , "teammate" , 0 );
+
+//	$turret1_trigger.damagemodifier( "damagetype" , "turret" , 0 );
+//	$turret2_trigger.damagemodifier( "damagetype" , "turret" , 0 );
+//	$turret3_trigger.damagemodifier( "damagetype" , "turret" , 0 );
+//	$turret4_trigger.damagemodifier( "damagetype" , "turret" , 0 );
+
+	
+	$turret1_trigger.allowAttackFromOtherScriptObjects(0);
+	$turret2_trigger.allowAttackFromOtherScriptObjects(0);
+	$turret3_trigger.allowAttackFromOtherScriptObjects(0);
+	$turret4_trigger.allowAttackFromOtherScriptObjects(0);
+
+	// lock door to exit area
+	$doorMainRoomWest.lock();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	// setup the gas chamber
+	setupGasChamber1();
+	
+	//hzm coop mod chrissstrahl - removed NULL_ENTITY_REFERENCE
+	/* $forcefieldGasChamber1.hide();	 */
+	
+	$gaschamberClouds1.hide();
+	$gaschamber_triggerHurt.nottriggerable();
+	thread sequenceGasChamber1GasMonitor();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//setup secret stuff
+	$secretStaff.forcealpha( 1 );
+	$secretStaff.alpha( 0 );
+	$secretStaff.notsolid();
+	$secretStaff.hide();
+
+	$secretBeam1.hide();
+	$secretBeam2.hide();
+	$secretBeam3.hide();
+	$secretBeam4.hide();
+	$secretBeam5.hide();
+
+	$secretStaffTrigger1.nottriggerable();
+	$afterStaffTrigger.nottriggerable();
+
+	$secretWall1.solid();
+
+	$secretWallMove1.solid();
+	$secretWallButton1.bind( $secretWallMove1 );
+	$secretWallButton2.bind( $secretWallMove1 );
+	$secretWallButton3.bind( $secretWallMove1 );
+	$secretWallButton4.bind( $secretWallMove1 );
+	$secretWallButton5.bind( $secretWallMove1 );
+
+	$liftStartRoomDoorNW.bind( $liftStartRoom );
+	$liftStartRoomDoorNE.bind( $liftStartRoom );
+	$liftStartRoomDoorSW.bind( $liftStartRoom );
+	$liftStartRoomDoorSE.bind( $liftStartRoom );
+
+	wait( .1 );
+	thread sequenceLiftStartRoom_Down();
+}
+
+//---------------------
+// Function: initSecondTime
+// Comments:
+// this is the init thread that is called if the player is entering the level from m5l2b
+//---------------------
+void initSecondTime()
+{
+	//$levelExitTrigger.nottriggerable(); //hzm coop mod chrissstrahl, not used in coop
+	$secondEntranceDoor1.unlock();
+	$secondInitAiTrigger.triggerable();
+
+	$secretWallMove1.solid();
+	$secretWallButton1.bind( $secretWallMove1 );
+	$secretWallButton2.bind( $secretWallMove1 );
+	$secretWallButton3.bind( $secretWallMove1 );
+	$secretWallButton4.bind( $secretWallMove1 );
+	$secretWallButton5.bind( $secretWallMove1 );
+
+	spawn( "trigger_secret", "targetname", "secretSpawner_trigger" );
+	$secretSpawner.modelname( "item/gs_idrull-capship.tik" );
+	trigger( "$secretSpawner" );
+
+	$secondInitDoors_green.show();
+	$secondInitDoors_red.hide();
+
+	$world.light_lightstyle( "secondInitDoors_greenlight" , "z" , 0 );
+	$world.light_lightstyle( "secondInitDoors_redlight" , "a" , 0 );
+	
+	thread gasChamber_blastDoor_close();
+
+	// setup the teammates
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	$Chell.ai_off();
+
+	$Kourban.origin ( '-376 208 8' );
+	$Chell.origin ( '-288 88 8' );
+	$Telsia.origin ( '-288 -64 8' );
+
+	$Kourban.angles( '0 270 0' );
+	$Chell.angles( '0 270 0' );
+	$Telsia.angles( '0 270 0' );
+
+	$Kourban.solid();
+	$Telsia.solid();
+	$Chell.solid();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+//	$Kourban.useactorweapon( "AttrexianRifle" );
+//	$Telsia.useactorweapon( "fieldassaultrifle" );
+//	$Chell.useactorweapon( "CompressionRifle" );
+	$Kourban.useactorweapon( "CompressionRifle" );
+	$Telsia.useactorweapon( "CompressionRifle" );
+	$Chell.useactorweapon( "CompressionRifle" );
+	$Munro.useactorweapon( "fieldassaultrifle" );
+
+	//$mainroomWest_liftcallvolume1.requiredentity ( "Kourban" ); //hzm coop mod chrissstrahl, null_entity
+	//$mainroomWest_liftcallvolume1.requiredentity ( "Chell" ); //hzm coop mod chrissstrahl, null_entity
+	//$mainroomWest_liftcallvolume1.requiredentity ( "Telsia" ); //hzm coop mod chrissstrahl, null_entity
+	
+	// setup ai
+	$Munro.ai_off();
+
+	// make script door in first room solid again (pathing)
+	$doorpart1MainRoomSouthDoor.solid();
+	$doorpart2MainRoomSouthDoor.solid();
+	$doorpart3MainRoomSouthDoor.solid();
+	$doorpart4MainRoomSouthDoor.solid();
+
+	// setup the main entrance room
+	//$triggerDoorMainRoomWest.remove(); //hzm coop mod chrissstrahl, null_entity
+	$doorMainRoomWest.unlock();
+	$triggerDialogFirstRoomDoor.nottriggerable();
+	wait( .1 );
+	trigger( "$doorMainRoomWest" );
+
+	// setup the lift in the west room
+	//$westroomLiftControl1.bind( $liftWestRoom ); //hzm coop mod chrissstrahl, null_entity
+	//$buttonLiftWestRoom_green.bind( $liftWestRoom ); //hzm coop mod chrissstrahl, null_entity
+	//$buttonLiftWestRoom_red.bind( $liftWestRoom ); //hzm coop mod chrissstrahl, null_entity
+	//$buttonLiftWestRoom_red.hide(); //hzm coop mod chrissstrahl, null_entity
+
+	// remove stuff the the first time through that is no longer needed
+	//$forcefieldGasChamber1.hide();	//hzm coop mod chrissstrahl, null_entity
+	$gaschamberClouds1.hide();
+	$gaschamber_triggerHurt.nottriggerable();
+	$gaschamber_triggerHurt.damagetype( "gas" );
+		
+	$mainroomWest_spawn2.modelname( "char/alien-type1b-chewer.tik" );
+	$mainroomWest_spawn3.modelname( "char/alien-type1a-lurker.tik" );
+	$mainroomWest_spawn4.modelname( "char/alien-type1a-lurker.tik" );
+
+	$mainroomWest_spawn2.spawntargetname( "mainroomWest_spawned2" );
+	$mainroomWest_spawn3.spawntargetname( "mainroomWest_spawned3" );
+	$mainroomWest_spawn4.spawntargetname( "mainroomWest_spawned4" );
+
+	$Kourban.walkto( "initSecondTimeNode1" , "run" );
+	$Telsia.walkto( "initSecondTimeNode2" , "run" );
+	$Chell.walkto( "initSecondTimeNode3" , "run" );
+
+	wait( 1 );
+
+	trigger( "$mainroomWest_spawn2" );
+	trigger( "$mainroomWest_spawn3" );
+	trigger( "$mainroomWest_spawn4" );
+	
+	wait( .1 );
+	
+	$mainroomWest_spawned2.ai_off();
+	$mainroomWest_spawned3.ai_off();
+	$mainroomWest_spawned4.ai_off();
+	
+	$mainroomWest_spawned2.immortal( 1 );
+	$mainroomWest_spawned3.immortal( 1 );
+	$mainroomWest_spawned4.immortal( 1 );
+
+	$mainroomWest_spawned2.killthread( "mainroomWest_spawnKillThread" );
+	$mainroomWest_spawned3.killthread( "mainroomWest_spawnKillThread" );
+	$mainroomWest_spawned4.killthread( "mainroomWest_spawnKillThread" );
+
+	$Kourban.setnodeid( 90 );
+	$Telsia.setnodeid( 90 );
+	$Chell.setnodeid( 90 );
+
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+	$Chell.ai_on();
+	
+	$Kourban.settendency( "follow" , 0.0 );
+	$Telsia.settendency( "follow" , 0.0 );
+	$Chell.settendency( "follow" , 0.0 );
+	
+	$Kourban.followcombatrange( 4096 );
+	$Kourban.followcombatrangemin( 3520 );
+
+	$Telsia.followcombatrange( 4096 );
+	$Telsia.followcombatrangemin( 3520 );
+
+	$Chell.followcombatrange( 4096 );
+	$Chell.followcombatrangemin( 3520 );
+
+	$liftStartRoom.remove();
+
+	$world.farplane( 1500 );
+	$world.entity_fade_dist( 1500 );
+	
+	//hzm coop mod chrissstrahl, setup/check if the secret should be open or not
+	secretDoorCheck();
+}
+
+//---------------------
+// Function: checkEntrance
+// Comments:
+// trigger volume around the second player start checks to see if the player has set the correct game variable
+//---------------------
+void checkEntrance()
+{
+	statusMission = getfloatvar ( "game.statusM5L2CUnlocked" );
+	if ( statusMission == 1 )
+	{
+		$checkEntrance_trigger.nottriggerable();
+		thread initSecondTime();
+	}
+	else
+	{
+		wait( 1 );
+	}
+}
+
+
+//===================================================================================================================
+// Setup Stuff
+//===================================================================================================================
+
+//---------------------
+// setupCameras
+// setsup all cameras for level
+//---------------------
+void setupCameras()
+{	
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	
+	cam.load( "m5l2a_gascam1" );
+	cam.load( "m5l2a_gascam2" );
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+//hzm coop mod chrissstrahl, dissabled NULL_ENTITY
+//	$westroomLiftControl1.contents( "targetable" );
+//	$westroomLiftControl1.archetype( "IdryllLiftPanel" );
+}
+
+//---------------------
+// Function: setupLightStyles
+// Comments:
+//
+//---------------------
+void setupLightStyles()
+{
+	$secretDoor_green.hide();
+	$doorMainRoom_green.hide();
+	$secondInitDoors_green.hide();
+
+	$world.light_lightstyle( "secretDoor_greenlight" , "a" , 0 );
+	$world.light_lightstyle( "doorMainRoom_greenlight" , "a" , 0 );
+	$world.light_lightstyle( "secondInitDoors_greenlight" , "a" , 0 );
+}
+
+//---------------------
+// setupGasChamber1
+// does setup stuff for first gaschamber puzzle
+//---------------------
+void setupGasChamber1()
+{
+	$gasChamber_blastDoor1_1.solid();
+	$gasChamber_blastDoor1_2.solid();
+	$gasChamber_blastDoor1_3.solid();
+	$gasChamber_blastDoor1_4.solid();
+	$gasChamber_blastDoor1_5.solid();
+	
+	$gasChamber_blastDoor1_1.moveUp( 24 );
+	$gasChamber_blastDoor1_2.moveUp( 144 );
+	$gasChamber_blastDoor1_3.moveUp( 264 );
+	$gasChamber_blastDoor1_4.moveUp( 384 );
+	$gasChamber_blastDoor1_5.moveUp( 504 );
+	waitfor( $gasChamber_blastDoor1_1 );
+	
+	//If no emitter is present, you can make the entire weld section one unit
+	globalWeld_SetupWeldUnit( "panel1_weld1" );
+	globalWeld_SetupWeldUnit( "panel1_weld4" );
+	globalWeld_SetupWeldUnit( "panel1_weld8" );
+	globalWeld_SetupWeldUnit( "panel2_weld1" );
+	globalWeld_SetupWeldUnit( "panel2_weld4" );
+	globalWeld_SetupWeldUnit( "panel2_weld8" );
+	globalWeld_SetupWeldUnit( "panel3_weld1" );
+	globalWeld_SetupWeldUnit( "panel3_weld4" );
+	globalWeld_SetupWeldUnit( "panel3_weld8" );
+	globalWeld_SetupWeldUnit( "panel4_weld1" );
+	globalWeld_SetupWeldUnit( "panel4_weld4" );
+	globalWeld_SetupWeldUnit( "panel4_weld8" );		
+	
+	//fake welds
+	globalWeld_SetupWeldUnit( "fakeWeld1_1" );
+	globalWeld_SetupWeldUnit( "fakeWeld2_1" );
+	globalWeld_SetupWeldUnit( "fakeWeld3_1" );
+	globalWeld_SetupWeldUnit( "fakeWeld4_1" );
+	globalWeld_SetupWeldUnit( "fakeWeld5_1" );
+	globalWeld_SetupWeldUnit( "fakeWeld6_1" );
+	
+	globalWeld_AddEmitter( "panel1_weld1" , "panel1_gas_emitter1" );
+	globalWeld_AddEmitter( "panel1_weld4" , "panel1_gas_emitter2" );
+	globalWeld_AddEmitter( "panel1_weld8" , "panel1_gas_emitter3" );
+	globalWeld_AddEmitter( "panel2_weld1" , "panel2_gas_emitter1" );
+	globalWeld_AddEmitter( "panel2_weld4" , "panel2_gas_emitter2" );
+	globalWeld_AddEmitter( "panel2_weld8" , "panel2_gas_emitter3" );
+	globalWeld_AddEmitter( "panel3_weld1" , "panel3_gas_emitter1" );
+	globalWeld_AddEmitter( "panel3_weld4" , "panel3_gas_emitter2" );
+	globalWeld_AddEmitter( "panel3_weld8" , "panel3_gas_emitter3" );
+	globalWeld_AddEmitter( "panel4_weld1" , "panel4_gas_emitter1" );
+	globalWeld_AddEmitter( "panel4_weld4" , "panel4_gas_emitter2" );
+	globalWeld_AddEmitter( "panel4_weld8" , "panel4_gas_emitter3" );
+
+	//gas emitters visible only with trace gas tricorder filter display
+	$panel1_gas_emitter1.viewmode ( "tracegas" );
+	$panel1_gas_emitter2.viewmode ( "tracegas" );
+	$panel1_gas_emitter3.viewmode ( "tracegas" );
+	$panel2_gas_emitter1.viewmode ( "tracegas" );
+	$panel2_gas_emitter2.viewmode ( "tracegas" );
+	$panel2_gas_emitter3.viewmode ( "tracegas" );
+	$panel3_gas_emitter1.viewmode ( "tracegas" );
+	$panel3_gas_emitter2.viewmode ( "tracegas" );
+	$panel3_gas_emitter3.viewmode ( "tracegas" );
+	$panel4_gas_emitter3.viewmode ( "tracegas" );
+	$panel4_gas_emitter1.viewmode ( "tracegas" );
+	$panel4_gas_emitter2.viewmode ( "tracegas" );
+	$panel4_gas_emitter3.viewmode ( "tracegas" );
+}
+
+
+//===================================================================================================================
+// Global Functions
+//===================================================================================================================
+
+//---------------------
+// Function: globalDoorDrull1
+// Comments:
+// global function for the giant drull doors
+// setup a door with a name and "doorpart1-8" appended to the front
+// Variables:
+// strDoorName - the generic name of the door
+//---------------------
+void globalDoorDrull1 ( string strDoorName )
+{
+	string strTemp;
+	entity entButton;
+	entity entPortal;
+	entity entDoorPart1;
+	entity entDoorPart2;
+	entity entDoorPart3;
+	entity entDoorPart4;
+	entity entDoorPart5;
+	entity entDoorPart6;
+	entity entDoorPart7;
+	entity entDoorPart8;
+	
+	//assemble buttonname and make nouse
+	strTemp =  "button" + strDoorName;
+	entButton = getEntity ( strTemp );
+
+	if(doesEntityExist(entButton)){
+		entButton.nouse();
+	}
+	
+	
+	// assemble portal name and open portal 
+	strTemp =  "portal" + strDoorName;
+	entPortal = getEntity ( strTemp );
+	
+	entPortal.notsolid();
+	entPortal.hide();
+	entPortal.openportal();
+
+	// assemble door part names	
+	strTemp =  "doorpart1" + strDoorName;
+	entDoorPart1 = getEntity ( strTemp );
+
+	strTemp =  "doorpart2" + strDoorName;
+	entDoorPart2 = getEntity ( strTemp );
+
+	strTemp =  "doorpart3" + strDoorName;
+	entDoorPart3 = getEntity ( strTemp );
+
+	strTemp =  "doorpart4" + strDoorName;
+	entDoorPart4 = getEntity ( strTemp );
+	
+	strTemp =  "doorpart4" + strDoorName;
+	entDoorPart4 = getEntity ( strTemp );
+
+	strTemp =  "doorpart5" + strDoorName;
+	entDoorPart5 = getEntity ( strTemp );
+
+	strTemp =  "doorpart6" + strDoorName;
+	entDoorPart6 = getEntity ( strTemp );
+	
+	strTemp =  "doorpart7" + strDoorName;
+	entDoorPart7 = getEntity ( strTemp );
+	
+	strTemp =  "doorpart8" + strDoorName;
+	entDoorPart8 = getEntity ( strTemp );
+	
+	// door parts move
+	//$entDoorPart1.playsound( "sound/doors/drull_smldoor_01.wav", 8, .7, 500 );//hzm coop mod chrissstrahl - stop error spam in console
+	entDoorPart1.time ( 2 );
+	entDoorPart1.moveEast ( 64 );
+
+	entDoorPart2.time ( 2 );
+	entDoorPart2.moveWest ( 64 );
+
+	wait ( 1.0 );
+	//$entDoorPart1.playsound( "sound/doors/drull_smldoor_01.wav", 9, .7, 500 );//hzm coop mod chrissstrahl - stop error spam in console
+	entDoorPart3.time ( 2 );
+	entDoorPart3.moveEast ( 68 );
+	entDoorPart3.moveUp ( 68 );
+
+	entDoorPart4.time ( 2 );
+	entDoorPart4.moveWest ( 68 );
+	entDoorPart4.moveUp ( 68 );
+
+	wait ( 1 );
+	//$entDoorPart1.playsound( "sound/doors/drull_smldoor_01.wav", 8, .7, 500 );	//hzm coop mod chrissstrahl - stop error spam in console
+	entDoorPart5.time ( 2 );
+	entDoorPart5.moveEast ( 60 );
+	entDoorPart5.moveUp ( 60 );
+
+	entDoorPart6.time ( 2 );
+	entDoorPart6.moveWest ( 60 );
+	entDoorPart6.moveUp ( 60 );
+
+	wait ( 1 );
+	//$entDoorPart1.playsound( "sound/doors/drull_smldoor_01.wav", 9, .7, 500 );	//hzm coop mod chrissstrahl - stop error spam in console
+	entDoorPart7.time ( 2 );
+	entDoorPart7.moveEast ( 48 );
+	entDoorPart7.moveUp ( 48 );
+
+	entDoorPart8.time ( 2 );
+	entDoorPart8.moveWest ( 48 );
+	entDoorPart8.moveUp ( 48 );
+	waitfor ( entDoorPart8 );
+	//$entDoorPart8.playsound( "sound/doors/drull_smldoor_stop_01.wav", 9, .7, 500 ); //hzm coop mod chrissstrahl - stop error spam in console
+}
+
+//---------------------
+// Function: globalTurretOnTrigger
+// Comments:
+// this setups the ontrigger killthreads for a turret
+// Variables:
+// turret - entity name of the turret to set the killthread for
+// turretKillThread - name of the killthread to set for the turret
+//---------------------
+void globalTurretOnTrigger( entity turret , string turretKillThread )
+{
+	while( doesEntityExist( turret ) ) 
+	{
+		turret.ontrigger( turretKillThread );
+		pause();
+	}
+}
+
+//---------------------
+// Function: globalTurretMove
+// Comments:
+// moves a turret up and down
+// Variables:
+// turret - entity name of the turret to move
+// turretTime - float value of the time you want the turret to move in a single direction
+//---------------------
+void globalTurretMove( entity turret , float turretTime )
+{
+	while( 1 )
+	{
+		turret.time( turretTime );
+		turret.moveDown( 448 );
+		waitfor( turret );
+		turret.moveUp( 448 );
+		waitfor( turret );
+	}
+}
+
+
+//===================================================================================================================
+// Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: biofactoryAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void biofactoryAutoSave()
+{
+return;//hzm coop mod chrissstrahl - we don't do this in coop
+	globalCommon_Autosave();
+}
+
+//---------------------
+// Function: secondInitAiOn
+// Comments:
+//
+//---------------------
+void secondInitAiOn()
+{
+	$mainroomWest_spawned2.ai_on();
+	$mainroomWest_spawned3.ai_on();
+	$mainroomWest_spawned4.ai_on();
+	
+	$mainroomWest_spawned2.immortal( 0 );
+	$mainroomWest_spawned3.immortal( 0 );
+	$mainroomWest_spawned4.immortal( 0 );
+	
+	$Kourban.settendency( "follow" , 1.0 );
+	$Telsia.settendency( "follow" , 1.0 );
+	$Chell.settendency( "follow" , 1.0 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReuniteWithTeam$$","complete",4,1);
+}
+
+
+//===================================================================================================================
+// Sequences
+//===================================================================================================================
+
+//---------------------
+// sequenceLiftStartRoom_Down
+// Lift at start goes down will dialog is playing, then plays dialog at bottom and turns ai on
+//---------------------
+void sequenceLiftStartRoom_Down()
+{
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - maps spawn origins to lift
+	thread coop_updateSpawns();
+	wait(1);
+	
+	//hzm coop mod Chrissstrahl - fade in so we can spawn nicley on the lift
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	$liftStartRoom.dmg(9999);
+	$liftStartRoom.setStringvar("uservar1","killmessage  was crushed by a ^2Lift");
+	$liftStartRoom.setStringvar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Aufzug");
+	$liftStartRoom.setStringvar("uservar3","badspot");
+	
+	// turning team off so they don't walk off at bottom and bust shizzit
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	$Chell.ai_off();
+
+	$liftStartRoom.time ( 7 );
+	$liftStartRoom.movedown ( 1024 );
+	wait( 1 );
+	$liftStartRoom.playsound( "sound/environment/machine/lift3_looponly.wav", 5, .7, 500 );		
+	waitfor ( $liftStartRoom );
+	$liftStartRoom.playsound( "sound/environment/machine/lift3stop.wav", 5, .7, 500 );
+
+	wait( .5 );
+
+	$liftStartRoomDoorNW.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	$liftStartRoomDoorNE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	$liftStartRoomDoorSW.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	$liftStartRoomDoorSE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.25, 1500 );
+	thread globalAccelMove_Rotate( $liftStartRoomDoorNW, '0 90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftStartRoomDoorNE, '0 -90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftStartRoomDoorSW, '0 -90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $liftStartRoomDoorSE, '0 90 0', 2, "rampupdown", "" );
+	/*
+	if(getcvar("username") == "Chrissstrahl"){
+		$player0.origin('3632 -569 149');
+	}*/
+	
+	// turn team back on
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+	$Chell.ai_on();
+	
+	// munro asks chell about alien stuff
+	thread dialogFirstRoom();
+}
+
+//---------------------
+// sequenceStartRoomActivateTurrets	
+// security comes on turrets activate
+//---------------------
+void turret1_dead()
+{
+	sequenceStartRoomTurretsDestroyed();
+}
+
+//---------------------
+// Function: sequenceStartRoomActivateTurrets
+// Comments:
+// activates the main room turrets
+//---------------------
+void sequenceStartRoomActivateTurrets()
+{
+	music ( "mystery");
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_basic.mp3", 1, 100000); //Unknown life forms infesting facility. Basic erradication systems coming online in ten seconds.
+	waitDialogLength( "localization/sound/dialog/m5l2/idryllcomp_basic.mp3" );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_9.mp3", 1, 100000); //9
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_8.mp3", 1, 100000); //8
+	wait( 1 );
+
+	$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_headr.mp3", 1, 20000, 0); //Head for the doors!  I don’t want to find out what happens when the countdown reaches zero!
+	$triggerDialogFirstRoomDoor.triggerable();
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_7.mp3", 1, 100000); //7
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_6.mp3", 1, 100000); //6
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_5.mp3", 1, 100000); //5
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_4.mp3", 1, 100000); //4
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_3.mp3", 1, 100000); //3
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_2.mp3", 1, 100000); //2
+	wait( 1 );
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_1.mp3", 1, 100000); //1
+	wait( 1 );
+
+	$turret1_trigger.health( 120 );
+	$turret2_trigger.health( 120 );
+	$turret3_trigger.health( 120 );
+	$turret4_trigger.health( 120 );
+
+	$turret1.anim( "idle" );
+	$turret2.anim( "idle" );
+	$turret3.anim( "idle" );
+	$turret4.anim( "idle" );
+
+	music ( "suspense");
+	
+	//hzm coop mod chrissstrahl - dissabled NULL_ENTITY
+/*	$turret1_detail5.loopsound( "sound/ships/drull/drull_forcetrap.wav", .5, 1500 );*/
+
+	wait( .1 );
+
+	$Kourban.followcombatrange( 2048 ); 	//---512
+	$Kourban.followcombatrangemin( 512 ); 	//---256
+	$Telsia.followcombatrange( 2048 ); 		//---512
+	$Telsia.followcombatrangemin( 512 ); 	//---256
+	$Chell.followcombatrange( 2048 ); 		//---512
+	$Chell.followcombatrangemin( 512 ); 	//---256
+	
+	$Kourban.attack( $turret3_trigger , 1 );
+	$Telsia.attack( $turret2_trigger , 1 );
+	$Chell.attack( $turret1_trigger , 1 );
+	
+	kourbanAttacking = 3;
+	telsiaAttacking = 2;
+	chellAttacking = 1;
+	
+	thread turret1_fire();
+	thread turret2_fire();
+	thread turret3_fire();
+	thread turret4_fire();
+
+	thread globalTurretOnTrigger( $turret1 , "turret1_killthread" );
+	thread globalTurretOnTrigger( $turret2 , "turret2_killthread" );
+	thread globalTurretOnTrigger( $turret3 , "turret3_killthread" );
+	thread globalTurretOnTrigger( $turret4 , "turret4_killthread" );
+
+	$turret1.handlesDamage( 1 );
+	$turret2.handlesDamage( 1 );
+	$turret3.handlesDamage( 1 );
+	$turret4.handlesDamage( 1 );
+
+	$turret1.setBloodModel( "fx/fx-explosion-fire-smalldamage.tik" );
+	$turret2.setBloodModel( "fx/fx-explosion-fire-smalldamage.tik" );
+	$turret3.setBloodModel( "fx/fx-explosion-fire-smalldamage.tik" );
+	$turret4.setBloodModel( "fx/fx-explosion-fire-smalldamage.tik" );	
+
+	wait( 1 );
+
+	$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_turrets.mp3", 1, 20000, 1); //Weapon turrets! 
+	waitForDialog( $Telsia );
+
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DestroyTurrets$$","incomplete",2,1);
+	
+}
+
+//---------------------
+// Function: turret1_fire
+// Comments:
+// makes a turret fire at the player
+// projectileAttackEntity - string projectile tik, string entity targetname, (optional) angle of arch, (optional) life
+//---------------------
+void turret1_fire()
+{
+	$turret1.bind( $turret1_origin );
+	$turret1_trigger.bind( $turret1_origin );
+	$turret1_detail.bind( $turret1_origin );
+	$turret1_base.bind( $turret1_origin );
+	$turret1_firepoint.bind( $turret1_origin );
+	$turret1_targetpoint.bind( $turret1_origin );
+
+	$turret1_origin.rotateY( 75 );
+	
+	thread globalTurretMove( $turret1_origin , 2 );
+
+	$turret1_trigger.triggerable();
+
+	while( 1 )
+	{
+		$turret1_firepoint.projectileAttackEntity ( "models/projectile/projectile_turretblast.tik" , "$turret1_targetpoint" );
+		$turret1_firepoint.playsound( "sound/ships/klingon/kling_photon.wav", 5, 1, 200 );
+		
+		wait( .5 );
+	}
+}
+
+//---------------------
+// Function: turret2_fire
+// Comments:
+// makes a turret fire at the player
+// projectileAttackEntity - string projectile tik, string entity targetname, (optional) angle of arch, (optional) life
+//---------------------
+void turret2_fire()
+{
+	$turret2.bind( $turret2_origin );
+	$turret2_trigger.bind( $turret2_origin );
+	$turret2_detail.bind( $turret2_origin );
+	$turret2_base.bind( $turret2_origin );
+	$turret2_firepoint.bind( $turret2_origin );
+	$turret2_targetpoint.bind( $turret2_origin );
+
+	$turret2_origin.rotateY( 85 );
+	
+	thread globalTurretMove( $turret2_origin , 2 );
+
+	$turret2_trigger.triggerable();
+
+	while( 1 )
+	{
+		$turret2_firepoint.projectileAttackEntity ( "models/projectile/projectile_turretblast.tik" , "$turret2_targetpoint" );
+		$turret2_firepoint.playsound( "sound/ships/klingon/kling_photon.wav", 6, 1, 200 );
+		
+		wait( 1 );
+	}
+}
+
+//---------------------
+// Function: turret3_fire
+// Comments:
+// makes a turret fire at the player
+// projectileAttackEntity - string projectile tik, string entity targetname, (optional) angle of arch, (optional) life
+//---------------------
+void turret3_fire()
+{
+	$turret3.bind( $turret3_origin );
+	$turret3_trigger.bind( $turret3_origin );
+	$turret3_detail.bind( $turret3_origin );
+	$turret3_base.bind( $turret3_origin );
+	$turret3_firepoint.bind( $turret3_origin );
+	$turret3_targetpoint.bind( $turret3_origin );
+
+	$turret3_origin.rotateY( 95 );
+	
+	thread globalTurretMove( $turret3_origin , 2 );
+
+	$turret3_trigger.triggerable();
+
+	while( 1 )
+	{
+		$turret3_firepoint.projectileAttackEntity ( "models/projectile/projectile_turretblast.tik" , "$turret3_targetpoint" );
+		$turret3_firepoint.playsound( "sound/ships/klingon/kling_photon.wav", 7, 1, 200 );
+		
+		wait( .75 );
+	}
+}
+
+//---------------------
+// Function: turret4_fire
+// Comments:
+// makes a turret fire at the player
+// projectileAttackEntity - string projectile tik, string entity targetname, (optional) angle of arch, (optional) life
+//---------------------
+void turret4_fire()
+{
+	$turret4.bind( $turret4_origin );
+	$turret4_trigger.bind( $turret4_origin );
+	$turret4_detail.bind( $turret4_origin );
+	$turret4_base.bind( $turret4_origin );
+	$turret4_firepoint.bind( $turret4_origin );
+	$turret4_targetpoint.bind( $turret4_origin );
+
+	$turret4_origin.rotateY( 65 );
+	
+	thread globalTurretMove( $turret4_origin , 2 );
+
+	$turret4_trigger.triggerable();
+
+	while( 1 )
+	{
+		$turret4_firepoint.projectileAttackEntity ( "models/projectile/projectile_turretblast.tik" , "$turret4_targetpoint" );
+		$turret4_firepoint.playsound( "sound/ships/klingon/kling_photon.wav", 8, 1, 200 );
+		
+		wait( 1.25 );
+	}
+}
+
+//---------------------
+// Function: turret1_killthread
+// Comments:
+// death thread for turret1
+//---------------------
+void turret1_killthread()
+{
+	killthread ( "turret1_fire" );
+	$turret1_origin.rotateY( 0 );
+
+	spawn( "func_spawn" , "targetname" , "turret1_explosion" , "modelname" , "fx/fx-explosion-distnode.tik" );
+	wait( .1 );
+	$turret1_explosion.origin( $turret1_origin.getorigin() );
+	wait( .1 );
+	triggerentity( $turret1_explosion );
+	$turret1_explosion.playsound( "sound/impact/explosion/expl_energy1.wav", 5, 1.5, 600 );	
+	$turret1.remove();
+	$turret1_detail.remove();
+	$turret1_base.remove();
+	$turret1_firepoint.remove();
+	$turret1_targetpoint.remove();
+	
+	if( doesEntityExist( $turret2_trigger ) )
+	{
+		$Chell.attack( $turret2_trigger , 1 );
+		chellAttacking = 2;
+		if( telsiaAttacking == 1 )
+		{
+			$Telsia.attack( $turret2_trigger , 1 );
+			telsiaAttacking = 2;
+		}
+		if( kourbanAttacking == 1 )
+		{
+			$Kourban.attack( $turret2_trigger , 1 );
+			kourbanAttacking = 2;
+		}
+	}
+	else if( doesEntityExist( $turret3_trigger ) )
+	{
+		$Chell.attack( $turret3_trigger , 1 );
+		chellAttacking = 3;
+		if( telsiaAttacking == 1 )
+		{
+			$Telsia.attack( $turret3_trigger , 1 );
+			telsiaAttacking = 3;
+		}
+		if( kourbanAttacking == 1 )
+		{
+			$Kourban.attack( $turret3_trigger , 1 );
+			kourbanAttacking = 3;
+		}
+	}
+	else if( doesEntityExist( $turret4_trigger ) )
+	{
+		$Chell.attack( $turret4_trigger , 1 );
+		chellAttacking = 4;
+		if( telsiaAttacking == 1 )
+		{
+			$Telsia.attack( $turret4_trigger , 1 );
+			telsiaAttacking = 4;
+		}
+		if( kourbanAttacking == 1 )
+		{
+			$Kourban.attack( $turret4_trigger , 1 );
+			kourbanAttacking = 4;
+		}
+	}
+
+	turretsDeathCounter++;
+
+	turretsDeathCheck();
+}
+
+//---------------------
+// Function: turret2_killthread
+// Comments:
+// death thread for turret2
+//---------------------
+void turret2_killthread()
+{
+	killthread ( "turret2_fire" );
+	$turret2_origin.rotateY( 0 );
+
+	spawn( "func_spawn" , "targetname" , "turret2_explosion" , "modelname" , "fx/fx-explosion-distnode.tik" );
+	wait( .1 );
+	$turret2_explosion.origin( $turret2_origin.getorigin() );
+	wait( .1 );
+	triggerentity( $turret2_explosion );
+	$turret2_explosion.playsound( "sound/impact/explosion/expl_energy1.wav", 5, 1.5, 600 );
+		
+	$turret2.remove();
+	$turret2_detail.remove();
+	$turret2_base.remove();
+	$turret2_firepoint.remove();
+	$turret2_targetpoint.remove();
+
+	if( doesEntityExist( $turret1_trigger ) )
+	{
+		$Telsia.attack( $turret1_trigger , 1 );
+		telsiaAttacking = 1;
+		if( chellAttacking == 2 )
+		{
+			$Chell.attack( $turret1_trigger , 1 );
+			chellAttacking = 1;
+		}
+		if( kourbanAttacking == 2 )
+		{
+			$Kourban.attack( $turret1_trigger , 1 );
+			kourbanAttacking = 1;
+		}
+	}
+	else if( doesEntityExist( $turret3_trigger ) )
+	{
+		$Telsia.attack( $turret3_trigger , 1 );
+		telsiaAttacking = 3;
+		if( chellAttacking == 2 )
+		{
+			$Chell.attack( $turret3_trigger , 1 );
+			chellAttacking = 3;
+		}
+		if( kourbanAttacking == 2 )
+		{
+			$Kourban.attack( $turret3_trigger , 1 );
+			kourbanAttacking = 3;
+		}
+	}
+	else if( doesEntityExist( $turret4_trigger ) )
+	{
+		$Telsia.attack( $turret4_trigger , 1 );
+		telsiaAttacking = 4;
+		if( chellAttacking == 2 )
+		{
+			$Chell.attack( $turret4_trigger , 1 );
+			chellAttacking = 4;
+		}
+		if( kourbanAttacking == 2 )
+		{
+			$Kourban.attack( $turret4_trigger , 1 );
+			kourbanAttacking = 4;
+		}
+	}
+	
+	turretsDeathCounter++;
+	
+	turretsDeathCheck();
+}
+
+//---------------------
+// Function: turret3_killthread
+// Comments:
+// death thread for turret3
+//---------------------
+void turret3_killthread()
+{
+	killthread ( "turret3_fire" );
+	$turret3_origin.rotateY( 0 );
+
+	spawn( "func_spawn" , "targetname" , "turret3_explosion" , "modelname" , "fx/fx-explosion-distnode.tik" );
+	wait( .1 );
+	$turret3_explosion.origin( $turret3_origin.getorigin() );
+	wait( .1 );
+	triggerentity( $turret3_explosion );
+	$turret3_explosion.playsound( "sound/impact/explosion/expl_energy1.wav", 5, 1.5, 600 );	
+	$turret3.remove();
+	$turret3_detail.remove();
+	$turret3_base.remove();
+	$turret3_firepoint.remove();
+	$turret3_targetpoint.remove();
+
+	if( doesEntityExist( $turret1_trigger ) )
+	{
+		$Kourban.attack( $turret1_trigger , 1 );
+		kourbanAttacking = 1;
+		if( chellAttacking == 3 )
+		{
+			$Chell.attack( $turret1_trigger , 1 );
+			chellAttacking = 1;
+		}
+		if( telsiaAttacking == 3 )
+		{
+			$Telsia.attack( $turret1_trigger , 1 );
+			telsiaAttacking = 1;
+		}
+	}
+	else if( doesEntityExist( $turret2_trigger ) )
+	{
+		$Kourban.attack( $turret2_trigger , 1 );
+		kourbanAttacking = 2;
+		if( chellAttacking == 3 )
+		{
+			$Chell.attack( $turret2_trigger , 1 );
+			chellAttacking = 2;
+		}
+		if( telsiaAttacking == 3 )
+		{
+			$Telsia.attack( $turret2_trigger , 1 );
+			telsiaAttacking = 2;
+		}
+	}
+	else if( doesEntityExist( $turret4_trigger ) )
+	{
+		$Kourban.attack( $turret4_trigger , 1 );
+		kourbanAttacking = 4;
+		if( chellAttacking == 3 )
+		{
+			$Chell.attack( $turret4_trigger , 1 );
+			chellAttacking = 4;
+		}
+		if( telsiaAttacking == 3 )
+		{
+			$Telsia.attack( $turret4_trigger , 1 );
+			telsiaAttacking = 4;
+		}
+	}
+	
+	turretsDeathCounter++;
+	
+	turretsDeathCheck();
+}
+
+//---------------------
+// Function: turret4_killthread
+// Comments:
+// death thread for turret4
+//---------------------
+void turret4_killthread()
+{
+	killthread ( "turret4_fire" );
+	$turret4_origin.rotateY( 0 );
+
+	spawn( "func_spawn" , "targetname" , "turret4_explosion" , "modelname" , "fx/fx-explosion-distnode.tik" );
+	wait( .1 );
+	$turret4_explosion.origin( $turret4_origin.getorigin() );
+	wait( .1 );
+	triggerentity( $turret4_explosion );
+	$turret4_explosion.playsound( "sound/impact/explosion/expl_energy1.wav", 5, 1.5, 600 );	
+	$turret4.remove();
+	$turret4_detail.remove();
+	$turret4_base.remove();
+	$turret4_firepoint.remove();
+	$turret4_targetpoint.remove();
+
+	turretsDeathCounter++;
+	
+	turretsDeathCheck();
+}
+
+//---------------------
+// Function: turretsDeathCheck
+// Comments:
+// checks to see if the turrets are all dead
+//---------------------
+void turretsDeathCheck()
+{
+	if( turretsDeathCounter >=4 )
+	{
+		sequenceStartRoomTurretsDestroyed();
+	}
+}
+
+//---------------------
+// sequenceStartRoomTurretsDestroyed	
+// player destroys all turrets
+//---------------------
+void sequenceStartRoomTurretsDestroyed()
+{
+	// turns of dialog trigger with chell talking about locked doors
+	killthread ( "dialogFirstRoomDoor" );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$DestroyTurrets$$","complete",2,1);
+
+
+	$Kourban.followcombatrange( 512 ); 	//---512
+	$Kourban.followcombatrangemin( 256 ); 	//---256
+	$Telsia.followcombatrange( 512 ); 		//---512
+	$Telsia.followcombatrangemin( 256 ); 	//---256
+	$Chell.followcombatrange( 512 ); 		//---512
+	$Chell.followcombatrangemin( 256 ); 	//---256
+		
+//hzm coop mod chrissstrahl - stop error spam in console
+//	$turret1_detail5.stoploopsound();
+//	$turret1_detail5.playsound( "sound/ships/drull/drull_forcetrapstop.wav", 1, .7, 1500 );
+//	$turret1_detail5.remove();
+	
+	music ( "success","normal");	
+	
+	$triggerDialogFirstRoomDoor.nottriggerable();
+
+	thread globalDoorDrull1 ( "MainRoomSouthDoor" );
+	
+	$doorMainRoom_green.show();
+	$doorMainRoom_red.hide();
+	
+	$world.light_lightstyle( "doorMainRoom_greenlight" , "z" , 0 );
+	$world.light_lightstyle( "doorMainRoom_redlight" , "a" , 0 );
+}
+
+//---------------------
+// sequenceGasChamber1GasMonitor	
+// checks status of gas vents, and if sequence should end
+//---------------------
+void sequenceGasChamber1GasMonitor()
+{
+	float unitsFinished;
+	float unitStatus;
+	float checkUnit1;
+	float checkUnit2;
+	float checkUnit3;
+	float checkUnit4;
+	float checkUnit5;
+	float checkUnit6;
+	float checkUnit7;
+	float checkUnit8;
+	float checkUnit9;
+	float checkUnit10;
+	float checkUnit11;
+	float checkUnit12;
+	float totalUnits;
+
+	unitsFinished = 0;
+	checkUnit1 = 1;
+	checkUnit2 = 1;
+	checkUnit3 = 1;
+	checkUnit4 = 1;
+	checkUnit5 = 1;
+	checkUnit6 = 1;
+	checkUnit7 = 1;
+	checkUnit8 = 1;
+	checkUnit9 = 1;
+	checkUnit10 = 1;
+	checkUnit11 = 1;
+	checkUnit12 = 1;
+	totalUnits = 12;
+	
+	//There should be 1 checkUnit for each panel you added an emitter to
+	while ( unitsFinished != totalUnits )
+	{
+		if ( checkUnit1 )
+		{
+			unitStatus = $panel1_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit1 = 0;
+			}
+		}
+
+		if ( checkUnit2 )
+		{
+			unitStatus = $panel1_weld4.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit2 = 0;
+			}			
+		}
+			
+		if ( checkUnit3 )
+		{
+			unitStatus = $panel1_weld8.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit3 = 0;
+			}
+		}
+		
+		if ( checkUnit1 == 0 && checkUnit2 == 0 && checkUnit3 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel1");
+		}
+		
+		if ( checkUnit4 )
+		{
+			unitStatus = $panel2_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit4 = 0;
+			}
+		}
+			
+		if ( checkUnit5 )
+		{
+			unitStatus = $panel2_weld4.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit5 = 0;
+			}
+		}
+			
+		if ( checkUnit6 )
+		{
+			unitStatus = $panel2_weld8.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit6 = 0;
+			}
+		}
+		
+		if ( checkUnit4 == 0 && checkUnit5 == 0 && checkUnit6 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel2");
+		}
+		
+		if ( checkUnit7 )
+		{
+			unitStatus = $panel3_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+				{
+				unitsFinished++;
+				checkUnit7 = 0;
+				}
+		}
+
+		if ( checkUnit8 )
+		{
+			unitStatus = $panel3_weld4.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit8 = 0;
+			}			
+		}
+			
+		if ( checkUnit9 )
+		{
+			unitStatus = $panel3_weld8.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit9 = 0;
+			}
+		}
+
+		if ( checkUnit7 == 0 && checkUnit8 == 0 && checkUnit9 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel3");
+		}
+
+		if ( checkUnit10 )
+		{
+			unitStatus = $panel4_weld1.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit10 = 0;
+			}
+		}
+			
+		if ( checkUnit11 )
+		{
+			unitStatus = $panel4_weld4.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit11 = 0;
+			}
+		}
+			
+		if ( checkUnit12 )
+		{
+			unitStatus = $panel4_weld8.getfloatvar( "finished" );
+			if ( unitStatus )
+			{
+				unitsFinished++;
+				checkUnit12 = 0;
+			}	
+		}
+
+		if ( checkUnit10 == 0 && checkUnit11 == 0 && checkUnit12 == 0 )
+		{
+			//hzm coop mod chrissstrahl, this fixes error messages and null entity references, as well as game crash
+			thread coop_handleErrorProducingCrapScripting("panel4");
+		}
+
+		wait ( 0.21 );
+	}
+
+	if ( unitsFinished == totalUnits )
+	{
+		//Puzzle finished events	
+		wait ( 1 );
+
+		killthread( "gasChamberChellRun" );
+		$Chell.ai_on();
+
+		music ( "success", "normal" );		
+
+		$gaschamberClouds1.stoploopsound ();
+		$gaschamberClouds1.playsound ( "sound/environment/machine/poisongas_stop.wav", 14, 1, 100 );
+
+		thread gasChamber_blastDoor_open();
+
+		$gaschamberClouds1.hide();
+		$gaschamber_triggerHurt.nottriggerable();
+		
+		//hzm coop mod chrissstrahl, dissabled NULL_ENTITY reference
+		/*$forcefieldGasChamber1.remove();*/
+		
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$SealGasVents$$","complete",3,1);
+
+		$Chell.playdialog("localization/sound/dialog/m5l2/chell_gasseal.mp3", 1, 20000, 1); //The gas is sealed. 
+		waitForDialog( $Chell );
+		
+		$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_goodwork.mp3", 1, 20000, 1); //Good work, Munro.
+		waitForDialog( $Telsia );
+		
+		$Chell.headwatchtarget( "none", 5 );
+		$Kourban.headwatchtarget( "none", 5 );
+		$Munro.headwatchtarget( "none", 5 );
+		$Telsia.headwatchtarget( "none", 5 );
+	}	
+}
+
+//---------------------
+// Function: gasChamberChellRun
+// Comments:
+// chell runs around to each of the gas emitters and scans
+//---------------------
+void gasChamberChellRun()
+{
+	$Chell.ai_off();
+
+	while( 1 )
+	{
+		$Chell.walkto( "$gaschamber_node1" , "run" );
+		waitfor( $Chell );
+		
+		$Chell.anim( "tricorder_draw" );
+		waitforanimation( $Chell, "tricorder_draw" );
+		
+		$Chell.anim( "tricorder_idle" );
+		waitforanimation( $Chell, "tricorder_idle" );
+	
+		$Chell.anim( "tricorder_fire" );
+	
+		wait( 5 );
+	
+		$Chell.anim( "tricorder_idle" );
+		$Chell.walkto( "$gaschamber_node2" , "run" );
+		waitfor( $Chell );
+		
+		$Chell.anim( "tricorder_idle" );
+		waitforanimation( $Chell, "tricorder_idle" );
+			
+		$Chell.anim( "tricorder_fire" );
+	
+		wait( 5 );
+	
+		$Chell.anim( "tricorder_idle" );
+		$Chell.walkto( "$gaschamber_node3" , "run" );
+		waitfor( $Chell );
+		
+		$Chell.anim( "tricorder_idle" );
+		waitforanimation( $Chell, "tricorder_idle" );
+			
+		$Chell.anim( "tricorder_fire" );
+	
+		wait( 5 );
+		
+		$Chell.anim( "tricorder_idle" );
+		$Chell.walkto( "$gaschamber_node4" , "run" );
+		waitfor( $Chell );
+		
+		$Chell.anim( "tricorder_idle" );
+		waitforanimation( $Chell, "tricorder_idle" );
+		
+		$Chell.anim( "tricorder_fire" );
+	
+		wait( 5 );
+	}
+}
+
+
+//===================================================================================================================
+// West Room Stuff
+//===================================================================================================================
+
+//---------------------
+// Function: mainroomWest_spawnKillThread
+// Comments:
+// killthread called by the aliens at the start of the second init to change the music back to normal
+//---------------------
+void mainroomWest_spawnKillThread()
+{
+	mainroomWest_spawnKill++;
+	
+	wait( .1 );
+	
+	if( mainroomWest_spawnKill >= 3 )
+	{
+		wait( 1 );
+		music( "normal" );
+	}
+}
+
+//---------------------
+// Function: mainroomWest_mural1View
+// Comments:
+// the team stops to comment on a large idryll mural on the wall
+//---------------------
+void mainroomWest_mural1View()
+{
+	music( "normal" );
+
+	$Chell.ai_off();
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+
+	$Chell.walkto( "mainroomWest_node1" , "run" );
+	$Kourban.walkto( "mainroomWest_node2" , "run" );
+	$Telsia.walkto( "mainroomWest_node3" , "run" );
+	waitfor( $Chell );
+	
+	$Chell.headwatchtarget( "mainroomWest_mural1", 10 );
+	$Kourban.headwatchtarget( "mainroomWest_mural1", 10 );
+	$Telsia.headwatchtarget( "mainroomWest_mural1", 10 );
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_similar.mp3", 1, 20000, 1); //Fascinating. Those creatures do have similarities to the alien invaders. I wonder if the other figures are Idryll?
+	waitForDialog( $Chell );
+
+	$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_hard.mp3", 1, 20000, 1); //Too hard to tell. 
+	waitForDialog( $Telsia );
+	
+	$Chell.headwatchtarget( "none", 10 );
+	$Kourban.headwatchtarget( "none", 10 );
+	$Telsia.headwatchtarget( "none", 10 );
+
+	$Chell.ai_on();
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+}
+
+//---------------------
+// Function: mainroomWest_lift1Ready
+// Comments:
+// triggered when all of the needed actors are in the callvolume for the lift
+// tells the actors that are getting on the lift to not be pushable so that the player cannot just push them off
+//---------------------
+void mainroomWest_lift1Ready()
+{
+	$mainroomWest_liftcallvolume1.nottriggerable();
+	
+	thread globalCommon_OnUse ( $buttonLiftWestRoom_green , "liftWestRoom_Move" ); 
+
+	$Kourban.pushable( 0 );
+	$Chell.pushable( 0 );
+	$Telsia.pushable( 0 );
+}
+
+//---------------------
+// Function: liftWestRoom_Move()
+// Comments:
+// moves the lift in the mainroomWest area
+// checks to see if the lift is in the up or down positiona and will react accordingly
+//---------------------
+void liftWestRoom_Move()
+{
+	$buttonLiftWestRoom_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 4, 1, 200 );	
+
+	$buttonLiftWestRoom_green.nouse();
+	
+	$buttonLiftWestRoom_green.hide();
+	$buttonLiftWestRoom_red.show();
+	
+	if ( statusLiftWestRoom == 0 )
+	{
+		$liftWestRoom.time( 3 );
+		$liftWestRoom.moveup ( 304 );
+		waitfor ( $liftWestRoom );
+		statusLiftWestRoom = 1;
+
+		$Kourban.ai_off();
+		$Chell.ai_off();
+		$Telsia.ai_off();
+
+		$Kourban.walkto( "$mainroomWest_upperNode1" , "run" );
+		$Chell.walkto( "$mainroomWest_upperNode2" , "run" );
+		$Telsia.walkto( "$mainroomWest_upperNode3" , "run" );
+
+		wait ( 7 );
+
+		$liftWestRoom.movedown ( 304 );
+		waitfor ( $liftWestRoom );
+		statusLiftWestRoom = 0;
+		
+		$buttonLiftWestRoom_green.show();
+		$buttonLiftWestRoom_red.hide();
+		
+		wait ( 1 );
+		thread globalCommon_OnUse ( $buttonLiftWestRoom_green , "liftWestRoom_Move" );
+	}
+
+}
+
+
+//===================================================================================================================
+// Cinematics and Dialog
+//===================================================================================================================
+
+//---------------------
+// dialogFirstRoom
+// Munro asks Chell about alien symbols
+//---------------------
+void dialogFirstRoom()
+{
+	$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_beaut.mp3", 1, 20000, 1); //It's beautiful...
+	waitForDialog( $Telsia );
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_reflects.mp3", 1, 20000, 1); //It reflects a culture in an advanced stage of development.
+	waitForDialog( $Chell );
+
+	$Kourban.playdialog("localization/sound/dialog/m5l2/korban_reflects.mp3", 1, 20000, 1); //It reflects a culture that knows its enemies are easily distracted. 
+	waitForDialog( $Kourban );
+
+	// activate self defense
+	wait ( 4 );
+	sequenceStartRoomActivateTurrets();
+}
+
+//---------------------
+// dialogFirstRoomDoor
+// Chell says the doors are locked
+//---------------------
+void dialogFirstRoomDoor()
+{
+	$triggerDialogFirstRoomDoor.nottriggerable();
+
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_cutoff.mp3", 1, 20000, 1); //They cut off power to the door. We're trapped. 
+	waitForDialog( $Cchell );
+}	
+
+//---------------------
+// cinematicGasChamber1Start
+// Cinemait with Gas Chamber Events
+//---------------------
+void cinematicGasChamber1Start()
+{
+	//hzm coop mod chrissstrahl, get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 360;
+	coop_vector_spawnOrigin1 			= '1184 -1440 0';
+	coop_vector_spawnOrigin2 			= '1184 -1500 0';
+	coop_vector_spawnOrigin3 			= '1184 -1560 0';
+	coop_vector_spawnOrigin4 			= '1184 -1620 0';
+	coop_vector_spawnOrigin5 			= '1184 -1680 0';
+	coop_vector_spawnOrigin6 			= '1184 -1740 0';
+	coop_vector_spawnOrigin7 			= '1184 -1800 0';
+	coop_vector_spawnOrigin8 			= '1184 -1860 0';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+	freezeplayer();
+	//begin cinematic	
+	cinematic();
+	
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	letterbox( .1 );
+
+	$Munro.show();
+	$Munro.solid();
+	$Munro.ai_off();
+
+	$Kourban.ai_off();
+	$Chell.ai_off();
+	$Telsia.ai_off();
+	
+	$Chell.origin ( '484 -1576 8' );
+	$Kourban.origin ( '544 -1664 8' );
+	$Telsia.origin ( '524 -1752 8' );
+	$Munro.origin ( '616 -1704 8' );
+	
+	// make sure everythings ready
+	wait( .3 );
+
+	// set skipthread
+	skipthread( "cinematicGasChamber1Start_SkipThread");
+	$cam1.follow( $m5l2a_gascam1 );
+	cuecamera( $cam1 );
+	music( "mystery" );
+	wait( .2 );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	
+	// start cinematic
+
+	$Chell.walkto( "$gasChamber_introNode1" , "run" );
+	$Kourban.walkto( "$gasChamber_introNode2" , "run" );
+	$Telsia.walkto( "$gasChamber_introNode3" , "run" );
+	$Munro.walkto( "$gasChamber_introNode4" , "run" );
+	waitfor( $Munro );
+
+	$Chell.walkto( "$gasChamber_introNode5" );
+
+	$Munro.anim( "conv-overthere" );
+	
+    $gasChamber_blastDoor1_5.playsound ( "sound/doors/drull_bigdoor_01.wav", 0, 1.5, 3000);
+	
+	gasChamber_blastDoor_close();
+
+	$Munro.anim( "idle" );
+
+	trigger( "$gasChamber_dustExplosion1" );    
+    $gasChamber_blastDoor1_5.playsound ( "sound/doors/drull_bigdoor_stop_01.wav", 0, 1.5, 3000);
+
+	wait( 1 );
+
+	$cam2.follow( $m5l2a_gascam2 );
+	cuecamera( $cam2 );
+	$cam2.cut();
+
+	$gaschamberClouds1.show();
+
+	$world.simplePlayDialog("localization/sound/dialog/m5l2/idryllcomp_localized.mp3", 1, 10000); //Infestation becoming acute. Detection of individual life forms required. Escalating to localized eradication system.
+	waitDialogLength( "localization/sound/dialog/m5l2/idryllcomp_localized.mp3" );
+
+	$Telsia.walkto( "$gasChamber_introNode6" );
+	waitfor( $Telsia );
+
+	$Telsia.anim( "tricorder_draw" );	
+	$Chell.anim( "conv-poundfist" );
+	waitfor( $Chell );
+	
+	$Chell.anim( "idle" );
+
+	$Telsia.anim( "tricorder_fire" );
+
+	music( "suspense" );
+
+	$Telsia.playdialog("localization/sound/dialog/m5l2/telsia_whatsnxt.mp3", 1, 20000, 0); //Whats next?
+	waitForDialog( $Telsia );
+
+	$Chell.headwatchtarget( "Kourban" , 5 );
+
+	$Kourban.playdialog("localization/sound/dialog/m5l2/korban_poison.mp3", 1, 20000, 0); //Poison gas! The cowards! 
+
+	$Chell.anim( "tricorder_draw" );
+	wait( 1 );
+	$Chell.anim( "tricorder_scan180" );
+	$Kourban.anim( "conv-fingerup-warning" );
+	waitfor( $Kourban );
+
+	$Kourban.anim( "compressionrifle_idle1" );
+	$Chell.walkto( "$gasChamber_introNode1" );
+
+	waitForDialog( $Kourban );
+
+	$Kourban.headwatchtarget( "Munro" , 5 );
+	$Chell.headwatchtarget( "Munro" , 5 );
+
+//	waitfor( $Chell );
+	
+	$Munro.playdialog("localization/sound/dialog/m5l2/munro_wherecome.mp3", 1, 20000, 0); //Where's it coming from?
+	
+	$Munro.anim( "conv-wtf" );
+
+	wait( 1 );
+	
+	$Chell.anim( "tricorder_fire" );
+
+	$Chell.headwatchtarget( "Munro" , 5 );
+
+//	waitfor( $Telsia );
+	waitForDialog( $Munro );
+
+	$Kourban.anim( "compressionrifle_tense_idle3" );
+
+	$Munro.anim( "idle" );
+
+	$Kourban.headwatchtarget( "Chell" , 5 );
+	$Munro.headwatchtarget( "Chell" , 5 );
+
+	wait( 1 );
+
+	$Telsia.anim( "tricorder_fire" );
+	
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_tracegas.mp3", 1, 20000, 0); //I don't know. Use the Trace Gas Viewmode on your tricorder to find it, and use your phaser to seal the vent!
+
+	waitForDialog( $Chell );
+	// end cinematic
+
+	$Chell.anim( "tricorder_tense_idle1" );
+
+	$Kourban.anim( "compressionrifle_idle1" );
+
+	$Telsia.anim( "tricorder_tense_idle1" );
+
+	skipthread ( "null" );
+	thread cinematicGasChamber1Start_SkipThread();
+}
+
+//---------------------
+// cinematicGasChamber1Start_SkipThread
+// ship thread for gas chamber cinematic
+//---------------------
+void cinematicGasChamber1Start_SkipThread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicGasChamber1Start" );
+
+	wait( .1 );
+	
+	//fade to black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+	
+	cueplayer();	
+	noncinematic();	
+	releaseplayer();
+	clearletterbox( .1 );
+
+	if( gasChamber_blastDoors_closed == 0 )
+	{
+		thread gasChamber_blastDoor_close();
+	}
+
+	$gaschamberClouds1.show();
+
+	$Chell.headwatchtarget( "none", 5 );
+	$Kourban.headwatchtarget( "none", 5 );
+	$Munro.headwatchtarget( "none", 5 );
+	$Telsia.headwatchtarget( "none", 5 );
+
+	$Munro.hide();
+	$Munro.notsolid();
+
+	$Chell.origin( '1192 -1664 8' );
+	$Kourban.origin( '1320 -1664 8' );
+	$Telsia.origin( '1312 -1752 8' );
+	$Munro.origin( '-2756 836 280' );
+	
+	//hzm coop mod chrissstrahl, make sure all players are in the room
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				globalCoop_player_warpToSpawn(ePlayer);
+			}
+		}
+	}
+	//eof hzm
+	
+	//hzm coop mod chrissstrahl, grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( '1432 -1576 0' );
+		entityPlayerGlobal.playerviewangles( '0 -486 0' );
+	}
+	
+	$Kourban.ai_on();
+	$Chell.ai_on();
+	$Telsia.ai_on();
+
+	$gaschamber_triggerHurt.triggerable();
+
+	$gaschamberClouds1.playsound ( "sound/environment/machine/poisongas_start.wav", 14, 1, 100 );
+	$gaschamberClouds1.loopsound ( "sound/environment/machine/poisongas_loop.wav", .8, 32 );
+
+	$panel1_gas_emitter2.loopsound( "sound/ships/drull/drull_gastrap.wav", .5, 100 );
+	$panel2_gas_emitter2.loopsound( "sound/ships/drull/drull_gastrap.wav", .5, 100 );
+	$panel3_gas_emitter2.loopsound( "sound/ships/drull/drull_gastrap.wav", .5, 100 );
+	$panel4_gas_emitter2.loopsound( "sound/ships/drull/drull_gastrap.wav", .5, 100 );
+	
+	cam_fadein ( 1, 0, 0, 0, 1, 0 );
+
+	wait( .1 );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$SealGasVents$$","incomplete",3,0);
+	
+	thread gasChamberChellRun();
+	
+	wait( 15 );
+	
+	$Chell.playdialog("localization/sound/dialog/m5l2/chell_usephv.mp3", 1, 20000, 1); //Your phaser should seal up those vents Munro! 
+	waitForDialog( $Chell );
+}
+
+//---------------------
+// Function: gasChamber_blastDoor_close
+// Comments:
+// closes the blastDoors to the gas chamber
+//---------------------
+void gasChamber_blastDoor_close()
+{
+	gasChamber_blastDoors_closed = 1;
+	
+	$gasChamber_clip1.solid();
+
+	$gasChamber_blastDoor1_1.loopsound( "sound/doors/drull_bigdoor_01.wav", 1, 2048 );
+	
+	$gasChamber_blastDoor1_1.time( 2 );
+	$gasChamber_blastDoor1_1.moveDown( 24 );
+	$gasChamber_blastDoor1_2.time( 2 );
+	$gasChamber_blastDoor1_2.moveDown( 144 );
+	$gasChamber_blastDoor1_3.time( 2 );
+	$gasChamber_blastDoor1_3.moveDown( 264 );
+	$gasChamber_blastDoor1_4.time( 2 );
+	$gasChamber_blastDoor1_4.moveDown( 384 );
+	$gasChamber_blastDoor1_5.time( 2 );
+	$gasChamber_blastDoor1_5.moveDown( 504 );
+	waitfor( $gasChamber_blastDoor1_1 );
+
+	$gasChamber_blastDoor1_1.stoploopsound();
+	$gasChamber_blastDoor1_1.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 10, 1, 2048 );		
+}
+
+//---------------------
+// Function: gasChamber_blastDoor_open
+// Comments:
+// opens the blastDoors to the gas chamber
+//---------------------
+void gasChamber_blastDoor_open()
+{
+	gasChamber_blastDoors_closed = 0;
+	
+	$gasChamber_clip1.notsolid();
+
+	$gasChamber_blastDoor1_1.loopsound( "sound/doors/drull_bigdoor_01.wav", 1, 2048 );
+	
+	$gasChamber_blastDoor1_1.time( 7 );
+	$gasChamber_blastDoor1_1.moveUp( 24 );
+	$gasChamber_blastDoor1_2.time( 7 );
+	$gasChamber_blastDoor1_2.moveUp( 144 );
+	$gasChamber_blastDoor1_3.time( 7 );
+	$gasChamber_blastDoor1_3.moveUp( 264 );
+	$gasChamber_blastDoor1_4.time( 7 );
+	$gasChamber_blastDoor1_4.moveUp( 384 );
+	$gasChamber_blastDoor1_5.time( 7 );
+	$gasChamber_blastDoor1_5.moveUp( 504 );
+	waitfor( $gasChamber_blastDoor1_1 );
+
+	$gasChamber_blastDoor1_1.stoploopsound();
+	$gasChamber_blastDoor1_1.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 10, 1, 2048 );		
+}
+
+
+//===================================================================================================================
+// Secret Staff Functions
+//===================================================================================================================
+
+//---------------------
+// Function: secretRuneCheck
+// Comments:
+// checks to see which rune was stepped on
+//---------------------
+void secretRuneCheck()
+{
+	//7 1 6 3 9
+	entity caller , activator;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if( caller.getTargetName() == "$secretRune1_trigger" )
+	{
+		if( secretRuneCounter == 1 )
+		{
+			$secretRune1_trigger.nottriggerable();
+			$secretBeam2.show();
+			secretRuneCounter++;
+		}
+		else
+		{
+			$secretRune1_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune2_trigger" )
+	{
+		$secretRune2_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+	
+	if( caller.getTargetName() == "$secretRune3_trigger" )
+	{
+		if( secretRuneCounter == 3 )
+		{
+			$secretRune3_trigger.nottriggerable();
+			$secretBeam4.show();
+			secretRuneCounter++;
+		}
+		else
+		{
+			$secretRune3_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune4_trigger" )
+	{
+		$secretRune4_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+
+	if( caller.getTargetName() == "$secretRune5_trigger" )
+	{
+		$secretRune5_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+	if( caller.getTargetName() == "$secretRune6_trigger" )
+	{
+		if( secretRuneCounter == 2 )
+		{
+			$secretRune6_trigger.nottriggerable();
+			$secretBeam3.show();
+			secretRuneCounter++;
+		}
+		else
+		{
+			$secretRune6_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune7_trigger" )
+	{
+		$secretRune7_trigger.nottriggerable();
+		$secretBeam1.show();
+		secretRuneCounter++;
+	}
+	
+	if( caller.getTargetName() == "$secretRune8_trigger" )
+	{
+		$secretRune8_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+
+	if( caller.getTargetName() == "$secretRune9_trigger" )
+	{
+		if( secretRuneCounter == 4 )
+		{
+			$secretRune9_trigger.nottriggerable();
+			$secretBeam5.show();
+			wait( 1 );
+			secretRunePassed();
+		}
+		else
+		{
+			$secretRune9_trigger.nottriggerable();
+			secretRuneFailed();
+		}
+	}
+
+	if( caller.getTargetName() == "$secretRune10_trigger" )
+	{
+		$secretRune10_trigger.nottriggerable();
+		secretRuneFailed();
+	}
+}
+
+//---------------------
+// Function: secretRuneFailed
+// Comments:
+//
+//---------------------
+void secretRuneFailed()
+{
+	secretRuneCounter = 0;
+
+	$secretRune1.close();
+	$secretRune2.close();
+	$secretRune3.close();
+	$secretRune4.close();
+	$secretRune5.close();
+	$secretRune6.close();
+	$secretRune7.close();
+	$secretRune8.close();
+	$secretRune9.close();
+	$secretRune10.close();
+
+	$secretBeam1.hide();
+	$secretBeam2.hide();
+	$secretBeam3.hide();
+	$secretBeam4.hide();
+	$secretBeam5.hide();
+
+	$secretRune1_trigger.triggerable();
+	$secretRune2_trigger.triggerable();
+	$secretRune3_trigger.triggerable();
+	$secretRune4_trigger.triggerable();
+	$secretRune5_trigger.triggerable();
+	$secretRune6_trigger.triggerable();
+	$secretRune7_trigger.triggerable();
+	$secretRune8_trigger.triggerable();
+	$secretRune9_trigger.triggerable();
+	$secretRune10_trigger.triggerable();
+}
+
+//---------------------
+// Function: secretRunePassed
+// Comments:
+//
+//---------------------
+void secretRunePassed()
+{
+
+	$secretFxSpawner1.modelname( "fx/fx-explosion-distnode.tik" );
+	triggerentity( $secretFxSpawner1 );
+
+	music( "mystery" );
+
+	$secretBeam1.hide();
+	$secretBeam2.hide();
+	$secretBeam3.hide();
+	$secretBeam4.hide();
+	$secretBeam5.hide();
+
+	$secretRune1_trigger.nottriggerable();
+	$secretRune2_trigger.nottriggerable();
+	$secretRune3_trigger.nottriggerable();
+	$secretRune4_trigger.nottriggerable();
+	$secretRune5_trigger.nottriggerable();
+	$secretRune6_trigger.nottriggerable();
+	$secretRune7_trigger.nottriggerable();
+	$secretRune8_trigger.nottriggerable();
+	$secretRune9_trigger.nottriggerable();
+	$secretRune10_trigger.nottriggerable();
+
+    $secretStaffDoor1.playsound( "sound/doors/drull_smldoor_01.wav", 8, .7, 500 );
+	$secretStaffDoor1.time( .5 );
+	$secretStaffDoor2.time( .5 );
+	$secretStaffDoor1.moveDown( 8 );
+	$secretStaffDoor2.moveDown( 8 );
+	waitfor( $secretStaffDoor1 );
+	$secretStaffDoor1.playsound( "sound/doors/drull_smldoor_stop_01.wav", 8, .7, 500 );
+
+    $secretStaffDoor1.playsound( "sound/doors/drull_smldoor_01.wav", 9, .7, 500 );
+	$secretStaffDoor1.time( 1 );
+	$secretStaffDoor2.time( 1 );
+	$secretStaffDoor1.moveWest( 64 );
+	$secretStaffDoor2.moveEast( 64 );
+	waitfor( $secretStaffDoor1 );
+	$secretStaffDoor1.playsound( "sound/doors/drull_smldoor_stop_01.wav", 9, .7, 500 );
+
+    $secretStaffDoor1.playsound( "sound/doors/drull_bigdoor_01.wav", 8, .7, 500 );
+	$secretStaffPlatform1.time( 2 );
+	$secretStaffPlatform1.moveUp( 64 );
+	waitfor( $secretStaffPlatform1 );
+	$secretStaffDoor1.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 8, .7, 500 );
+
+	$secretFxSpawner1.modelname( "fx/fx-beamsparkle-drull.tik" );
+	$secretFxSpawner1.spawntargetname( "secretFxSpawned1" );
+	triggerentity( $secretFxSpawner1 );
+
+	$secretStaffTrigger1.triggerable();
+
+	$secretStaff.show();
+	$secretStaff.fadein( 1 , 1 );
+}
+
+//---------------------
+// Function: secretStaffRecieved
+// Comments:
+//
+//---------------------
+void secretStaffRecieved()
+{
+	$secretStaff.hide();
+	$secretFxSpawned1.hide();
+	setfloatvar( "game.secretWeapon_IdryllStaff", TRUE );
+	
+	//hzm coop mod chrissstrahl - register weapon into server side managed coop_status.ini file
+	//so that the weapon will be there even after a server reboot
+	globalCoop_server_itemUnlockedSet("models/weapons/worldmodel-drull-staff.tik");
+	
+	//hzm coop mod chrissstrahl, register and give new secret weapon
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-drull-staff.tik");
+	globalCoop_armory_useNamed("DrullStaff");
+	
+	$afterStaffTrigger.triggerable();
+}
+
+//---------------------
+// Function: secretDoorCheck
+// Comments:
+//
+//---------------------
+void secretDoorCheck()
+{
+	secretDoorCounter++;
+	wait( .1 );
+	if( secretDoorCounter >= 5 || getfloatvar( "game.secretWeapon_IdryllStaff") == 1 )
+	{
+		$secretWall1.hide();
+		$secretWall1.notsolid();
+		$secretWall1.playsound ( "sound/doors/temple_door1.wav", 0 , 1 , 8000 );
+		wait( 1 );
+	
+		$secretDoor_green.show();
+		$secretDoor_red.hide();
+	
+		$world.light_lightstyle( "secretDoor_greenlight" , "yyyyyyyyyyyyyyyyyyyyyyyzzzzzzzzzzzzzzzzzzzzzzzzzzzz" , 0 );
+		$world.light_lightstyle( "secretDoor_redlight" , "bbbbbbbbbbbbbbbbbbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" , 0 );
+		
+		$secretWall1.remove();
+	}
+	
+	if( statusMission = 1 && getfloatvar( "game.secretWeapon_IdryllStaff") != 1){
+		$secretStaff.hide();
+		$secretStaff.notsolid();
+		$secretBeam1.hide();
+		$secretBeam2.hide();
+		$secretBeam3.hide();
+		$secretBeam4.hide();
+		$secretBeam5.hide();
+		$secretWall1.solid();
+	}
+}
+
+//---------------------
+// Function: secretStaffRoomAiOff
+// Comments:
+//
+//---------------------
+void secretStaffRoomAiOff()
+{
+	$Kourban.ai_off();
+	$Telsia.ai_off();
+	$Chell.ai_off();
+	
+	$Kourban.walkto( "$secretStaffNode1" , "run" );
+	$Telsia.walkto( "$secretStaffNode1" , "run" );
+	$Chell.walkto( "$secretStaffNode1" , "run" );
+}
+
+//---------------------
+// Function: secretStaffRoomAiOn
+// Comments:
+//
+//---------------------
+void secretStaffRoomAiOn()
+{
+	$Kourban.ai_on();
+	$Telsia.ai_on();
+	$Chell.ai_on();
+}
+
+//---------------------
+// Function: secretWallCheck
+// Comments:
+//
+//---------------------
+void secretWallCheck()
+{
+	entity secretButtonCaller , secretWallButton;
+	float secretButtonNumber;
+	
+	secretButtonCaller = getcurrententity();
+	secretButtonNumber = secretButtonCaller.getfloatvar( "uservar1" );
+	secretButtonCaller.remove();
+	
+	wait( .1 );
+
+	secretWallButton = getentity( "secretWallButton" + secretButtonNumber );
+
+	secretWallButton.time( 1 );
+	secretWallButton.moveSouth( 4 );
+	waitfor( secretWallButton );
+	secretWallButton.playsound( "sound/environment/rock/rock_slabstop.wav" , 0 , 1 , 8000 );
+
+	secretWallCounter++;
+
+	wait( .1 );
+	if( secretWallCounter >= 5 )
+	{
+		wait( 1 );
+		$secretWallMove1.playsound ( "sound/doors/temple_door1.wav", 0 , 1 , 8000 );
+		$secretWallMove1.time( 5 );
+		$secretWallMove1.moveSouth( 448 );
+		waitfor( $secretWallMove1 );
+	}
+}
+
+//---------------------
+// Function: secretSpawnerThread
+// Comments:
+//
+//---------------------
+void secretSpawnerThread()
+{
+	trigger( "$secretSpawner_trigger" );
+	wait( 1 );
+}
+
+
+void coop_handleErrorProducingCrapScripting(string sName)
+//fixes code that creates errors and spams the console, also creates lag
+{
+	entity e,e2;
+	e=getEntity(sName+"_explosion");
+	e2=getEntity(sName+"_gas_emitter2");
+	if(doesEntityExist(e)){
+		trigger("$"+sName+"_explosion");
+	}
+	if(doesEntityExist(e2)){
+		e2.playsound( "sound/ships/drull/drull_gastrapstop.wav", 10, 1, 260 );
+	}
+	if(doesEntityExist(e)){
+		e.remove();
+	}
+}
+
+void coop_updateSpawns()
+//------------------------------------------------------------------------------
+//update spawn locations to moving lift
+//------------------------------------------------------------------------------
+{
+	float fLift;
+	while(1)
+	{//1130
+		fLift = vectorGetZ($liftStartRoomDoorNW.getOrigin());
+		fLift += -30;
+		coop_vector_spawnOrigin1_z=fLift;
+		coop_vector_spawnOrigin2_z=fLift;
+		coop_vector_spawnOrigin3_z=fLift;
+		coop_vector_spawnOrigin4_z=fLift;
+		wait(.2);
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	setfloatvar ( "game.statusM5L2CUnlocked", 0 );
+	setfloatvar ( "game.globalMissionEnterprise", 4 );
+
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",0);//set rooms visited
+	//eof HZM
+	wait(0.05);
+	thread globalCoop_mission_completed(stringLevelToLoad);
+}
+

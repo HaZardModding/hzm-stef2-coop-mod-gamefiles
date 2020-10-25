@@ -1,0 +1,490 @@
+//[b607] chrissstrahl - this was changed to suite only multiplayer needs
+//do not include this file directly!
+//include the file from maps/global_scripts/
+//the coop mod dll will detect and select the right file for single or multiplayer
+
+
+//=================================================================
+//  Prototypes
+//=================================================================
+void globalTricorder_doClientCommand( string command );
+void globalTricorder_BaseSetEntity( entity e );
+void globalTricorder_BaseCancelDisable();
+void globalTricorder_BaseCancelEnable();
+void globalTricorder_BaseRunTimer( entity entPuzzleObject, float timeLimit );
+void globalTricorder_BaseClose();
+void tricorderBaseCancel();
+string _tricorderBase_getWidgetInsertForPuzzleType();
+
+//=================================================================
+// Global variables
+//=================================================================
+float tricorderBaseExiting;
+float _tricorderBase_puzzleType;  //tells globably what kind of tricorder puzzle is active
+string _tricorderBase_keypadType;  //tells globably what kind of keypad puzzle is active, either "" for federation, "r" for romulan
+entity _tricorderBase_entity;
+
+string _globalTricorder_keypadURC = "TricorderKeypad";
+string _globalTricorder_keypadType = "";
+
+//hzm gameupdate chrissstrahl - added to run random waves code inside the actual RUN thread
+//because randomizing the puzzle needs access to the client for command relay
+//which is only given if the puzzle was started by a player
+float _globalTricorder_modulateFrequencyWaves = 0;
+//hzm gameupdate chrissstrahl - added to memorize if the server had sv_floodProtect enabled or not
+float _globalTricorder_svFloodProtectEnable = 0;
+//hzm gameupdate chrissstrahl - added to make sure that only one puzzle can be run at the same time, these scripts are not equiped to handle multiple players
+float _globalTricorder_lockedDown = 0;
+//hzm gameupdate chrissstrahl - added to check if a player is idle while beeing on a puzzle
+float _globalTricorder_lastClick = 0;
+//hzm gameupdate chrissstrahl - added to have a precise timing for script pause
+float _globalTricorder_svFrametime = 0.05;
+
+//hzm gameupdate chrissstrahl - set time when player last clicked a button
+void globalTricorder_Base_lastClick();
+//hzm gameupdate chrissstrahl - this makes sure the player exist the puzzle and frees the puzzle when he dies or leaves the server has also a time out function
+void globalTricorder_Base_failsafe(entity entPuzzleObject);
+
+//=================================================================
+// Constants
+//=================================================================
+float TRICORDER_PUZZLE_MOD = 1;
+float TRICORDER_PUZZLE_ROUTING = 2;
+float TRICORDER_PUZZLE_KEYPAD = 3;
+
+//=================================================================
+// Functions
+//=================================================================
+
+void globalTricorder_BaseError( string msg )
+//hzm gameupdate chrissstrahl - no need to include global debug uitlis file anymore
+{
+	centerprint( msg );
+	wait( 4 );
+	print ( "========================================================\n" );
+	print ( msg + "\n" );
+	print ( "========================================================\n" );
+	stuffcmd( "disconnect" );
+}
+
+void globalTricorder_Base_lastClick()
+//hzm gameupdate chrissstrahl - set time when player last clicked a button
+{
+	_globalTricorder_lastClick = getLevelTime();
+}
+
+void globalTricorder_Base_failsafe(entity entPuzzleObject)
+//hzm gameupdate chrissstrahl - this makes sure the player exits the puzzle and frees the puzzle when he dies or leaves the server
+{
+	if(doesEntityExist(entPuzzleObject) == 0 || getCvarInt("g_gameType") == 0)
+		return;
+		
+	entity ePlayer;
+	float fPlayer;
+	fPlayer = _tricorderBase_entity.getFloatVar("_activator");
+	
+	if(fPlayer > -1)
+	{
+		ePlayer = getEntity("player"+fPlayer);
+	}
+	
+	float fTimer = 900;	//over all time the player can use the puzzle 3 minutes is quite much
+	float fLastClick = 10;	//last time clicked a button timout (in sec)
+	
+	//oh, seven of nine would look at this code change and say "Your improvemnts are efficent..." right eh ?
+	if(	_tricorderBase_puzzleType == TRICORDER_PUZZLE_KEYPAD )	//_tricorderBase_puzzleType == TRICORDER_PUZZLE_MOD || _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING
+	{
+		fTimer = 200;	//over all time the player can use the puzzle 40 sec, a keypad that should be more than enugfh time, really
+	}
+	else if(_tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING)
+	{
+		//player has to think more here, so give him more time here
+		fLastClick = 30; //last time clicked a button timout (in sec)
+	}
+	
+	//inizial last clicked
+	globalTricorder_Base_lastClick();
+
+	
+	while(fTimer > 0 && ( fLastClick + _globalTricorder_lastClick ) > getLevelTime() )
+	{
+		if(doesEntityExist(ePlayer))
+		{
+			if(ePlayer.getHealth() < 1 || ePlayer.getActiveWeaponName() == "None" )
+			{
+				fTimer = 0;
+			}
+			else
+			{
+				wait(0.2);
+			}
+		}
+		else
+		{
+			fTimer = 0;
+		}		
+		fTimer--;
+		
+		if(tricorderBaseExiting)
+		{
+			return;
+		}
+	}
+	
+	//don't run exit routine twiche
+	if(tricorderBaseExiting)
+		return;
+	
+	//exit routine
+	thread tricorderBaseCancel();
+}
+
+void globalTricorder_BaseSetEntity( entity e )
+{
+	_tricorderBase_entity = e;
+}
+
+//---------------------
+// tricorderBaseSetPuzzleType
+// sets the global variable defining what puzzle type is being used on the tricorder
+//---------------------
+void tricorderBaseSetPuzzleType( float intPuzzleType )
+{
+	if( 	(intPuzzleType != TRICORDER_PUZZLE_MOD)
+		&& 	(intPuzzleType != TRICORDER_PUZZLE_ROUTING)
+		&&	(intPuzzleType != TRICORDER_PUZZLE_KEYPAD) )
+	{
+		globalTricorder_BaseError( "INVALID TRICORDER PUZZLE TYPE IN tricorderBaseSetPuzzleType\n" );
+	}
+	else
+	{
+		_tricorderBase_puzzleType = intPuzzleType;
+	}
+}
+
+//---------------------
+// globalTricorder_BaseRunTimer
+//
+//---------------------
+void globalTricorder_BaseRunTimer( entity entPuzzleObject, float timeLimit )
+{
+	float timeNow, endTime, timeLeft;
+	float min, sec, milsec;
+	string secStr, milsecStr;
+	string widgetCommandBase;
+	widgetCommandBase = "globalwidgetcommand tri_" + _tricorderBase_getWidgetInsertForPuzzleType() + "_base_";
+	
+	if( timeLimit <= 0 )
+	{
+		globalTricorder_BaseCancelEnable();
+		globalTricorder_doClientCommand( widgetCommandBase + "timer_min title 0" );
+		globalTricorder_doClientCommand( widgetCommandBase + "timer_sec title 00" );
+		globalTricorder_doClientCommand( widgetCommandBase + "timer_milsec title 00" );
+		
+		thread globalTricorder_Base_failsafe(entPuzzleObject);
+
+		return;
+	}
+	
+	// disable the cancel button when there is a timelimit
+	globalTricorder_BaseCancelDisable();
+
+	timeNow = getLevelTime();
+	endTime = timeNow + timeLimit;
+	
+	// milliseconds are hacked because float precision results in stuff like 55.6 - 55 => 0.599999 and that's bad.
+	milsec = 100;
+	
+	
+	//hzm gameupdate chrissstrahl - add compatibility for multiplayer
+	float fPlayerOk = 1;
+	float fMultiplayer = 0;
+	entity ePlayer;
+	string sWeapon = "";
+	
+	if(getCvarInt("g_gametype") != 0){
+		fMultiplayer = 1;
+	}
+	ePlayer = getEntity("player"+_tricorderBase_entity.getFloatVar("_activator"));
+	
+	//[608] chrissstrahl - make sure player does not switch weapon
+	//fixes bug where keypad could not be used without tricorder in multiplayer
+	sWeapon = ePlayer.getActiveWeaponName();
+	
+	while( timeNow <= endTime && fPlayerOk == 1 )//hzm gameupdate chrissstrahl - add compatibility for multiplayer
+	{
+		if(fMultiplayer){
+		//hzm gameupdate chrissstrahl - add compatibility for multiplayer
+			fPlayerOk = 0;
+			if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0 && sWeapon == ePlayer.getActiveWeaponName()){ //[608] chrissstrahl - bug fixed
+				//hzm coop mod chrissstrahl - this dissables the coop_radar while using/solving puzzle
+				ePlayer.setFloatVar("_playerIsModulatingPuzzle",1);
+				fPlayerOk = 1;
+			}
+		}
+	
+		if( tricorderBaseExiting )
+			return;
+
+		timeLeft = endTime - timeNow;
+		min = div( timeLeft, 60 );
+		sec = mod( timeLeft, 60 );
+		
+		//milsec = floor( (timeLeft - div( timeLeft, 1 )) * 10 );
+		
+		if( sec < 10 )
+			secStr = "0" + sec;
+		else
+			secStr = sec;
+			
+		if( milsec < 10 )
+			milsecStr = "0" + milsec;
+		else
+			milsecStr = milsec;
+		
+		//hzm gameupdate chrissstrahl - be more accurate in sp
+		if(!fMultiplayer)
+		{
+			globalTricorder_doClientCommand( widgetCommandBase + "timer_min title " + min );
+			globalTricorder_doClientCommand( widgetCommandBase + "timer_sec title " + secStr );
+			globalTricorder_doClientCommand( widgetCommandBase + "timer_milsec title " + milsecStr );
+			//print( min + ":" + sec + ":" + milsec + "\n" );
+			wait( 0.05 );
+			timeNow = getLevelTime();
+
+			milsec = milsec - 5;
+			if( milsec < 0 ) 
+				milsec = 95;
+		}
+		//hzm gameupdate chrissstrahl - send once each sec in mp
+		else
+		{
+			wait( 1 );
+			timeNow = getLevelTime();
+			
+			globalTricorder_doClientCommand( widgetCommandBase + "timer_min title " + min );
+			globalTricorder_doClientCommand( widgetCommandBase + "timer_sec title " + secStr );
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - this dissables the coop_radar while using/solving puzzle
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("_playerIsModulatingPuzzle",0);
+	}
+	//eof hzm
+
+	globalTricorder_BaseClose();
+	entPuzzleObject.puzzleobject_failed();
+	entPuzzleObject.playsound( "sound/weapons/tricorder/tri_puzz_failure.wav", 9, 1, 64);//hzm coop mod chrissstrahl - keep it global (everyone can hear it)
+	
+	//hzm gameupdate chrissstrahl - reenables sv_floodProtect if it was activated, needs to be disabled when using puzzles
+	if( _globalTricorder_svFloodProtectEnable )
+	{
+		stuffcmd("set sv_floodProtect 1\n");
+		_globalTricorder_svFloodProtectEnable = 0;
+	}
+	
+	//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	_globalTricorder_lockedDown = 0;
+	
+	print( "FAILED - OUT OF TIME\n" );
+
+	// testing compiler bugs. remove this
+	milsec = 0;
+}
+
+//---------------------
+// globalTricorder_BaseCancelEnable
+// enables the cover over the cancel button
+//---------------------
+void globalTricorder_BaseCancelEnable()
+{
+	//remove the cancel button
+	globalTricorder_doClientCommand( 
+		"globalwidgetcommand tri_" 
+		+ _tricorderBase_getWidgetInsertForPuzzleType() 
+		+ "_base_button_cancel enable" );
+}
+
+//---------------------
+// globalTricorder_BaseCancelDisable
+// diables the cover over the cancel button
+//---------------------
+void globalTricorder_BaseCancelDisable()
+{
+	//remove the cancel button
+	globalTricorder_doClientCommand( 
+		"globalwidgetcommand tri_" 
+		+ _tricorderBase_getWidgetInsertForPuzzleType() 
+		+ "_base_button_cancel disable" );
+}
+
+//---------------------
+// tricorderBaseCancel
+// cancels the puzzle
+//---------------------
+//void globalTricorderRoute_Cancel();
+void tricorderBaseCancel()
+{	
+	globalTricorder_BaseCancelDisable();
+	globalTricorder_BaseClose();
+	
+	// let routing puzzle clean up
+	//if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING )
+	//	globalTricorderRoute_Cancel();
+	
+	//hzm gameupdate chrissstrahl - reenables sv_floodProtect if it was activated, needs to be disabled when using puzzles
+	if( _globalTricorder_svFloodProtectEnable )
+	{
+		stuffcmd("set sv_floodProtect 1\n");
+		_globalTricorder_svFloodProtectEnable = 0;
+	}
+	
+	//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	_globalTricorder_lockedDown = 0;
+	
+	_tricorderBase_entity.puzzleobject_canceled();
+}
+
+
+//---------------------
+void globalTricorder_BaseClose()
+{
+	wait( 0.05 );
+	tricorderBaseExiting = 1;
+	
+	//hzm gameupdate chrissstrahl - make multiplayer compatible grab player
+	entity ePlayer;
+	float fPlayer;
+	fPlayer = _tricorderBase_entity.getFloatVar("_activator");
+	
+	if(fPlayer > -1)
+	{
+		ePlayer = getEntity("player"+fPlayer);
+	}
+	
+	/*	if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_MOD ){
+		//globalTricorder_doClientCommand( "ui_removehud TricorderModulation" ); 		
+	}
+	else */
+	
+	if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_KEYPAD ){
+		//globalTricorder_doClientCommand( "ui_removehud "+_globalTricorder_keypadURC ); 
+		globalTricorder_doClientCommand( "ui_removehud TricorderKeypadHelp" );
+	}
+	else if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING ){
+		globalTricorder_doClientCommand( "ui_removehud TricorderRoutingHelp" );
+		//globalTricorder_doClientCommand( "ui_removehud TricorderRoute" );
+	}
+	globalTricorder_doClientCommand( "popmenu 0\n" );
+	_globalTricorder_lockedDown = 0;
+}
+
+//---------------------
+string _tricorderBase_getWidgetInsertForPuzzleType()
+{
+	if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_MOD )
+	{
+		return "mod";
+	}
+	else if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_KEYPAD )
+	{
+		return "kp" + _tricorderBase_keypadType;
+	}
+	else if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING )
+	{
+		return "route";
+	}
+}
+
+string _tricorderBase_getTooltipInsertForPuzzleType()
+{
+	if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_MOD )
+		return "mo";
+	else if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_KEYPAD )
+		return "kp";
+	else if( _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING )
+		return "ro";
+}
+
+//-------------------------------------------------------------------------------------------------
+//float _tricorder_clientCommands;
+//float TRI_MAXCOMMANDS = 32;
+
+
+void globalTricorder_doClientCommand( string command )
+{	
+	
+	//hzm gameupdate chrissstrahl - make compatible with multiplayer mode
+	//we only have 1 active puzzle at all times, due to the structure of these scripts
+	//so we grab the current base entity and grab the player from there
+	entity ePlayer;
+	float fWait = 1;
+	
+	//hzm gameupdate chrissstrahl - this was added because on m1l2c the scripts force the tricorder script on a player before the puzzle routines are ready, leading to a chrash
+	if(!doesEntityExist(_tricorderBase_entity)){
+		return;
+	}	
+	float fPlayer;
+	fPlayer = _tricorderBase_entity.getFloatVar("_activator");
+	
+	if(fPlayer > -1){
+		ePlayer = getEntity("player"+fPlayer);
+	}
+	
+	//hzm gameupdate chrissstrahl - manage to prevent cl reliable bla was cycled out
+	while( fWait ){
+		if(doesEntityExist(ePlayer)){
+			if(GetNumFreeReliableServerCommands( ePlayer ) > 80){ //lowering from 105 cuz it is to slow in mp
+				fWait = 0;
+			}
+			else{
+				ePlayer.cprint("globalTricorder_doClientCommand waiting\n");
+				wait( 0.05 );
+			}
+		}else{
+			return;
+		}
+	}
+
+	//hzm gameupdate chrissstrahl - the players will never know what length we go trugh to bring them this coop mod :-/
+	if(doesEntityExist(ePlayer)){
+		SendClientCommand( ePlayer , command + "\n" );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------------
+// TOOL TIPS
+void globalTricorder_ClearToolTip()
+{
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_" + _tricorderBase_getTooltipInsertForPuzzleType() + "_tooltip title $$TriPuz_Default$$" );
+}
+
+void globalTricorder_SetToolTip( string s )
+{
+	globalTricorder_doClientCommand( "globalwidgetcommand tri_" + _tricorderBase_getTooltipInsertForPuzzleType() + "_tooltip title " + s );
+}
+
+////////////////////////////
+
+void globalTricorder_TT_Clear() 		{ killthread( "globalTricorder_ClearToolTip" ); thread globalTricorder_ClearToolTip(); }
+
+void globalTricorder_TT_Cancel() 		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_Cancel$$" ); }
+void globalTricorder_TT_Timer() 		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_Timer$$" ); }
+
+void globalTricorder_TT_KP_Code()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_KP_Code$$" ); }
+void globalTricorder_TT_KP_Keypad()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_KP_Keypad$$" ); }
+
+// routing tooltips are context sensitive and are in the routing script file
+
+void globalTricorder_TT_WA_Tricorder()	{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Tricorder$$" ); }
+void globalTricorder_TT_WA_Compare()	{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Compare$$" ); }
+void globalTricorder_TT_WA_Lock()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Lock$$" ); }
+void globalTricorder_TT_WA_Ampl()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Ampl$$" ); }
+void globalTricorder_TT_WA_Freq()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Freq$$" ); }
+void globalTricorder_TT_WA_Offs()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Offs$$" ); }
+void globalTricorder_TT_WA_Increase()	{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Increase$$" ); }
+void globalTricorder_TT_WA_Value()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Value$$" ); }
+void globalTricorder_TT_WA_Decrease()	{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_WA_Decrease$$" ); }
+
+

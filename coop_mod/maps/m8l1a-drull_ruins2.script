@@ -1,0 +1,2407 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	      m8l1a-drull_ruins2 (Swamp World)
+//  Script By:    J. Keehan
+//  Geometry By:  A. Bellefeuil, J. Keehan
+//  Created on:   06/27/2002
+//	Last Edited:  08/06/2002 - JK
+//-----------------------------------------------------------------
+
+void main();
+void initWorld();
+void shuttleSetup();
+void initPlayer();
+void initMortarCombatRebels();
+void initCombatRebels();
+void initSniperRebels();
+void setupArmatureCinematics();
+
+//void introcinematics();
+//void cinematicMunroBeamInIgm5();
+//void cinematicMunroBeamInIgm5Skipthread();
+
+//void shuttleFlyBy();
+//void shuttleStrikeCrash();
+
+void mortarPositionSequence1();
+void setupMortarSequence1();
+void blockPath1();
+void idryllAmbush1();
+void setupMortarSequence2();
+void destroyBridge1();
+void setupMortarSequence3();
+void destroyBridge2();
+void movingMortarPostion();
+void emitter_optmizer();
+
+void activateIdryllSniper1();
+void activateIdryllSoldier1();
+void activateIdryllSoldier2();
+void activateIdryllSoldier3();
+void activateIdryllSoldier4();
+void activateIdryllSoldier5();
+
+void triggerBeamIn1();
+void triggerBeamIn2();
+void triggerBeamIn3();
+
+void seqsecret1();
+void seqsecret2();
+
+//void openingDialogue();
+
+////////////////////////////////
+// Intro Cinematic Threads
+////////////////////////////////
+void cinematicIntro_SpaceFlyIn();
+void cinematicIntro_SpaceFlyIn_ScaleShuttleUp();
+void cinematicIntro_SpaceFlyIn_ScaleShuttleDown();
+void cinematicIntro_SpaceFlyIn_LightningStrike();
+void cinematicIntro_SpaceFlyIn_ShuttleSparks();
+void cinematicIntro_Crash();
+void cinematicIntro_Crash_ScaleShuttle();
+
+
+//void lightningFlash();
+//void shuttleStrike();
+//void shuttleShake();
+//void earthQuakeLoopIGM5();
+//void alienFlyByIGM5();
+//void setSplineSpeeds( string lurkerSplineName, float lurkerSplineNumber,  float lurkerSplineSpeed );
+//void treeFlyByIGM5();
+//entity getRandomLurkerSpline();
+//float getRandomTreeStart();
+
+void cinematicArm_PostCrash_Start();
+void cinematicArm_PostCrash_ArmEnd();
+
+entity cinematicArm_PostCrash;
+entity cinematicArm_Flight;
+
+float Lightning_On, shuttleShake_On, shuttleRideEarthquakes_On, lurkersFollowPath_On, treesFlyingBy_On;
+
+float boolShuttleDoorOpen = 0;
+float boolArmShuttleCrashPlayed = 0;
+float boolArmShuttleFlightPlayed = 0;
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_waitForTeam();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+//==============================================================================
+// Main Stuff
+//==============================================================================
+
+//---------------------
+// main
+// do start up stuff
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 215;
+	coop_float_spawnAngle1 				= 216;
+	coop_float_spawnAngle2 				= 216;
+	coop_float_spawnAngle3 				= 216;
+	coop_float_spawnAngle4 				= 216;
+	coop_float_spawnAngle5 				= 216;
+	coop_float_spawnAngle6 				= 216;
+	coop_float_spawnAngle7 				= 216;
+	coop_float_spawnAngle8 				= 216;
+	coop_vector_spawnOrigin1 			= '11299 -7662 -600';	//$player.origin( '11076 -7896 -702' );
+	coop_vector_spawnOrigin2 			= '11199 -7662 -600';
+	coop_vector_spawnOrigin3 			= '11099 -7662 -600';
+	coop_vector_spawnOrigin4 			= '11299 -7562 -600';
+	coop_vector_spawnOrigin5 			= '11199 -7562 -600';
+	coop_vector_spawnOrigin6 			= '11099 -7562 -600';
+	coop_vector_spawnOrigin7 			= '11299 -7462 -600';
+	coop_vector_spawnOrigin8 			= '11199 -7462 -600';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins2LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+
+	//--- allow camera shakes
+	$world.canShakeCamera( 1 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m8l1a_drull_ruins2" );
+		
+	initWorld();
+	initPlayer();
+	thread shuttleSetup();
+	initMortarCombatRebels();
+	initCombatRebels();
+	initSniperRebels();
+	setupArmatureCinematics();
+	//introcinematics();             
+	
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - don't do this in coop
+	/*
+	$player.health( 100 );
+	$player.armor( 0 );
+	$player.notSolid();
+	$player.hide();
+	*/
+	
+	freezeplayer();
+	wait( 1 );
+
+	//--- intro cinematic
+	//thread cinematicMunroBeamInIgm5();
+	//thread cinematicIntro_Crash();
+	thread cinematicIntro_SpaceFlyIn();
+	
+	//hzm coop mod chrissstrahl - remove the original trigger and spawn our own level end trigger
+	removeclass("TriggerChangeLevel");
+	spawn("trigger_once","thread","coop_waitForTeam","origin","232 3760 10","targetname","coop_triggerLevelEnd");
+	wait(.2);
+	$coop_triggerLevelEnd.setsize('-128 -128 -64','128 128 64');
+	//hzm eof
+}
+
+//==============================================================================
+// SETUP Stuff
+//==============================================================================
+
+//---------------------
+// initWorld
+// Initialize Parmeters for the world, such as farplane distance,
+// sky origin, etc...
+//---------------------
+void initWorld()
+{
+	//--- spawn cinematic cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	
+	soundtrack( "music/m8l1a.mus" );
+	//$skyGreen.rendereffects( "+skyorigin" );
+	//$skyBlue.rendereffects( "+skyorigin" );
+	$sky.rendereffects( "+skyorigin" );
+	
+	//--- set the star dome
+	$starDome.angles ( '45 0 0' );
+	
+	
+	//Attrexian Colored Fog for Cinematic
+	//$world.entity_fade_dist( 20000 );
+	//$world.farplane_color ( '0.1 0.11 0.1' );
+	//$world.farplane ( 4000 );
+	
+	//$world.weather( "rain", 200 );
+
+	thread setupMortarSequence1();
+	thread setupMortarSequence2();
+	thread setupMortarSequence3();
+	thread globalCommon_OnDamage ( $shuttleDoorClip01 , "ShuttleDoor_Destroyed" );
+	
+	//--- setup the cinematic shuttles
+	$shuttleSpace_Body.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Door.bind( $shuttleSpace_Origin );
+	$shuttleSpace_Body.scale( .1 );
+	$shuttleSpace_Door.scale( .1 );
+	
+	$shuttleFlyBy_Body.bind( $shuttleFlyBy_Origin );
+	$shuttleFlyBy_Nacelle.bind( $shuttleFlyBy_Origin );
+	$shuttleFlyBy_FX.bind( $shuttleFlyBy_Origin );
+	$shuttleFlyBy_Door.bind( $shuttleFlyBy_Origin );
+
+	$shuttleFlyBy_Body.scale( .1 );
+	$shuttleFlyBy_Nacelle.scale( .1 );
+	$shuttleFlyBy_FX.scale( .1 );
+	$shuttleFlyBy_Door.scale( .1 );
+    
+    //--- setup the shuttle spark spawners
+    $spawnerShuttleStrike1.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike2.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike3.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike4.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike5.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike6.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike7.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    $spawnerShuttleStrike8.modelname( "fx/fx-explosion-sparkshower-enterprise.tik" );
+    
+    $spawnerShuttleStrike1.scale( .5 );
+    $spawnerShuttleStrike2.scale( .3 );
+    $spawnerShuttleStrike3.scale( .7 );
+    $spawnerShuttleStrike4.scale( 1 );
+    $spawnerShuttleStrike5.scale( .3 );
+    $spawnerShuttleStrike6.scale( .4 );
+    $spawnerShuttleStrike7.scale( .5 );
+    $spawnerShuttleStrike8.scale( .8 );
+    
+	//-temp placement
+	$crashedShuttle9.anim( "open_idle" );
+	$shuttleDoorClip01.remove();
+	$secret1.hide();
+	$secret2.hide();
+	$back_emitter1.hide();
+	
+	//--- Lightning
+	$lightningShuttle1.hide();
+	$lightningShuttle2.hide();
+	$lightning1.hide();
+	$lightning2.hide();
+	$lightning3.hide();
+	$lightning4.hide();
+	$lightningFlyBy1.hide();
+	$lightningFlyBy2.hide();
+}
+
+//---------------------
+// Shuttle Set up
+//---------------------
+void shuttleSetup()
+{
+	$crashedShuttle0.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle0.angles( $crashedShuttle.getangles() );
+	
+	$crashedShuttle1.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle1.angles( $crashedShuttle.getangles() );
+	$crashedShuttle1.anim( "open_idle" );
+	$crashedShuttle2.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle2.angles( $crashedShuttle.getangles() );
+	$crashedShuttle2.anim( "open_idle" );
+	$crashedShuttle3.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle3.angles( $crashedShuttle.getangles() );
+	$crashedShuttle3.anim( "open_idle" );
+	$crashedShuttle4.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle4.angles( $crashedShuttle.getangles() );
+	$crashedShuttle4.anim( "open_idle" );
+	
+	$crashedShuttle5.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle5.angles( $crashedShuttle.getangles() );
+	$crashedShuttle6.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle6.angles( $crashedShuttle.getangles() );
+	$crashedShuttle7.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle7.angles( $crashedShuttle.getangles() );
+	$crashedShuttle8.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle8.angles( $crashedShuttle.getangles() );
+	$crashedShuttle9.origin( $crashedShuttle.getorigin() );
+	$crashedShuttle9.angles( $crashedShuttle.getangles() );
+
+	//--- start the crashed shuttle hidden
+	$crashedShuttle.hide();
+	$crashedShuttle0.hide();
+	$crashedShuttle1.hide();
+	$crashedShuttle2.hide();
+	$crashedShuttle3.hide();
+	$crashedShuttle4.hide();
+	$crashedShuttle5.hide();
+	$crashedShuttle6.hide();
+	$crashedShuttle7.hide();
+	$crashedShuttle8.hide();
+	$crashedShuttle9.hide();
+	$crashedShuttleFX.hide();
+	$crashedShuttleNacelle.hide();
+	$crashedShuttleNacelleFX.hide();
+
+	//--- Setup Actors In Flying Shuttle
+/*
+	$shuttlekorban.ai_off();
+	$shuttlekorban.anim( "shuttle_idleD" );
+	$shuttlekorban.origin( $shuttleRiderOrigin.getorigin() );
+	globalCommon_AiActorUseWeapon( $shuttlekorban, "none" );
+	
+	$shuttlesydney.ai_off();
+	$shuttlesydney.anim( "shuttle_idleC" );
+	$shuttlesydney.origin( $shuttleRiderOrigin.getorigin() );
+	globalCommon_AiActorUseWeapon( $shuttlesydney, "none" );
+	
+	$shuttlejurot.ai_off();
+	$shuttlejurot.anim( "shuttle_idleB" );
+	$shuttlejurot.origin( $shuttleRiderOrigin.getorigin() );
+	globalCommon_AiActorUseWeapon( $shuttlejurot, "none" );
+	
+	$shuttlechang.ai_off();
+	$shuttlechang.anim( "shuttle_idleA" );
+	$shuttlechang.origin( $shuttleRiderOrigin.getorigin() );
+	globalCommon_AiActorUseWeapon( $shuttlechang, "none" );
+*/
+
+	//--- TEMP REMOVE FLYING SHUTTLE ACTORS
+	$shuttlekorban.remove();
+	$shuttlesydney.remove();
+	$shuttlejurot.remove();
+	$shuttlechang.remove();
+
+	$shuttleExterior.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleInterior.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleDoors.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleIntDoor1.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleIntDoor2.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleIntDoor3.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleIntDoor4.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleSeat1.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleSeat2.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleSeat3.origin( $shuttleScriptOrigin.getorigin() );
+	$shuttleSeat4.origin( $shuttleScriptOrigin.getorigin() );
+	
+	wait( .05 );
+	
+	$shuttleExterior.bind( $shuttleScriptOrigin );
+	$shuttleInterior.bind( $shuttleScriptOrigin );
+	$shuttleIntDoor1.bind( $shuttleScriptOrigin );
+	$shuttleIntDoor2.bind( $shuttleScriptOrigin );
+	$shuttleIntDoor3.bind( $shuttleScriptOrigin );
+	$shuttleIntDoor4.bind( $shuttleScriptOrigin );	
+	$shuttleSeat1.bind( $shuttleScriptOrigin );
+	$shuttleSeat2.bind( $shuttleScriptOrigin );
+	$shuttleSeat3.bind( $shuttleScriptOrigin );
+	$shuttleSeat4.bind( $shuttleScriptOrigin );
+	$shuttleTakeOffTrigger.bind( $shuttleScriptOrigin );
+	$shuttleDoors.bind( $shuttleScriptOrigin );
+	$shuttleTopDoorClip.bind( $shuttleScriptOrigin );
+	$shuttleBottomDoorClip.bind( $shuttleScriptOrigin );
+	
+	//$shuttlekorban.bind( $shuttleScriptOrigin );
+	//$shuttlesydney.bind( $shuttleScriptOrigin );
+	//$shuttlejurot.bind( $shuttleScriptOrigin );
+	//$shuttlechang.bind( $shuttleScriptOrigin );
+	
+	$shuttleClip.bind( $shuttleScriptOrigin );
+	$shuttleTakeOffTrigger.bind( $shuttleScriptOrigin );
+	$shuttleBottomDoorOrigin.bind( $shuttleScriptOrigin );
+	$shuttleTopDoorOrigin.bind( $shuttleScriptOrigin );
+	
+	$shuttleBottomDoorClip.bind( $shuttleBottomDoorOrigin );
+	$shuttleTopDoorClip.bind( $shuttleTopDoorOrigin );
+	
+	//--- Lightning
+	$lightningShuttle1.hide();
+	$lightningShuttle2.hide();
+	
+	//$shuttleScriptOrigin.time( 4 );
+	//$shuttleScriptOrigin.movedown( 3000 );
+	
+	//$shuttleExterior.time( 4 );
+	//$shuttleExterior.movedown( 3000 );
+	//waitfor( $shuttleExterior );
+}
+
+//---------------------
+// initPlayer
+// Initializes the player, gives weapons, set objectives etc..
+//---------------------
+void initPlayer()
+{
+	//--- set the first objective
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindEntrance$$","incomplete",1,1);
+
+	$entranceDoor1.missionobjective( 1 );
+	//$player.setobjectiveshow ( "ExitShuttle", 1 );
+	//$crashedShuttle9.missionobjective( 1 );
+}
+
+//---------------------
+// initMortarCombatRebels
+// initializes our Mortar Combat Rebels
+//---------------------
+void initMortarCombatRebels ()
+{
+	$idryll_mortar01.visiondistance ( 2048 );
+	$idryll_mortar02.visiondistance ( 2048 );
+	$idryll_mortar03.visiondistance ( 2048 );
+	$idryll_mortar04.visiondistance ( 2048 );
+	$idryll_mortar05.visiondistance ( 2048 );
+	$idryll_mortar06.visiondistance ( 2048 );
+	$idryll_mortar07.visiondistance ( 2048 );
+}
+
+//---------------------
+// initCombatRebels
+// initializes Combat Rebel soldiers
+//---------------------
+void initCombatRebels()
+{
+	$idryll_soldier1.ai_off();
+	$idryll_soldier1.notsolid();
+	$idryll_soldier1.groupdeaththread( "idryllAmbush1" );
+
+	$idryll_soldier2.ai_off();
+	$idryll_soldier2.notsolid();
+	$idryll_soldier2.groupdeaththread( "idryllAmbush1" );
+
+	$idryll_soldier3.ai_off();
+	$idryll_soldier3.notsolid();
+	$idryll_soldier3.groupdeaththread( "idryllAmbush1" );
+
+	//$idryll_soldier4.ai_off();
+	//$idryll_soldier4.notsolid();
+	//$idryll_soldier4.groupdeaththread( "idryllAmbush1" );
+	
+	$idryll_soldier4.remove();//remove for performance issues
+	$idryll_soldier5.remove();
+	
+	//--turn off target reticle prior to beam in
+	$idryll_soldier9.notsolid();
+	$idryll_soldier10.notsolid();
+	$idryll_soldier11.notsolid();
+	
+	$idryll_soldier19.notsolid();
+	$idryll_soldier20.notsolid();
+	$idryll_soldier21.notsolid();
+}
+
+//---------------------
+// initSniperRebels
+// initializes Sniper Rebel soldiers
+//---------------------
+void initSniperRebels()
+{
+	$idryll_sniper1.ai_off();
+	$idryll_sniper1.settendency( "snipeenemy", 1 );
+	$idryll_sniper1.visiondistance( 3072 );
+
+	$idryll_sniper2.ai_off();
+	$idryll_sniper2.settendency( "snipeenemy", 1 );
+	$idryll_sniper2.visiondistance( 3072 );
+
+	$idryll_sniper3.ai_off();
+	$idryll_sniper3.settendency( "snipeenemy", 1 );
+	$idryll_sniper3.visiondistance( 3072 );
+}
+
+void doorLocked ()
+
+{
+	entity e;
+	e = getcurrententity ();
+	e.playsound ( "sound/doors/door_locked.wav" , 7, 1, 128 );
+}
+
+
+//---------------------
+// setupArmatureCinematics
+// setupt the armature cinematics
+//---------------------
+void setupArmatureCinematics()
+{
+	//--the in-flight armature
+	cinematicArm_Flight = createCinematic( "m8-shuttlecrash" );
+	cinematicArm_Flight.setendthread( "cinematicIntro_Crash" );
+
+	//--the post crash armature
+	cinematicArm_PostCrash = createCinematic( "m7m8_crash" );
+	cinematicArm_PostCrash.setendthread( "cinematicArm_PostCrash_ArmEnd" );
+}
+
+//==============================================================================
+// CINEMATIC Stuff
+//==============================================================================
+
+/*
+//---------------------
+// setup intro cinematic and launch it
+//---------------------
+void introcinematics()
+{
+	//Player notsolid for intro Cinematic
+	$player.notsolid();
+	$player.hide();
+
+	thread lightningFlash();
+	thread shuttleShake();
+	
+	//turn effects on / off
+	Lightning_On = 0;
+	shuttleShake_On = 1;
+	shuttleRideEarthquakes_On = 1;
+	lurkersFollowPath_On = 0;
+	treesFlyingBy_On = 0;
+		
+	thread alienFlyByIGM5();
+	thread treeFlyByIGM5();
+	
+	//spawn cinematic cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	spawn( "Camera", "targetname", "cam3" ); 
+	
+	cam.load( "m8l1a_cam1_shuttleride" );
+	cam.load( "cam2_ent_deck7b_igm5" );
+		
+	thread earthQuakeLoopIGM5();
+	
+	//--- spawn and hide actors
+	globalCommon_SpawnActor( "char/starfleet_picard.tik", "picard", '-1736 -38424 196', 0 );
+	globalCommon_SpawnActor( "char/drull_father.tik", "inigor", '-1736 -38424 196', 0 );
+	globalCommon_SpawnActor( "char/hazardteam_munro.tik", "scriptmunro", '-1736 -38424 196', 0 );
+	wait( .1 );
+	
+	globalCommon_AiDummyHide( $picard );
+	globalCommon_AiDummyHide( $inigor );
+	globalCommon_AiDummyHide( $scriptmunro );
+	globalCommon_AiActorUseWeapon( $scriptmunro, "none" );
+}
+
+//---------------------
+// cinematicMunroBeamInIgm5
+// setup and begin cinematicMunroBeamInIgm5
+//---------------------
+void cinematicMunroBeamInIgm5()
+{
+	//--- start cinematic commands
+	$player.notsolid();
+	$player.hide();
+	
+	// --- Que Cams
+	$cam1.follow ( $m8l1a_cam1_shuttleride );
+
+	$cam1.cut();
+	wait( .5 );
+	cuecamera ( $cam1 );
+	wait( .3 );
+	
+	// --- Skip Thread
+	skipthread( "cinematicMunroBeamInIgm5Skipthread");
+		
+	//--- Start & Fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .75 );
+	
+	//startMunroBeamInIGM5();
+	$scriptmunro.displayEffect( "TransportIn", "Federation" );
+	$scriptmunro.show();
+	wait( 4 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_fullscan.mp3", 1, 10000, 0); //I want a full scan of the area.
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+	
+	$shuttlejurot.playdialog("localization/sound/dialog/m7l2/jurot_nolife.mp3", 1, 10000, 0); //I’ve located some Attrexians in a small communications tower.
+	waitForDialog( $shuttlejurot );
+	wait( .2 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_patchmethough.mp3", 1, 10000, 0); //Patch me through.
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+	
+	$shuttlejurot.playdialog("localization/sound/dialog/m7l2/jurot_youron.mp3", 1, 10000, 0); //You’re on.
+	waitForDialog( $shuttlejurot );
+	wait( .2 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_areyou.mp3", 1, 10000, 0); //Ini’gor! Are you there?
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$inigor.playdialog("localization/sound/dialog/m7l2/inigor_yesthank.mp3", 1, 10000, 1); //Yes! Thank you for helping these people.
+	waitForDialog( $inigor );
+	wait( .2 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_whatgoing.mp3", 1, 10000, 0); //Ini’gor, what’s going on?
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$inigor.playdialog("localization/sound/dialog/m7l2/inigor_lied.mp3", 1, 10000, 1); //Krin’do lied to me.... 
+	waitForDialog( $inigor );
+	wait( .2 );
+
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_killyou.mp3", 1, 10000, 0); //Krin’do’s willing to kill you?
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$inigor.playdialog("localization/sound/dialog/m7l2/inigor_know.mp3", 1, 10000, 1); //He doesn’t know I’m here! I can’t get through to him!
+	waitForDialog( $inigor );
+	wait( .2 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_whereishe.mp3", 1, 10000, 0); //Where is he now?
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$inigor.playdialog("localization/sound/dialog/m7l2/inigor_send.mp3", 1, 10000,1); //I’ll send you the coordinates. But please
+	waitForDialog( $inigor );
+	wait( .2 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_nopromise.mp3", 1, 10000, 0); //No promises. He’ll be safe only if you can get him to stop before we invade.
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$inigor.playdialog("localization/sound/dialog/m7l2/inigor_destroy.mp3", 1, 10000, 1); //I understand. But if he won’t stop, you’ll have to destroy the systems that create and control the aliens.
+	waitForDialog( $inigor );
+	wait( .2 );
+
+	$scriptmunro.playdialog("localization/sound/dialog/m7l2/munro_krincoo.mp3", 1, 10000, 0); //Munro to Enterprise. We have the coordinates to Krin’do.
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+
+	$picard.playdialog("localization/sound/dialog/m7l2/picard_takeshutt.mp3", 1, 10000, 1); //The Enterprise isn’t going anywhere yet. Take the shuttle while we continue repairs.
+	waitForDialog( $picard );
+	wait( .2 );
+
+	thread cinematicMunroBeamInIgm5Skipthread();
+}
+
+//---------------------
+// cinematicMunroBeamInIgm5Skipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicMunroBeamInIgm5Skipthread()
+{
+	//--- kill the cinematicMunroBeamInIgm5 thread
+	skipthread( "Null" );
+	killthread( "cinematicMunroBeamInIgm5" );
+	
+	//--- fade out and set the level up
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	
+	$scriptmunro.stopDialog();
+	$inigor.stopDialog();
+	$picard.stopDialog();
+	$shuttlejurot.stopDialog();
+
+	lurkersFollowPath_On = 1;
+	treesFlyingBy_On = 1;
+	Lightning_On = 1;
+	
+	//$sky.rendereffects( "-skyorigin" );
+	$skyBlue.rendereffects( "-skyorigin" );
+	$skyGreen.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 0 );
+	
+	//Attrexian Colored Fog for Cinematic
+	$world.farplane ( 30000 );
+	$world.farplane_color ( '0.1 0.12 0.1' );
+	$world.farplane_cull( 1 );
+	
+	spawn( "fx/fx-smoke-shuttle-directional.tik", "targetname", "shuttleSmoke1", "origin", "-1620 -38124 172", "angles", "0.000000 180.000000 0.000000", "scale", ".5" );
+	spawn( "fx/fx-smoke-shuttle-directional.tik", "targetname", "shuttleSmoke2", "origin", "-1620 -38680 172", "angles", "0.000000 180.000000 0.000000", "scale", ".5" );
+	wait( .1 );
+	
+	$shuttleSmoke1.bind( $shuttleScriptOrigin );
+	$shuttleSmoke2.bind( $shuttleScriptOrigin );
+	
+	spawn( "func_earthquake", "targetname", "lightningQuake2");
+	$lightningQuake2.duration( 5 );
+	$lightningQuake2.magnitude( 10 );
+	
+	//--- Rain
+	$world.weather( "rain", 200 );
+	$world.wind_intensity( 20 );	
+	$world.wind_direction( '-1 0 0' );
+	
+	//Turn Script Munro Off
+	globalCommon_AiDummyHide( $scriptmunro );
+	wait( .5 );
+	
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	$player.solid();
+	$player.show();
+	wait( .3 );
+
+	//--- fade in	
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 2 );
+	
+	$picard.playdialog("localization/sound/dialog/m8l1/picard_enda.mp3", 1, 10000, 1); //I want you to find Krindo. Let him know that his actions have endangered his father.
+	waitForDialog( $picard );
+	wait( .2 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m8l1/munro_aye7.mp3", 1, 10000, 0); //Aye sir.
+	waitForDialog( $scriptmunro );
+	wait( .2 );
+	
+	$picard.playdialog("localization/sound/dialog/m8l1/picard_beyond.mp3", 1, 10000, 1); //If he’s beyond reason, you’ll have to destroy the facility.
+	waitForDialog( $picard );
+	wait( .2 );
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m8l1/munro_aye8.mp3", 1, 10000, 0); //Aye sir.
+	waitForDialog( $scriptmunro );
+
+	Lightning_On = 1;
+	wait( 4 );
+	
+	//Rock the camera!
+	thread shuttleStrike();
+
+	trigger( "$lightningQuake2" );
+	
+	//--- Top move lcar edge: Jurot
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1580 -38500 300", "angles", "15.000000 90.000000 0.000000", "scale", ".5" );
+	wait( 1 );
+	
+	$shuttlesydney.playdialog( "localization/sound/dialog/m8l1/syd_werehit.mp3", 1, 20000, 0 ); //we're hit!!!
+	
+	//--- Front And Center: Above Lcars
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1404 -38404 260", "angles", "-15.000000 180.000000 0.000000", "scale", ".7" );
+
+	//--- Front and Center: Under Counter
+	spawn( "fx/fx-smoke-gray-directional.tik", "targetname", "smoke1", "origin", "-1468 -38388 228", "angles", "15.000000 165.000000 0.000000", "scale", "1.5" );
+	spawn( "fx/fx-smoke-gray-directional.tik", "targetname", "smoke2", "origin", "-1468 -38416 228", "angles", "0.000000 195.000000 0.000000", "scale", "1" );
+	wait( .1 );
+
+	//--- Rear Lcar Right
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1764 -38316 252", "angles", "-15.000000 315.000000 0.000000", "scale", ".5" );
+	wait( .1 );
+
+	//--- Rear Lcar Left
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1764 -38468 252", "angles", "30.000000 315.000000 0.000000", "scale", ".5" );
+	wait( 1.65 );
+	
+	//--- show the shuttle flyby
+	shuttleFlyBy();
+	wait( 1.5 );
+	
+	$shuttlesydney.playdialog( "localization/sound/dialog/m8l1/syd_crash.mp3", 1, 20000, 0 ); //Controls aren’t responding! Prepare for crash landing!
+	waitForDialog( $shuttlesydney );
+	
+	//--- Top move lcar edge: Jurot
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1580 -38500 300", "angles", "15.000000 90.000000 0.000000", "scale", ".5" );
+
+	//--- under Counter: Jurot
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1516 -38492 228", "angles", "45.000000 150.000000 60.000000", "scale", ".25" );
+	spawn( "fx/fx-smoke-gray-directional.tik", "targetname", "smoke3", "origin", "-1516 -38492 228", "angles", "45.000000 150.000000 60.000000", "scale", "1.5" );
+	wait( .5 );
+	
+	Lightning_On = 0;
+	
+	$shuttlekorban.playdialog("localization/sound/dialog/m8l1/korban_daydie.mp3", 1, 20000, 0); //It is a good day to die.
+	waitForDialog( $shuttlekorban );
+
+	//--- Middle of Lcar, Right Side: Chang
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1516 -38308 252", "angles", "-15.000000 225.000000 0.000000", "scale", ".5" );
+	spawn( "fx/fx-smoke-gray-directional.tik", "targetname", "smoke4", "origin", "-1508 -38304 252", "angles", "15.000000 210.000000 0.000000", "scale", "1" );
+	wait( .5 );
+
+	$shuttlechang.playdialog("localization/sound/dialog/m8l1/chang_overcast.mp3", 1, 20000, 0); //Not that good a day. Kind of overcast.
+	waitForDialog( $shuttlechang );
+	
+	//Rock the camera!
+	thread shuttleStrike();
+
+	//--- Front and Center: Under Counter
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1468 -38388 228", "angles", "15.000000 165.000000 0.000000", "scale", "1.5" );
+	
+	$shuttlekorban.playdialog("localization/sound/dialog/m8l1/korban_rrr.mp3", 1, 20000, 0); //Rrr
+	waitForDialog( $shuttlekorban );
+
+	//Rock the camera!
+	thread shuttleStrike();
+		
+	//--- Front and Center: Under Counter
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1468 -38416 228", "angles", "0.000000 195.000000 0.000000", "scale", "1" );
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1468 -38388 228", "angles", "15.000000 165.000000 0.000000", "scale", "1.5" );
+	spawn( "fx/fx-explosion-sparkshower-intense.tik", "origin", "-1516 -38308 252", "angles", "-15.000000 225.000000 0.000000", "scale", ".5" );
+	wait( 1 );
+
+	thread shuttleStrikeCrash();	
+}
+
+//---------------------
+// shuttleFlyBy
+// flyby of the shuttle
+//------------------------
+void shuttleFlyBy()
+{
+	//--- Fade Out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .6 );
+
+	letterbox( .1 );
+	freezeplayer();
+	cinematic();
+	wait( .2 );
+	
+	//--- Set spline speeds for cam path
+	float x;
+	entity currentSpline;
+	for( x = 9; x >= 1; x-- )
+	{
+		currentSpline = getentity( "cam3Spline" + x );
+		currentSpline.speed( 2 );
+	}
+
+
+	$cam3.cut();
+	$cam3.follow ( $cam3Spline1 );
+	$cam3.watch( "$shuttleExterior" );
+	cuecamera ( $cam3 );
+	wait( .2 );
+	
+	//--- Start & Fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 3.75 );
+	
+	//--- fade out and set the level up
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	$shuttleSmoke1.remove();
+	$shuttleSmoke2.remove();
+	
+	clearletterbox( .1 );
+	wait( .2 );
+	
+	cueplayer();
+	releaseplayer();
+	noncinematic();
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 ) ;
+}
+
+void shuttleStrikeCrash()
+{
+	//--- Fade Out
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait ( 2.25 );
+	
+	//freezeplayer();
+	//cinematic();
+
+	$smoke1.remove();
+	$smoke2.remove();
+	$smoke3.remove();
+	$smoke4.remove();
+	
+	$shuttlekorban.remove();
+	$shuttlesydney.remove();
+	$shuttlejurot.remove();		
+	$shuttlechang.remove();
+	
+	//turn effects on / off
+	$world.wind_intensity( 2 );	
+	$world.entity_fade_dist( 10000 );
+	$world.farplane_color ( '0.1 0.12 0.1' );
+	$world.farplane ( 3200 );
+	
+	Lightning_On = 0;
+	shuttleShake_On = 0;
+	shuttleRideEarthquakes_On = 0;
+	lurkersFollowPath_On = 0;
+	treesFlyingBy_On = 0;
+	
+	//initPlayer();
+	
+	//wait( 3 );
+	
+	$player.warp( '10548 -8764 -748' );
+	wait( .05 );
+	$player.turntowardsentity( $sydney );
+	wait( .05 );
+	
+	//releaseplayer();
+	//noncinematic();
+	
+	//cam_fadein( 4, 0, 0, 0, 1, 0 ) ;
+	
+	$crashedShuttle9.solid();
+	
+	//thread openingDialogue();
+	//thread globalCommon_OnDamage ( $crashedShuttle9 , "ShuttleDoor_Destroyed" );
+	thread cinematicArm_PostCrash_Start();
+}
+*/
+
+void testSpaceShuttle()
+{
+	$shuttleSpace_Body.scale( .1 );
+	$shuttleSpace_Door.scale( .1 );
+    	
+	$cam1.fov( 85 );
+	$cam1.cut();
+	$cam1.follow( $m8l1a_Space_FlyIn_Shot1 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	wait( .1 );
+	
+	$cam1.pause();
+	
+	thread cinematicIntro_SpaceFlyIn_ScaleShuttleUp();
+	$shuttleSpace_Origin.followPath( $m8l1a_Space_FlyIn_Shuttle );
+	wait( 1 );
+	
+	$cam1.continue();
+	wait( 4 );
+	
+	thread cinematicIntro_SpaceFlyIn_ScaleShuttleDown();
+	wait( 10 );
+	
+	cueplayer();
+}
+
+void testSpaceStop()
+{
+	$shuttleSpace_Origin.endPath();
+
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn
+// 	shuttle fly's towards the planet
+//---------------------
+void cinematicIntro_SpaceFlyIn()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//--- set the music
+	music( "aux1" );
+	
+	//--- load the camera paths
+	cam.load( "m8l1a_Space_FlyIn_Shuttle" );
+	cam.load( "m8l1a_Space_FlyIn_Shot1" );
+	cam.load( "m8l1a_Crash_Shuttle" );
+	cam.load( "m8l1a_Crash_FlyBy_Shot1" );
+	cam.load( "m8l1a_Crash_FlyBy_Shot2" );
+	wait( .25 );
+
+	//--------------------------------------------------------
+	//shot1 shuttle fly's by the camera
+	
+	//--- set camera
+	$cam1.fov( 85 );
+	$cam1.cut();
+	$cam1.follow( $m8l1a_Space_FlyIn_Shot1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( .1 );
+	
+	$cam1.pause();
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	//--set skipthread
+	skipthread( "cinematicArm_PostCrash_ArmEnd");
+		
+	//--- make the shuttle fly it's path and scale it
+	thread cinematicIntro_SpaceFlyIn_ScaleShuttleUp();
+	$shuttleSpace_Origin.followPath( $m8l1a_Space_FlyIn_Shuttle );
+	wait( 1 );
+	
+	$cam1.continue();
+	wait( 4 );
+	
+	thread cinematicIntro_SpaceFlyIn_ScaleShuttleDown();
+	wait( 4.75 );
+
+	//--- fade the camera out
+	cam_fadeout( 1, 0, 0, 0, 1 );
+	wait( 2 );
+	
+	//--------------------------------------------------------
+	//shot2 the armature in the shuttle
+	cinematicArm_Flight.beginCinematic( "m8-shuttlecrash" );
+	boolArmShuttleFlightPlayed = TRUE;
+
+	//--set the world
+	$world.entity_fade_dist( 20000 );
+	$world.farplane_color ( '0.1 0.11 0.1' );
+	$world.farplane ( 4000 );
+	$starDome.hide();
+	wait( .1 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( 2, 1, 60 );
+	wait( 1 );
+	
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( .2, 4, 60 );
+	wait( 4 );
+	
+	//--- THE LIGHTNING STRIKE HAPPENS HERE
+	thread cinematicIntro_SpaceFlyIn_LightningStrike();
+	thread cinematicIntro_SpaceFlyIn_ShuttleSparks();
+	
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( 2, 2, 60 );
+	
+	wait( 2 );
+	
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( .2, 4, 60 );
+	
+	wait( 4 );
+
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( 2, 1, 60 );
+	
+	wait( 1 );
+
+	//hzm coop mod chrissstrahl - play erathquake on all players, instead of just on $player
+	globalCoop_player_earthquake( .2, 4.5, 60 );
+	
+	wait( 5 );	
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn_ScaleShuttleUp
+// 	scale the shuttle up on the first part of it's path
+//---------------------
+void cinematicIntro_SpaceFlyIn_ScaleShuttleUp()
+{
+	float i;
+	
+	for( i = .1 ; i <= .25 ; i += .005 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .12 );
+    }
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn_ScaleShuttleDown
+// 	scale the shuttle down on the last part of it's path
+//---------------------
+void cinematicIntro_SpaceFlyIn_ScaleShuttleDown()
+{
+	float i;
+	
+	for( i = .25 ; i >= .01 ; i -= .005 )
+	{
+    	$shuttleSpace_Body.scale( i );
+    	$shuttleSpace_Door.scale( i );
+    	wait( .11 );
+    }
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn_LightningStrike
+// 	flash the lightning
+//---------------------
+void cinematicIntro_SpaceFlyIn_LightningStrike()
+{
+	while( 1 )
+	{
+    	$lightningShuttle1.show();
+    	wait( .3 );
+    	
+    	$lightningShuttle2.show();
+    	wait( .1 );
+    	
+    	$lightningShuttle2.hide();
+    	wait( .2 );
+    	
+    	$lightningShuttle1.hide();
+    	wait( .2 );
+    	$lightningShuttle2.show();
+    	wait( .2 );
+    	
+    	$lightningShuttle2.hide();
+    	$lightningShuttle1.hide();
+    	wait( 1 );
+    }
+}
+
+//---------------------
+// 	cinematicIntro_SpaceFlyIn_ScaleShuttleDown
+// 	activate the interior sparks
+//---------------------
+void cinematicIntro_SpaceFlyIn_ShuttleSparks()
+{
+	while( 1 )
+	{
+    	triggerEntity( $spawnerShuttleStrike1 );
+    	wait( .2 );
+    	
+    	triggerEntity( $spawnerShuttleStrike4 );
+    	wait( .1 );
+    	triggerEntity( $spawnerShuttleStrike2 );
+    	wait( .4 );
+    	
+    	triggerEntity( $spawnerShuttleStrike8 );
+    	wait( .1 );
+    	triggerEntity( $spawnerShuttleStrike6 );
+    	wait( .4 );
+    	
+    	triggerEntity( $spawnerShuttleStrike5 );
+    	wait( .1 );
+    	triggerEntity( $spawnerShuttleStrike3 );
+    	wait( .3 );
+    	
+    	triggerEntity( $spawnerShuttleStrike7 );
+    }
+}
+
+void testLoad()
+{
+	cam.load( "m8l1a_Crash_Shuttle" );
+	cam.load( "m8l1a_Crash_FlyBy_Shot1" );
+	cam.load( "m8l1a_Space_FlyIn_Shuttle" );
+	cam.load( "m8l1a_Space_FlyIn_Shot1" );	//60
+}
+
+void testShuttleFly()
+{
+	cam.load( "m8l1a_Crash_Shuttle" );
+	cam.load( "m8l1a_Crash_FlyBy_Shot1" );
+	cam.load( "m8l1a_Crash_FlyBy_Shot2" );
+	wait( .1 );
+	
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $m8l1a_Crash_FlyBy_Shot1 );
+	
+	cuecamera( $cam1 );
+	
+	$shuttleFlyBy_Origin.followPath( $m8l1a_Crash_Shuttle );
+}
+
+	//$world.entity_fade_dist( 10000 );
+	//$world.farplane_color ( '0.1 0.11 0.1' );
+	//$world.farplane ( 3200 );
+	
+	//$world.farplane_cull( 1 );
+	
+	
+//---------------------
+// 	cinematicIntro_Crash
+// 	fly by of the shuttle as it crashes
+//---------------------
+void cinematicIntro_Crash()
+{
+	$world.weather( "rain", 200 );
+	wait( .1 );
+	
+	//--------------------------------------------------------
+	//shot1 shuttle fly's by the camera
+	
+	//--- set camera
+	$cam1.fov( 80 );
+	$cam1.cut();
+	$cam1.follow( $m8l1a_Crash_FlyBy_Shot1 );
+
+	cuecamera( $cam1 );
+	wait( .2 );
+
+	//--- make the shuttle fly along it's path
+	$shuttleFlyBy_Origin.followPath( $m8l1a_Crash_Shuttle );
+
+	//--set skipthread
+	//skipthread( "cinematicArm_PostCrash_ArmEnd");
+
+	thread globalCineFX_CameraFOVLerp( $cam1, 80, 60, 4, "rampupdown" );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	
+	//--- scale the shuttle up to fake distance
+	thread cinematicIntro_Crash_ScaleShuttle();
+	wait( 4 );
+
+	//--- first lightning
+	$lightningFlyBy1.show();
+	wait( .1 );
+	
+	$lightningFlyBy1.hide();
+	wait( .1 );
+	
+	$lightningFlyBy1.show();
+	wait( .2 );
+	
+	$lightningFlyBy1.hide();
+	wait( .05 );
+	
+	$lightningFlyBy1.hide();
+	wait( .2 );
+
+	$lightningFlyBy1.show();
+	wait( .1 );
+	
+	$lightningFlyBy1.hide();
+	wait( 2 );
+
+	//--- second lightning
+	$lightningFlyBy2.show();
+	wait( .1 );
+	
+	$lightningFlyBy2.hide();
+	wait( .1 );
+	
+	$lightningFlyBy2.show();
+	wait( .2 );
+	
+	$lightningFlyBy2.hide();
+	wait( .05 );
+	
+	$lightningFlyBy2.hide();
+	wait( .2 );
+
+	$lightningFlyBy2.show();
+	wait( .1 );
+	
+	$lightningFlyBy2.hide();
+	wait( .5 );
+
+	cam_fadeout( .3, 0, 0, 0, 1 );
+	wait( .3 );
+
+	//--------------------------------------------------------
+	//shot2 POV as shuttle crashes
+	
+	//--- set camera
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m8l1a_Crash_FlyBy_Shot2 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	cam_fadein( .3, 0, 0, 0, 1 );
+	
+	wait( 2.5 );
+	
+	//--- fade to white
+	cam_fadeout( .3, 0, 0, 0, 1 );
+	wait( 2.5 );
+	
+	//--- start the armature crash sequence
+	thread cinematicArm_PostCrash_Start();
+}
+
+//---------------------
+// 	cinematicIntro_Crash_ScaleShuttle
+// 	scale the shuttle up on the first part of it's path
+//---------------------
+void cinematicIntro_Crash_ScaleShuttle()
+{
+	float i;
+	
+	for( i = .1 ; i <= .5 ; i += .01 )
+	{
+    	$shuttleFlyBy_Body.scale( i );
+    	$shuttleFlyBy_Nacelle.scale( i );
+    	$shuttleFlyBy_FX.scale( i );
+    	$shuttleFlyBy_Door.scale( i );
+    	wait( .1 );
+    }
+}
+
+//---------------------
+// cinematicArm_PostCrash_Start
+// post crash sequence between 
+//---------------------
+void cinematicArm_PostCrash_Start()
+{
+	$world.weather( "rain", 0 );
+
+	//--- set the flag that the armature has played
+	boolArmShuttleCrashPlayed = TRUE;
+		
+	//--- show the shuttle
+	$crashedShuttle.show();
+	$crashedShuttle0.show();
+	$crashedShuttle1.show();
+	$crashedShuttle2.show();
+	$crashedShuttle3.show();
+	$crashedShuttle4.show();
+	$crashedShuttle5.show();
+	$crashedShuttle6.show();
+	$crashedShuttle7.show();
+	$crashedShuttle8.show();
+	$crashedShuttle9.show();
+	$crashedShuttleFX.show();
+	$crashedShuttleNacelle.show();
+	$crashedShuttleNacelleFX.show();	
+
+	//--- start the armature
+	cinematicArm_PostCrash.beginCinematic( "m7m8_crash" );
+	wait( .5 );
+	
+	//--- fade in
+	//cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	//--- set the skipthread
+	//skipthread( "cinematicArm_PostCrash_ArmEnd" );
+}
+
+//---------------------
+// cinematicArm_PostCrash_ArmEnd
+// skipthread for cinematic
+//---------------------
+void cinematicArm_PostCrash_ArmEnd()
+{
+	//--- set the skipthread and kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicIntro_SpaceFlyIn" );
+	killthread( "cinematicIntro_SpaceFlyIn_ScaleShuttleUp" );
+	killthread( "cinematicIntro_SpaceFlyIn_ScaleShuttleDown" );
+	killthread( "cinematicIntro_SpaceFlyIn_LightningStrike" );
+	killthread( "cinematicIntro_SpaceFlyIn_ShuttleSparks" );
+	killthread( "cinematicIntro_Crash_ScaleShuttle" );
+	killthread( "cinematicIntro_Crash" );
+	killthread( "cinematicArm_PostCrash_Start" );
+	killthread( "cinematicArm_PostCrash_Finish" );
+	
+	//if( boolArmShuttleCrashPlayed != TRUE )
+	//{		
+    	//fade to black
+    	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+    //}
+    
+    wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	//if( boolArmShuttleFlightPlayed == TRUE )
+	//{
+		cinematicArm_Flight.endCinematic( FALSE );
+	//}
+
+	//if( boolArmShuttleCrashPlayed == TRUE )
+	//{
+		cinematicArm_PostCrash.endCinematic( FALSE );
+	//}
+
+	//--- set the player
+	
+	//hzm coop mod chrissstrahl - make all player turn towards the shuttle
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.turnTowardsEntity( $crashedShuttle );
+		}
+	}
+	
+	//--- setup the player	
+	initPlayer();
+
+	//--- setup the world fog
+	$world.entity_fade_dist( 12000 );
+	$world.farplane_color ( '0.1 0.11 0.1' );
+	$world.farplane ( 3250 );
+	$world.farplane_cull( 1 );
+	$world.weather( "rain", 200 );
+	
+	//--- setup the sky
+	$starDome.hide();
+	
+	//--- remove the flyby shuttle
+	$shuttleFlyBy_Body.remove();
+	$shuttleFlyBy_Nacelle.remove();
+	$shuttleFlyBy_FX.remove();
+	$shuttleFlyBy_Door.remove();
+
+	//--- show the crashed shuttle
+	$crashedShuttle.show();
+	$crashedShuttle0.show();
+	$crashedShuttle1.show();
+	$crashedShuttle2.show();
+	$crashedShuttle3.show();
+	$crashedShuttle4.show();
+	$crashedShuttle5.show();
+	$crashedShuttle6.show();
+	$crashedShuttle7.show();
+	$crashedShuttle8.show();
+	$crashedShuttle9.show();
+	$crashedShuttleFX.show();
+	$crashedShuttleNacelle.show();
+	$crashedShuttleNacelleFX.show();	
+	wait( 1 );
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .5 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .3 );
+
+	
+	//hzm coop mod chrissstrahl - make all player use that weapon right now
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.use( "FieldAssaultRifle" );
+		}
+	}
+
+	//--- set the music
+	music( "normal" );
+}
+
+/*
+//---------------------
+// openingDialogue
+// dialogue in the opening scene to M8
+//---------------------
+void openingDialogue()
+{
+	wait( 1 );
+	
+	$jurot.playdialog("localization/sound/dialog/m8l1/jurot_whoninj.mp3", 1, 8000, 1); //Who's injured?
+	waitForDialog( $jurot );
+	$korban.playdialog("localization/sound/dialog/m8l1/korba_morethan.mp3", 1, 8000, 1); //It takes a lot more than that to injure a Klingon.
+	waitForDialog( $korban );
+	$chang.playdialog("localization/sound/dialog/m8l1/chang_finetoo.mp3", 1, 8000, 1); //I'm fine too.
+	waitForDialog( $chang );
+	$munro.playdialog("localization/sound/dialog/m8l1/munro_sydsyd.mp3", 1, 8000, 1); //Sydney? Sydney?!
+	waitForDialog( $munro );
+	$munro.playdialog("localization/sound/dialog/m8l1/munro_gether.mp3", 1, 8000, 1); //We need to get her out of here.
+	waitForDialog( $munro );
+	$jurot.playdialog("localization/sound/dialog/m8l1/jurot_medemer.mp3", 1, 8000, 1); //Jurot to Enterprise. Medical emergency. Enterprise?
+	waitForDialog( $jurot );
+	$chang.playdialog("localization/sound/dialog/m8l1/chang_inter.mp3", 1, 8000, 1); //Must be interference from the electrical storm.
+	waitForDialog( $chang );
+	$korban.playdialog("localization/sound/dialog/m8l1/korban_doorstuck.mp3", 1, 8000, 1); //Rrrrgh…. The door is stuck.
+	waitForDialog( $korban );
+	$korban.playdialog("localization/sound/dialog/m8l1/korban_openstuck.mp3", 1, 8000, 1); //What are we waiting for? Klingons know how to open stuck doors!
+	waitForDialog( $korban );
+	$chang.playdialog("localization/sound/dialog/m8l1/chang_guess.mp3", 1, 8000, 1); //Guess we won't be taking the shuttle back.
+	waitForDialog( $chang );
+	$jurot.playdialog("localization/sound/dialog/m8l1/jurot_suttcomm.mp3", 1, 8000, 1); //The shuttle’s communication system is not functioning. We’ll need to repair it. Munro, there is nothing you can do here for Sydney. Can you scout ahead and try to find a way to contact Krindo?
+	waitForDialog( $jurot );
+	$korban.playdialog("localization/sound/dialog/m8l1/korban_tellhim.mp3", 1, 8000, 1); //Tell him I am coming for him.
+	waitForDialog( $korban );
+	$munro.playdialog("localization/sound/dialog/m8l1/munro_protsyd.mp3", 1, 8000, 1); //No. You're staying here to protect Sydney. I'm gonna scout out the entrance to the ruins.
+	waitForDialog( $munro );
+	$korban.playdialog("localization/sound/dialog/m8l1/korban_takepoint.mp3", 1, 8000, 1); //Why do you always go off alone? The leader should never take point!
+	waitForDialog( $korban );
+	$munro.playdialog("localization/sound/dialog/m8l1/munro_seeyousoon.mp3", 1, 8000, 1); //Thanks. See you soon.
+	waitForDialog( $munro );
+}
+*/
+
+//=============================================================================
+// Level Sequences
+//=============================================================================
+
+//---------------------
+// mortarPositionSequence1
+// mortar attack position to knock over tower, blocking player progress
+//---------------------
+void mortarPositionSequence1()
+{
+	//projectileattackentity( string projectilename.tik, string $tagName, [float trajectoryangle], [float lifespan]
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos3" , 70 );
+	wait( .5 );
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos2" , 70 );
+	wait( .5 );
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos1" , 70 );
+}
+
+void setupMortarSequence1()
+{
+	$mortarTargetPos1.onDamage( "blockPath1" );
+	pause();
+}
+
+void blockPath1()
+{
+	$mortarTargetPos1.remove();
+	$mortarTargetPos2.remove();
+	$mortarTargetPos3.remove();
+
+	trigger( "$towerHitEffect" );
+
+        music ("aux2");
+
+	$fallingTower1.time( .2 );
+
+	$fallingTower1.playsound ( "sound/impact/explosion/explo_tower.wav" , 8 , 2 , 2000 );
+
+	float j;
+	float k=0;
+	vector fall;
+
+		for ( j=0; (fall_z==0) || (fall_z>302) ; j+=.2)
+		{
+			k += j;
+			$fallingTower1.rotateZdown( k );
+			 fall = $fallingTower1.getAngles();
+			//print( fall_z + "\n" );
+			waitfor ( $fallingTower1 );
+
+
+		}
+			$fallingTower1.playsound ( "sound/impact/explosion/explo_wall1.wav" , 8 , 1 , 2000 );
+                        $fallingTower1.playsound ( "sound/impact/water/water_splash.wav" , 4 , 1 , 2000 );
+	trigger( "$towerFallQuake" );
+	wait( .1 );
+	trigger( "$towerFallEffects" );
+}
+
+//=============================================================================
+// Beam in Idryll AI
+//=============================================================================
+
+//---------------------
+// triggerBeamIn1
+// first beam in of idryll ai
+//---------------------
+void triggerBeamIn1()
+{
+	$beamIn_1_trigger.remove();
+
+	wait( 2 );
+	
+	$idryll_soldier1.solid();
+	$idryll_soldier1.show();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier1.aggressive(1);
+	
+	$idryll_soldier1.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier1.ai_on();
+
+	$idryll_soldier2.solid();
+	$idryll_soldier2.show();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier2.aggressive(1);
+	
+	$idryll_soldier2.displayEffect( "TransportIn", "Idryll" );
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier2.aggressive(1);
+	
+	$idryll_soldier2.ai_on();
+
+	$idryll_soldier3.solid();
+	$idryll_soldier3.show();
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier3.aggressive(1);
+	
+	$idryll_soldier3.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier3.ai_on();
+
+	//$idryll_soldier4.solid();
+	//$idryll_soldier4.show();
+	//$idryll_soldier4.attack( $player, 1 );
+	//$idryll_soldier4.displayEffect( "TransportIn", "Idryll" );
+	//$idryll_soldier4.ai_on();
+	//---begin random mortar attacks after soldiers beam in
+	thread movingMortarPostion();
+}
+
+//---------------------
+// triggerBeamIn2
+// second beam in of idryll ai
+//---------------------
+void triggerBeamIn2()
+{
+	$idryll_soldier9.solid();
+	$idryll_soldier9.show();
+	$idryll_soldier9.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier9.ai_on();
+
+	$idryll_soldier10.solid();
+	$idryll_soldier10.show();
+	$idryll_soldier10.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier10.ai_on();
+
+	//$idryll_soldier11.solid();
+	//$idryll_soldier11.show();
+	//$idryll_soldier11.displayEffect( "TransportIn", "Idryll" );
+	//$idryll_soldier11.ai_on();
+	$idryll_soldier11.remove(); //remove for performance issues				
+}
+
+//---------------------
+// triggerBeamIn3
+// second beam in of idryll ai
+//---------------------
+void triggerBeamIn3()
+{
+	$idryll_soldier19.solid();
+	$idryll_soldier19.show();
+	$idryll_soldier19.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier19.ai_on();
+
+	$idryll_soldier20.solid();
+	$idryll_soldier20.show();
+	$idryll_soldier20.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier20.ai_on();
+
+	$idryll_soldier21.solid();
+	$idryll_soldier21.show();
+	$idryll_soldier21.displayEffect( "TransportIn", "Idryll" );
+	$idryll_soldier21.ai_on();
+}
+
+//---------------------
+// idryllAmbush1
+// group-death-thread, trigger mortar fire to open passage after soldiers are dead
+//---------------------
+void idryllAmbush1()
+{
+	//---stop random mortar attacks
+	killthread( "movingMortarPostion" );
+	$mortarMovingTargetPos1.remove();
+	wait( 3 );
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos4" , 70 );
+	wait( 2 );
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos5" , 70 );
+	wait( 3 );
+	$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarTargetPos6" , 70 );
+}
+
+void setupMortarSequence2()
+{
+	$mortarTargetPos4.onDamage( "destroyBridge1" );
+	pause();
+}
+
+void destroyBridge1()
+{
+	trigger( "$towerFallQuake" );
+	trigger( "$bridgeDebris1Effect" );
+	$mortarTargetPos4.playsound ( "sound/impact/explosion/explo_wall1.wav" , 5 , 1 , 2000 );
+	$mortarTargetPos4.remove();
+	$bridgeDebris1.hide();
+}
+
+void setupMortarSequence3()
+{
+	$mortarTargetPos6.onDamage( "destroyBridge2" );
+	pause();
+}
+
+void destroyBridge2()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 215;
+	coop_float_spawnAngle1 				= 216;
+	coop_float_spawnAngle2 				= 216;
+	coop_float_spawnAngle3 				= 216;
+	coop_float_spawnAngle4 				= 216;
+	coop_float_spawnAngle5 				= 216;
+	coop_float_spawnAngle6 				= 216;
+	coop_float_spawnAngle7 				= 216;
+	coop_float_spawnAngle8 				= 216;
+	coop_vector_spawnOrigin1 			= '1778 -10225 -200';
+	coop_vector_spawnOrigin2 			= '1848 -10225 -200';
+	coop_vector_spawnOrigin3 			= '1918 -10225 -200';
+	coop_vector_spawnOrigin4 			= '1988 -10225 -200';
+	coop_vector_spawnOrigin5 			= '2058 -10225 -200';
+	coop_vector_spawnOrigin6 			= '2128 -10225 -200';
+	coop_vector_spawnOrigin7 			= '2198 -10225 -200';
+	coop_vector_spawnOrigin8 			= '2268 -10225 -200';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	trigger( "$towerFallQuake" );
+	trigger( "$bridgeDebris2Effect" );
+	$mortarTargetPos6.playsound ( "sound/impact/explosion/explo_wall1.wav" , 5 , 1 , 2000 );
+	//$mortarTargetPos4.playsound ( "sound/impact/explosion/expl_debl.wav" , 4 , 2 , 10000 );
+	$mortarTargetPos6.remove();
+	$bridgeDebris2.remove();
+}
+
+void emitter_optmizer()
+{
+	$crashedShuttleNacelleFX.remove();
+	$crashedShuttleFX.remove();
+	$front_emitter1.remove();
+	$back_emitter1.show();
+	
+}
+
+//---------------------
+// movingMortarPostion
+// controls splinepath setup for random mortar hit locations
+//---------------------
+void movingMortarPostion()
+{
+	$mortarMovingTargetPos1.followpath ( $mortarMovingTargetPath1 , "loop" );
+		while( 1 )
+		{
+			$mortarLaunchPos1.projectileattackentity( "projectile/projectile_idryll_mortar.tik" , "$mortarMovingTargetPos1" , 60, 10 );
+			wait( 1 + randomfloat( 7 ));
+		}
+}
+
+//------------------------
+// secret stuff
+//------------------------
+
+void seqsecret1()
+{
+	$secret1.show();
+}
+
+void seqsecret2()
+{
+	$secret2.show();
+}
+
+
+//=============================================================================
+// AI Activation Stuff
+//=============================================================================
+
+//------------------------
+// activateIdryllSniper1
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSniper1()
+{
+	$idryll_sniper1.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_sniper1.aggressive(1);
+}
+
+//------------------------
+// activateIdryllSoldier1
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSoldier1()
+{
+	$idryll_soldier7.ai_on();
+	$idryll_soldier8.ai_on();
+}
+
+//------------------------
+// activateIdryllSoldier2
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSoldier2()
+{
+	//$idryll_soldier5.ai_on();
+	$idryll_soldier6.ai_on();
+}
+
+//------------------------
+// activateIdryllSoldier3
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSoldier3()
+{
+	$idryll_soldier12.show();
+	$idryll_soldier12.ai_on();
+	$idryll_soldier12.remove();//remove for performance issues 
+
+	$idryll_soldier13.show();
+	$idryll_soldier13.ai_on();
+
+	$idryll_soldier14.show();
+	$idryll_soldier14.ai_on();
+}
+
+//------------------------
+// activateIdryllSoldier4
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSoldier4()
+{
+	$idryll_soldier15.show();
+	$idryll_soldier15.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier15.aggressive(1);
+
+	$idryll_soldier16.show();
+	$idryll_soldier16.ai_on();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_soldier16.aggressive(1);
+	
+	$idryll_sniper2.ai_on ();
+	
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_sniper2.aggressive(1);
+}
+
+//------------------------
+// activateIdryllSoldier5
+// turn on specified ai via trigger volumes
+//------------------------
+
+void activateIdryllSoldier5()
+{
+	$idryll_soldier17.show();
+	$idryll_soldier17.ai_on();
+
+	$idryll_soldier18.show();
+	$idryll_soldier18.ai_on();
+}
+
+//---------------------
+// triggerSniper3
+// Wake up the sniper in the tower before the ruins entrance
+//---------------------
+void triggerSniper3()
+{
+	$idryll_sniper3.ai_on ();
+	//hzm coop mod chrissstrahl - make aggressive
+	$idryll_sniper3.aggressive(1);
+	/*$idryll_sniper3.attack ( $player );*/
+}
+
+
+
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatheringArea","coop_endLevel",100,'460 460 400','243 3705 21');
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m8l1b-drull_ruins2");
+}
+
+
+/*
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Intro Cinematic Functions
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////
+// Starts the lightning flashing.
+///////////////////////////////////
+void lightningFlash()			
+{
+	wait ( 2 );
+	float LightningTime;
+	float LightningBrightness;
+	float LightningCountFlashes;
+	float LightningWait;
+	float LightningVisualIndex;
+	float MAX_lightningFlashObjects;
+	float i;
+	float LightningLastFlash;
+	string lightningFlashName;
+	entity lightningFlashObject;
+
+	LightningVisualIndex = 1;
+	MAX_lightningFlashObjects = 4;
+
+	for ( i = MAX_lightningFlashObjects; i >= 1; i-- )
+		{
+		lightningFlashName = "lightning" + LightningVisualIndex;
+		lightningFlashObject = getentity( lightningFlashName );
+		lightningFlashObject.hide();
+		LightningVisualIndex += 1;
+		}
+
+	spawn( "func_earthquake", "targetname", "lightningQuake1");
+	
+	LightningVisualIndex = 1;
+
+	while( 1 )
+	{
+		wait( .05 );
+		while ( Lightning_On == 1 )
+		{
+			LightningWait = randomint ( 3 );		// Default 20
+			LightningWait += 3;				// Default 5
+
+			//print ( "Time Between Lightning " + LightningWait + "\n" );
+			wait ( LightningWait );
+
+			LightningCountFlashes = randomint ( 5 );
+			LightningCountFlashes += 3;
+
+			while (( LightningCountFlashes >= 1 ) && ( Lightning_On == 1 ))
+			{
+				LightningTime = randomfloat( 0.15 );
+				LightningTime += .05;
+				LightningBrightness = randomfloat ( 0.2 );
+				LightningBrightness += .2;
+
+				//print( "Count (" );
+				//printfloat( LightningCountFlashes );
+				//print( ") time (" );
+				//printfloat( LightningTime );
+				//print( ") Brightness (" );
+				//printfloat( LightningBrightness );
+				//print( ")\n" );
+				//newline;
+				
+				//Rock the camera!
+				$lightningQuake1.duration( 1 );
+				$lightningQuake1.magnitude( LightningBrightness + .2 );
+				
+				trigger( "$lightningQuake1" );
+				
+				lightningFlashName = "lightning" + LightningVisualIndex;
+				
+				lightningFlashObject = getentity( "lightning" + LightningVisualIndex );
+				
+				//print ( lightningFlashName + "\n" );
+
+				//lightningFlashObject = getentity( lightningFlashName );
+
+				//if ( LightningVisualIndex <= 4 )
+				//{
+				//	trigger( "$lightning_cloud2" );
+				//}
+				//if ( LightningVisualIndex > 4 )
+				//{
+				//	trigger( "$lightning_cloud1" );
+				//}
+
+				lightningFlashObject.show();
+				lightningFlashObject.fadein( .05 );
+				lightningFlashObject.alpha ( 1 );
+
+				if ( LightningCountFlashes <= 1 )
+				{
+					if ( LightningBrightness >= .5 )
+						lightningFlashObject.playsound( "sound/environment/weather/thunder1.wav", 6, .6, 100000 );
+					else
+						lightningFlashObject.playsound( "sound/environment/weather/lightning.wav", 6, .6, 100000 );
+				}
+				cam_fadeout( LightningTime, 1, 1, 1, LightningBrightness, 0 );
+				lightningFlashObject.fade( LightningTime, 0 );
+				wait ( LightningTime );
+				cam_fadein( LightningTime, 1, 1, 1, LightningBrightness, 0 );
+				LightningCountFlashes -= 1;
+
+				LightningLastFlash = LightningVisualIndex;
+				
+				while( LightningLastFlash == LightningVisualIndex )
+				{
+					LightningVisualIndex = randomint ( MAX_lightningFlashObjects ) + 1;
+				}
+			}
+			wait ( .5 );
+			//$lightning_cloud1_spawned.remove();
+			//$lightning_cloud2_spawned.remove();
+		}
+	}
+}
+
+////////////////////////////////
+// Make the lightning Strike Shuttle
+////////////////////////////////
+void shuttleStrike()			
+{
+	float LightningTime;
+	float LightningBrightness;
+	float LightningCountFlashes;
+	float LightningVisualIndex;
+	float MAX_lightningFlashObjects;
+	entity lightningFlashObject;
+
+	LightningVisualIndex = 1;
+	MAX_lightningFlashObjects = 2;
+
+	$lightningShuttle1.hide();
+	$lightningShuttle2.hide();
+	
+	spawn( "func_earthquake", "targetname", "lightningQuake2");
+	
+	LightningVisualIndex = 1;
+
+	LightningCountFlashes = 7;
+
+	while ( LightningCountFlashes >= 1 )
+	{
+		LightningTime = randomfloat( 0.15 ) + .05;
+		LightningBrightness = randomfloat ( 0.2 ) + .4;
+
+		//Rock the camera!
+		$lightningQuake2.duration( 1 );
+		$lightningQuake2.magnitude( LightningBrightness + .4 );
+
+		trigger( "$lightningQuake2" );
+
+		lightningFlashObject = getentity( "lightningShuttle" + LightningVisualIndex );
+
+		lightningFlashObject.show();
+		lightningFlashObject.fadein( .05 );
+		lightningFlashObject.alpha ( 1 );
+
+		if ( LightningCountFlashes <= 1 )
+		{
+			if ( LightningBrightness >= .9 )
+				lightningFlashObject.playsound( "sound/environment/weather/thunder1.wav", 6, .6, 100000 );
+			else
+				lightningFlashObject.playsound( "sound/environment/weather/lightning.wav", 6, .6, 100000 );
+		}
+		cam_fadeout( LightningTime, 1, 1, 1, LightningBrightness, 0 );
+		lightningFlashObject.fade( LightningTime, 0 );
+		wait ( LightningTime );
+		cam_fadein( LightningTime, 1, 1, 1, LightningBrightness, 0 );
+		LightningCountFlashes -= 1;
+
+		if( LightningVisualIndex == 1 )
+			LightningVisualIndex = 2;
+		else
+			LightningVisualIndex = 1;
+	}
+}
+
+///////////////////////////
+// Physicaly shake the shuttle
+///////////////////////////
+void shuttleShake()
+{
+	float randomXpos, randomYpos, randomZpos;
+	float randomXAngle, randomYAngle, randomZAngle;
+	
+	float randomTime;
+	
+	while( 1 )
+	{
+		wait( 1 );
+		while( shuttleShake_On == 1 )
+		{
+			randomXAngle = randomfloat( ( 2 ) - 1 );
+			randomYAngle = randomfloat( ( 2 ) - 1 );
+			randomZAngle = randomfloat( ( 2 ) - 1 );
+			
+			randomXpos = (( randomXAngle * 2 ) * -1 );
+			randomYpos = (( randomYAngle * 2 ) * -1 );
+			randomZpos = (( randomZAngle * 2 ) * -1 );
+			
+			//randomXpos = randomfloat( ( 50 ) - 25 );
+			//randomYpos = randomfloat( ( 50 ) - 25 );
+			//randomZpos = randomfloat( ( 50 ) - 25 );
+			
+			randomTime = randomfloat( ( .2 ) + .2 );
+			/////////////////////////////////////////////
+			$shuttleCenterOrigin.time( randomTime );
+			
+			$shuttleCenterOrigin.moveUp( randomXpos );
+			$shuttleCenterOrigin.moveNorth( randomYpos );
+			$shuttleCenterOrigin.moveEast( randomZpos );
+			
+			$shuttleCenterOrigin.rotateXup( randomXAngle );
+			$shuttleCenterOrigin.rotateYup( randomYAngle );
+			$shuttleCenterOrigin.rotateZup( randomZAngle );
+			
+			waitfor( $shuttleCenterOrigin );
+			/////////////////////////////////////////////
+			randomTime = randomfloat( ( .2 ) + .1 );
+			/////////////////////////////////////////////
+			$shuttleCenterOrigin.time( randomTime );
+			
+			$shuttleCenterOrigin.moveDown( randomXpos );
+			$shuttleCenterOrigin.moveSouth( randomYpos );
+			$shuttleCenterOrigin.moveWest( randomZpos );
+
+			$shuttleCenterOrigin.rotateXdown( randomXAngle );
+			$shuttleCenterOrigin.rotateYdown( randomYAngle );
+			$shuttleCenterOrigin.rotateZdown( randomZAngle );
+						
+			waitfor( $shuttleCenterOrigin );
+			/////////////////////////////////////////////
+		}
+	}
+}
+
+/////////////////////////////////
+// Makes Earthquakes Happen
+/////////////////////////////////
+void earthQuakeLoopIGM5()
+{
+	spawn( "func_earthquake", "targetname", "atmosphereQuake1");
+	spawn( "func_earthquake", "targetname", "atmosphereQuake2");
+	wait( .05 );
+	
+	$atmosphereQuake1.duration( 3 );
+	$atmosphereQuake1.magnitude( .03 );
+	
+	$atmosphereQuake2.duration( 3 );
+	$atmosphereQuake2.magnitude( .05 );
+	
+	wait( .05 );
+	while( 1 )
+	{
+		wait( 1 );
+		while( shuttleRideEarthquakes_On == 1 )
+		{
+			trigger( "$atmosphereQuake1" );
+			wait( 1.5 );
+			trigger( "$atmosphereQuake2" );
+			wait( 1.5 );
+		}
+	}
+}
+
+///////////////////////////////
+// This thread Sets up the aliend to fly Past the shuttle
+///////////////////////////////
+void alienFlyByIGM5()
+{
+	float x = 0;
+	
+	string lurkerName;
+	
+	entity entityLurkerName;
+	entity entityLurkerSplineToFollowPath;
+	
+	
+	setSplineSpeeds( "lurkerSplinea", 4, .5 );
+	setSplineSpeeds( "lurkerSplineb", 4, .5 );
+	setSplineSpeeds( "lurkerSplinec", 4, .5 );
+	setSplineSpeeds( "lurkerSplined", 4, .5 );
+	setSplineSpeeds( "lurkerSplinee", 4, .5 );
+	setSplineSpeeds( "lurkerSplinef", 4, .5 );
+	setSplineSpeeds( "lurkerSplineg", 4, .5 );
+	setSplineSpeeds( "lurkerSplineh", 4, .5 );
+	setSplineSpeeds( "lurkerSplinei", 4, .5 );
+	setSplineSpeeds( "lurkerSplinej", 4, .5 );
+	setSplineSpeeds( "lurkerSplinek", 4, .5 );
+	setSplineSpeeds( "lurkerSplinel", 4, .5 );
+	setSplineSpeeds( "lurkerSplinem", 4, .5 );
+	setSplineSpeeds( "lurkerSplinen", 4, .5 );
+	setSplineSpeeds( "lurkerSplineo", 4, .5 );
+	
+	for( x = 0; x <= 49; x++ )
+	{
+		lurkerName = "lurker" + x;
+	
+		globalCommon_SpawnScriptModel( "enviro/attrexian_lurker-inflight.tik", lurkerName, '19968 -22272 -5000', 0 );
+		
+		entityLurkerName = getentity( lurkerName );
+		
+		entityLurkerName.scale( 4 );
+		//entityLurkerName.anim( "inflight" );
+		entityLurkerName.hide();
+	}
+	
+	x = 0;
+	
+	while( 1 )
+	{
+		wait( 1 );
+		while( lurkersFollowPath_On == 1 )
+		{
+			entityLurkerSplineToFollowPath = getRandomLurkerSpline();
+
+			if( x == 50 ){ x = 0; }
+
+			lurkerName = "lurker" + x;
+
+			entityLurkerName = getentity( lurkerName );
+			wait( .2 );
+
+			entityLurkerName.followpath( entityLurkerSplineToFollowPath, "normalangles" );
+
+			entityLurkerName.show();
+
+			x++;
+		}
+	}
+}
+
+/////////////////////////////////////
+// Function to adjust Lurker Speed
+/////////////////////////////////////
+void setSplineSpeeds( string lurkerSplineName, float lurkerSplineNumber,  float lurkerSplineSpeed )
+{
+	float x;
+	
+	entity lurkerSplineEntityName;
+	string nakedLurkerSplineName;
+	
+	nakedLurkerSplineName = lurkerSplineName;
+	
+	for( x = 0; x < lurkerSplineNumber; x ++ )
+	{
+		lurkerSplineName = nakedLurkerSplineName + x;
+		
+		lurkerSplineEntityName = getentity( lurkerSplineName );
+		
+		lurkerSplineEntityName.speed( lurkerSplineSpeed );
+	}
+}
+
+
+
+/////////////////////////
+// Make Lurkers Fly on path
+/////////////////////////
+entity getRandomLurkerSpline()
+{
+	string stringLurkerSplinePathToFollow;
+	
+	entity entityLurkerSplinePathToFollow;
+		
+	float randomSplineNumber;
+	
+	randomSplineNumber = randomint( 15 );
+		
+	if( randomSplineNumber == 0 ){ stringLurkerSplinePathToFollow = "lurkerSplinea0"; }
+	if( randomSplineNumber == 1 ){ stringLurkerSplinePathToFollow = "lurkerSplineb0"; }
+	if( randomSplineNumber == 2 ){ stringLurkerSplinePathToFollow = "lurkerSplinec0"; }	
+	if( randomSplineNumber == 3 ){ stringLurkerSplinePathToFollow = "lurkerSplined0"; }
+	if( randomSplineNumber == 4 ){ stringLurkerSplinePathToFollow = "lurkerSplinee0"; }
+	if( randomSplineNumber == 5 ){ stringLurkerSplinePathToFollow = "lurkerSplinef0"; }
+	if( randomSplineNumber == 6 ){ stringLurkerSplinePathToFollow = "lurkerSplineg0"; }
+	if( randomSplineNumber == 7 ){ stringLurkerSplinePathToFollow = "lurkerSplineh0"; }
+	if( randomSplineNumber == 8 ){ stringLurkerSplinePathToFollow = "lurkerSplinei0"; }
+	if( randomSplineNumber == 9 ){ stringLurkerSplinePathToFollow = "lurkerSplinej0"; }
+	if( randomSplineNumber == 10 ){ stringLurkerSplinePathToFollow = "lurkerSplinek0"; }
+	if( randomSplineNumber == 11 ){ stringLurkerSplinePathToFollow = "lurkerSplinel0"; }
+	if( randomSplineNumber == 12 ){ stringLurkerSplinePathToFollow = "lurkerSplinem0"; }
+	if( randomSplineNumber == 13 ){ stringLurkerSplinePathToFollow = "lurkerSplinen0"; }
+	if( randomSplineNumber == 14 ){ stringLurkerSplinePathToFollow = "lurkerSplineo0"; }
+
+	entityLurkerSplinePathToFollow = getentity( stringLurkerSplinePathToFollow );
+	
+	return entityLurkerSplinePathToFollow;
+}
+
+////////////////////////////////////
+//function to make lurkers fly by
+////////////////////////////////////
+void treeFlyByIGM5()
+{
+	vector newTreePosition;
+	
+	float x = 0;
+	float randomTreeAngle;
+	float floatRandomTreeStartPosition = 0;
+	
+	string treeName;
+	
+	entity entityTreeName;
+	
+	for( x = 0; x <= 19; x++ )
+	{
+		treeName = "tree" + x;
+		randomTreeAngle = randomint( 360 );
+		
+		globalCommon_SpawnScriptModel( "enviro/drull2_tree1.tik", treeName, '19968 -22272 -5000', randomTreeAngle );
+		
+		entityTreeName = getentity( treeName );
+		
+		entityTreeName.scale( 6 );
+		entityTreeName.hide();
+	}
+	
+	x = 0;
+	
+	// x and z pos of trees
+	newTreePosition = '40000 0 -5000';
+	
+	while( 1 )
+	{
+		wait( 1 );
+		while( treesFlyingBy_On == 1 )
+		{
+			floatRandomTreeStartPosition = getRandomTreeStart();
+
+			if( x == 20 ){ x = 0; }
+
+			treeName = "tree" + x;
+
+			entityTreeName = getentity( treeName );
+			wait( .2 );
+
+			newTreePosition_y = floatRandomTreeStartPosition;
+			wait( .2 );
+			entityTreeName.origin( newTreePosition );
+
+			entityTreeName.speed( 10000 );
+			entityTreeName.moveWest( 80000 );
+
+			entityTreeName.show();
+
+			x++;
+		}
+	}
+}
+
+/////////////////////////////////
+// Makes Trees Fly By
+/////////////////////////////////
+float getRandomTreeStart()
+{
+	float randomTreeStartPosition = 0;
+	
+	//Origins Y ranges = valid pos
+	//63656 7992 -12792
+	//63720 -1304 -12792
+	
+	//Origins Y ranges = valid pos
+	//63736 -3608 -12792
+	//63816 -14392 -12792	
+	
+	
+	//7992 + 14392 = total range
+	//7992 + 1304 = total high range = 9296
+	//14392 - 3608 = total low range = 10784
+	
+	
+	//5376 -22272 -3584
+	//5376 -36864 -3584
+	
+	//5376 -55808 -3584
+	//5376 -40192 -3584
+	
+	//-22272 + -40192 = 62464
+	
+	//14592
+	//14592
+	
+	
+	
+	randomTreeStartPosition = randomint( 2 );
+
+	if( randomTreeStartPosition == 0 )
+	{
+		randomTreeStartPosition = randomint( 14592 );
+		randomTreeStartPosition = randomTreeStartPosition - 36864;
+	}
+	else if( randomTreeStartPosition == 1 )
+	{
+		randomTreeStartPosition = randomint( 14592 );
+		randomTreeStartPosition = randomTreeStartPosition - 55808;
+	}
+	
+	return randomTreeStartPosition;
+}
+*/
+
+
+
+

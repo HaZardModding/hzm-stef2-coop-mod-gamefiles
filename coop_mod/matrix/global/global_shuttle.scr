@@ -1,0 +1,886 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  M6L2 - Drull Ship 
+//  Script By:    J. Keehan
+//  Geometry By:  J. Keehan
+//  Created on:   06/06/2002
+//
+//-----------------------------------------------------------------
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEFINE SCRIPT
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void globalShuttle_Setup( string pilot, string copilot, string passangerPilot, string passangerCopilot );
+
+void globalShuttle_SendCharsToBoard( string pilot, string copilot, string passangerPilot, string passangerCopilot );
+void globalShuttle_CharToLoad( entity charToBoardShuttle, float shuttlePointToLoad );
+void globalShuttle_PutCharsInsideShuttle( string pilot, string copilot, string passangerPilot, string passangerCopilot );
+void globalShuttle_LoadCharacter( entity entityPilot, entity currentSeat, string animLetter );
+void globalShuttle_ForceCharacterInSeat( entity currentLoadingCharacter, entity currentSeat, string animLetter );
+void globalShuttle_OffLoadCharacter( string pilot, string copilot, string passangerPilot, string passangerCopilot );
+void globalShuttle_UnloadCharacter( entity currentOffLoadingCharacter, entity currentSeat, string animLetter, float shuttlePointToUnload );
+
+void globalShuttle_ChangeSeatState( entity currentSeat, float seatShouldClose, float timeToWait);
+
+void globalShuttle_ShuttleDoorWait();
+void globalShuttle_ShuttleDoorGo();
+void globalShuttle_ShuttleTakeOffWait();
+void globalShuttle_ShuttleTakeOffGo();
+
+void globalShuttle_OpenShuttleDoors();
+void globalShuttle_CloseShuttleDoors();
+void globalShuttle_ShuttleDoorOpen();
+void globalShuttle_ShuttleDoorClose();
+void globalShuttle_ShuttleTakeOffThread();
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float shuttleDoorsAreOpen = 0;
+float shuttleDoorsAreMoving = 0;
+float shuttleDoorsLocked = 0;
+float numberOfCharsReadyToBoard = 0;
+float numberOfCharsToLoad;
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  MAIN THREAD
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void globalShuttle_notsolid(entity e)
+{
+	if(doesEntityExist(e)){
+		e.notSolid();
+	}
+}
+
+void globalShuttle_anim(entity e,string sAnimName)
+{
+	if(doesEntityExist(e)){
+		e.anim("sAnimName");
+	}
+}
+
+
+void globalShuttle_bind(entity e , entity eOrigin)
+{
+	if(doesEntityExist( e )){
+		if(doesEntityExist( eOrigin )){
+			e.bind( eOrigin );
+		}
+	}
+}
+
+
+void globalShuttle_origin(entity e,vector vOrigin)
+{
+	if(doesEntityExist(e)){
+		e.origin(vOrigin);
+	}
+}
+
+
+
+//---------------------
+void globalShuttle_Setup( string pilot, string copilot, string passangerPilot, string passangerCopilot )
+//---------------------
+{
+	//------------------------------
+	// System is funny (not funny happy) and dosent update the position
+	// of all bound objects ot the origin unless you move it afterwards
+	// so we will bind it all, then warp it, then move it back and forth.
+	//------------------------------
+	
+	entity entitychar;
+	vector originStash;
+	
+	if( pilot != "notPresent" )
+	{
+		pilot = ( "shuttle" + pilot );
+	
+		//---- These models are script models !!
+		entitychar = getentity( pilot );
+		
+		entitychar.notsolid();
+		entitychar.hide();
+		originStash = $shuttleRiderOrigin.getorigin(); //--- Origin Of Riders in Shuttle Model
+		wait( .05 );
+		
+		entitychar.origin( originStash );
+		// Team
+		//---- These models are script models !!
+		entitychar.bind( $shuttleScriptOrigin );
+	}
+	
+	if( copilot != "notPresent" )
+	{
+		copilot = ( "shuttle" + copilot );
+	
+		//---- These models are script models !!
+		entitychar = getentity( copilot );
+		
+		entitychar.notsolid();
+		entitychar.hide();
+		originStash = $shuttleRiderOrigin.getorigin(); //--- Origin Of Riders in Shuttle Model
+		wait( .05 );
+		
+		entitychar.origin( originStash );
+		// Team
+		//---- These models are script models !!
+		entitychar.bind( $shuttleScriptOrigin );
+	}
+	
+	if( passangerPilot != "notPresent" )
+	{
+		passangerPilot = ( "shuttle" + passangerPilot );
+	
+		//---- These modesl are script models !!
+		entitychar = getentity( passangerPilot );
+		
+		entitychar.notsolid();
+		entitychar.hide();
+		originStash = $shuttleRiderOrigin.getorigin(); //--- Origin Of Riders in Shuttle Model
+		wait( .05 );
+		
+		entitychar.origin( originStash );
+		// Team
+		//---- These modesl are script models !!
+		entitychar.bind( $shuttleScriptOrigin );
+	}
+	
+	if( passangerCopilot != "notPresent" )
+	{
+		passangerCopilot = ( "shuttle" + passangerCopilot );
+	
+		//---- These modesl are script models !!
+		entitychar = getentity( passangerCopilot );
+		
+		entitychar.notsolid();
+		entitychar.hide();
+		originStash = $shuttleRiderOrigin.getorigin(); //--- Origin Of Riders in Shuttle Model
+		wait( .05 );
+		
+		entitychar.origin( originStash );
+		// Team
+		//---- These modesl are script models !!
+		entitychar.bind( $shuttleScriptOrigin );
+	}
+
+	globalShuttle_notsolid($shuttleExterior);
+	globalShuttle_notsolid($shuttleInterior);
+	// Doors
+	globalShuttle_notsolid($shuttleDoors);
+	globalShuttle_notsolid($shuttleIntDoor1);
+	globalShuttle_notsolid($shuttleIntDoor2);
+	globalShuttle_notsolid($shuttleIntDoor3);
+	globalShuttle_notsolid($shuttleIntDoor4);
+	// Seats
+	globalShuttle_notsolid($shuttleSeat1);
+	globalShuttle_notsolid($shuttleSeat2);
+	globalShuttle_notsolid($shuttleSeat3);
+	globalShuttle_notsolid($shuttleSeat4);
+
+	wait( .05 );
+	globalShuttle_bind($shuttleTopDoorClip,$shuttleTopDoorOrigin);
+	globalShuttle_bind($shuttleBottomDoorClip,$shuttleBottomDoorOrigin);
+	wait( .05 );
+	globalShuttle_bind($shuttleTopDoorOrigin,$shuttleScriptOrigin);
+	wait( .05 );
+	globalShuttle_bind($shuttleBottomDoorOrigin,$shuttleScriptOrigin);
+	originStash = $shuttleScriptOrigin.getorigin(); //--- Origin Of Shuttle Model
+	wait( .05 );
+
+	//Move All Peices
+	globalShuttle_origin($shuttleExterior,originStash);
+	globalShuttle_origin($shuttleInterior,originStash);
+	globalShuttle_origin($shuttleDoors,originStash);
+
+	globalShuttle_origin($shuttleIntDoor1,originStash);
+	globalShuttle_origin($shuttleIntDoor2,originStash);
+	globalShuttle_origin($shuttleIntDoor3,originStash);
+	globalShuttle_origin($shuttleIntDoor4,originStash);
+	// This orients the bottom doos movement clip into a closed position by
+	// first rotating the origin, then binding the origin, then rotating back
+	$shuttleBottomDoorOrigin.time( .05 );
+	$shuttleBottomDoorOrigin.rotateXdown( 18 );
+	waitfor( $shuttleBottomDoorOrigin );
+	wait( .1 );
+	globalShuttle_bind($shuttleBottomDoorMovementClip,$shuttleBottomDoorOrigin);
+	
+	$shuttleBottomDoorOrigin.time( .05 );
+	$shuttleBottomDoorOrigin.rotateXup( 18 );
+	waitfor( $shuttleBottomDoorOrigin );
+	
+	// Seats
+	globalShuttle_origin($shuttleSeat1,originStash);
+	globalShuttle_origin($shuttleSeat2,originStash);
+	globalShuttle_origin($shuttleSeat3,originStash);
+	globalShuttle_origin($shuttleSeat4,originStash);	
+	wait( .05 );
+	// Bind All Peices
+	globalShuttle_bind($shuttleExterior,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleInterior,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleDoors,$shuttleScriptOrigin);
+	
+	globalShuttle_bind($shuttleIntDoor1_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor2_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor3_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor4_trigger,$shuttleScriptOrigin);
+
+	globalShuttle_bind($shuttleIntDoor1,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor2,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor3,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor4,$shuttleScriptOrigin);
+	
+	// Seats
+	globalShuttle_bind($shuttleSeat1,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleSeat2,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleSeat3,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleSeat4,$shuttleScriptOrigin);
+	
+	//Triggers
+	globalShuttle_bind($shuttleIntDoor1_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor2_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor3_trigger,$shuttleScriptOrigin);
+	globalShuttle_bind($shuttleIntDoor4_trigger,$shuttleScriptOrigin);
+	
+	globalShuttle_bind($shuttlePlayerRidingPosition,$shuttleScriptOrigin);//---Origin Where Player Rides
+	globalShuttle_bind($shuttleClip,$shuttleScriptOrigin);//---Origin Where Player Rides
+	globalShuttle_bind($shuttleTakeOffTrigger,$shuttleScriptOrigin);//---Origin Where Player Rides
+	globalShuttle_bind($shuttleRiderOrigin,$shuttleScriptOrigin);//---Origin Where Player Rides
+
+	wait( .05 );
+
+	globalShuttle_bind($shuttleScriptOrigin,$shuttleCenterOrigin);
+	wait( .05 );
+	originStash = $shuttleStartOrigin.getorigin();
+	wait( .05 );
+	$shuttleCenterOrigin.origin( originStash ); //--- Center Origin Of Shuttle
+	wait( .05 );
+
+	//Orient the shuttle the direction of the Origin is it warping to
+
+	$shuttleCenterOrigin.angles( $shuttleStartOrigin.getangles() );
+	
+	//------------------------------
+	// System is funny (not funny humorous) and dosent update the position
+	// of all bound objects to the origin unless you move it afterwards
+	// so we will bind it all, then warp it, then move it back and forth.
+	//------------------------------
+	
+	$shuttleCenterOrigin.time( .05 );
+	$shuttleCenterOrigin.moveUp( 16 );
+	waitfor( $shuttleCenterOrigin );
+		
+	$shuttleCenterOrigin.time( .05 );
+	$shuttleCenterOrigin.moveDown( 16 );
+	waitfor( $shuttleCenterOrigin );
+	
+	globalShuttle_anim($shuttleIntDoor1,"closed");
+	globalShuttle_anim($shuttleIntDoor2,"closed");
+	globalShuttle_anim($shuttleIntDoor3,"closed");
+	globalShuttle_anim($shuttleIntDoor4,"closed");
+	// Seats
+	globalShuttle_anim($shuttleSeat1,"open_idle");
+	globalShuttle_anim($shuttleSeat2,"open_idle");
+	globalShuttle_anim($shuttleSeat3,"open_idle");
+	globalShuttle_anim($shuttleSeat4,"open_idle");
+	thread globalShuttle_ShuttleDoorWait();
+}
+
+//-----------------------------------------------------
+// **********IMPORTANT******************
+// You must scale the teammate to a unit scale of 1 before this will work
+// Example:
+//
+// in hazardteam_chell.tik scale is 0.95 so.... 
+// 1 / 0.95 = 1.0526 so....
+// in radiant his scale is key: scale; value: 1.0526
+//
+//-----------------------------------------------------
+
+//---------------------
+void globalShuttle_SendCharsToBoard( string pilot, string copilot, string passangerPilot, string passangerCopilot )
+//---------------------
+{
+	entity entityPilot;
+	entity entityCopilot;
+	entity entityPassangerPilot;
+	entity entityPassangerCopilot;
+	
+	//--- Should I load a ___________?
+
+	if( pilot != "notPresent" )
+	{
+		entityPilot = getentity( pilot );
+		wait( .05 );
+		thread globalShuttle_CharToLoad( entityPilot, 1 );
+	}
+	
+	if( copilot != "notPresent" )
+	{
+		entityCopilot = getentity( copilot );
+		wait( .05 );
+		thread globalShuttle_CharToLoad( entityCopilot, 2 );
+	}
+	
+	if( passangerPilot != "notPresent" )
+	{
+		entityPassangerPilot = getentity( passangerPilot );
+		thread globalShuttle_CharToLoad( entityPassangerPilot, 4 );
+	}
+	
+	if( passangerCopilot != "notPresent" )
+	{
+		entityPassangerCopilot = getentity( passangerCopilot );
+		wait( .05 );
+		thread globalShuttle_CharToLoad( entityPassangerCopilot, 3 );
+	}
+	
+	//--- Wait till we are ready and in location	
+	while( numberOfCharsReadyToBoard != numberOfCharsToLoad )
+	{ 
+		wait ( 1 );
+	}
+	
+	// --- Lame ass variable so you can't close the doors on teammates while they
+	// --- are Loading: If kill thread killed pasued events this would not be 
+	// --- nessassary.
+	shuttleDoorsLocked = 1;
+	
+	// --- Open shuttle doors
+	globalShuttle_OpenShuttleDoors();
+	
+	//--- Wait for cinematic stuff to setup
+	wait( .5 );
+	
+	// Animation Names: shuttle_onload + "X"
+	// Pilot = c
+	// Co-Pilot = d
+	// Passanger Pilot = a
+	// Passanger Co-Pilot = b
+		
+	//--- If I exist, load me	
+	if( pilot != "notPresent" )
+	{
+		thread globalShuttle_LoadCharacter( entityPilot, $shuttleSeat1, "c" );
+	}
+	if( copilot != "notPresent" )
+	{
+		thread globalShuttle_LoadCharacter( entityCopilot, $shuttleSeat2, "d" );
+	}
+	if( passangerPilot != "notPresent" )
+	{
+		thread globalShuttle_LoadCharacter( entityPassangerPilot, $shuttleSeat3, "a" );
+	}
+	if( passangerCopilot != "notPresent" )
+	{
+		globalShuttle_LoadCharacter( entityPassangerCopilot, $shuttleSeat4, "b" );
+	}
+	
+	shuttleDoorsLocked = 0;
+	
+	thread globalShuttle_ShuttleTakeOffWait();
+}
+
+//---------------------
+void globalShuttle_PutCharsInsideShuttle( string pilot, string copilot, string passangerPilot, string passangerCopilot )
+//---------------------
+{
+	entity entityPilot;
+	entity entityCopilot;
+	entity entityPassangerPilot;
+	entity entityPassangerCopilot;
+		
+	// Close the doors.
+	globalShuttle_CloseShuttleDoors();
+		
+	// --- Lame ass variable so you can't close the doors on teammates while they
+	// --- are Loading: If kill thread killed pasued events this would not be 
+	// --- nessassary.
+	shuttleDoorsLocked = 1;
+	
+	// Animation Names: shuttle_onload + "X"
+	// Pilot = c
+	// Co-Pilot = d
+	// Passanger Pilot = a
+	// Passanger Co-Pilot = b
+		
+	//--- If I exist, put me in a seat
+	wait( 1 );
+	if( pilot != "notPresent" )
+	{
+		entityPilot = getentity( pilot );
+		wait( .05 );
+		thread globalShuttle_ForceCharacterInSeat( entityPilot, $shuttleSeat1, "c" );
+	}
+	if( copilot != "notPresent" )
+	{
+		entityCopilot = getentity( copilot );
+		wait( .05 );
+		thread globalShuttle_ForceCharacterInSeat( entityCopilot, $shuttleSeat2, "d" );
+	}
+	if( passangerPilot != "notPresent" )
+	{
+		entityPassangerPilot = getentity( passangerPilot );
+		wait( .05 );
+		thread globalShuttle_ForceCharacterInSeat( entityPassangerPilot, $shuttleSeat3, "a" );
+	}
+	if( passangerCopilot != "notPresent" )
+	{
+		entityPassangerCopilot = getentity( passangerCopilot );
+		wait( .05 );
+		globalShuttle_ForceCharacterInSeat( entityPassangerCopilot, $shuttleSeat4, "b" );
+	}
+		
+	thread globalShuttle_ShuttleTakeOffWait();
+}
+
+
+//---------------------
+void globalShuttle_CharToLoad( entity charToBoardShuttle, float shuttlePointToLoad )
+//---------------------
+{
+	string stringShuttleLoadPoint;
+	
+	stringShuttleLoadPoint = ( "shuttleLoadPoint" + shuttlePointToLoad );
+	wait( .05 );
+	
+	charToBoardShuttle.ai_off();
+	wait( .05 );
+	
+	charToBoardShuttle.walkto( stringShuttleLoadPoint, "run");
+	waitfor( charToBoardShuttle );
+	
+	numberOfCharsReadyToBoard ++;
+}
+
+//---------------------
+void globalShuttle_LoadCharacter( entity currentLoadingCharacter, entity currentSeat, string animLetter )
+//---------------------
+{
+	string stringScriptModel;
+	entity entityScriptModel;
+	
+	string loadingAnimationName;
+	string idleAnimationName;
+	
+	currentLoadingCharacter.notsolid();
+	currentLoadingCharacter.hide();
+		
+	stringScriptModel = currentLoadingCharacter.getrawtargetname();
+	wait( .05 );
+	stringScriptModel = ( "shuttle" + stringScriptModel );
+	loadingAnimationName = ( "shuttle_onload" + animLetter );
+	idleAnimationName = ( "shuttle_idle" + animLetter );
+	wait( .05 );
+	
+	entityScriptModel = getentity( stringScriptModel );
+
+	entityScriptModel.show();
+	thread globalShuttle_ChangeSeatState( currentSeat, 1, 7.6 );
+	entityScriptModel.anim( loadingAnimationName );
+	
+	waitforanimation( entityScriptModel, loadingAnimationName );
+	entityScriptModel.anim( idleAnimationName );
+	currentSeat.anim( "closed" );
+}
+
+//---------------------
+void globalShuttle_ForceCharacterInSeat( entity currentLoadingCharacter, entity currentSeat, string animLetter )
+//---------------------
+{
+	string stringScriptModel;
+	entity entityScriptModel;
+	
+	string loadingAnimationName;
+	string idleAnimationName;
+	
+	currentLoadingCharacter.notsolid();
+	currentLoadingCharacter.hide();
+		
+	stringScriptModel = currentLoadingCharacter.getrawtargetname();
+	wait( .05 );
+	stringScriptModel = ( "shuttle" + stringScriptModel );
+	loadingAnimationName = ( "shuttle_onload" + animLetter );
+	idleAnimationName = ( "shuttle_idle" + animLetter );
+	wait( .05 );
+	
+	entityScriptModel = getentity( stringScriptModel );
+
+	entityScriptModel.show();
+	
+	currentSeat.anim( "closed" );
+	
+	entityScriptModel.anim( idleAnimationName );
+}
+
+//---------------------
+void globalShuttle_OffLoadCharacter( string pilot, string copilot, string passangerPilot, string passangerCopilot )
+//---------------------
+{
+	entity entityPilot;
+	entity entityCopilot;
+	entity entityPassangerPilot;
+	entity entityPassangerCopilot;
+
+	entityPilot = getentity( pilot );
+	entityCopilot = getentity( copilot );
+	entityPassangerPilot = getentity( passangerPilot );
+	entityPassangerCopilot = getentity( passangerCopilot );
+	
+	// --- Lame ass variable so you can't close the doors on teammates while they
+	// --- are Loading: If kill thread killed pasued events this would not be 
+	// --- nessassary.
+	shuttleDoorsLocked = 1;
+
+	// --- Open shuttle doors
+	globalShuttle_OpenShuttleDoors();
+
+	//--- Wait for cinematic stuff to setup
+	wait( .5 );
+
+	//--- If I exist, unload me	
+	if( pilot != "notPresent" )
+	{
+		thread globalShuttle_UnloadCharacter( entityPilot, $shuttleSeat1, "c", 1 );
+	}
+	if( copilot != "notPresent" )
+	{
+		thread globalShuttle_UnloadCharacter( entityCopilot, $shuttleSeat2, "d", 2 );
+	}
+	if( passangerPilot != "notPresent" )
+	{
+		thread globalShuttle_UnloadCharacter( entityPassangerPilot, $shuttleSeat3, "a", 4 );
+	}
+	if( passangerCopilot != "notPresent" )
+	{
+		globalShuttle_UnloadCharacter( entityPassangerCopilot, $shuttleSeat4, "b", 3 );
+	}
+	
+	shuttleDoorsLocked = 0;
+}
+
+//---------------------
+void globalShuttle_UnloadCharacter( entity currentOffLoadingCharacter, entity currentSeat, string animLetter, float shuttlePointToUnload )
+//---------------------
+{
+	vector originStash;
+	
+	string stringShuttleUnloadPoint;
+	entity entityShuttleUnloadPoint;
+	
+	//getting origins and warping characters
+	
+	stringShuttleUnloadPoint = ( "shuttleOffLoadPoint" + shuttlePointToUnload );
+	entityShuttleUnloadPoint = getentity( stringShuttleUnloadPoint );
+	
+	string stringScriptModel;
+	entity entityScriptModel;
+	
+	string offLoadingAnimationName;
+	 
+	originStash = entityShuttleUnloadPoint.getOrigin();
+	wait( .05 );
+	currentOffLoadingCharacter.origin( originStash );
+	stringScriptModel = currentOffLoadingCharacter.getrawtargetname();
+	wait( .05 );
+	stringScriptModel = ( "shuttle" + stringScriptModel );
+	offLoadingAnimationName = ( "shuttle_offload" + animLetter );
+	wait( .05 );
+	
+	entityScriptModel = getentity( stringScriptModel );
+	
+	thread globalShuttle_ChangeSeatState( currentSeat, 0, 0 );
+	entityScriptModel.anim( offLoadingAnimationName );
+
+	waitforanimation( entityScriptModel, offLoadingAnimationName );
+	entityScriptModel.hide();
+	entityScriptModel.remove();
+	
+	currentOffLoadingCharacter.show();
+	currentOffLoadingCharacter.solid();
+	currentOffLoadingCharacter.ai_on();
+}
+
+//---------------------
+void globalShuttle_ChangeSeatState( entity currentSeat, float seatShouldClose, float timeToWait )
+//---------------------
+{
+	if( seatShouldClose == 1 )
+	{
+		//--- For animation sink
+		wait( timeToWait );
+		//--- Close Seat
+		currentSeat.anim( "closing" );
+		waitforanimation( currentSeat, "closing" );
+		currentSeat.anim( "closed" );
+	}
+	if( seatShouldClose == 0 )
+	{
+		//--- For animation sink
+		wait( timeToWait );
+		//--- Close Seat
+		currentSeat.anim( "opening" );
+		waitforanimation( currentSeat, "opening" );
+		currentSeat.anim( "open_idle" );
+	}
+}
+
+//---------------------
+void globalShuttle_ShuttleDoorWait()
+//---------------------
+{
+	//$shuttleBottomDoorClip.key( "Tricorder" );
+	//$shuttleBottomDoorClip.onuse( "globalShuttle_ShuttleDoorGo" );
+	pause();
+}
+
+//---------------------
+void globalShuttle_ShuttleDoorGo()
+//---------------------
+{
+	$shuttleBottomDoorClip.nouse();
+	if ( shuttleDoorsLocked == 0 )
+	{
+		if( shuttleDoorsAreMoving == 0 )
+		{
+			if( shuttleDoorsAreOpen == 0)
+			{
+				thread globalShuttle_ShuttleDoorOpen();
+			}
+			if( shuttleDoorsAreOpen == 1)
+			{
+				thread globalShuttle_ShuttleDoorClose();
+			}
+		}
+		else
+		{
+			wait( 1 );
+			thread globalShuttle_ShuttleDoorWait();
+		}
+	}
+	else
+	{
+		wait( 1 );
+		thread globalShuttle_ShuttleDoorWait();
+	}
+}
+
+//---------------------
+void globalShuttle_OpenShuttleDoors()
+//---------------------
+{
+	if( shuttleDoorsAreOpen == 1 )
+	{
+		if( (shuttleDoorsAreMoving == 1) )
+		{
+			//Doors are in process of closing so wait till closed and re-open
+			while( shuttleDoorsAreMoving == 0 )
+			{
+				wait( .05 );
+			}
+			globalShuttle_ShuttleDoorOpen();
+		}
+	}
+	
+	if( shuttleDoorsAreOpen == 0 )
+	{
+		if( shuttleDoorsAreMoving == 0 )
+		{
+			// Doors are Closed
+			globalShuttle_ShuttleDoorOpen();
+		}
+	}
+	
+	if( (shuttleDoorsAreOpen == 0) )
+	{
+		if( shuttleDoorsAreMoving == 1 )
+		{
+			// Doors are Opening so wait till open
+			while( shuttleDoorsAreMoving == 1 )
+			{
+				wait( .05 );
+			}
+		}
+	}
+}
+
+//---------------------
+void globalShuttle_CloseShuttleDoors()
+//---------------------
+{
+	if( shuttleDoorsAreOpen == 0 )
+	{
+		if( (shuttleDoorsAreMoving == 1) )
+		{
+			//Doors are in process of opening so wait till closed and re-open
+			while( shuttleDoorsAreMoving == 0 )
+			{
+				wait( .05 );
+			}
+			globalShuttle_ShuttleDoorClose();
+		}
+	}
+	
+	if( shuttleDoorsAreOpen == 1 )
+	{
+		if( shuttleDoorsAreMoving == 0 )
+		{
+			// Doors are Open
+			globalShuttle_ShuttleDoorClose();
+		}
+	}
+	
+	if( shuttleDoorsAreOpen == 1 )
+	{
+		if( shuttleDoorsAreMoving == 1 )
+		{
+			// Doors are Opening so wait till open
+			while( shuttleDoorsAreMoving == 1 )
+			{
+				wait( .05 );
+			}
+		}
+	}
+}
+
+//---------------------
+void globalShuttle_ShuttleTakeOffWait()
+//---------------------
+{	
+	$shuttleTakeOffTrigger.onuse( "globalShuttle_ShuttleTakeOffGo" );
+	pause();
+}
+
+//---------------------
+void globalShuttle_ShuttleTakeOffGo()
+//---------------------
+{
+	$shuttleTakeOffTrigger.nouse();
+	
+	//Cinimatic ready to happen
+	setfloatvar( "level.shuttleReadyToLeave", 1 ); 
+}
+
+//---------------------
+void globalShuttle_ShuttleDoorOpen()
+//---------------------
+{
+	if( shuttleDoorsAreOpen == 0 && shuttleDoorsAreMoving == 0 )
+	{
+		shuttleDoorsAreMoving = 1;
+		$shuttleDoors.anim( "opening" );
+		$shuttleTopDoorOrigin.time( 2 );
+		$shuttleTopDoorOrigin.rotateXup( 54 );
+		$shuttleBottomDoorOrigin.time( 2 );
+		$shuttleBottomDoorOrigin.rotateXdown( 18 );
+		waitforanimation( $shuttleDoors, "opening" );
+		$shuttleDoors.anim( "open_idle" );
+		shuttleDoorsAreMoving = 0;
+		shuttleDoorsAreOpen = 1;
+		thread globalShuttle_ShuttleDoorWait();
+	}
+	if( shuttleDoorsAreMoving == 1 )
+	{
+		wait( 1 );
+		thread globalShuttle_ShuttleDoorOpen();
+	}
+}
+
+//---------------------
+void globalShuttle_ShuttleDoorClose()
+//---------------------
+{
+	if( shuttleDoorsAreOpen == 1 && shuttleDoorsAreMoving == 0 )
+	{
+		shuttleDoorsAreMoving = 1;
+		$shuttleDoors.anim( "closing" );
+		$shuttleTopDoorOrigin.time( 2 );
+		$shuttleTopDoorOrigin.rotateXdown( 54 );
+		$shuttleBottomDoorOrigin.time( 2 );
+		$shuttleBottomDoorOrigin.rotateXup( 18 );
+		waitforanimation( $shuttleDoors, "closing" );
+		$shuttleDoors.anim( "closed" );
+		shuttleDoorsAreMoving = 0;
+		shuttleDoorsAreOpen = 0;
+		thread globalShuttle_ShuttleDoorWait();
+	}
+	if( shuttleDoorsAreMoving == 1 )
+	{
+		wait( 1 );
+		thread globalShuttle_ShuttleDoorClose();
+	}
+}
+
+//---------------------
+void globalShuttle_ShuttleTakeOffThread()
+//---------------------
+{	
+	vector originStash;
+	vector anglesStash;
+	originStash = $shuttleEndOrigin.getOrigin();
+	anglesStash = $shuttleEndOrigin.getAngles();
+	
+	if( shuttleDoorsAreOpen == 0 && shuttleDoorsAreMoving == 0 )
+	{	
+		$shuttleCenterOrigin.followpath( $shuttlePath01a0 );
+		waitfor( $shuttleCenterOrigin );
+		
+		//--- Spline Paths are inaccurate for exact positioning 
+		//--- so we move the shuttle to the end node using a
+		//--- scriptOrigin's vector.
+		$shuttleCenterOrigin.time( 3 );
+		$shuttleCenterOrigin.moveToPos( originStash );
+		$shuttleCenterOrigin.rotateYUpTo( anglesStash_y );
+		waitfor( $shuttleCenterOrigin );
+		
+		shuttleDoorsLocked = 0;
+	}
+	else
+	{	
+		wait( 1 );
+		globalShuttle_ShuttleTakeOffThread();
+	}
+}
+
+
+//---------------------------------------------------------------------
+// added by josh
+// There are trigger_EntryAndExit brushes that set their target to the door they open and
+// their threadEntry and threadExit to shuttleIntDoor_open and shuttleIntDoor_close, respecitvely.
+// _getMyEntity is just a helper function for _open and _close.
+entity _shuttleIntDoor_getMyEntity()
+{
+	entity e;
+	e = getcurrententity();
+	return e.gettargetentity();
+}
+
+void shuttleIntDoor_open()
+{
+	entity doorent;
+	doorent = _shuttleIntDoor_getMyEntity();
+	doorent.animonce( "opening" );
+}
+
+void shuttleIntDoor_close()
+{
+	entity doorent;
+	doorent = _shuttleIntDoor_getMyEntity();
+	doorent.animonce( "closing" );
+}

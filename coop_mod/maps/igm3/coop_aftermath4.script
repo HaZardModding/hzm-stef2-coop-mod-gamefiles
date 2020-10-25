@@ -1,0 +1,1116 @@
+void main();
+void setupLevel();
+void setupAI();
+void setOnUseTheread(entity e,string s);
+void actor_offAndAnim(entity eActor,string sAnimation);
+void deskLightToggle();
+void secretStreetLight();
+void cinematic_telsiaBeamOut();
+void cinematic_telsiaBeamOut_end();
+void munro_team();
+void areaScanned();
+void holoEmitterBlow1();
+void holoEmitterBlow2();
+void hologramsFlicker();
+void openDoors();
+void shatterWindow();
+void badKilling();
+void cinematic_playerSitDown();
+void replicatedFood();
+void replicatedFoodEat();
+void openDoorToGarden();
+void secretBarWakeEmUp();
+void dialog_laptopuser();
+void dialog_klingon2();
+void dialog_blueman();
+void dialog_blueman2();
+void dialog_dude2();
+void dialog_girl2();
+void dialog_girl();
+void dialog_seated();
+void fail_lostTeammate();
+void doorHacked();
+void doorHackedUsed();
+void doorHackedSpy();
+void exitNow();
+void changeLevel();
+void shuttle_stopLoopSound();
+
+//global variables
+float float_holoEmittersDamaged;
+float float_actorIndex;
+float float_playerIsAMurderer;
+float float_shuttlestarted;
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+//this is executed as soon as the server has finished loading this map
+{
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Daedalus";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Escort Telsia out of the sewers";
+	coop_string_objectiveItem2 = "Beam Telsia back to Enterprise";
+	coop_string_objectiveItem3 = "Locate the Spy";
+	coop_string_objectiveItem4 = "Avoid a Confrontation with the Merchs";
+	coop_string_objectiveItem5 = "Find a Table from which you can watch the Entrace";
+	coop_string_objectiveItem6 = "Catch the Spy";
+	coop_string_objectiveItem7 = "Scann the area unusual Energy Signatures";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Eskortieren Sie Telsia aus der Kanalisation";
+	coop_string_objectiveItem2_deu = "Beamen Sie Telsia zur Enterprise zur$$u$$ck";
+	coop_string_objectiveItem3_deu = "Orten Sie den Spion";
+	coop_string_objectiveItem4_deu = "Vermeiden Sie eine Konfrontation mit den S$$o$$ldneren";
+	coop_string_objectiveItem5_deu = "Finden Sie einen Tisch von dem aus Sie den Eingang sehen";
+	coop_string_objectiveItem6_deu = "Ergreifen Sie den Spion";
+	coop_string_objectiveItem7_deu = "Scannen Sie den Bereich auf ungew$$o$$hnlichen Energie Signaturen";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
+	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+	
+//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
+	coop_string_weapon5 = "models/weapons/worldmodel-tetryon.tik";
+	coop_string_weapon6 = "models/weapons/worldmodel-rom-disruptor.tik";
+	
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	$munro.ai_off();//test, delete me
+	$munro.notsolid();//test, delete me
+	
+	$t191.unlock();
+//setup the level objects
+	thread setupLevel();
+//setup actors
+	thread setupAI();
+//wait for the player to spawn
+	waitForPlayer();
+//clear/set viewmodes avialbe for Tricorder
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("tripwire");
+	$world.addAvailableViewMode("structuralintegrity");
+	
+//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+//hzm coop mod chrissstrahl - start cinematic directly in coop
+	thread cinematic_telsiaBeamOut();
+}
+
+void setupLevel()
+{
+//hzm coop mod chrissstrahl - make solid, prevent premature triggering
+	$hologramDoor.solid();
+
+//dhide puzzle area to hack the door
+	$tricorderArea2.hide();
+//fish swim
+	$koi1.anim("idle");
+	$koi1.followpath($fishSwimPath,"loop","normalangels");
+//hide holo emitters
+	$holoEmitter1Spark.hide();
+	$holoEmitter2Spark.hide();
+	$holoEmitter1.hide();
+	$holoEmitter2.hide();
+//setup dynamic light
+	thread secretStreetLight();
+//turn off
+	$world.light_intensity("secretArmorLight",0);
+//turn on
+	$world.light_intensity("deskLight",1);
+	$deskLightBeam.show();
+//setup shuttle, bind parts to the pointer
+	$shuttleTrigger.bind($shuttleOrigin);
+	$shuttle.bind($shuttleOrigin);
+	$shuttleTrigger.solid();
+
+//transporter beam in effect
+	$t13.spawneffectname("TransportIn","Federation");
+//replicator effect
+	$t187.spawneffectname("TransportIn","FederationWeapons");
+//laptop, show it opened
+	$laptop.anim("open_idle");
+//container
+	//viewmode - this is visible on structural with tricorder only
+	$container1DeckelViewmode.viewmode("structuralintegrity");
+	//was set notsolid so pathmodes can connect for ai pathfinding
+	$container1Deckel.solid();
+}
+
+void setupAI()
+{
+//Hide cinematic actor
+	$munro.hide();
+	$munro.notsolid();
+//TEAMMATES
+	$telsia.killattach();//remove current weapon
+	$telsia.allowfall(1);
+	$korban.ai_off();
+	$korban.allowfall(1);
+	$chang.ai_off();
+	$chang.allowfall(1);
+	$chang.killthread("fail_lostTeammate");
+	$korban.killthread("fail_lostTeammate");
+//NON HOSTILES
+	actor_offAndAnim($laptopuser,"bar_sitting_relaxed");
+	actor_offAndAnim($blueman,"bar_sitting_forward");
+	actor_offAndAnim($blueman2,"bar_sitting_forward");
+	actor_offAndAnim($seated,"bar_sitting_relaxed");
+	actor_offAndAnim($dude2,"bar_sitting_forward");
+	actor_offAndAnim($girl,"bar_sitting_relaxed");
+	actor_offAndAnim($girl2,"bar_sitting_forward");
+	actor_offAndAnim($klingon1,"bar_sitting_forward");
+	actor_offAndAnim($klingon2,"bar_sitting_forward");
+//SETUP DIALOGS
+	thread setOnUseTheread($laptopuser,"dialog_laptopuser");
+	thread setOnUseTheread($klingon2,"dialog_klingon2");
+	thread setOnUseTheread($blueman,"dialog_blueman");
+	thread setOnUseTheread($blueman2,"dialog_blueman2");
+	thread setOnUseTheread($seated,"dialog_seated");
+	thread setOnUseTheread($dude2,"dialog_dude2");
+	thread setOnUseTheread($girl2,"dialog_girl2");
+	thread setOnUseTheread($girl,"dialog_girl");
+}
+
+void setOnUseTheread(entity e,string s)
+//set a thraed to be executed if entity is used
+{
+	if(doesEntityExist(e))
+	{
+		e.onuse(s);
+		pause();
+	}
+}
+
+void actor_offAndAnim(entity eActor,string sAnimation)
+//disables the ai and animates the actor, makes actor not pushable
+//ai must be turned off for animations to work
+{
+	if(doesEntityExist(eActor))
+	{
+		eActor.killthread("badKilling");
+		eActor.allowfall(1);
+		eActor.immortal(0);
+		eActor.health(60);
+		//eActor.archetype(""); //disabled 2018.03.22
+		eActor.ai_off();
+		eActor.anim(sAnimation);
+		eActor.pushable(0);
+		eActor.mass(9999999);
+		$world.setStringvar("actorTargetnameIndex"+float_actorIndex,""+eActor.getRawtargetname());
+		float_actorIndex++;
+		wait(0.05);
+	}
+}
+
+void secretStreetLight()
+//toogle dynamic screetlight, indicating the secret
+{
+	while(1)
+	{
+		$world.light_intensity("secretStreetLights",1);
+		$secretStreetLightBeam.show();
+		wait(5);
+		$world.light_intensity("secretStreetLights",0);
+		$secretStreetLightBeam.hide();
+		wait(2);
+	}
+}
+
+void deskLightToggle()
+{//getlightintensity
+//toggle desk ligth in the headmaster office
+	if($world.getlightintensity("deskLight") ==  0){
+		$world.light_intensity("deskLight",1);
+		$deskLightBeam.show();
+	}else{
+		$world.light_intensity("deskLight",0);
+		$deskLightBeam.hide();
+	}
+}
+
+
+void secretArmorFound()
+{
+//terminate flickering streetlamp thread
+	killthread("secretStreetLight");
+//change streetlight
+	$world.light_intensity("secretStreetLights",0);
+	$secretStreetLightBeam.hide();
+	
+//activate lamp inside the secret
+	$world.light_intensity("secretArmorLight",1);
+}
+
+void shuttle_stopLoopSound()
+{
+	wait(30);
+	$shuttle.stoploopsound();
+}
+
+void cinematic_telsiaBeamOut()
+//beam telsia on to the enterprise
+{
+//fade out cam
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.3);
+//disable telsia
+	$telsia.ai_off();
+	$munro.origin('11733.00 -226.00 -736.00');
+	$munro.angle(270);
+	$munro.show();
+	$munro.killattach();
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+//hzm coop mod chrissstrahl - only for sp
+	if(getcvarint("g_gametype") == 0){
+		$player.hide();
+		$player.notsolid();
+	}
+	$cam1.follow($cinematicSceneC);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+	
+//fade out cam
+	cam_fadeIn(0.25,0,0,0,1);
+	
+//allow skip of cinematic
+	skipthread("cinematic_telsiaBeamOut_end");
+	
+	$telsia.walkto("$munro","walk");
+	$munro.walkto("$telsiaBeamOutMunro","walk");
+	waitFor($munro);
+//make him look at her
+	$munro.headwatch($telsia);
+//make her look at the player
+	$telsia.headwatch($munro);
+//make her walk into pistion
+	$telsia.walkto("$telsiaBeamOut","walk");
+	waitFor($telsia);
+//wait a moment to have the player realize what is going on
+	wait(0.15);
+	$munro.animateonce("tap_comm");
+	waitforanimation($munro,"tap_comm");
+	$munro.anim("idle");
+//dialog - munro to eneterprise, one to beam up
+	$munro.playDialog("localization/sound/dialog/dallas02/munro_leavem3.mp3",1,128,0);
+//wait for the enterprise response time + dialog
+	wait(4);
+//beam telsia out
+	$telsia.notsolid();
+	$telsia.displayeffect("TransportOut","Federation");	
+//wait for the effect to end
+	wait(2.7);
+	
+//end this cinematic
+	thread cinematic_telsiaBeamOut_end();
+}
+
+void cinematic_telsiaBeamOut_end()
+{
+	skipthread("");
+	killthread("cinematic_telsiaBeamOut");
+//fade out cam
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.3);
+
+//start romulan shuttle now if it wasn't
+	$shuttleOrigin.followpath( $shuttlePath , "ignoreangles" );
+	$shuttle.loopsound("sound/vehicles/shuttlecraft/shuttle_flyby_slow.WAV",1,512);
+
+//delete her
+	$telsia.remove();
+	
+	$munro.hide();
+	$munro.notsolid();
+	
+//wait a sec
+	wait(1);
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+//hzm coop mod chrissstrahl - only for sp
+	if(getcvarint("g_gametype") == 0){
+		$player.show();
+		$player.solid();
+		$player.origin($munro.getOrigin());
+	}
+		
+//fade out cam
+	cam_fadeIn(0.25,0,0,0,1);
+	wait(1);
+//start the team reuinite sequence
+	thread munro_team();
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//c4escortTelsiaOut
+	globalCoop_objectives_update("complete" , 2 , 0 );//c4beamTelsiaBack
+	globalCoop_objectives_update("incomplete" , 3 , 0 );//c4locateSpy
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//c4avoidConflict
+}
+
+void munro_team()
+{
+//Save Game - telsia is safe now
+	if(getCvarInt("g_gametype") != 1)
+	{
+		if( $player.getHealth() < 1 )
+			return;
+		stuffCMD("ui_savegamewithname \"City4 - Beamed out Teslia\"");
+	}
+
+//munro says -> where's my team?
+	//hzm coop mod chrissstrahl - get closest player
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($korban);
+	entityPlayerGlobal.simplePlayDialog("localization/sound/dialog/m8l2/munro_whereteam3.mp3",1,128);
+//move team into position
+	$korban.walkto("$getTogether_korban","run");
+//wait for korban to show up
+	waitfor($korban);
+//Korban look at player
+	$korban.headWatch(entityPlayerGlobal);
+//delay
+	wait(0.1);
+//dialog -> why you go alone, blah, the leader should not take point
+	$korban.playDialog("localization/sound/dialog/m8l1/korban_takepoint.mp3",2,256,0);
+//make the team follow munro
+	$korban.settendency("follow",1);
+	$korban.ai_on();
+	$chang.walkto("$getTogether_chang","run");
+	waitfor($chang);
+	$chang.settendency("follow",1);
+	$chang.ai_on();
+	
+	
+//make shuttle stop playing sound after a while
+	wait(30);
+	thread shuttle_stopLoopSound();
+}
+
+void shuttleAttacked()
+//if romulan shuttle has been attacked by the player
+{
+//make korban and chang able to die
+	$korban.immortal(0);
+	$korban.health(40);
+	$chang.immortal(0);
+	$chang.health(40);
+	wait(0.1);
+	$shuttle.loopsound("sound/ships/romulan/rom_redalert.wav",1,512);
+	wait(0.1);
+//beam in lots of romulan troops that will defently kill
+//the player and his team
+	float	fBeamInLoactaion;
+	float	fBeamedIn;
+	entity	eSpawn;
+	for(fBeamInLoactaion=0;fBeamInLoactaion<20;fBeamInLoactaion++)
+	{
+		fBeamedIn++;
+		eSpawn = getEntity("troopBeamLocation"+fBeamInLoactaion);
+		if(doesEntityExist(eSpawn))
+		{
+			eSpawn.spawneffectname("TransportIn","Romulan");
+			triggerEntity(eSpawn);
+		}
+		if(fBeamedIn > 3)
+		{
+			fBeamedIn=0;
+			wait(0.5);
+		}
+		
+		wait(0.05);
+	}
+}
+
+void beamInSomeone()
+//beam someone in and then go sit at a table
+{
+	wait(0.1);
+	$anika.killattach();//remove batleth if fight was going on she has hers out
+	$anika.killthread("badKilling");
+	$anika.health(60);
+	$anika.pushable(0);
+	$anika.mass(9999999);
+	$anika.nodamage();
+	$anika.ai_off();
+	wait(2.8);
+	$anika.walkto("$anikaTargetDest","walk");
+	if(!float_playerIsAMurderer)
+	{
+		waitFor($anika);
+		$anika.angle(270);
+		$anika.origin('10395 -800 -440.00');//10396.00 -789.00 -440.00
+		$anika.anim("bar_sitting_forward");
+		
+	//hzm coop mod chrissstrahl - update objectives
+		globalCoop_objectives_update("incomplete" , 5 , 1 );//findtable
+	}
+}
+
+void animations()
+{
+// Andorian 1 - sitting in Cafe
+	$blueman.immortal( 1 );
+	$blueman.ai_off();
+	$blueman.anim( "bar_sitting_forward" );
+	$blueman.pushable( 0 );
+	
+// Andorian 2 - sitting in Cafe
+	$blueman2.immortal( 1 );
+	$blueman2.ai_off();
+	$blueman2.anim( "bar_sitting_forward" );
+	$blueman2.pushable( 0 );
+	
+// Man 1 - sitting in Cafe
+	$dude.immortal( 1 );
+	$dude.ai_off();
+	$dude.anim( "bar_sitting_forward" );
+	$dude.pushable( 0 );
+	
+// Man 2 - sitting in Cafe
+	$dude2.immortal( 1 );
+	$dude2.ai_off();
+	$dude2.anim( "bar_sitting_forward" );
+	$dude2.pushable( 0 );
+	
+// klingon - sitting in Cafe
+	$klingon1.immortal( 1 );
+	$klingon1.ai_off();
+	$klingon1.anim( "bar_sitting_forward" );
+	$klingon1.pushable( 0 );
+	
+// klingon 2 - sitting in Cafe
+	$klingon2.immortal( 1 );
+	$klingon2.ai_off();
+	$klingon2.anim( "bar_sitting_forward" );
+	$klingon2.pushable( 0 );
+	
+// Girl - sitting in Cafe
+	$seated.immortal( 1 );
+	$seated.ai_off();
+	$seated.anim( "bar_sitting_forward" );
+	$seated.pushable( 0 );
+	
+// Girl at Laptop - sitting in lobby
+	$laptopuser.immortal( 1 );
+	$laptopuser.ai_off();
+	$laptopuser.anim( "bar_sitting_relaxed" );
+	$laptopuser.pushable( 0 );
+	
+// Girl at table on upstairs
+	$girl.immortal( 1 );
+	$girl.ai_off();
+	$girl.anim( "bar_sitting_relaxed" );
+	$girl.pushable( 0 );
+	
+// Girl at table on upstairs
+	$girl2.immortal( 1 );
+	$girl2.ai_off();
+	$girl2.anim( "bar_sitting_forward" );
+	$girl2.pushable( 0 );
+	
+//Animate laptop to be opened
+	$laptop1.anim("open_idle");
+}
+
+void klingon2()
+{
+//Klingons talk
+	$klingon2.headWatch(globalCoop_return_playerClosestPreferActive($klingon2));//hzm coop mod chrissstrahl - get closest player
+	wait(0.2);
+	$klingon2.playDialog("localization/sound/dialog/m9l1/klingon_gagh2.mp3",2,128,0);
+	waitForDialog( $klingon2 );
+	
+	$klingon1.headWatch($klingon2);
+	$klingon2.headWatch($klingon1);
+	wait(0.2);
+	$klingon1.playDialog("localization/sound/dialog/m9l1/merc3_tellingyou.mp3",2,128,0);
+}
+
+void spy()
+{
+//Spy stuff
+	$spy.playDialog("localization/sound/dialog/m10l1/info_download.mp3",2,128,0); //download
+	waitForDialog( $spy );
+	
+	$attrex.playDialog("localization/sound/dialog/m7l1/attrexian2_hearsome.mp3",2,128,0); //I hear something
+	waitForDialog( $attrex );
+	
+	//Save Game
+	if(getcvarint("g_gametype") == 0){//hazardmodding coop mod chrissstrahl - sp only
+		stuffCMD("ui_savegamewithname \"City - Cafe\"");
+	}
+}
+
+void chang_stay()
+{
+//hzm coop mod chrissstrahl - get closest player
+//munro says -> chnag stay behind and secure the area, while I do a chicken dance
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($chang);
+	entityPlayerGlobal.simplePlayDialog("localization/sound/dialog/m7l1/munro_changsecure.mp3",1,128);	
+	
+//wait for dialog
+	wait(3);
+	
+//chang says -> Yes Mam
+	$chang.playDialog("localization/sound/dialog/combat/chang_yessir9.mp3",2,128,0);
+	
+//make Chang and Korban no more follow munro on twitter
+	$korban.settendency("follow",0);
+	$chang.settendency("follow",0);
+}
+	
+
+void found_spy()
+{
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 3 , 0 );//c4locateSpy
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//catchspy
+
+//open door for escape
+	$doorToGarden.open($world);
+//make spy look at munro
+	//$spy.headWatch(globalCoop_return_playerClosestPreferActive($spy));//hzm coop mod chrissstrahl - get closest player
+	$spy.turntoangle(180);//hzm coop mod chrissstrahl - do it this way
+	$spy.anim("idle_breathing");
+	
+	//hzm coop mod chrissstrahl - make her fade out in coop, so that no player can block her
+	//$doorToSpy.forcealpha(1);
+	//$doorToSpy.fade(1,0);
+	$spy.notsolid();
+	$pushplayersaway.triggerable();
+	//eof hzm
+	
+	wait(0.15);
+//Unlock the door!
+	$doorToSpy.unlock();
+	$doorToSpy.open($spy);
+//make spy run!
+	$spy.walkto("$spyRunTo1","run");
+	waitFor($spy);
+	$doorToSpy.close();
+	$doorToSpy.lock();
+	$spy.walkto("$spyRunTo2","run");
+	wait(1);
+	waitFor($spy);
+	$pushplayersaway.nottriggerable();
+	$spy.walkto("$spyRunTo3","run");
+	waitFor($spy);
+	
+	$korban.settendency("follow",1);
+	$chang.settendency("follow",1);
+	
+	$spy.walkto("$spyEscape","run");
+	waitFor($spy);
+	$spy.remove();
+	
+	wait(5);
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("incomplete" , 7 , 1 );//scan
+}
+
+void areaScanned()
+//player has sucessfully scanned the area with the tricorder
+{
+//show holo emitters
+	$holoEmitter1.missionobjective(1);
+	$holoEmitter2.missionobjective(1);
+	$holoEmitter1.show();
+	$holoEmitter2.show();
+//remove targeting texture
+	$tricorderArea1.remove();
+//remove tricorder area indicator
+	$tricorderSymbol1.remove();
+
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 7 , 1 );//scan
+}
+
+void holoEmitterBlow1()
+//holoemitter destroyed
+{
+//show sparks, and emitter
+	$holoEmitter1.show();
+	$holoEmitter1Spark.show();
+	$holoEmitter1.selfdetonate();
+	$holoEmitter1.missionobjective(0);
+	if(float_holoEmittersDamaged==0)
+	{
+		float_holoEmittersDamaged++;
+	//make holograms flicker
+		thread hologramsFlicker();
+	}
+	else
+	{
+	//hide holograms
+		$romTrigger.triggerable();
+		$doorPannel.show();
+		killthread("hologramsFlicker");
+		$hologramBush.remove();
+		$hologramDoor.remove();
+		$areaScannPuzzle.remove();
+		$tricorderArea1.remove();
+		$tricorderSymbol1.remove();
+		
+		//hzm coop mod chrissstrahl - point player to where to go
+		$romTrigger.missionobjective(1);
+	}
+}
+
+void holoEmitterBlow2()
+//holoemitter destroyed
+{
+//show sparks, and emitter
+	$holoEmitter2.show();
+	$holoEmitter2Spark.show();
+	$holoEmitter2.selfdetonate();
+	$holoEmitter2.missionobjective(0);
+	if(float_holoEmittersDamaged==0)
+	{
+		float_holoEmittersDamaged++;
+	//make holograms flicker
+		thread hologramsFlicker();
+	}
+	else
+	{
+	//hide holograms
+		$romTrigger.triggerable();
+		$doorPannel.show();
+		killthread("hologramsFlicker");
+		$hologramBush.remove();
+		$hologramDoor.remove();
+		$areaScannPuzzle.remove();
+		$tricorderArea1.remove();
+		$tricorderSymbol1.remove();
+		
+		//hzm coop mod chrissstrahl - point player to where to go
+		$romTrigger.missionobjective(1);
+	}
+}
+
+void hologramsFlicker()
+{
+	$hologramDoor.loopsound("sound/ships/drull/drull_hologram.wav",1,256);
+	while(1)
+	{
+		$hologramDoor.hide();
+		$hologramBush.hide();
+		wait(0.15);
+		$hologramBush.show();
+		$hologramDoor.show();
+		wait(0.15);
+	}
+}
+
+void openDoors()
+//open the doors outwards
+{
+	$t191.notsolid();
+	$t191.open($teleportPad1);
+	
+//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'200 450 200','9290 -2335 -700');
+}
+
+void shatterWindow()
+{
+	entity e;
+	entity ePlayer;
+	e=getCurrentEntity();
+	ePlayer = e.getLastActivatingEntity();
+	
+	ePlayer.playsound("sound/impact/explosion/explo_neonsign.wav",0,1,128);
+}
+
+void badKilling()
+//if player kills the folks, they all atempt to kill him
+{
+	float_playerIsAMurderer=1;
+//enable puzzle to hack and show area
+	$hackingDoorPuzzle.puzzleobject_activate();
+	$tricorderArea2.show();
+//remove the non violant solution
+	$playerSitMarker.remove();
+	$cinematic_playerSitDownTrigger.remove();
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("failed" , 4 , 0 );//avoidconfront
+	globalCoop_objectives_update("failed" , 5 , 1 );//findtable
+	
+	entity eActor;
+	string sTargetname;
+	for(float_actorIndex=float_actorIndex;float_actorIndex > -2;float_actorIndex--)
+	{
+		sTargetname = $world.getStringvar("actorTargetnameIndex"+float_actorIndex);
+		
+		if(float_actorIndex == -1)
+		{
+			sTargetname	= "anika";
+		}
+		
+		if(sTargetname != "")
+		{
+			eActor = getEntity(sTargetname);
+			if(doesEntityExist(eActor))
+			{
+				if(eActor.getHealth() > 0)
+				{
+					eActor.aggressive(1);//get aggressive
+					//eActor.attack($player);//attack player
+					eActor.actortype("enemy");//they are your enemy now
+					eActor.health(40);//make them die relativley quickley
+					eActor.immortal(0);//make em able to die
+					eActor.ai_on();//enable ai
+					eActor.killthread("");//execute killthread just once
+					eActor.nouse();//don't play dialog on use anymore
+				//replace with hostile counterparts
+					if(sTargetname == "blueman" || sTargetname == "blueman2")
+					{
+						eActor.model("models/char/andorian-m9-merc-rocket-m1.tik");
+					}
+					else if(sTargetname == "dude2")
+					{
+						eActor.model("models/char/human-m9-merc-shotgun-m1.tik");
+					}
+					else if(sTargetname == "seated" || sTargetname == "girl")
+					{
+						eActor.model("models/char/human-m9-merc-pistol-f1.tik");
+					}
+					else if(sTargetname == "laptopuser" || sTargetname == "girl2")
+					{
+						eActor.model("models/char/human-m9-merc-pistol-f2.tik");
+					}
+					else if(sTargetname == "klingon2")
+					{
+						eActor.model("models/char/klingon-m9-merc-knife-m1.tik");
+					}
+				}
+			}
+		}
+	//make korban and chang able to die
+		$korban.immortal(0);
+		$korban.health(70);
+		$chang.immortal(0);
+		$chang.health(70);
+	}
+}
+
+void cinematic_playerSitDown()
+//player sits down to wait for romulan
+{
+//fade screen from black back in again to normal
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.3);
+	$munro.origin('10611.00 -333.00 -440.00');
+	$munro.angle(360);
+	$munro.show();
+	$munro.killattach();
+	$playerSitMarker.remove();
+
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	//hzm coop mod chrissstrahl - only sp
+	if(getcvarint("g_gametype") == 0){
+		$player.hide();
+		$player.notsolid();	
+	}
+
+	$cam1.follow($cinematicSceneA);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+	
+	$korban.ai_off();
+	$korban.notsolid();
+	$korban.hide();
+	$chang.ai_off();
+	$chang.notsolid();
+	$chang.hide();
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	wait(0.2);
+	$munro.animateonce("ent-seta_sit-down");
+	waitforanimation($munro,"ent-seta_sit-down");
+	$munro.anim("ent-seta_sit-idle");
+	wait(0.2);
+	$munro.animateonce("ent-seta_sit-idle-look");
+	waitforanimation($munro,"ent-seta_sit-idle-look");
+	
+	$munro.animateonce("ent-seta_sit-gesture");
+	wait(0.3);
+	
+	$munro.anim("ent-seta_sit-idle");
+	wait(0.02);
+	$munro.watchEntity($doorToPrivateBar);
+
+	$cam2.follow($cinematicSceneB);
+	$cam2.cut();
+	wait(0.1);
+	cuecamera($cam2);
+
+//spawn romulan
+	triggerEntity($spawn_transporterRomulan);
+//unlock and open the door
+	$doorToPrivateBar.unlock();
+	$doorToPrivateBar.open($spawn_transporterRomulan);
+	wait(0.1);
+	$transporterRomulan.ai_off();
+	
+	$transporterRomulan.walkto("$teleportPad2","walk");
+	waitFor($transporterRomulan);
+	$transporterRomulan.displayeffect("TransportOut","Federation");
+	$transporterRomulan.notsolid();
+	$transporterRomulan.notarget();
+	wait(1.8);
+	
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(.3);
+	$munro.hide();
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 5 , 1 );//findtable
+
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+	//hzm coop mod chrissstrahl - only sp
+	if(getcvarint("g_gametype") == 0){
+		$player.show();
+		$player.solid();
+	}
+
+	$korban.solid();
+	$korban.show();
+	$korban.ai_on();
+	$chang.show();
+	$chang.solid();
+	$chang.ai_on();
+	
+	cam_fadeIn(0.25,0,0,0,1);
+	wait(1);
+	$transporterRomulan.remove();
+}
+
+
+void replicatedFood()
+{
+	$replicatedFoodTrigger.playsound("sound/ships/enterprise/ent_replicator.wav",3,2,64);
+	wait(1);
+	$replicatedFoodTrigger.triggerable();
+}
+
+void replicatedFoodEat()
+{
+//hzm coop mod chrissstrahl - make suitable for coop
+	entity e;
+	e = getCurrentEntity();
+	entity ePlayer;
+	ePlayer = e.getLastActivatingEntity();
+	$replicatedFood.remove();
+//give +25 health
+	ePlayer.health(ePlayer.getHealth() + 25);
+	ePlayer.playsound("sound/player/player_gulp.wav",3,4,128);
+}
+
+void openDoorToGarden()
+//opens the door to the garden
+{
+	$doorToGarden.open($world);
+}
+
+void secretBarWakeEmUp()
+{
+//hzm coop mod chrissstrahl - make suitable for coop
+	$barSoldier0.attack(globalCoop_return_playerClosestPreferActive($barSoldier0));
+	$barSoldier1.attack(globalCoop_return_playerClosestPreferActive($barSoldier1));
+	$barSoldier2.attack(globalCoop_return_playerClosestPreferActive($barSoldier2));
+	$barSoldier3.attack(globalCoop_return_playerClosestPreferActive($barSoldier3));
+	
+	wait(10);
+	$korban.settendency("follow",0);
+	$chang.settendency("follow",0);
+}
+
+void dialog_laptopuser()
+{
+	$laptopuser.nouse();
+	//hzm coop mod chrissstrahl - make suitable for coop
+	$laptopuser.headWatch(globalCoop_return_playerClosestPreferActive($laptopuser));
+	$laptopuser.playdialog("localization/sound/dialog/m9l1/bar_romale.mp3",1,256,0);
+	waitForDialog($laptopuser);
+	$laptopuser.headWatchtarget("none",20);
+}
+void dialog_klingon2()
+{
+	$klingon2.nouse();
+	//hzm coop mod chrissstrahl - get closest player 
+	$klingon2.headWatch(globalCoop_return_playerClosestPreferActive($klingon2));
+	//hzm coop mod chrissstrahl - get closest player 
+	$klingon1.headWatch(globalCoop_return_playerClosestPreferActive($klingon1));
+	$klingon2.playdialog("localization/sound/dialog/m9l1/merc5_bloodw.mp3",1,256,0);
+	waitForDialog($klingon2);
+	$klingon1.playdialog("localization/sound/dialog/m9l1/bar_bev.mp3",1,256,0);
+	waitForDialog($klingon1);
+	$klingon2.headWatchtarget("none",20);
+	$klingon1.headWatchtarget("none",20);
+}
+void dialog_blueman()
+{
+	$blueman.nouse();
+	$blueman.headWatch(globalCoop_return_playerClosestPreferActive($blueman));//hzm coop mod chrissstrahl - get closest player
+	$blueman.playdialog("localization/sound/dialog/m9l1/alien_stepaway.mp3",1,256,0);
+	waitForDialog($blueman);
+	$blueman.headWatchtarget("none",20);
+}
+void dialog_blueman2()
+{
+	$blueman2.nouse();
+	$blueman2.headWatch(globalCoop_return_playerClosestPreferActive($blueman2));//hzm coop mod chrissstrahl - get closest player
+	$blueman2.playdialog("localization/sound/dialog/m9l1/merc5_startfight.mp3",1,256,0);
+	waitForDialog($blueman2);
+	$blueman2.headWatchtarget("none",20);
+}
+void dialog_dude2()
+{
+	$dude2.nouse();
+	$dude2.headWatch(globalCoop_return_playerClosestPreferActive($dude2));//hzm coop mod chrissstrahl - get closest player
+	$dude2.playdialog("localization/sound/dialog/m9l1/merc5_vulcport.mp3",1,256,0);
+	waitForDialog($dude2);
+	$dude2.headWatchtarget("none",20);
+}
+
+void dialog_girl2()
+{
+	$girl2.nouse();
+	$girl2.headWatch(globalCoop_return_playerClosestPreferActive($girl2));//hzm coop mod chrissstrahl - get closest player
+	$girl2.playdialog("localization/sound/dialog/m2l1/female_guyjerk.mp3",1,256,0);
+	waitForDialog($girl2);
+	$girl2.headWatchtarget("none",20);
+}
+void dialog_girl()
+{
+	$girl.nouse();
+	$girl.headWatch(globalCoop_return_playerClosestPreferActive($girl));//hzm coop mod chrissstrahl - get closest player
+	$girl.playdialog("localization/sound/dialog/m2l1/female_youguy.mp3",1,256,0);
+	waitForDialog($girl);
+	$girl.headWatchtarget("none",20);
+}
+void dialog_seated()
+{
+	$seated.nouse();
+	$seated.headWatch(globalCoop_return_playerClosestPreferActive($seated));//hzm coop mod chrissstrahl - get closest player
+	$seated.playdialog("localization/sound/dialog/m2l1/femc2_dontmet.mp3",1,256,0);
+	waitForDialog($seated);
+	$seated.headWatchtarget("none",20);
+}
+
+void fail_lostTeammate()
+//korban or chang killed
+{
+//hzm coop mod chrissstrahl - add # prefix because this is not using a local string
+//with the coop mod this works even without $player.missionfailed("string");
+	missionfailed("$$YouLostTeamMate$$");
+}
+
+void doorHacked()
+//puzzle hacked to seceret bar, needs player to kill the pople in the bar
+{
+	$doorToPrivateBar.unlock();
+	$doorToPrivateBar.open($hackingDoorPuzzle);//hzm coop mod chrissstrahl - do not relay on a player to be there
+	$tricorderArea2.remove();
+	$hackingDoorPuzzle.remove();
+}
+
+
+void doorHackedUsed()
+{
+	$tricorderArea2.remove();
+}
+
+void doorHackedSpy()
+//puzzle hacked to follow thy spy
+{
+	$doorToSpy.unlock();
+	$doorToSpy.open($hackingDoorPuzzleSpy);//hzm coop mod chrissstrahl - do not relay on a player to be there
+	$hackingDoorPuzzleSpy.remove();
+	$tricorderArea3.remove();
+}
+
+void noAccess()
+{
+	entity e;
+	entity ePlayer;
+	e=getCurrentEntity();
+	ePlayer = e.getLastActivatingEntity();
+
+	//hzm coop mod chrissstrahl - print ger or english
+	if(getStringPlayerLanguage(ePlayer) == "Deu"){
+		ePlayer.hudprint("Zugriff verweigert\n");
+	}else{
+		ePlayer.hudprint("Access Denied\n");
+	}
+}
+
+void noAccessYet()
+{
+	entity e;
+	entity ePlayer;
+	e=getCurrentEntity();
+	ePlayer = e.getLastActivatingEntity();
+	
+	//hzm coop mod chrissstrahl - print ger or english
+	if(getStringPlayerLanguage(ePlayer) == "Deu"){
+		ePlayer.hudprint("Sie haben momentan keinen Zugriff\n");
+	}else{
+		ePlayer.hudprint("You can not yet access this pannel\n");
+	}
+}
+
+void exitNow()
+{
+//don't display MISSION SUCESS screen
+	//nointermission();
+}
+
+void changeLevel()
+{
+}
+
+//hzm coop mod chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath5");
+}

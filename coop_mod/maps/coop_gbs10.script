@@ -1,0 +1,1325 @@
+// EF2 Level Script File 
+// 
+// Level:		map09.bsp
+// Script By:		DrBob & Argyle & TickNSwisted & Sam "Bicko" Bickley & LTiefland & Chrissstrahl
+// Geometry By:		TickNSwisted & Argyle & Sam "Bicko" Bickley 
+// Created on:		02/04/04 
+// Last Edited on:		03.02.2006
+// Last Edited By:		Chrissstrahl
+//************************************************************************** 
+//   MAP 9SCRIPT 
+//************************************************************************** 
+//INCLUDES 
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+float FARPLANE_DISTANCE = 1500;
+void	coop_aiMakeEnemy(entity e);
+void	coop_levelEndGather();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_archetype.scr"
+
+
+//NOTES
+/*
+sound/doors/door_locked.wav
+sound/ships/romulan/rom_beep_yes.wav
+sound/ships/romulan/rom_beep_no.wav
+sound/ships/romulan/rom_beep_activate.wav
+sound/ships/romulan/rom_redalert.wav
+*/
+
+
+//VARS
+//************************************************************************** 
+float romulan1_active;
+float elevator1_pos = 1; 
+float door_01_pos = 1; 
+float lift_02_pos = 0; 
+
+
+//STAGE 0
+void main();
+void setupWorld();
+
+//STAGE 1
+void granade_romulan1();
+void fire_lift_01() ;
+void lift_01_romulaner();
+//
+void fire_lift_01(); 
+void fire_lift_02(); 
+void fire_lift_03(); 
+void fire_ff_01();
+void fire_steam_01();
+void fire_steam_02();
+//
+void cin_cells(); 
+void cin_cells_skip();
+//
+void shuttle_entrance();
+void shuttle_entrance_skip();
+//
+void cin_shuttle();
+void cin_shuttle_skip();
+void stammheimEnteringShuttle();
+void illiaEnteringShuttle();
+
+
+
+void markerShow()
+{
+	//hzm coop mod chrissstrahl - show marker on radar
+	$coop_symbol4.missionobjective(1);
+}
+
+void fire_lift_02 ()
+{
+	if ( lift_02_pos == 0 )  
+	{
+		$lift_02.playsound ( "sound/environment/machine/lift3.wav" );  
+		$lift_02.time ( 4 ); 
+		$lift_02.movedown ( 280 ); 
+		wait ( 4 ); 
+		$lift_02.playsound ( "sound/environment/machine/lift3stop.wav" ); 
+		wait ( 3 ); 
+		lift_02_pos = 1; 
+	}
+	else 
+	{
+		if ( lift_02_pos == 1 )  
+		{  
+			$lift_02.playsound ( "sound/environment/machine/lift3.wav" );  
+			$lift_02.time ( 4 );  
+			$lift_02.moveup ( 280 ); 
+			wait ( 4 ); 
+			$lift_02.playsound ( "sound/environment/machine/lift3stop.wav" );  
+			wait ( 3 );  
+			lift_02_pos = 0;  
+		}
+	}
+}
+
+void fire_lift_03 () 
+{ 
+	$lift_03.playsound ( "sound/environment/machine/lift3.wav" ); 
+	$lift_03.time ( 2 ); 
+	$lift_03.moveup ( 262 );
+	wait ( 2 ); 
+	$lift_03.playsound ( "sound/environment/machine/lift3stop.wav" ); 
+	wait ( 3 ); 
+	$lift_03.playsound ( "sound/environment/machine/lift3.wav" ); 
+	$lift_03.time ( 2 ); 
+	$lift_03.movedown ( 262 ); 
+	wait ( 2 ); 
+	$lift_03.playsound ( "sound/environment/machine/lift3stop.wav" );
+}
+
+void fire_baydoors ()
+{
+	$bay_door_01.playsound ( "sound/environment/machine/lift4.wav");
+	$bay_door_01.time ( 5 );
+	$bay_door_01.movenorth ( 500 );
+	$bay_door_02.time ( 5 );
+	$bay_door_02.movesouth ( 500 );
+	wait ( 5 );
+	$bay_door_01.playsound ( "sound/environment/machine/lift4stop.wav" );
+}
+
+void fire_ff_01 () 
+//Removes the ff to the controll center.
+{
+	//hzm coop mod chrissstrahl - only save in sp
+	if( getCvarInt("g_gametype") == 0 ){
+		globalCommon_Autosave();
+	}
+	
+	$trigger_ff.playsound( "sound/ships/romulan/rom_beep_activate.wav" );
+	wait( 2 );
+	
+	$sparks_ff.selfdetonate();
+	wait( 0.1 );
+	$device_ff_origin.angles( '90 -90 0' );
+	$ff_01.remove ();
+	$sparks_ff.show();
+	$cable_ff.show();
+	wait( 3 );
+	
+	//hzm coop mod chrissstrahl - set marker on radar
+	$coop_symbol4.missionobjective(0);
+	$coop_symbol0.missionobjective(1);
+}
+
+
+void fire_steam_01()
+{
+	$knob_steam_01.rotateZ(50);
+	//  $knob_steam_01.movenorth(1);
+	$knob_steam_01.playsound( "sound/environment/metal/crank_switch.wav" );
+	wait(1);
+	$knob_steam_01.rotateZ(0);
+	$trig_steam_01.nottriggerable();
+	$enty_steam_01.remove ();
+}
+
+void fire_steam_02()
+{
+	$knob_steam_02.rotateX(64);
+	//  $knob_steam_02.movenorth(1);
+	$knob_steam_02.playsound( "sound/environment/metal/crank_switch.wav" );
+	wait(1);
+	$knob_steam_02.rotateX(0);
+	$trig_steam_02.nottriggerable();
+	$enty_steam_02.remove ();
+}
+
+//************************************************************************** 
+//MAIN
+//**************************************************************************
+void main() 
+{ 
+	soundtrack( "music/map9.mus" ); 
+	if(doesEntityExist($sky)){
+		$sky.rendereffects( "+skyorigin" );
+	}
+	
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	coop_string_weapon1 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-FieldAssaultRifle.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon4 = "models/weapons/worldmodel-rom-disruptor.tik";
+	coop_string_weapon5 = "models/weapons/worldmodel-BurstRifle.tik";
+	coop_string_weapon6 = "models/weapons/worldmodel-Batleth.tik";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	coop_string_objectiveItem4 = "Find an entrance to the remains of the outpost.";
+	coop_string_objectiveItem5 = "Go to the bridge of the warbird.";
+	coop_string_objectiveItem6 = "Reroute power to the transporter and beam off the ship.";
+	coop_string_objectiveItem7 = "Find Alexander Stammheim. He will be in a holding cell.";
+	coop_string_objectiveItem8 = "Get to Stammheim's shuttle and escape with Stammheim.";
+
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	coop_string_objectiveItem4_deu = "Finde einen Eingang zu den $$Ue$$berresten des Außenpostens.";
+	coop_string_objectiveItem5_deu = "Gehe auf die Brücke des Warbirds.";
+	coop_string_objectiveItem6_deu = "Leite Energie zum Transporter um und beame Dich vom Schiff.";
+	coop_string_objectiveItem7_deu = "Finde Alexander Stammheim. Er wird in einer Zelle sein.";
+	coop_string_objectiveItem8_deu = "Gehe zu Stammheims shuttle und fliehe mit Stammheim.";
+
+	thread setupWorld();
+
+	//Wait for the Player to be Ready
+	waitForPlayer();
+	playerDeathThread("playergotKilled");
+	
+	//$player.addrosterteammate1( $stammheim );
+
+	//hzm coop mod chrissstrahl - set damage so lift will not be blocked
+	$lift_01.dmg(999999);
+	$lift_02.dmg(999999);
+	$lift_03.dmg(999999);
+	
+	//hzm coop mod chrissstrahl - set kill message
+	$lift_01.setStringVar("uservar1","killmessage  was crushed by a ^2Lift");
+	$lift_01.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Lift");
+	$lift_02.setStringVar("uservar1","killmessage  was crushed by a ^2Lift");
+	$lift_02.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Lift");
+	$lift_03.setStringVar("uservar1","killmessage  was crushed by a ^2Lift");
+	$lift_03.setStringVar("uservar2","killmessage_de  wurde zerquetscht von einem ^2Lift");
+	
+	//hzm coop mod chrissstrahl - set marker on radar
+	$granade_romulan1Trigger.missionobjective(1);
+}	
+
+void setupWorld()
+{
+	//Setup The Archetypes
+	thread globalArchetype_Setup( $console_0, "RomulanGenericUsableConsole");
+	thread globalArchetype_Setup( $console_1, "RomulanSecurityUsableConsole");
+	thread globalArchetype_Setup( $console_2, "RomulanGenericUsableConsole");
+	thread globalArchetype_Setup( $console_3, "RomulanSecurityUsableConsole");
+	
+	//Setup The OnUse Threads
+	thread globalCommon_OnUse( $trigger_fire_lift_01, "lift_01_romulaner" ); 
+	
+	//Loop Sounds
+	$stammheim_forcefield.loopsound( "sound/ships/enterprise/ent_forcefield.wav" , 1, 125 );
+	
+	//Force Field Generator Device (Not the ventilator system)
+	$device_ff.bind( $device_ff_origin );
+	$sparks_ff.hide();
+	$cable_ff.hide();
+	$device_ff_origin.angles( '0 -90 0' );
+	
+	//Granade Romulaner
+	//$romulan1.ai_off();//Sleep till we need you //hzm coop mod chrissstrahl - done in the map now
+	
+	//TEMORARY -> Lock Cell Door and disable cinematics
+	//Till player finds the console to unlock the cell
+	$cell_door.lock();
+	$trigger_cin_cells.nottriggerable();
+	//Lock door for the shuttlebay
+	$baydoor.lock();
+	
+	//Cells, outside gards
+	//hzm coop mod chrissstrahl - done in the map now
+	/*
+	$romulan2.ai_off();
+	$romulan2.notsolid();
+	$romulan2.hide();
+	
+	$romulan3.ai_off();
+	$romulan3.hide();
+	$romulan3.notsolid();
+	
+	$romulan4.ai_off();
+	$romulan4.hide();
+	$romulan4.notsolid();
+	*/
+	
+	wait(0.05);	
+
+	//Video Screen
+	$screen_on.hide();
+    $screen_pattern.show();
+	
+	//Shuttle, Romulan Patrols
+	/* //hzm coop mod chrissstrahl - done in the map now
+	$shuttle_attacker1.ai_off();
+	$shuttle_attacker2.ai_off();
+	$shuttle_attacker3.ai_off();
+	$shuttle_attacker4.ai_off();
+	$shuttle_attacker1.hide();
+	$shuttle_attacker2.hide();
+	$shuttle_attacker3.hide();
+	$shuttle_attacker4.hide();
+	$shuttle_attacker1.notsolid();
+	$shuttle_attacker2.notsolid();
+	$shuttle_attacker3.notsolid();
+	$shuttle_attacker4.notsolid();
+	*/
+
+	wait(0.05);
+	
+	
+	//Shuttle, Bind Models
+	$drull_shuttle.bind($shuttle_bind);
+	$shuttle_main.bind($shuttle_bind);
+	
+	//Since the radinat is resetin the model all the time we gona force this by script!!!
+	//$stammheim.model("models/char/stammheim.tik");//Patch 06.sep.2007 @ Chrissstrahl
+	
+	$stammheim.actortype("teammate");
+	
+	//Make Stammheim so that he isn't allowed to be killed by you 
+	$stammheim.not_allowed_to_kill();
+	
+	//Remove Stammheim's toy 
+	$stammheim.killattach(); 
+
+	$illia_cockpit.killattach();
+	$stammheim_cockpit.killattach();
+
+	wait(0.05);
+
+	//Spawn cameras 
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" ); 
+	spawn( "Camera", "targetname", "cam3" );
+	spawn( "Camera", "targetname", "cam4" );
+	spawn( "Camera", "targetname", "cam5" );
+	spawn( "Camera", "targetname", "cam6" );
+	spawn( "Camera", "targetname", "cam7" );
+	spawn( "Camera", "targetname", "cam8" );
+
+	//Set NPCs sides 
+	$stammheim.actortype( "teammate" ); 
+
+	//Make it so that Romulans wont attack Stammheim, only you 
+	$stammheim.flags( "+notarget" ); 
+
+	//Setup NPC animations
+	$stammheim.anim( "idle_breathing" ); 
+	$imdead.anim("dead_in_captain_chair");
+
+	//Setup NPC facial animation 
+	$stammheim.morph( "exp_eyes_heavy" ); 
+	$stammheim.morph( "exp_Nervous" ); 
+	$stammheim.morph( "exp_Fear" ); 
+	$stammheim.morph( "exp_Sad" ); 
+
+	$entrance_trigger.nottriggerable();
+	$trigger_final.nottriggerable();
+
+	
+	//hzm coop mod chrissstrahl - make this actor patrol	
+	$uschi.settendency("patrol",1);	
+	
+	wait(0.05);
+	
+	//hzm coop mod chrissstrahl - make ai patrol
+	$romulan5.settendency("patrol",1);
+	
+	//hzm coop mod chrissstrahl - make ai patrol
+	$romulan6.settendency("patrol",1);
+	
+	//hzm coop mod chrissstrahl - make ai patrol
+	$romulan7.settendency("patrol",1);
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed"		, 1 , 0 );
+	globalCoop_objectives_update("complete"		, 2 , 0 );
+	globalCoop_objectives_update("complete"		, 3 , 0 );
+	globalCoop_objectives_update("complete"		, 4 , 0 );
+	globalCoop_objectives_update("complete"		, 5 , 0 );
+	globalCoop_objectives_update("complete"		, 6 , 0 );
+	globalCoop_objectives_update("incomplete"	, 7 , 1 );
+	
+	//hzm coop mod chrissstrahl - only save in sp
+	if( getCvarInt("g_gametype") == 0 ){
+		globalCommon_Autosave();
+	}	
+}
+
+
+//STAGE 1
+//************************************************************************** 
+// Reach the lift
+//************************************************************************** 
+
+void granade_romulan1()
+//Romulan Grenadier
+{
+	//hzm coop mod chrissstrahl - set marker on radar
+	$granade_romulan1Trigger.missionobjective(0);
+	$coop_symbol1.missionobjective(1);
+	
+	//Chek if he is still alive, then make him think
+	if( doesEntityExist( $romulan1 ) )
+	{
+		$romulan1.ai_on();
+	}
+}
+
+void fire_lift_01() 
+{
+	//Check if the grenadier is still allive, if make him sleep
+	//ELSE he will make noise all the time
+	if( doesEntityExist( $romulan1 ) )
+	{
+		$romulan1.sleep();
+	}
+	
+	//Check if the Lift was active
+	if( romulan1_active != 1 )
+	{
+		//hzm coop mod chrissstrahl - set marker on radar
+		$coop_symbol1.missionobjective(0);
+		
+		//hzm coop mod chrissstrahl - move spawnpoints
+		$ipd1.origin('1204 -1527 -64');
+		$ipd2.origin('1156 -1527 -64');
+		$ipd3.origin('1212 -1639 -64');
+		$ipd4.origin('1164 -1639 -64');
+		$ipd5.origin('1106 -1527 -64');
+		$ipd6.origin('1114 -1639 -64');
+		$ipd7.origin('1212 -1783 -64');
+		$ipd8.origin('1164 -1783 -64');
+	
+		thread lift_01_romulaner();
+		romulan1_active = 1;
+	}
+	//Move the lift down, lock the trigger, wait and move the lift up again
+	$trigger_fire_lift_01.nottriggerable();
+	$lift_01.playsound ( "sound/environment/machine/lift3.wav" ); 
+	$lift_01.time ( 6 ); 
+	$lift_01.movedown ( 432 ); 
+	wait ( 6 ); 
+	$lift_01.playsound ( "sound/environment/machine/lift3stop.wav" ); 
+	
+	wait ( 5 ); 
+	
+	$lift_01.playsound ( "sound/environment/machine/lift3.wav" ); 
+	$lift_01.time ( 6 ); 
+	$lift_01.moveup ( 432 ); 
+	wait ( 6 ); 
+	$lift_01.playsound ( "sound/environment/machine/lift3stop.wav" ); 
+	$trigger_fire_lift_01.triggerable();	
+} 
+
+
+void lift_01_romulaner()
+{
+	//Spawn a Romulan Solider at the lift01
+	$romulan2.ai_on();
+	$romulan2.displayeffect( "TransportIn", "Romulan" );
+	$romulan2.show();
+	wait( 2 ); //Wait a moment to simulate the transporter effect
+	$romulan2.solid();
+}
+
+
+
+//STAGE 2
+//************************************************************************** 
+// Manage to open the hall door
+//************************************************************************** 
+
+void secret_dancer1()
+//Secret dancer, if player enters the room she starts dancing
+{
+	//Let her dance
+	while( doesEntityExist( $dancer1 ) )
+	{
+		$dancer1.anim( "dance1" );
+		wait( 10 );
+	}
+}
+
+void t15_attack()
+{
+	//hzm coop mod chrissstrahl - set marker on radar
+	$15_attackTrigger.missionobjective(0);
+	$grp_hall_door_lockTrigger.missionobjective(1);
+}
+
+void grp_hall_door()
+//Unlock and open the hall door for stage 3
+{
+	//hzm coop mod chrissstrahl - move spawnpoints
+	$ipd1.origin('580 -759 -64');
+	$ipd2.origin('532 -759 -64');
+	$ipd3.origin('482 -759 -64');
+	$ipd4.origin('628 -759 -64');
+	$ipd5.origin('726 -1104 -184');
+	$ipd6.origin('776 -1104 -184');
+	$ipd7.origin('824 -1104 -184');
+	$ipd8.origin('832 -1200 -184');
+
+	//hzm coop mod chrissstrahl - set marker on radar
+	$coop_symbol0.missionobjective(0);
+	$15_attackTrigger.missionobjective(1);
+	
+	cam_fadeout( 0.1, 0, 0, 0, 1, 0 );	 
+	$cam2.follow( $entrance );	 
+	$cam2.cut();	 
+	cinematic();	 
+	freezeplayer();	 
+	letterbox( 0.5 );	 
+	wait( 0.5 );	 
+	
+	cam_fadein( 1, 0, 0, 0, 1, 0 );	 
+	wait( 0.1 );	 
+	cuecamera($cam2);
+	$trigger_grp_hall_door.nottriggerable();
+	$grp_hall_door.unlock();
+	$grp_hall_door.open( $trigger_grp_hall_door );
+	triggerentity($door_sound);	 
+	wait(3);	 
+	noncinematic();	 
+	clearletterbox( 0.1 );	 
+	
+	releaseplayer();	 
+	cueplayer();	 
+	 
+	wait( 0.1 );	 
+	
+	cam_fadein( 0.1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - only save in sp
+	if( getCvarInt("g_gametype") == 0 ){
+		globalCommon_Autosave();
+	}
+}
+
+//STAGE 3
+//************************************************************************** 
+// -
+//************************************************************************** 
+void grp_hall_door_lock()
+//lock and open the hall door
+{
+	//hzm coop mod chrissstrahl - set marker on radar
+	$grp_hall_door_lockTrigger.missionobjective(0);
+	$coop_symbol6.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - move spawnpoints
+	$ipd1.origin('288 -504 112');
+	$ipd2.origin('240 -504 112');
+	$ipd3.origin('192 -504 112');
+	$ipd4.origin('142 -504 112');
+	$ipd5.origin('440 -536 112');
+	$ipd6.origin('488 -576 112');
+	$ipd7.origin('344 -536 112');
+	$ipd8.origin('392 -536 112');
+	
+	//hzm coop mod chrissstrahl - do not do this in coop, it will lock players out
+	if(getcvarInt("g_gametype") == 1 ){
+		return;
+	}
+	$grp_hall_door.close();
+	$grp_hall_door.lock();
+}
+
+void unlock_cells()
+{
+	//hzm coop mod chrissstrahl - set marker on radar
+	$coop_symbol6.missionobjective(0);
+	$stammheim.missionobjective(1);
+	
+	$trigger_unlock_cells.playsound("sound/ships/romulan/rom_beep_yes.wav", 1, 1, 10 );
+	$trigger_cin_cells.triggerable();
+	$cell_door.unlock();
+	$romulan3.show();
+	$romulan3.solid();
+	$romulan3.ai_on();
+	
+	//hzm coop mod chrissstrahl - make ai patrol
+	$romulan3.settendency("patrol",1);
+}
+//CINEMATIC FUNCTIONS 
+void cin_cells() 
+{
+	//hzm coop mod chrissstrahl - remember whch player triggred the sequence, we want to move this player later
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	entityPlayerGlobal = eTrigger.getLastActivatingEntity();
+	
+	$cell_door.open($world);
+	$cell_door.open($world);
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 ); 
+	wait(1);
+	freezeplayer();
+	
+	//Make Illia holster any weapon she might have acquired 
+	cinematic(); 
+	letterbox( 0.5 ); 
+	
+	//Unlock Bay Door, 
+	$baydoor.unlock();
+	$cell_door.unlock();
+	
+	//Activate a nother soldier (he will patrol until player comes in viewrange)
+	$romulan4.show();
+	$romulan4.solid();
+	$romulan4.ai_on();
+	
+	//hzm coop mod chrissstrahl - reuse actor
+	$illia_cockpit.scale(1);
+	$illia_cockpit.angle(0);
+	$illia_cockpit.origin('1299 -169 -20');
+	
+	//Make Illia walk up to the doors
+	$illia_cockpit.walkto( "$cin_cells_illia_pos_enter" ); 
+
+	$cam1.follow( $cin_cells_cam1_pos1, $illia_cockpit ); 
+	$cam1.cut(); 
+	cuecamera($cam1);
+	//Make it a cinematic 
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+	
+	$chell_door.open($world);
+	$chell_door.open($world);
+	
+	skipthread( "cin_cells_skip" );	
+
+	wait(2.3);
+	//Make the camera pan down to look through the door 
+	$cam1.follow( $cin_cells_cam1_pos2, $illia_cockpit );
+	$cell_door.open($world);
+	$illia_cockpit.anim("walk");
+	$cam1.cut(); 
+	cuecamera($cam1);
+	wait( 1 ); 
+	$illia_cockpit.walkto( "$cin_cells_illia_pos_inside" ); 
+	waitFor( $illia_cockpit ); 
+	$illia_cockpit.headwatch( $stammheim ); 
+	$illia_cockpit.walkto( "$cin_cells_illia_pos_nearcell" ); 
+	wait( 1 );
+	//Close the door again, just to be tidy 
+	//fire_door_01(); 
+
+	//Fade the camera out 
+	cam_fadeout( 1, 0, 0, 0, 1, 0 ); 
+	wait( 2 ); 
+
+	//Setup the camera inside the cell room 
+		
+	$cam1.follow( $cin_cells_cam1_pos3 ); 
+	$cam1.cut();
+
+	wait( 1 ); 
+	cuecamera($cam1);
+
+	cam_fadein( 0.1, 0, 0, 0, 1, 0 ); 
+
+	//POSSIBLE ANIMATIONS FOR STAMMHEIM: 
+	//   cheer              :   Arms above head 
+	//   conv-embarrassment :   Head in hands 
+	//   conv-gesture1      :   Looking around, scared 
+	//   conv-laugh1        :   Pain 
+	//   conv-look          :   Looking around, scared 
+	//   conv-shakehead     :   Pain in head, voices
+	//   idle_breathing     :   Hard to breathe
+
+	//Illia: Stammheim. 
+	$illia_cockpit.morph( "exp_Relief" ); 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/stammheim.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+	$illia_cockpit.unmorph( "exp_Relief" ); 
+
+	wait( 1 ); 
+
+	//Turn Stammheim towards the player 
+	$stammheim.turntowardsentity($illia_cockpit); 
+	$stammheim.headwatch($illia_cockpit ); 
+
+	wait( 0.5 ); 
+
+	//Stammheim: Who...who are you? 
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/whoareyou.mp3", 2, 10000, 0 );
+	waitForDialog( $stammheim ); 
+
+	wait( 1 ); 
+	
+	//Start the camera panning up on Illia 
+	$cam1.follow( $cin_cells_cam1_pos4 ); 
+	$cam1.cut(); 
+
+	//Illia: You know me Stammheim.
+	$illia_cockpit.anim( "conv-gesture1" ); 
+	$illia_cockpit.morph( "exp_Skeptical" ); 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/youknowme.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+	$illia_cockpit.anim( "idle" ); 
+	
+	wait( 1 ); 
+
+	//Illia: The mission on Cardassia Prime? 
+	$illia_cockpit.anim( "conv_shrug" ); 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/cardassiaprime.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+	$illia_cockpit.anim( "idle" ); 
+
+	wait( 0.5 ); 
+
+	//Illia: Doesn't that ring a bell? 
+	$illia_cockpit.unmorph( "exp_Skeptical" ); 
+	$illia_cockpit.morph( "exp_Confused" ); 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/ringabell.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+
+	wait( 0.5 ); 
+
+	//Pointing at Stammheim through the forcefield 
+	$cam1.follow( $cin_cells_cam1_pos5 ); 
+	$cam1.cut(); 
+
+	//Stammheim: No more questions...please...please... 
+	$stammheim.anim( "conv-shakehead" );
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/noquestions.mp3", 2, 10000, 0 );
+	waitForDialog( $stammheim ); 
+
+	wait( 1.5 ); 
+
+	//Stammheim: My head... 
+	$stammheim.anim( "cheer" ); 
+	$stammheim.morph( "exp_Pain" ); 
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/myhead.mp3", 2, 10000, 0 );
+	waitForAnimation( $stammheim, "cheer" ); 
+	$stammheim.anim( "idle" ); 
+	waitForDialog( $stammheim ); 
+	
+	wait( 1 ); 
+
+	//Stammheim: The Romulan said the pain would stop...but it hasn't. 
+	$stammheim.anim( "conv-shakehead" ); 
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/painstop.mp3", 2, 10000, 0 );
+	waitForDialog( $stammheim ); 
+
+	wait( 1 ); 
+
+	//Looking at Illia 
+	$cam1.follow( $cin_cells_cam1_pos6, $illia_cockpit ); 
+	$cam1.cut(); 
+
+	//Illia: The Romulans didn't exactly handle him with kid gloves, it seems. 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/romulans.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit );
+	$illia_cockpit.unmorph( "exp_Confused" ); 
+	$illia_cockpit.morph( "exp_Serious" ); 
+
+	wait( 1 ); 
+
+	//Make Illia walk over to the console & deactivate the forcefield 
+	$illia_cockpit.walkto( "$cin_cells_illia_pos_console" ); 
+	waitFor( $illia_cockpit ); 
+
+	wait( 0.1 ); 
+
+	//Make Illia use the console and play a sound 
+	$illia_cockpit.headwatch( $console ); 
+	$illia_cockpit.turntoangle( 0 ); 
+	waitFor( $illia_cockpit ); 
+	$illia_cockpit.anim( "ent-transporter-rear-gesture" ); 
+	$console.playsound( "sound/ships/romulan/rom_beep_yes.wav", 0, 1 ); 
+
+	$cam1.lookat( $illia_cockpit ); 
+
+	waitForAnimation( $illia_cockpit, "ent-transporter-rear-gesture" ); 
+	$illia_cockpit.anim( "idle" ); 
+
+	$cam1.follow( $cin_cells_cam1_pos7, $stammheim ); 
+	$cam1.cut(); 
+
+	//Stop the forcefield sound, and play the forcefield_down sound 
+	$stammheim_forcefield.stoploopsound(); 
+	$stammheim_forcefield.playsound( "sound/ships/enterprise/ent_forcefield_down.wav", 0, 1 ); 
+	$stammheim_forcefield.remove(); 
+
+	wait( 0.1 ); 
+
+	//Illia: Come on Alexander. I'll get you out of here.
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/comeonalexander.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+	
+	wait( 1 ); 
+
+	//Illia: Try to follow me, ok? 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/follow.mp3", 1, 10000, 0 );
+	waitForDialog( $illia_cockpit ); 
+
+	wait( 1 ); 
+
+	//Illia: Do you understand? 
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/understood.mp3", 1, 10000, 0 );
+	$stammheim.anim( "idle_breathing" ); 
+	waitForDialog( $illia_cockpit ); 
+
+	wait( 1.5 ); 
+
+	//Stammheim: Follow...Yes... 
+	$stammheim.anim( "conv-yes" ); 
+	$cam1.follow( $cin_cells_cam1_posstammheim, $stammheim ); 
+	//$cam1.cut(); 
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/follow.mp3", 2, 10000, 0 );
+	waitForDialog( $stammheim ); 
+	$stammheim.anim( "idle_breathing" ); 
+
+	wait( 1 ); 
+
+	//Stammheim: Follow... 
+	$stammheim.playdialog( "localization/sound/dialog/map10/Stammheim/follow2.mp3", 2, 10000, 0 );
+	wait( 1 ); 
+
+	cin_cells_skip(); 
+} 
+ 
+void cin_cells_skip() 
+{ 
+	skipthread( "Null" ); 
+	killthread( "cin_cells" ); 
+	cam_fadeout( 1, 0, 0, 0, 1, 0 ); 
+	wait( 1 ); 
+
+	//Remove all evidence of before the cin 
+	$stammheim_forcefield.remove(); 
+	
+	//hzm coop mod chrissstrahl - we reuse that actor, wap illia to shuttle bay
+	$illia_cockpit.hide();
+	$illia_cockpit.notsolid();
+	$illia_cockpit.origin('192 -2416 16');
+	$illia_cockpit.resethead();
+	$stammheim.resethead();
+
+	//End the cinematic 
+	noncinematic(); 
+	clearletterbox( 0.1 ); 
+	cueplayer();
+	wait( 0.1 ); 
+	
+	cam_fadein( 0.1, 0, 0, 0, 1, 0 ); 
+
+	//Now that the cinematic is over, make Stammheim follow you 
+	$stammheim.ai_on(); 
+	releaseplayer();
+	
+	//hzm coop mod chrissstrahl - move player that triggred the sequence into position
+	if(doesEntityExist(entityPlayerGlobal)){
+		entityPlayerGlobal.warp('1762 -371 -20');
+		entityPlayerGlobal.playerViewangles('0 180 0');
+	}
+
+	$stammheim.missionobjective( 0 ); 
+	
+	//Make the objective complete 
+
+	//Show the new objective 
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("complete"		, 7 , 0 );
+	globalCoop_objectives_update("incomplete"	, 8 , 1 );
+
+	$entrance_trigger.triggerable();
+	playerDeathThread("playergotKilled2");
+	
+	//hzm coop mod chrissstrahl - only save in sp
+	if( getCvarInt("g_gametype") == 0 ){
+		globalCommon_Autosave();
+	}
+	
+	//hzm coop mod chrissstrahl - set marker on radar
+	$coop_symbol7.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - make ai patrol
+	$romulan4.settendency("patrol",1);
+}
+
+void shuttle_entrance()
+{
+	//hzm coop mod chrissstrahl - remember which player triggred the sequence, we want to move this player later
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	entityPlayerGlobal = eTrigger.getLastActivatingEntity();
+	
+	skipthread( "shuttle_entrance_skip" ); 
+	cam_fadeout( 0.1, 0, 0, 0, 1, 0 ); 
+
+	wait(0.2);
+	
+	//Make Illia holster any weapon she might have acquired 
+	//$player.holster();
+
+	//Bring up a fake player model 
+	//fakeplayer(); 
+	$stammheim.ai_off();
+
+	//hzm coop mod chrissstrahl - we reuse this actor
+	$illia_cockpit.show();
+	
+	
+	$illia_cockpit.warpto( "$shuttle_cin_illia" );
+	$stammheim.warpto( "$shuttle_cin_stammheim" );
+
+	//Remove Fake Player Weapon, no matter what he is using...
+	//Make the fakeplayer use the same weapon as you 
+
+	$cam3.follow( $cin_enter_shuttle, $illia_cockpit ); 
+	$cam3.cut(); 
+
+	//Make it a cinematic 
+	cinematic(); 
+	letterbox( 0.5 ); 
+
+	wait( 0.5 ); 
+	cuecamera($cam3);
+	
+	thread illiaEnteringShuttle();
+	wait( 0.25 );
+	
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	
+	//Make Illia walk to the shuttle
+	//$fakeplayer.strictlyfollowpath(1);
+	//################################          
+	//Entering Shuttle
+	
+	stammheimEnteringShuttle();
+	cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - we reuse illia here
+	wait(0.1);
+	$illia_cockpit.origin('-1941.00 -4566.00 72.00');
+	$illia_cockpit.angle(0);
+	$illia_cockpit.scale(1.4);
+	
+	$illia_cockpit.show();
+	$illia_cockpit.solid();
+	$stammheim_cockpit.show();
+	$stammheim_cockpit.solid();
+	$cam4.follow( $cam_cockpit ); 
+	$cam4.cut();
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 0.1 ); 
+	cuecamera($cam4);
+	//Cockpit
+	$illia_cockpit.walkto( "$shuttle_illia01" );
+	$stammheim_cockpit.walkto( "$shuttle_stammheim01" );
+	waitfor($stammheim_cockpit);
+	$stammheim.notsolid();
+	$stammheim.hide();
+
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/sitdownalexander.mp3", 2, 10000, 0 );
+	waitForDialog( $illia_cockpit );
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/doorsofshuttlebay.mp3", 2, 10000, 0 );
+	waitForDialog( $illia_cockpit );
+	wait(1.5);
+	$stammheim_cockpit.playdialog( "localization/sound/dialog/map10/Stammheim/myhead2.mp3", 2, 10000, 0 );
+	waitForDialog( $stammheim_cockpit ); 
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	//hzm coop mod chrissstrahl - we reuse actor here
+	$illia_cockpit.scale(1);
+	
+	$illia_cockpit.warpto("$shuttle_exit1");
+	$cam5.follow( $shuttle_exit_cin, $illia_cockpit ); 
+	$cam5.cut();  
+	wait(.5);
+	cuecamera($cam5);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	$illia_cockpit.walkto("$shuttle_exit2");
+	waitfor( $illia_cockpit );
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/deja-vu.mp3", 2, 10000, 0 ); 
+	waitfordialog( $illia_cockpit );
+
+	shuttle_entrance_skip();
+}
+
+
+void shuttle_entrance_skip()
+{
+	skipthread( "Null" );
+	killthread( "shuttle_entrance" );
+	
+	cam_fadeout( 1, 0, 0, 0, 1, 0 ); 
+
+	wait( 1 ); 
+	
+	//hzm coop mod chrissstrahl - we reuse this actor
+	$illia_cockpit.hide();
+	//eof hzm
+	$stammheim_cockpit.remove();
+	$stammheim.remove();
+
+	//Lock door for the shuttlebay
+	$baydoor.close();
+	
+	//hzm coop mod chrissstrahl - do not lockout players
+	//$baydoor.lock();
+	
+	$illia_cockpit.warpto( "$shuttle_exit2" ); 
+
+	//End the cinematic 
+	noncinematic(); 
+	clearletterbox( 0.1 ); 
+	cueplayer();
+	
+	//hzm coop mod chrissstrahl - move player tha triggred this cinematic into the correct position
+	if(doesEntityExist(entityPlayerGlobal)){
+		entityPlayerGlobal.origin('-400 -2808 56');
+		entityPlayerGlobal.playerViewangles('0 90 0');
+	}
+
+	wait( 0.1 ); 
+
+	cam_fadein( 0.1, 0, 0, 0, 1, 0 );
+
+	$trigger_final.triggerable();
+
+	$shuttle_attacker1.displayeffect( "TransportIn", "Romulan" );
+	$shuttle_attacker2.displayeffect( "TransportIn", "Romulan" );
+	$shuttle_attacker3.displayeffect( "TransportIn", "Romulan" );
+	$shuttle_attacker4.displayeffect( "TransportIn", "Romulan" );
+	wait(2);
+	$shuttle_attacker1.show();
+	$shuttle_attacker1.solid();
+	$shuttle_attacker2.show();
+	$shuttle_attacker2.solid();
+	$shuttle_attacker3.show();
+	$shuttle_attacker3.solid();
+	$shuttle_attacker4.show();
+	$shuttle_attacker4.solid();
+	wait(.4);  
+	
+	
+	
+	$shuttle_attacker1.ai_on();
+	$shuttle_attacker1.aggressive(1);
+	$shuttle_attacker2.ai_on();
+	$shuttle_attacker2.aggressive(1);
+	$shuttle_attacker3.ai_on();
+	$shuttle_attacker3.aggressive(1);
+	$shuttle_attacker4.ai_on();
+	$shuttle_attacker4.aggressive(1);
+}
+
+void cin_shuttle()
+{
+	//hzm coop mod chrissstrahl - remember whch player triggred the sequence
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	entityPlayerGlobal = eTrigger.getLastActivatingEntity();
+	entityPlayerGlobal.immobilize(1);
+	
+	//Imo Player, stuck there
+	//$player.immobilize( 1 );
+
+	//Close Shuttle Doors
+	$drull_shuttle.anim( "closing" );
+	$drull_shuttle.playsound( "sound/doors/enterprise_door1.wav", 1 ,800 );	
+	waitforanimation( $drull_shuttle, "closing" );
+	$drull_shuttle.anim( "closed" );
+	
+	if(doesEntityExist(entityPlayerGlobal)){
+		entityPlayerGlobal.immobilize(0);
+	}
+	
+	//Open Bay Sky Door
+	$bay_door_01.playsound ( "sound/environment/machine/lift4.wav");
+	$bay_door_01.time ( 2 );
+	$bay_door_01.movenorth ( 500 );
+	$bay_door_02.time ( 2 );
+	$bay_door_02.movesouth ( 500 );
+	wait ( 2 );
+	$bay_door_01.playsound ( "sound/environment/machine/lift4stop.wav" );
+	
+	$stammheim_cockpit2.show();
+	$stammheim_cockpit2.anim( "bar_sitting_forward" );
+	
+	//Remove the Shuttle Clip //hzm coop mod chrissstrahl - so players can no longer stay inside the shuttle while it take off
+	$shuttle_clip.remove();
+	wait(1);
+	
+	//Shuttle Takeoff
+	$shuttle_bind.followpath($shuttle_path);
+	$shuttle_bind.playsound( "sound/vehicles/shuttlecraft/shuttle_takeoff.wav", 0, 4 );
+	waitfor($shuttle_bind);
+	
+	//Fade Out Cam 
+	cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+
+	//Make it a cinematic 
+	cinematic(); 
+	letterbox( 0.1 ); 
+	wait( 0.5 ); 
+	$shuttle_bind.hide();
+	
+
+	//hzm coop mod chrissstrahl - we reuse the actor
+	$illia_cockpit.show();
+	$illia_cockpit.scale(1);
+	$illia_cockpit.origin('-1679.00 -3259.00 -16.00');
+	$illia_cockpit.angle(0);
+	
+	
+	$cam6.follow( $cin_final_pos1, $illia_cockpit ); 
+	$cam6.cut();
+	
+	wait(.15);
+		
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	skipthread( "cin_shuttle_skip" ); 
+	
+	cuecamera($cam6);
+
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/no.mp3", 2, 10000, 0 );
+	waitfordialog($illia_cockpit);
+
+	wait(1);
+
+	$screen_pattern.hide();
+	$screen_on.show();
+	wait(1);
+
+	//$cam7.follow( $cin_final_pos2 ); 
+	//$cam7.cut();
+	//wait(.5);
+	//cuecamera($cam7);
+	//wait(.2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/Sorry.mp3", 2, 10000, 0 );
+	
+	//hzm coop mod chrissstrahl - make illia look at screen and then turn towards screen
+	$illia_cockpit.headwatch( $screen_pos ); 
+	wait(0.1);
+	$illia_cockpit.turntoangle(225);
+
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/really.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/danger.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/played.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/hetlek.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/greet.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$stammheim_cockpit2.playdialog( "localization/sound/dialog/map10/Stammheim/youwill.mp3", 2, 10000, 0 );
+	waitfordialog($stammheim_cockpit2);
+	$screen_on.hide();
+	$screen_pattern.show();
+
+	wait(.5);
+
+	$illia_cockpit.playdialog( "localization/sound/dialog/map10/Illia/youbastard.mp3", 2, 10000, 0 );
+	waitfordialog($illia_cockpit);
+
+	$cam8.follow( $cin_final_pos3, $illia_cockpit ); 
+	$cam8.cut();
+	wait(.5);
+	cuecamera($cam8);
+	$illia_cockpit.walkto( "$illia_final" );
+
+	$sec_door.moveup(192);
+	$sec_door.playsound("sound/doors/klingon_jtube.wav");
+	waitfor($sec_door);
+	
+	//hzm coop mod chrissstrahl - trying to fix ai not moving
+	$arrest1.headwatch($illia_cockpit);
+	$arrest2.headwatch($illia_cockpit);
+	$arrest3.headwatch($illia_cockpit);
+	$arrest4.headwatch($illia_cockpit);
+	
+	$arrest1.walkto( "$arrest_dest1", "run" );
+	$arrest4.walkto( "$arrest_dest4", "run" );
+	
+	$arrest2.walkto( "$arrest_dest2", "run" );
+	$arrest3.walkto( "$arrest_dest3", "run" );
+
+	waitFor($arrest3);
+	wait(3);
+
+	//FAKE ILLIA TO "cin_shuttle_illia_01"
+	//STANHEIM WALK TO "cin_shuttle_stan_01"
+	//CAMERA FOLLOW "cin_shuttle_cam1_pos1"
+	//MODEL "int_door" ANIMATION OPEN
+	//STANHEIM RUN TO "cin_shuttle_stan_02"
+	//NPC "cin_shuttle_guard_A" WALK TO "cin_shuttle_guard_01"
+	//NPC "cin_shuttle_guard_B" WALK TO "cin_shuttle_guard_02"
+	//NPC "cin_shuttle_guard_C" WALK TO "cin_shuttle_guard_03"
+	//NPC "cin_shuttle_guard_D" WALK TO "cin_shuttle_guard_04"
+	//CAMERA "cin_shuttle_cam2_pos1"
+	//FAKE ILLIA ANIMATION HANDS UP
+	//CAMERA FADE OUT
+
+	thread cin_shuttle_skip();
+}
+
+
+void cin_shuttle_skip()
+{
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	skipthread( "Null" ); 
+	killthread( "cin_shuttle" );
+	//End the cinematic 
+	noncinematic(); 
+	clearletterbox( 0.1 ); 
+	cueplayer();
+	wait(2);
+	thread coop_endLevel();
+}
+
+
+void illiaEnteringShuttle()
+{
+	$illia_cockpit.notsolid();
+	$illia_cockpit.walkto( "$enter_shuttle2" );
+	waitfor( $illia_cockpit );
+	
+	$illia_cockpit.walkto( "$enter_waypoint1" );
+	waitfor( $illia_cockpit );
+
+	$illia_cockpit.walkto( "$enter_waypoint3" );
+	waitfor( $illia_cockpit );
+
+	$illia_cockpit.walkto( "$enter_waypoint5" );
+	waitfor( $illia_cockpit );
+
+	$illia_cockpit.walkto( "$enter_waypoint7" );
+	waitfor( $illia_cockpit );
+}
+
+void stammheimEnteringShuttle()
+{
+	$stammheim.notsolid();
+ 
+	$stammheim.walkto( "$enter_shuttle1" );
+	waitfor( $stammheim );
+	
+	$stammheim.walkto( "$enter_waypoint0" );
+	waitfor( $stammheim );
+	wait(2);
+
+	$stammheim.walkto( "$enter_waypoint2" );
+	waitfor( $stammheim );
+
+	$stammheim.walkto( "$enter_waypoint4" );
+	waitfor( $stammheim );
+
+	$stammheim.walkto( "$enter_waypoint6" );
+	waitfor( $stammheim );
+
+	$stammheim.walkto( "$enter_waypoint7" );
+	waitfor( $stammheim );
+}
+
+void playergotKilled()
+//played when player dies
+{
+	//hzm coop mod chrissstrahl - do not do this in coop
+	if(getcvarInt("g_gametype") == 1 ){
+		return;
+	}
+	
+	$player.setobjectivefailed("findstammheim", 1);
+	$player.missionfailed("GBS10FindStammheim");
+}
+
+void playergotKilled2()
+//played when player dies
+{
+	//hzm coop mod chrissstrahl - do not do this in coop
+	if(getcvarInt("g_gametype") == 1 ){
+		return;
+	}
+	
+	$player.setobjectivefailed("escapewithshuttle", 1);
+	$player.missionfailed("GBS10Escape");
+}
+
+
+void coop_aiMakeEnemy(entity e)
+//------------------------------------------------------------------------------
+//make neutral ai to aggressive enemy ai
+//------------------------------------------------------------------------------
+{
+	e.actortype("enemy");
+	e.aggressive(1);
+}
+
+
+void coop_levelEndGather()
+//------------------------------------------------------------------------------
+//spawn a gather location at this point, all plaers must be present to proceed
+//------------------------------------------------------------------------------
+{
+	globalCoop_level_gatheringArea("coop_gatheringArea","coop_endLevel",100,'360 360 240',$triggerExit.getOrigin());
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs11");
+}
+

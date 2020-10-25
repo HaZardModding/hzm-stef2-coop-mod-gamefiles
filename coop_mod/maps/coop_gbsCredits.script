@@ -1,0 +1,319 @@
+void main();
+void ff_puzzle();
+void ff_puzzleCancel();
+void ff_puzzleSolved();
+void chrissstrahl_para();
+void chrissstrahl_para_handle(entity ePlayer);
+void chrissstrahl_lightning();
+void chrissstrahl_lightningStop();
+void chrissstrahl_shuttleFlight();
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+
+void main()
+{
+	$chrissstrahl_minimunro.archetype("");
+	spawn("script_model","model","fx/fx-blowingdust-large-brown.tik","targetname","chrissstrahl_effect0","scale","0.4");
+
+	$chrissstrahl_shuttle.bind($chrissstrahl_shuttle_origin);
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Tricorder-stx.tik");
+	
+	wait(0.05);
+	$chrissstrahl_effect0.hide();
+	
+	waitforPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	
+	//hzm chrissstrahl test
+	//$world.light_intensity("chrissstrahl_light", 0 );
+	
+	if(doesEntityExist($player)){
+		$player.give("models/weapons/worldmodel-Tricorder-stx.tik");
+	}
+	
+	/*
+	if(getCvar("username") == "Chrissstrahl" ){
+		entity ePlayer = $player0;
+		if(doesEntityExist($player)){
+			ePlayer = $player;
+		}
+		
+		ePlayer.origin('-256 160 -140');
+		ePlayer.playerviewangles('0 180 0');
+	}*/
+}
+
+void chrissstrahl_para()
+{
+	$chrissstrahl_symbol_para.hide();
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	eTrigger.nottriggerable();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	ePlayer.warp('448 3136 232');
+	ePlayer.playerviewangles('0 270 0');
+	ePlayer.setvelocity('0 -480 -2');
+	ePlayer.gravity(0.11);
+	//ePlayer.forceMoveType("3rdPerson"); //not so cool
+	wait(0.05);
+	ePlayer.attachmodel("models/fallschirm/fallschirm.tik","origin",0.4,"schirm", 1 , 0 , 2 ,0.5,2,'0 40 0', '90 0 270' );
+	thread chrissstrahl_para_handle(ePlayer);
+	wait(1);
+	eTrigger.triggerable();
+	$chrissstrahl_symbol_para.show();
+}
+
+void chrissstrahl_para_handle(entity ePlayer)
+{
+	if(!doesEntityExist(ePlayer)){
+		return;
+	}
+	
+	vector vSpeed;
+	
+	while(doesEntityExist(ePlayer))
+	{
+		vSpeed = ePlayer.getVelocity();
+		if(vSpeed_z >= 0)
+		{
+			ePlayer.removeattachedmodel("origin",1,"models/fallschirm/fallschirm.tik");
+			ePlayer.gravity(1);
+			//ePlayer.forceMoveType("none"); //not so cool
+		}
+		wait(0.1);
+	}
+}
+
+void chrissstrahl_lightning()
+{
+	float fLightning;
+	entity eLightning;
+	for(fLightning=0;fLightning<6;fLightning++){
+		eLightning = getEntity("chrissstrahl_lightning"+fLightning);
+		
+		if(fLightning<3){
+			eLightning.playsound("sound/environment/nature/thunder3.wav", 0 , 2 , 256 );
+		}
+		
+		eLightning.rotateY(800);
+		eLightning.time(15);
+		wait(0.1);
+		eLightning.show();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 1 );
+		}
+		wait(0.1);
+		eLightning.hide();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 0 );
+		}
+		wait(0.1);
+		eLightning.show();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 1 );
+		}
+		wait(0.1);
+		eLightning.hide();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 0 );
+		}
+		wait(0.1);
+		eLightning.show();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 1 );
+		}
+		wait(0.1);
+		eLightning.hide();
+		if(fLightning>3){
+			$world.light_intensity("chrissstrahl_light", 0 );
+		}
+	}
+}
+
+void chrissstrahl_lightningStop()
+{
+	float fLightning;
+	entity eLightning;
+	for(fLightning=0;fLightning<4;fLightning++){
+		eLightning = getEntity("chrissstrahl_lightning"+fLightning);
+		eLightning.stopsound();
+		eLightning.hide();
+	}
+}
+
+void chrissstrahl_shuttleFlight()
+{
+	$chrissstrahl_symbol.hide();
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	eTrigger.nottriggerable();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	ePlayer.droptofloor(64);
+	thread globalCoop_armory_putAwayWeapon(ePlayer);
+	
+	killthread("chrissstrahl_lightning");
+	$chrissstrahl_effect0.origin($chrissstrahl_effectOrigin0.getOrigin());
+	$chrissstrahl_effect0.hide();
+	$chrissstrahl_lightning0.hide();
+	$chrissstrahl_lightning1.hide();
+	$chrissstrahl_lightning2.hide();
+	$chrissstrahl_lightning3.hide();
+	$chrissstrahl_shuttle.fade(0.05,1);
+	$chrissstrahl_shuttle.forcealpha(1);
+	$chrissstrahl_shuttle.hide();
+	$chrissstrahl_shuttle.time(0.05);
+	$chrissstrahl_shuttle.movetopos($chrissstrahl_shuttlepath0.getOrigin());
+	$chrissstrahl_shuttle.scale(0.1);
+	wait(0.05);
+	$chrissstrahl_window.hide();
+	
+	$world.light_intensity("chrissstrahl_light", 0 );
+	
+	ePlayer.warp($chrissstrahl_playerview.getOrigin());
+	ePlayer.immobilize(1);
+	ePlayer.playerviewangles('0 180 0');
+	
+	thread globalCoop_player_makeSolidASAP(ePlayer);
+
+	$chrissstrahl_shuttlepath0.playsound("sound/environment/nature/birdflap1.wav", 0 , 2 , 256 );
+	wait(1);
+	
+	$chrissstrahl_shuttle.playsound("sound/vehicles/shuttlecraft/shuttle_flyby_fast.wav", 0 , 2 , 256 );
+	wait(0.3);
+	
+	$chrissstrahl_effect0.show();
+	wait(0.4);
+	
+	if(doesEntityExist(ePlayer)){
+		ePlayer.playerviewangles('0 180 0');
+	}
+	
+	
+	thread chrissstrahl_lightning();
+	
+	$chrissstrahl_shuttle.show();
+	$chrissstrahl_shuttle_origin.followpath($chrissstrahl_shuttlepath0,"normalangles");
+
+
+	float fScale = 0.1;
+	while(fScale<0.20)
+	{
+		if(fScale < 0.21){
+			fScale = (fScale + 0.005);
+			$chrissstrahl_shuttle.scale(fScale);
+		}
+		wait(0.05);
+	}
+	
+	if(doesEntityExist(ePlayer)){
+		ePlayer.immobilize(0);
+	}
+
+	wait(0.40);
+
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0 && ePlayer.getHealth() > 0){
+			if(ePlayer.iswithindistanceof($chrissstrahl_playerview,160)){
+				ePlayer.setvelocity('700 200 160');
+			}
+		}
+	}
+	
+	if(doesEntityExist($player)){
+		$player.setvelocity('700 200 160');
+	}
+	
+	
+	wait(2);
+	$chrissstrahl_shuttle.fade(0.5,0);
+	$chrissstrahl_effect0.hide();
+	
+	wait(6);
+
+	$chrissstrahl_window.show();
+	$world.light_intensity("chrissstrahl_light", 1 );
+	$chrissstrahl_symbol.show();
+	eTrigger.triggerable();
+}
+
+
+void ff_puzzleCancel()
+{
+	$forcefield_symbol.show();
+	$forcefield_puzzle.puzzleobject_reset();
+}
+
+void ff_puzzleSolved()
+{
+	$forcefield_symbol.hide();
+	$forcefield.hide();
+	$forcefield.notsolid();
+	$forcefield_puzzle.remove();
+}
+
+
+void ff_puzzle()
+{
+	$forcefield_symbol.hide();
+
+	entity puzzle;
+	puzzle = getcurrententity();
+
+	globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 9 );
+	globalTricorderRoute_SetDestination1( 3, 9 );
+
+	//--- begin row definitions
+ 	globalTricorderRoute_BeginDef();
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 11, 11, 11 );
+ 	globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 19,  7, 10,  7 );
+ 	globalTricorderRoute_SetNextRow( 32, 32,  4,  9, 16,  4,  2,  7,  1 );
+ 	globalTricorderRoute_SetNextRow( 11, 32,  9, 11, 32, 32, 32, 25, 11 );
+ 	globalTricorderRoute_SetNextRow(  9, 22,  4,  9,  3,  2, 22, 21, 32 );
+ 	globalTricorderRoute_SetNextRow( 17, 17, 17,  2, 10,  4, 11, 32, 32 );
+ 	globalTricorderRoute_SetNextRow(  2, 23,  3, 22,  0, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow(  8,  4,  2,  9,  8, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32,  0,  8, 11, 32, 32, 32, 32, 32 );
+ 	globalTricorderRoute_SetNextRow( 32, 18,  6, 11, 32, 32, 32, 32, 32 );
+
+ 	//--- run the puzzle
+ 	globalTricorderRoute_Run( puzzle, 0 );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_rotec1");
+}
+
+

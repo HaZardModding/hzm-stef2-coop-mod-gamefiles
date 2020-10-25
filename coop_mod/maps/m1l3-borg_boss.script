@@ -1,0 +1,2521 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  Borg 03 (boss level)
+//  Script By:    Jerry 'Powzer' Keehan, Benson 'elmagoo' Russell, Adam 'Senn' Bellefeuil
+//  Geometry By:  Jerry 'Powzer' Keehan, Adam 'Senn' Bellefeuil
+//  Created on:   01/10/2002
+//
+//-----------------------------------------------------------------
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEFINE SCRIPT
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void main();
+
+// setup world
+void setup_door_boss();
+void setup_boss_nodes();
+void setup_cinematics();
+void setup_world();
+void setupPlayer();
+void setupAI();
+
+// setup AI
+void setup_boss();
+void setup_boss_spawners();
+
+// HEALTH AND AMMO CONSOLES
+void health_station1_wait();
+void health_station1_use();
+void ammo_station1_wait();
+void ammo_station1_use();
+
+// FORCEFIELDS
+void ForceFieldDown1();
+void ForceFieldDown2();
+void ForceFieldDown3();
+void munroDialog_01();
+
+
+//NODE STUFF
+void node1_wait();
+void node2_wait();
+void node3_wait();
+void node1_hit();
+void node2_hit();
+void node3_hit();
+void node1_transport_up();
+void node1_transport_down();
+void node2_transport_up();
+void node2_transport_down();
+void node3_transport_up();
+void node3_transport_down();
+void check_nodesactive();
+
+// BOSS STUFF
+void borgspawn();
+
+//PLAYER DEATH STUFF
+void deathPlayer();
+
+// Cinematic Stuff
+void stage_change_cinema_start();
+//void stage_change_cinema_end();
+
+void cinematicBossDeath();
+void cinematicBossDeath_Skipthread();
+
+void cinematicIntro();
+void cinematicIntro_skipthread();
+void cinematicIntro_skipthread_thread();
+void cinematicIntro_end();
+void cinematicIntro_munro_walkforward();
+void cinematicIntro_boss_walkforward();
+void cinematicIntro_lift_boss();
+void cinematicIntro_door_unlatch();
+void cinematicIntro_door_unlock();
+void cinematicIntro_door_open();
+
+void cinematicStageChange1To2();
+void cinematicStageChange2To3();
+void cinematicStageChange3To4();
+void cinematicStageChange_Skipthread();
+void cinematicStageChange_PositionBoss();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+//--- parameter constants
+float CINEMATIC_STAGE_CHANGE_BOSS_DISTANCE = 288;
+float CINEMATIC_BOSS_SCALE = 1.4;
+float BOSS_SCALE = 1;
+
+
+// Node Status
+float node1_active = 1;
+float node2_active = 1;
+float node3_active = 1;
+float all_inactive = 0;
+
+// for stage cinematics
+float fltBossStage = 1;					//what stage the boss is on
+float munroDialog_01_finished = 0;		//??
+vector vecBossPosition_PreCinematic;	//to keep the pre-cinematic position of the boss
+
+float boolAlreadyRunning = 0;
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_math.scr"
+//#include "maps/global_scripts/forcefield_modulate_borgboss.scr"
+#include "maps/global_scripts/global_debugutils.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+#include "maps/m1/m1_forcefields.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/maps/m1/m1_deathCinematic.script"
+/////////////////////////////////////////////////////////////////////////
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  MAIN THREAD
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+void main()
+//---------------------
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//Set spawnangles for this level
+	coop_float_spawnAngle0 				= 90;
+	coop_vector_spawnOrigin8 			= '-25 -630 0';
+	coop_vector_spawnOrigin7 			= '45  -630 0';
+	coop_vector_spawnOrigin6 			= '115 -630 0';
+	coop_vector_spawnOrigin5 			= '-25 -550 0';
+	coop_vector_spawnOrigin4 			= '45  -550 0';
+	coop_vector_spawnOrigin3 			= '115 -550 0';
+	coop_vector_spawnOrigin2 			= '-25 -470 0';
+	coop_vector_spawnOrigin1 			= '45  -470 0';
+	
+	//hzm coop mod chrissstrahl - set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$BorgLoadingText$$";
+	
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+	
+	//--- set the soundtrack
+    soundtrack( "music/m1l3-borg_boss.mus" );
+	$world.entity_fade_dist( 8000 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m1l3_borg_boss" );
+
+	//--- run setup threads
+	setupAI();
+	setup_door_boss();
+	setup_boss_nodes();
+	setup_boss();
+	setup_boss_spawners();
+	setup_cinematics();
+	setup_world();
+
+	//---- put nodes in wait state
+	thread node1_wait();
+	thread node2_wait();
+	thread node3_wait();
+
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+
+	//--- setup the player
+	freezePlayer();
+	setupPlayer();
+	
+	thread cinematicIntro();
+}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  SETUP THREADS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+void setup_cinematics()
+//---------------------
+{
+	//--- spawn the cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+	spawn( "Camera", "targetname", "cam3");
+}
+
+
+//---------------------
+//	setupAI
+//	setup the AI
+//---------------------
+void setupAI()
+{
+	//--- cinematic munro and Tuvok
+	globalCommon_AiDummy( $cinematic_munro, "" );
+	$cinematic_munro.flags( "+notarget" );
+	//$cinematic_munro.forceAlpha( 1 );
+	//$cinematic_munro.alpha( 0 );
+	
+	$cinematic_munro.ai_off();
+	$cinematic_munro.displayEffect( "FadeOut", "Simple" );
+	
+	globalCommon_AiDummy( $tuvok, "" );
+	
+	//--- death cinematic
+	$munro_assimilate.ai_off();
+}
+
+
+//---------------------
+void setup_world()
+//---------------------
+{
+	$bluefield.hide();
+	$bluefield.notsolid();
+	$steamspray01.hide();		// Steam Spray for Borg Boss appearance
+
+	$node1_steamspray.hide();		// Steam bursts for node
+	$node2_steamspray.hide();
+	$node3_steamspray.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//--- borg boss distribution nodes
+	$node1Puzzle.puzzleobject_itemToUse ( "Tricorder" );
+	$node1Puzzle.puzzleobject_solvedThread( "ForceFieldDown1" );
+	$node1Puzzle.puzzleobject_timeToUse ( 3 );
+	$node2Puzzle.puzzleobject_itemToUse ( "Tricorder" );
+	$node2Puzzle.puzzleobject_solvedThread( "ForceFieldDown2" );
+	$node2Puzzle.puzzleobject_timeToUse ( 3 );
+	$node3Puzzle.puzzleobject_itemToUse ( "Tricorder" );
+	$node3Puzzle.puzzleobject_solvedThread( "ForceFieldDown3" );
+	$node3Puzzle.puzzleobject_timeToUse ( 3 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- hide the script model boss for the end cinematic
+	$borgBoss_Dead.hide();
+	$borgBoss_Dead.notsolid();
+	$borgBoss_Dead.flags( "+notarget" );
+}
+
+
+//---------------------
+//	setupPlayer
+//	setup the players weapons and load objectives
+//---------------------
+void setupPlayer()
+{
+	//--- player model
+	//$player.model( "models/char/munro_voyager.tik" );	
+	
+	//--- load the objectives
+	//$player.loadobjectives( "m1l3-borg_boss" );
+
+	//--- assign the death function for the player
+	playerDeathThread( "deathPlayer" );
+}
+
+//---------------------
+void setup_door_boss()
+//---------------------
+{
+	//--- bind the latches
+	$door_boss_westlock_westlatch_south.bind( $door_boss_main_south );
+	$door_boss_westlock_eastlatch_south.bind( $door_boss_main_south );
+	$door_boss_eastlock_westlatch_south.bind( $door_boss_main_south );
+	$door_boss_eastlock_eastlatch_south.bind( $door_boss_main_south );
+
+	$door_boss_westlock_westlatch_north.bind( $door_boss_main_north );
+	$door_boss_westlock_eastlatch_north.bind( $door_boss_main_north );
+	$door_boss_eastlock_westlatch_north.bind( $door_boss_main_north );
+	$door_boss_eastlock_eastlatch_north.bind( $door_boss_main_north );
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	//--- bind the locks
+	$door_boss_westlock_south.bind( $door_boss_main_south );
+	$door_boss_eastlock_south.bind( $door_boss_main_south );
+
+	$door_boss_westlock_north.bind( $door_boss_main_north );
+	$door_boss_eastlock_north.bind( $door_boss_main_north );
+}
+
+//---------------------
+void setup_boss_nodes()
+//---------------------
+{
+	//--- bind the nodes to their lifts
+	$node1.bind ( $node1_transport);
+	$node2.bind ( $node2_transport);
+	$node3.bind ( $node3_transport);
+
+	$node1_damaged.bind ( $node1_transport);
+	$node2_damaged.bind ( $node2_transport);
+	$node3_damaged.bind ( $node3_transport);
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- hide and non-solidify the damage nodes
+	$node1_damaged.hide ();
+	$node2_damaged.hide ();
+	$node3_damaged.hide ();
+
+	$node1_damaged.notsolid ();
+	$node2_damaged.notsolid ();
+	$node3_damaged.notsolid ();
+}
+
+//---------------------
+void setup_boss()
+//---------------------
+{
+	//--- disable the borg bosses AI
+	$borgboss.ai_off();
+
+	//--- set the killthread on the boss to end the level
+	$borgboss.killthread ( "cinematicBossDeath" );
+}
+
+//---------------------
+void setup_boss_spawners()
+//---------------------
+{
+	$borgspawn1.spawneffectname( "borg_transport_in" );
+	$borgspawn2.spawneffectname( "borg_transport_in" );
+	$borgspawn3.spawneffectname( "borg_transport_in" );
+	$borgspawn4.spawneffectname( "borg_transport_in" );
+	$borgspawn5.spawneffectname( "borg_transport_in" );
+	$borgspawn6.spawneffectname( "borg_transport_in" );
+	$borgspawn7.spawneffectname( "borg_transport_in" );
+	$borgspawn8.spawneffectname( "borg_transport_in" );
+}
+
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  GAME OBJECT THREADS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//----------------------------------------------
+// HEALTH AND AMMO STATIONS -------------------------------------------------------- TEMP
+//----------------------------------------------
+//---------------------
+void health_station1_wait()
+//---------------------
+	{
+	$health_station1.anim ( "activate_idle" );
+	$health_station1.solid();
+	$health_station1.onuse ( "health_station1_use");
+	pause();
+	}
+
+//---------------------
+void health_station1_use()
+//---------------------
+	{
+	centerprint("health_station1_use");
+	//$health_station1.anim ( "use" );
+	$health_station1.nouse();
+	$player.addhealth ( 50, 100 );
+	wait ( 2 );
+	thread health_station1_wait();
+	}
+
+
+//---------------------
+void ammo_station1_wait()
+//---------------------
+	{
+	$ammo_station1.anim ( "activate_idle" );
+	$ammo_station1.solid();
+	$ammo_station1.onuse ( "ammo_station1_use");
+	pause();
+	}
+
+//---------------------
+void ammo_station1_use()
+//---------------------
+	{
+	centerprint("ammo_station1_use");
+	//$ammo_station1.anim ( "use" );
+	$ammo_station1.nouse();
+	$player.ammo ( "Plasma", 50, 100 );
+	wait ( 2 );
+	thread ammo_station1_wait();
+	}
+
+
+/*
+//---------------------
+void lift_thread1()
+//---------------------
+{
+        $lift_trigger1.nottriggerable();
+        wait( .5 );
+        $lift1.time( 1 );
+        $lift1.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+        $lift1.moveUp( 506 );
+        waitfor( $lift1 );
+        wait ( 2 );
+        $lift1.time( 1 );
+        $lift1.playsound( "sound/environment/machine/lift2a.wav", 8, 2 , 150 );
+        $lift1.moveDown( 506 );
+        waitfor( $lift1 );
+        $lift_trigger1.triggerable();
+}
+
+//---------------------
+void lift_thread2()
+//---------------------
+{
+        $lift_trigger2.nottriggerable();
+        wait( .5 );
+        $lift2.time( 1 );
+        $lift2.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+        $lift2.moveUp( 506 );
+        waitfor( $lift2 );
+        wait ( 2 );
+        $lift2.time( 1 );
+        $lift2.playsound( "sound/environment/machine/lift2a.wav", 8, 2 , 150 );
+        $lift2.moveDown( 506 );
+        waitfor( $lift2 );
+        $lift_trigger2.triggerable();
+}
+
+//---------------------
+void lift_thread3()
+//---------------------
+{
+        $lift_trigger3.nottriggerable();
+        wait( .5 );
+        $lift3.time( 1 );
+        $lift3.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+        $lift3.moveUp( 506 );
+        waitfor( $lift3 );
+        wait ( 2 );
+        $lift3.time( 1 );
+        $lift3.playsound( "sound/environment/machine/lift2a.wav", 8, 2 , 150 );
+        $lift3.moveDown( 506 );
+        waitfor( $lift3 );
+        $lift_trigger3.triggerable();
+}
+*/
+
+//----------------------------------------------
+// FORCEFIELD CONTROL
+//----------------------------------------------
+
+void ForceFieldDown1()
+{
+	shutdownForcefield( $forcefield1 );
+
+	//--- check if the dialog's been said about the nodes
+	if( munroDialog_01_finished == 0 )
+		{
+			thread munroDialog_01();
+		}
+		
+	wait( 5 );
+	powerUpForcefield( $forcefield1 );
+	$node1Puzzle.puzzleObject_reset();
+}
+
+void ForceFieldDown2()
+{
+	shutdownForcefield( $forcefield2 );
+
+	//--- check if the dialog's been said about the nodes
+	if( munroDialog_01_finished == 0 )
+		{
+			thread munroDialog_01();
+		}
+		
+	wait( 5 );
+	powerUpForcefield( $forcefield2 );
+	$node2Puzzle.puzzleObject_reset();
+}
+
+void ForceFieldDown3()
+{
+	shutdownForcefield( $forcefield3 );
+
+	//--- check if the dialog's been said about the nodes
+	if( munroDialog_01_finished == 0 )
+		{
+			thread munroDialog_01();
+		}
+		
+	wait( 5 );
+	powerUpForcefield( $forcefield3 );
+	$node3Puzzle.puzzleObject_reset();
+}
+
+
+void munroDialog_01()
+{
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_knockout.mp3", 1, 20000, 1);  //Let's see how well you adapt without your adaptive nodes!
+	waitForDialog( $cinematic_munro );	
+	munroDialog_01_finished = 1;	
+}
+
+//----------------------------------------------
+// NODE STUFF
+//----------------------------------------------
+
+//---------------------
+void check_nodesactive()
+//---------------------
+{
+	if ( node1_active == 0 && node2_active == 0 && node3_active == 0 )
+	{
+	//	centerprint("Disable Boss");
+		$borgboss.cripple( 1 );
+		all_inactive = 1;
+	}
+}
+
+
+//---------------------
+void node1_transport_down()
+//---------------------
+	{
+	if ( all_inactive == 0 )
+		{
+		//$node1_trigger.nottriggerable();
+		$node1_transport.time ( 3.0  );
+		$node1_transport.moveDown ( 448 );
+		$node1_steamspray.show();
+		wait ( 1 );
+		$node1_steamspray.hide();
+		waitfor ( $node1_transport );
+		thread node1_wait();
+		}
+	}
+
+//---------------------
+void node1_transport_up()
+//---------------------
+	{
+        $node1_transport.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+	$node1_transport.time ( 1.5 );
+	$node1_transport.moveUp ( 448 );
+	$node1_steamspray.show();
+	wait ( 1 );
+	$node1_steamspray.hide();
+	waitfor ( $node1_transport );
+	wait ( 50 );
+	$node1.show();
+	$node1_damaged.hide();
+	thread node1_transport_down();
+	//$node1_trigger.triggerable();
+	}
+
+//---------------------
+void node2_transport_down()
+//---------------------
+	{
+	if ( all_inactive == 0 )
+		{
+        	$node2_transport.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+		//$node2_trigger.nottriggerable();
+		$node2_transport.time ( 3.0  );
+		$node2_transport.moveDown ( 448 );
+		$node2_steamspray.show();
+		wait ( 1 );
+		$node2_steamspray.hide();
+		waitfor ( $node2_transport );
+		thread node2_wait();
+		}
+	}
+
+//---------------------
+void node2_transport_up()
+//---------------------
+	{
+        $node2_transport.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+	$node2_transport.time ( 1.5  );
+	$node2_transport.moveUp ( 448 );
+	$node2_steamspray.show();
+	wait ( 1 );
+	$node2_steamspray.hide();
+	waitfor ( $node2_transport );
+	wait ( 50 );
+	$node2_damaged.hide();
+	$node2.show();
+	thread node2_transport_down();
+	//$node2_trigger.triggerable();
+	}
+
+//---------------------
+void node3_transport_down()
+//---------------------
+{
+	if ( all_inactive == 0 )
+	{
+        	$node3_transport.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+		//$node3_trigger.nottriggerable();
+		$node3_transport.time ( 3.0 );
+		$node3_transport.moveDown ( 448 );
+		$node3_steamspray.show();
+		wait ( 1 );
+		$node3_steamspray.hide();
+		waitfor ( $node3_transport );
+		thread node3_wait();
+	}
+}
+
+//---------------------
+void node3_transport_up()
+//---------------------
+	{
+        $node3_transport.playsound( "sound/environment/machine/lift2.wav", 8, 2 , 150 );
+	$node3_transport.time ( 1.5 );
+	$node3_transport.moveUp ( 448 );
+	$node3_steamspray.show();
+	wait ( 1 );
+	$node3_steamspray.hide();
+	waitfor ( $node3_transport );
+	wait ( 50 );
+	$node3.show();
+	$node3_damaged.hide();
+	thread node3_transport_down();
+	//$node3_trigger.triggerable();
+	}
+
+
+
+
+//---------------------
+void node1_wait()
+//---------------------
+	{
+	$node1.contents ( "+shootable" );
+	$node1.ondamage ( "node1_hit" );
+	node1_active = 1;
+	pause();
+	}
+
+//---------------------
+void node2_wait()
+//---------------------
+	{
+	$node2.contents ( "+shootable" );
+	$node2.ondamage ( "node2_hit" );
+	node2_active = 1;
+	pause();
+	}
+
+//---------------------
+void node3_wait()
+//---------------------
+	{
+	$node3.contents ( "+shootable" );
+	$node3.ondamage ( "node3_hit" );
+	node3_active = 1;
+	pause();
+	}
+
+//---------------------
+void node1_hit()
+//---------------------
+	{
+	$node1.nodamage();
+	$node1.hide();
+	$node1_damaged.show();
+	node1_active = 0;
+	$borgboss.disable ( 1 );
+	$node1_spawn.modelname( "fx/fx-sml-exp.tik" );
+	$node1_spawn.spawntargetname ( "node1_boom" );
+	trigger ( "$node1_spawn" );
+	wait (.1);
+	thread check_nodesactive();
+	wait ( .5 );
+	$node1_boom.remove();
+	wait ( .1 );
+	thread node1_transport_up();
+
+	}
+
+
+//---------------------
+void node2_hit()
+//---------------------
+	{
+	$node2.nodamage();
+	$node2_damaged.show();
+	$node2.hide();
+	node2_active = 0;
+	$borgboss.disable ( 1 );
+	$node2_spawn.modelname( "fx/fx-sml-exp.tik" );
+	$node2_spawn.spawntargetname ( "node2_boom" );
+	trigger ( "$node2_spawn" );
+	wait (.1);
+	thread check_nodesactive();
+	wait ( .5 );
+	$node2_boom.remove();
+	wait ( .1 );
+	thread node2_transport_up();
+	}
+
+//---------------------
+void node3_hit()
+//---------------------
+	{
+	$node3.nodamage();
+	$node3.hide();
+	$node3_damaged.show();
+	node3_active = 0;
+	$borgboss.disable ( 1 );
+	$node3_spawn.modelname( "fx/fx-sml-exp.tik" );
+	$node3_spawn.spawntargetname ( "node3_boom" );
+	trigger ( "$node3_spawn" );
+	wait (.1);
+	thread check_nodesactive();
+	wait ( .5 );
+	$node3_boom.remove();
+	wait ( .1 );
+	thread node3_transport_up();
+	}
+
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  AI ROUTINE THREADS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//----------------------------------------------
+// BOSS STUFF
+//----------------------------------------------
+
+//---------------------
+void borgspawn()
+//---------------------
+{
+//	centerprint( "spawning borg" );
+	print( "spawning borg\n" );
+	float choice;
+
+	//--- pick a random case
+	choice = randomint( 4 );
+
+	print( "spawning borg choice: " + choice + "\n" );
+
+	if( choice == 0 )
+	{
+		print( "spawning 1, 3, 5, 7\n" );
+                trigger ( "$borgspawn1" );
+                trigger ( "$borgspawn3" );
+                trigger ( "$borgspawn5" );
+                trigger ( "$borgspawn7" );
+
+                wait ( 0.1 );
+                $borg1.aggressive( 1 );
+                $borg3.aggressive( 1 );
+                $borg5.aggressive( 1 );
+                $borg7.aggressive( 1 );
+	}
+	else if( choice == 1 )
+	{
+		print( "spawning 1, 3, 4, 6\n" );
+                trigger ( "$borgspawn1" );
+                trigger ( "$borgspawn3" );
+                trigger ( "$borgspawn4" );
+                trigger ( "$borgspawn6" );
+
+                wait ( 0.1 );
+                $borg1.aggressive( 1 );
+                $borg3.aggressive( 1 );
+                $borg4.aggressive( 1 );
+                $borg6.aggressive( 1 );
+	}
+	else if( choice == 2 )
+	{
+		print( "spawning 3, 5, 7, 8\n" );
+                trigger ( "$borgspawn3" );
+                trigger ( "$borgspawn5" );
+                trigger ( "$borgspawn7" );
+                trigger ( "$borgspawn8" );
+
+                wait ( 0.1 );
+                $borg3.aggressive( 1 );
+                $borg5.aggressive( 1 );
+                $borg7.aggressive( 1 );
+                $borg8.aggressive( 1 );
+	}
+	else if(choice == 3 )
+	{
+		print( "spawning 2, 5, 6, 8\n" );
+                trigger ( "$borgspawn2" );
+                trigger ( "$borgspawn5" );
+                trigger ( "$borgspawn6" );
+                trigger ( "$borgspawn8" );
+
+                wait ( 0.1 );
+                $borg2.aggressive( 1 );
+                $borg5.aggressive( 1 );
+                $borg6.aggressive( 1 );
+                $borg8.aggressive( 1 );
+	}
+	else
+	{
+		print( "else case\n" );
+	}
+/*
+                trigger ( "$borgspawn1");
+                trigger ( "$borgspawn2");
+                trigger ( "$borgspawn3");
+                trigger ( "$borgspawn4");
+                trigger ( "$borgspawn5");
+                trigger ( "$borgspawn6");
+                trigger ( "$borgspawn7");
+                trigger ( "$borgspawn8");
+
+                wait ( 0.1 );
+                $borg1.aggressive( 1 );
+                $borg2.aggressive( 1 );
+                $borg3.aggressive( 1 );
+                $borg4.aggressive( 1 );
+                $borg5.aggressive( 1 );
+                $borg6.aggressive( 1 );
+                $borg7.aggressive( 1 );
+                $borg8.aggressive( 1 );
+*/
+
+}
+
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  CINEMATIC THREADS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//----------------------------------------------
+// CINEMATICS
+//----------------------------------------------
+
+//------------------------------------------------------------------
+//------------------------ Stage Cinematics ------------------------
+//------------------------------------------------------------------
+
+//---------------------
+//	stage_change_cinema_start
+//	called when the boss enters a stage change
+//	sets up the common stuff for the stage change cinematics then calls the right cinematic
+//---------------------
+void stage_change_cinema_start()
+{
+	$borgboss.ai_off();
+	
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .3 );
+
+	letterbox( .1 );
+
+	//--- change the music
+	music( "suspense", "mystery" );
+
+	//--- scale the boss for the cinematic
+	$borgboss.scale( CINEMATIC_BOSS_SCALE );
+
+	//--- setup the boss effects and animation
+	$borgboss.anim( "deactivated" );
+	$borgboss.displayEffect( "electric" );
+	$borgboss.resetHead();
+	$borgboss.headWatchTarget( "none", 50 );
+	
+	//--- grab the bosses starting position
+	vecBossPosition_PreCinematic = $borgboss.getOrigin();
+	
+	//--- reposition the boss if he's outside the center
+	if( globalMath_GetXYDistance($borgboss.getOrigin(), $arenaCenter.getOrigin()) > CINEMATIC_STAGE_CHANGE_BOSS_DISTANCE )
+	{
+		cinematicStageChange_PositionBoss();
+	}
+	wait( .3 );
+	
+
+	
+	/*if( fltBossStage == 2 )
+	{
+		thread cinematicStageChange1To2();
+	}
+	else if( fltBossStage == 3 )
+	{
+		thread cinematicStageChange2To3();
+	}
+	else if( fltBossStage == 4 )
+	{
+		thread cinematicStageChange3To4();
+	}*/
+
+	//Timing still an issue, changing this to make it work
+	if( fltBossStage == 1 )
+	{
+		thread cinematicStageChange1To2();
+	}
+	else if( fltBossStage == 2 )
+	{
+		thread cinematicStageChange2To3();
+	}
+	else if( fltBossStage == 3 )
+	{
+		thread cinematicStageChange3To4();
+	}
+
+}
+
+
+//---------------------
+// cinematicStageChange1To2
+// the boss enters his first stage change
+//---------------------
+void cinematicStageChange1To2()
+{
+	if( boolAlreadyRunning == TRUE )
+	{
+		print ( "1 TO 2 BOSS STAGE CINEMATIC ALREADY RUNNING!!!\n" );
+		return;
+	}
+	
+	boolAlreadyRunning = TRUE;
+	print ( "BOSS STAGE 1 TO 2 CINEMATIC STARTING\n" );
+	
+	float fltBossYaw;
+
+	//--- load the camera paths
+	cam.load( "m1l3_BorgBoss_Stage1_Shot1" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot2" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot3" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot4" );
+	wait( .1 );
+	
+	fltBossYaw = vectorGetY( $borgboss.getAngles() );
+	//print( "BOSS YAW CAPTURED: " + fltBossYaw + "\n" );
+	
+	//--- orient the paths and position them relative to the bosses facing and location
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot1, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot2, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot3, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot4, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+
+	//print( "BOSS ANGLES AFTER TRANSFORM: " + $borgboss.getAngles() + "\n" );
+	
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+	
+	//--------------------------------------------------------
+	//shot 1, quick dolly in on boss, left
+
+	forcemusic( "aux2", "aux6" );
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m1l3_BorgBoss_Stage1_Shot1 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( 1.25 );
+	
+	cam_fadeout( .2, 1, 1, 1, 1);
+
+	//--------------------------------------------------------
+	//shot 2, quick dolly in on boss, right
+	
+	//--- next paths
+	//$cam2.fov( 50 );
+	//$cam2.cut();
+	//$cam2.follow( $m1l3_BorgBoss_Stage1_Shot2 );
+	//wait( .2 );
+	
+	//cuecamera( $cam2 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 3, quick dolly in on boss, center
+	
+	//--- next paths
+	//$cam1.fov( 50 );
+	//$cam1.cut();
+	//$cam1.follow( $m1l3_BorgBoss_Stage1_Shot3 );
+	//wait( .2 );
+	
+	//cuecamera( $cam1 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 4, spiral around boss as he losses a piece
+	
+	//--- next paths
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m1l3_BorgBoss_Stage1_Shot4 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	
+	//--- slow zoom in
+	thread globalCineFX_CameraFOVLerp( $cam2, 60, 48, 5.5, "rampupdown" );
+	
+	//--- the borg boss takes his damage
+	$borgboss.surface( "material8", "+nodraw" );
+	$borgboss.surface( "material7", "+nodraw" );
+	$borgboss.anim( "change_stage_1" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_1"  );
+	$borgboss.anim( "idle" );
+
+	//--- the borg boss says his line
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_stage1.mp3", 1, 20000, 0);  //Resistance is futile.  You will be… assimilated.
+	waitForDialog( $borgboss );
+	forcemusic( "aux6", "aux6" );
+	
+	//--- end the cinematic
+	thread cinematicStageChange_Skipthread();
+}
+
+
+//---------------------
+// cinematicStageChange2To3
+// the boss enters his second stage change
+//---------------------
+void cinematicStageChange2To3()
+{
+	if( boolAlreadyRunning == TRUE )
+	{
+		print ( "2 TO 3 BOSS STAGE CINEMATIC ALREADY RUNNING!!!\n" );
+		return;
+	}
+	
+	boolAlreadyRunning = TRUE;
+	print ( "BOSS STAGE 2 TO 3 CINEMATIC STARTING\n" );
+	
+	float fltBossYaw;
+
+	//--- load the camera paths
+	cam.load( "m1l3_BorgBoss_Stage1_Shot1" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot2" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot3" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot4" );
+	wait( .1 );
+	
+	fltBossYaw = vectorGetY( $borgboss.getAngles() );
+	//print( "BOSS YAW CAPTURED: " + fltBossYaw + "\n" );
+	
+	//--- orient the paths and position them relative to the bosses facing and location
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot1, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot2, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot3, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot4, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+	
+	//--------------------------------------------------------
+	//shot 1, quick dolly in on boss, left
+	
+	//--- next paths
+	//$cam1.fov( 50 );
+	//$cam1.cut();
+	//$cam1.follow( $m1l3_BorgBoss_Stage1_Shot1 );
+	//wait( .2 );
+
+	//cuecamera( $cam1 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+
+	//--------------------------------------------------------
+	//shot 2, quick dolly in on boss, right
+	
+	forcemusic( "aux3", "aux6" );
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m1l3_BorgBoss_Stage1_Shot2 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( 1.25 );
+	
+	cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 3, quick dolly in on boss, center
+	
+	//--- next paths
+	//$cam1.fov( 50 );
+	//$cam1.cut();
+	//$cam1.follow( $m1l3_BorgBoss_Stage1_Shot3 );
+	//wait( .2 );
+	
+	//cuecamera( $cam1 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 4, spiral around boss as he losses a piece
+	
+	//--- next paths
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m1l3_BorgBoss_Stage1_Shot4 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+
+	//--- slow zoom in
+	thread globalCineFX_CameraFOVLerp( $cam2, 60, 48, 5.5, "rampupdown" );
+	
+	//--- the borg boss takes his damage
+	$borgboss.surface( "material6", "+nodraw" );
+	$borgboss.surface( "material10", "+nodraw" );
+	$borgboss.surface( "material9", "+nodraw" );
+	$borgboss.anim( "change_stage_2" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_2"  );
+	$borgboss.anim( "idle" );
+
+	//--- the borg boss says his line
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_stage2.mp3", 1, 20000, 0);  //Futile is… Assimilated.  You will be… resistance....
+	waitForDialog( $borgboss );
+	forcemusic( "aux6", "aux6" );
+	
+	//--- end the cinematic
+	thread cinematicStageChange_Skipthread();
+}
+
+
+//---------------------
+// cinematicStageChange3To4
+// the boss enters his third stage change
+//---------------------
+void cinematicStageChange3To4()
+{
+	if( boolAlreadyRunning == TRUE )
+	{
+		print ( "3 TO 4 BOSS STAGE CINEMATIC ALREADY RUNNING!!!\n" );
+		return;
+	}
+	
+	//hzm coop mod chrissstrahl - fix position, it does not work in multiplayer as it should
+	$borgboss.warpto( "$arenaCenter" );
+	
+	boolAlreadyRunning = TRUE;
+	print ( "BOSS STAGE 3 TO 4 CINEMATIC STARTING\n" );
+	
+	float fltBossYaw;
+
+	//--- load the camera paths
+	cam.load( "m1l3_BorgBoss_Stage1_Shot1" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot2" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot3" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot4" );
+	wait( .1 );
+	
+	fltBossYaw = vectorGetY( $borgboss.getAngles() );
+	//print( "BOSS YAW CAPTURED: " + fltBossYaw + "\n" );
+	
+	//--- orient the paths and position them relative to the bosses facing and location
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot1, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot2, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot3, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Stage1_Shot4, fltBossYaw, $arenaCenter.getOrigin(), $borgboss.getOrigin() );
+
+	//--- set the skipthread
+	skipthread( "cinematicStageChange_Skipthread" );
+	
+	//--------------------------------------------------------
+	//shot 1, quick dolly in on boss, left
+	
+	//--- next paths
+	//$cam1.fov( 50 );
+	//$cam1.cut();
+	//$cam1.follow( $m1l3_BorgBoss_Stage1_Shot1 );
+	//wait( .2 );
+
+	//cuecamera( $cam1 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+
+	//--------------------------------------------------------
+	//shot 2, quick dolly in on boss, right
+	
+	//--- next paths
+	//$cam2.fov( 50 );
+	//$cam2.cut();
+	//$cam2.follow( $m1l3_BorgBoss_Stage1_Shot2 );
+	//wait( .2 );
+	
+	//cuecamera( $cam2 );
+	//cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//wait( 1.25 );
+	
+	//cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 3, quick dolly in on boss, center
+	forcemusic( "aux3", "aux7" );	
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m1l3_BorgBoss_Stage1_Shot3 );
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( 1.25 );
+	
+	cam_fadeout( .2, 1, 1, 1, 1);
+	
+	//--------------------------------------------------------
+	//shot 4, spiral around boss as he losses a piece
+	
+	//--- next paths
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $m1l3_BorgBoss_Stage1_Shot4 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+
+	//--- slow zoom in
+	thread globalCineFX_CameraFOVLerp( $cam2, 60, 48, 5.5, "rampupdown" );
+
+	//--- the borg boss takes his damage
+	$borgboss.surface( "material5", "+nodraw" );
+	$borgboss.surface( "material11", "+nodraw" );
+	$borgboss.surface( "material13", "+nodraw" );
+	$borgboss.surface( "material14", "+nodraw" );
+	$borgboss.surface( "material16", "+nodraw" );
+	$borgboss.anim( "change_stage_3" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_3"  );
+	$borgboss.anim( "idle" );
+
+	//--- the borg boss says his line
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_stage3.mp3", 1, 20000, 0);  //assim¼¼resit¼¼futi¼¼¼
+	waitForDialog( $borgboss );
+ 	forcemusic( "aux7", "aux7" );
+	
+	//--- end the cinematic
+	thread cinematicStageChange_Skipthread();
+}
+
+
+//---------------------
+// cinematicStageChange_Skipthread
+// skipthread
+//---------------------
+void cinematicStageChange_Skipthread()
+{
+	//--- set the skipthread
+	skipthread( "" );
+	killthread( "cinematicStageChange1To2" );
+	killthread( "cinematicStageChange2To3" );
+	killthread( "cinematicStageChange3To4" );
+	killthread( "cinematicStageChange4To5" );
+
+	cam_fadeout( .5, 1, 1, 1, 1);
+	//cam_fadeout ( .5, 0, 0, 0, 1, 0 );
+    wait ( .6 );
+
+	//--- make sure the electric effect is off
+	$borgboss.displayEffect( "noelectric" );
+	
+	//hzm coop mod chrissstrahl - make sure the boss can be seen in all cases
+	//print status info
+	$borgboss.show();
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	globalCoop_main_print("Boss-pos: "+vecBossPosition_PreCinematic+"\n");
+	
+	//hzm coop mod chrissstrahl - overwrite borgboss position to make him work
+	//in coop
+	if( fltBossStage > 2 ){
+		vecBossPosition_PreCinematic = '50 500 0';
+	}
+ 
+ 	//--- scale the boss for the cinematic
+	$borgboss.scale( BOSS_SCALE );
+
+	$borgboss.origin( vecBossPosition_PreCinematic );
+	wait( .05 );
+	
+	//hzm coop mod chrissstrahl - make sure 
+	thread globalCoop_player_makeSolidASAP($borgboss);
+	
+	//give the player that mean look...c'mon....look mean for me....ohhh what the...you call that mean!!!!  I call that pig poop on a banjo string!!!!  M E A N!!! as in a snarling buck tooth fuzzy white rabbit with big sharp pointy teeth!!
+	$borgboss.turnTowardsEntity( globalCoop_return_playerClosestPreferActive( $borgboss ) );	
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .2 );
+	
+	//--- TEMP TEMP TEMP DELTE THE PATHS
+	globalCineFX_CameraPathRemove( $m1l3_BorgBoss_Stage1_Shot1 );
+	globalCineFX_CameraPathRemove( $m1l3_BorgBoss_Stage1_Shot2 );
+	globalCineFX_CameraPathRemove( $m1l3_BorgBoss_Stage1_Shot3 );
+	globalCineFX_CameraPathRemove( $m1l3_BorgBoss_Stage1_Shot4 );
+
+	//--- fade in
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	//cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .3 );
+
+	//--- increment the stage counter
+	fltBossStage++;
+
+    //--- set the boss into the next stage
+    $borgboss.goToStage( fltBossStage );
+    
+	//--- wait for the stage transition
+	wait ( .5 );
+
+    //--- enable the borg boss's AI
+    $borgboss.ai_on();
+    //wait( .1 );
+    
+    //--- flag the cinematic as not running
+    boolAlreadyRunning = FALSE;
+}
+
+
+//---------------------
+// cinematicStageChange_PositionBoss
+// will move the boss into an acceptable range for the stage change cinematic
+//---------------------
+void cinematicStageChange_PositionBoss()
+{
+	float fltNewX, fltNewY, fltDegrees;
+	vector vecNewOrigin;
+
+	//--- get the angle
+	fltDegrees = globalMath_GetXYAngleForPointAboutCenter( $borgboss.getOrigin(), $arenaCenter.getOrigin() );
+	fltDegrees = globalMath_NormalizeAngleTo360Degrees( fltDegrees );
+
+	//--- calculate the new X and Y coordinate offsets
+	fltNewX = cosDegrees( fltDegrees ) * CINEMATIC_STAGE_CHANGE_BOSS_DISTANCE;
+	fltNewY = sinDegrees( fltDegrees ) * CINEMATIC_STAGE_CHANGE_BOSS_DISTANCE;
+	
+	//--- set the new origin adding the offsets to the center
+	vecNewOrigin_x = fltNewX + vectorGetX( $arenaCenter.getOrigin() );
+	vecNewOrigin_y = fltNewY + vectorGetY( $arenaCenter.getOrigin() );
+	
+	//hzm coop mod chrissstrahl - allways, allways, ALLWAYS, ALLLWAYS, frickien ALLWAYS be at the ground level
+	//vecNewOrigin_z = vectorGetZ( $borgboss.getOrigin() );
+	vecNewOrigin_z = 0;
+
+	//--- reposition the boss
+	$borgboss.origin( vecNewOrigin );
+	wait( .1 );
+}
+
+void testPositionBoss()
+{
+	$borgboss.origin( $arenaCenter.getOrigin() );
+	$borgboss.angles( $arenaCenter.getAngles() );
+	$borgboss.scale( CINEMATIC_BOSS_SCALE );
+}
+
+void testBossDeath()
+{
+	$borgBoss_Dead.show();
+	$borgBoss_Dead.scale( CINEMATIC_BOSS_SCALE );
+	$borgBoss_Dead.origin( $arenaCenter.getOrigin() );
+	$borgBoss_Dead.angles( $arenaCenter.getAngles() );
+	$borgBoss_Dead.setFrame( 66, "death" );
+	
+	$cinematic_munro.show();
+	$cinematic_munro.origin( $nodeMunro_BossDeath.getOrigin() );
+	$cinematic_munro.angles( $nodeMunro_BossDeath.getAngles() );
+	$cinematic_munro.alpha( 1 );
+}
+
+void testKillBoss()
+{
+	killthread( "cinematicIntro_end" );
+	$tuvok.stopDialog();
+	$cinematic_munro.stopDialog();
+	$borgboss.suicide();
+}
+
+void testCenterBoss()
+{
+	$borgboss.origin( $arenaCenter.getOrigin() );
+	wait( .1 );
+	$borgboss.angles( $arenaCenter.getAngles() );
+}
+
+void testCamLoad()
+{
+	cam.load( "m1l3_BorgBoss_Stage1_Shot1" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot2" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot3" );
+	cam.load( "m1l3_BorgBoss_Stage1_Shot4" );
+	
+	cam.load( "m1l3_BorgBoss_Death_Shot1" );
+	cam.load( "m1l3_BorgBoss_Death_Shot2" );
+	cam.load( "m1l3_BorgBoss_Death_Shot3" );
+	cam.load( "m1l3_BorgBoss_Death_Shot4" );
+}
+
+void testBoss2()
+{
+	$borgboss.anim( "change_stage_1" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_1"  );
+	$borgboss.anim( "idle" );
+}
+
+void testBoss3()
+{
+	$borgboss.anim( "change_stage_2" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_2"  );
+	$borgboss.anim( "idle" );
+}
+
+void testBoss4()
+{
+	$borgboss.anim( "change_stage_3" );
+	$borgboss.displayEffect( "noelectric" );
+	waitForAnimation( $borgboss, "change_stage_3"  );
+	$borgboss.anim( "idle" );
+}
+
+
+//------------------------------------------------------------------
+//------------------------ Intro Cinematic ------------------------
+//------------------------------------------------------------------
+
+void testIntro()
+{
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+	freezeplayer();
+	wait( .3 );
+	
+	thread cinematicIntro();
+	
+}
+
+void testZoom()
+{
+	//--------------------------------------------------------
+	//shot16 zoom in on Munro's face
+	
+	//--- show the cinematic munro
+	$cinematic_munro.alpha( 1 );
+	globalCommon_AiDummy( $cinematic_munro, "" );
+	
+	freezeplayer();
+	cinematic();
+	letterbox( .1 );
+
+	//--- walk munro forward
+	cinematicIntro_munro_walkforward();
+		
+	cam.load( "cam_m1l3_intro11" );
+	wait( .1 );
+	
+	$cam3.fov( 80 );
+	$cam3.cut();
+	$cam3.follow( $cam_m1l3_intro11 );
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	cuecamera( $cam3 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+
+	globalCineFX_CameraFOVLerp( $cam3, 80, 10, 1, "rampup" );
+	//globalCineFX_TimeLerp( 1, 4, 1, "rampup" );
+	$world.time_scale( 1 );
+	wait( .1 );
+
+    $cinematic_munro.morph( "Morph_Brow-RDN" );
+    $cinematic_munro.morph( "Morph_Brow-LDN" );
+	wait( 2 );
+	
+	//--- hide the fake munro
+	globalCommon_AiDummyHide( $cinematic_munro );
+	
+	//--- remove the camera path
+	globalCineFX_CameraPathRemove( $cam_m1l3_intro11 );
+	wait( .1 );
+	
+	//--- release the cinematic
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+}
+
+
+void testCamLoadIntro()
+{
+	cam.load( "cam_m1l3_intro1" );
+	cam.load( "cam_m1l3_intro2" );
+	cam.load( "cam_m1l3_intro3" );
+	cam.load( "cam_m1l3_intro4" );
+	cam.load( "cam_m1l3_intro5" );
+	cam.load( "cam_m1l3_intro6" );
+	cam.load( "cam_m1l3_intro7" );
+	cam.load( "cam_m1l3_intro8" );
+	cam.load( "cam_m1l3_intro9" );
+	cam.load( "cam_m1l3_intro10" );
+	cam.load( "cam_m1l3_intro11" );
+	cam.load( "cam_m1l3_intro12" );
+	cam.load( "cam_m1l3_intro13" );
+	cam.load( "cam_m1l3_intro14" );
+	cam.load( "cam_m1l3_intro15" );
+	cam.load( "cam_m1l3_intro16" );
+	cam.load( "cam_m1l3_intro17" );
+	cam.load( "cam_m1l3_intro18" );
+	cam.load( "cam_m1l3_intro19" );
+	cam.load( "cam_m1l3_intro20" );
+}
+
+
+void testBeamMunro()
+{
+	//--- show munro beaming in
+	$cinematic_munro.displayEffect( "TransportIn", "Federation" );
+   	$cinematic_munro.playsound ( "sound/environment/transporter/transport2.WAV", 5, 1, 132 );
+}
+
+void testMunroPushIn1()
+{
+	$cinematic_munro.alpha( 1 );
+	thread cinematicIntro_munro_walkforward();
+}
+
+//---------------------
+// cinematicIntro
+// intro cinematic to the level introducing the borg boss
+//---------------------
+void cinematicIntro()
+{
+	float lerp = 0;
+
+	//--- setup music and sound stuff
+    allowMusicDucking( 0 );
+	$borgdoor.loopsound ( "sound/ships/borg/borg_amb8.wav", 1 , 175 );
+
+	//--- load camera paths
+	cam.load( "cam_m1l3_intro1" );
+	cam.load( "cam_m1l3_intro2" );
+	cam.load( "cam_m1l3_intro3" );
+	cam.load( "cam_m1l3_intro4" );
+	cam.load( "cam_m1l3_intro5" );
+	cam.load( "cam_m1l3_intro6" );
+	cam.load( "cam_m1l3_intro7" );
+	cam.load( "cam_m1l3_intro8" );
+	cam.load( "cam_m1l3_intro9" );
+	cam.load( "cam_m1l3_intro10" );
+	cam.load( "cam_m1l3_intro11" );
+	cam.load( "cam_m1l3_intro12" );
+	cam.load( "cam_m1l3_intro13" );
+	cam.load( "cam_m1l3_intro14" );
+	cam.load( "cam_m1l3_intro15" );
+	cam.load( "cam_m1l3_intro16" );
+	cam.load( "cam_m1l3_intro17" );
+	cam.load( "cam_m1l3_intro18" );
+	cam.load( "cam_m1l3_intro19" );
+	cam.load( "cam_m1l3_intro20" );
+	wait( .1 );
+
+	//--- scale the borg boss up for the cinematic
+	$borgboss.scale( CINEMATIC_BOSS_SCALE );
+
+	//--- setup munro
+	$cinematic_munro.useActorWeapon( "none" );
+
+	//--------------------------------------------------------
+	//shot1 starting at the boss door pulling into munro
+
+	//--- next paths
+	$cam1.fov( 70 );
+	$cam1.follow( $cam_m1l3_intro1 );
+	wait( 1.5 );
+
+	cuecamera( $cam1 );
+
+	//--- fade the camera in
+	cam_fadein( 2, 0, 0, 0, 1, 0);
+
+	//--- set skipthread
+	skipthread( "cinematicIntro_skipthread" );
+	wait( 8 );
+
+	//--- show munro beaming in
+	$cinematic_munro.displayEffect( "TransportIn", "Federation" );
+   	$cinematic_munro.playsound ( "sound/environment/transporter/transport2.WAV", 5, 1, 132 );
+	wait( 4 );
+	
+	//--- munro looks around
+	$cinematic_munro.headWatchTarget( "borgspawn6", 4 );
+	wait( .2 );
+	
+	//--- munro makes a face
+	$cinematic_munro.morph( "exp_Serious" );
+	wait( 1.8 );
+
+	//--------------------------------------------------------
+	//shot2 POV munro looking into the arena, panning right
+
+	$cam2.fov( 80 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro2 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( .5 );
+
+	$cinematic_munro.headWatchTarget( "none", 10 );
+
+	//--- munro calls to voyager
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_tovoyager.mp3", 1, 20000, 0);  //Munro to Voyager.
+	waitForDialog( $cinematic_munro );
+
+	//--- play static sound
+    $cinematic_munro.playsound ( "sound/environment/machine/radio_static.WAV", 5, 1, 132 );
+	wait( 2 );
+
+	//--------------------------------------------------------
+	//shot3 POV munro looking into the arena, panning left
+
+	//--- pov from Munro, looking into arena
+	$cam2.follow( $cam_m1l3_intro3 );
+	
+	//--- munro calls to voyager
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_whereteam2.mp3", 1, 20000, 0);  // Where’s my team, Tuvok?
+	waitForDialog( $cinematic_munro );
+	wait( .75 );
+
+	//--------------------------------------------------------
+	//shot4 overhead tracking shot through grating
+
+	$cam1.fov( 70 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro4 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	//--- tuvok explains the situation
+	$tuvok.playdialog( "localization/sound/dialog/borg03/tuvok_patternback.mp3", 1, 20000, 1);  //They are safe on Voyager. We are having difficulty transporting you though the antilepton interference. We had to send your pattern back to the Borg vessel.
+	wait( 1 );
+
+	//--- walk munro forward
+	thread cinematicIntro_munro_walkforward();
+	waitForDialog( $tuvok );
+	//wait( .5 );
+
+	$cinematic_munro.morph( "exp_Serious" );
+
+	//--------------------------------------------------------
+	//shot5 push in on munro's face
+
+	$cam2.fov( 60 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro5 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( .2 );
+
+	//--- munro asks where in the borg sphere
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_whereborg.mp3", 1, 20000, 0);  //WHERE in the Borg vessel?
+	waitForDialog( $cinematic_munro );
+	wait( .2 );
+
+	//--- tuvok explains where in the borg sphere
+	$tuvok.playdialog( "localization/sound/dialog/borg03/tuvok_centralplex.mp3", 1, 20000, 1);  //The Borg Central Plexus. Your primary objective is to avoid alerting them to your presence.
+	wait( .5 );
+
+	//--- munro looks around
+	$cinematic_munro.headWatchTarget( "steamspray01", 5 );
+	wait( .5 );
+	
+	$cinematic_munro.headWatchTarget( "borgspawn7", 3 );
+	wait( 2 );
+	
+	$cinematic_munro.headWatchTarget( "borgspawn6", 10 );
+	wait( .5 );
+	
+	$cinematic_munro.morph( "exp_Skeptical" );
+	wait( .5 );
+	
+	$cinematic_munro.headWatchTarget( "none", 5 );
+	
+	//--------------------------------------------------------
+	//shot6 pan left to show the forcefield turning on
+	
+	$cam2.follow( $cam_m1l3_intro6 );
+	waitForDialog( $tuvok );
+	wait( .6 );
+
+	//--- turn on the blue forcefield
+	$bluefield.playsound ( "sound/ships/borg/borg_forcefield_on2.wav", 5, 2, 132 );
+	$bluefield.show();
+	$bluefield.solid();
+	$bluefield.loopsound ( "sound/ships/borg/borg_forcefield1.wav", 1, 45 );
+	wait( .25 );
+
+	$cinematic_munro.morph( "exp_Surprise" );
+	wait( .5 );
+	
+	//--- turn munro to look at the forcefield
+	$cinematic_munro.turntoangle( 280 );
+	waitfor( $cinematic_munro );
+	
+	$cinematic_munro.morph( "exp_brows_down" );
+	wait( .5 );
+
+	//--------------------------------------------------------
+	//shot7 looking at Munro back to the borg boss door
+
+	//--- munro looking back at the boss door
+	$cam1.fov( 80 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro7 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( 2.5 );
+
+	//--- cue the music
+	music( "suspense", "normal" );
+
+	//--- activate the steam
+	$steamspray01.show();
+	$steamspray01.loopsound ( "sound/environment/steam/steam_loop02.wav", .3, 432 );
+	$steamspray01.playsound ( "sound/environment/steam/steam_burst.wav", 2, 1, 500 );
+	wait( 1 );
+
+	//--- turn munro to look at the door
+	$cinematic_munro.turntoangle( 90 );
+	waitfor( $cinematic_munro );
+	wait( .2 );
+
+	$cinematic_munro.unmorph( "exp_brows_down" );
+	
+	//--------------------------------------------------------
+	//shot8 overhead spiral in to the borg door
+
+	$cam2.fov( 80 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro8 );
+
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( 1.25 );
+
+	//--------------------------------------------------------
+	//shot9 push in on latches on door opening
+
+	$cam1.fov( 80 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro9 );
+
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+
+	thread cinematicIntro_door_unlatch();
+	wait( 1.1 );
+
+	//--------------------------------------------------------
+	//shot10 push in on locks opening
+
+	$cam2.fov( 80 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro10 );
+
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( .3 );
+
+	thread cinematicIntro_door_unlock();
+	wait( 1 );
+
+	//--------------------------------------------------------
+	//shot11 door opening
+	
+	//--- music and sound FX cue
+	forcemusic( "aux1", "aux5" );
+	$lift_boss.playsound( "sound/environment/machine/bigswitch.wav", 8, 1, 450 );
+
+	//--- view door opening
+	$cam1.fov( 80 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro12 );
+	
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+	
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( .5 );
+
+	//--- open the boss door and get the lift moving up
+	thread cinematicIntro_door_open();
+	thread cinematicIntro_lift_boss();
+	wait( 1.75 );
+
+	//--------------------------------------------------------
+	//shot12 side shot of borg rising
+	
+	//--- side shot of boss rising
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro13 );
+	$cam2.pause();
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	wait( 3 );
+
+	$cam2.continue();
+	wait( 4.5 );
+
+	//--------------------------------------------------------
+	//shot13 ground shot looking at munro as the boss rises
+	
+	$cam1.fov( 55 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro14 );
+	wait( .2 );
+		
+	cuecamera( $cam1 );
+	wait( 2.5 );
+
+	$cinematic_munro.morph( "exp_brows_up" );
+
+	//--------------------------------------------------------
+	//shot14 munro looking into camera as it rises
+	
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro15 );
+	wait( .2 );
+	
+	cuecamera( $cam2 );
+	
+	//--- munro watches the camera
+	$cinematic_munro.headwatch( $cam2 );
+	wait( .5 );
+
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_gotasecond.mp3", 1, 20000, 0);  //too late..
+	waitForDialog( $cinematic_munro );
+	wait( 1 );
+
+	//--------------------------------------------------------
+	//shot15 starting low, climbing circle up borg boss
+
+	$cam1.fov( 60 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro16 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( .1 );
+	
+	//--- munro looks at the boss
+	$cinematic_munro.headwatch( $borgboss );
+	wait( 13.5 );
+
+	//--------------------------------------------------------
+	//shot16 zoom in on Munro's face
+	
+	$cam3.fov( 80 );
+	$cam3.cut();
+	$cam3.follow( $cam_m1l3_intro11 );
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .2 );
+
+	cuecamera( $cam3 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+
+	globalCineFX_CameraFOVLerp( $cam3, 80, 10, 1, "rampup" );
+	//globalCineFX_TimeLerp( 1, 4, 1, "rampup" );
+	$world.time_scale( 1 );
+	wait( .2 );
+
+    //$cinematic_munro.morph( "Morph_Brow-RDN" );
+    //$cinematic_munro.morph( "Morph_Brow-LDN" );
+    $cinematic_munro.morph( "exp_brows_down" );
+	wait( 1.25 );
+	
+	//--------------------------------------------------------
+	//shot17 closeup on feet as the boss starts to walk forward
+
+	$cam2.fov( 70 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro18 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( .5 );
+
+	thread cinematicIntro_boss_walkforward();
+
+    //$cinematic_munro.unmorph( "Morph_Brow-RDN" );
+    //$cinematic_munro.unmorph( "Morph_Brow-LDN" );
+    $cinematic_munro.unmorph( "exp_brows_down" );
+
+    $steamspray01.stoploopsound ();
+    $steamspray01.playsound ( "sound/environment/steam/steam_burst.wav", 2, .5, 200 );
+    $steamspray01.remove();
+
+	//--------------------------------------------------------
+	//shot18 two-shot of Munro and Boss facing off
+	
+	//--- long two-shot, showing the characters facing off
+	$cam1.fov( 57 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro17 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_weareborg.mp3", 1, 20000, 0);  //We are the Borg.
+	waitForDialog( $borgboss );
+	wait( .2 );
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_existence.mp3", 1, 20000, 0);  //Existence as you know it is over.
+	waitForDialog( $borgboss );
+	wait( .1 );
+
+	//--------------------------------------------------------
+	//shot19 pull in on the boss as he says his lines
+	
+	$cam2.fov( 50 );
+	$cam2.cut();
+	$cam2.follow( $cam_m1l3_intro19 );
+	wait( .2 );
+
+	cuecamera( $cam2 );
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_wewilladd.mp3", 1, 20000, 0);  //We will add your biological and technological distinctiveness to our own.
+	waitForDialog( $borgboss );
+	wait( .2 );
+
+	$borgboss.playdialog( "localization/sound/dialog/borg03/borgboss_rifut2.mp3", 1, 20000, 0);  //Resistance is futile
+	wait( .75 );
+
+	//--------------------------------------------------------
+	//shot20 push in on munro's face
+
+	$cam1.fov( 40 );
+	$cam1.cut();
+	$cam1.follow( $cam_m1l3_intro20 );
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( 1 );
+	
+	$cinematic_munro.morph( "exp_Disgust" );
+	wait( 1.5 );
+
+	//--- fade out
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	thread cinematicIntro_end();
+}
+
+//------------------------
+void cinematicIntro_end()
+//------------------------
+{
+	// -- Added to fix head watch bug in Head Hug
+	$cinematic_munro.headWatchTarget( "none" , 2 );
+	$cinematic_munro.resethead();
+
+	//--- hide the cinematic munro and scale the boss back down
+	$borgboss.scale( BOSS_SCALE );
+	
+	//$cinematic_munro.warpto( "$cinematic_munro_warpto" );
+	
+	
+	//$cinematic_munro.displayEffect( "TransportIn", "Federation" );
+	$cinematic_munro.displayEffect( "FadeIn", "Simple" );
+	$cinematic_munro.alpha( 1 );
+	
+	
+	//hzm coop mod chrissstrahl - fix anoying warnings in console
+	$cinematic_munro.origin('80 -1000 0');
+	$cinematic_munro.scale(0.05);
+	
+
+	//--- reset timescale
+	$world.time_scale( 1 );
+	//$borgdoor.stoploopsound;
+	//--- end cinematic commmands
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	
+	removefakeplayer();
+	noncinematic();
+	clearletterbox( 1 );
+	cueplayer();
+	releaseplayer();
+
+	//--- set the first objective
+	//$player.setobjectiveshow ( "DestroyBoss" , 1 );
+	$borgboss.missionObjective( 1 );
+	
+	//hzm coop mod Chrissstrahl - set first objective
+	globalCoop_objectives_set("$$DestroyBorgBoss$$","incomplete",1,1);
+	wait( 1 );
+
+	//--- activate the borg boss
+	$borgboss.ai_on();
+
+	//--- set the music to stage one action
+	forcemusic( "aux5", "aux5" );
+
+	//--- tuvok tells munro he's recalibrating the transporters
+	$tuvok.playdialog( "localization/sound/dialog/borg03/tuvok_recal.mp3", 1, 20000, 1);  //Recalibrating transporters.
+	waitForDialog( $tuvok );
+
+	wait( .2 );
+
+	//--- munro tells tuvok to leave anyway
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_forgetit.mp3", 1, 20000, 1);  //Forget it! Get Voyager out while you can!
+	waitForDialog( $cinematic_munro );
+
+	wait( .2 );
+
+	//--- tuvok says they're not leaving without him
+	$tuvok.playdialog( "localization/sound/dialog/borg03/tuvok_westay.mp3", 1, 20000, 1);  //We are staying until you are aboard.
+	waitForDialog( $tuvok );
+
+	wait( .2 );
+
+	//--- munro tells tuvok that's illogical
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_tuvok.mp3", 1, 20000, 1);  //That’s not logical, Tuvok!
+	waitForDialog( $cinematic_munro );
+
+	wait( .2 );
+
+	//--- munro tells tuvok to leave before they regenerate the field
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_go.mp3", 1, 20000, 1);  //Go! Before they regenerate the dampening field!
+	waitForDialog( $cinematic_munro );
+}
+
+//------------------------
+void cinematicIntro_skipthread()  //--- skipthread for intro cinematic
+//------------------------
+{
+	//--- kill the cinematic thread
+	skipthread( "Null" );
+	killthread( "cinematicIntro" );
+	thread cinematicIntro_skipthread_thread();
+}
+
+//------------------------
+void cinematicIntro_skipthread_thread()  //--- skipthread for intro cinematic
+//------------------------
+{
+	//--- fade out and set the level up
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+
+	//--- stop munro's dialog
+	$cinematic_munro.stopdialog();
+	$tuvok.stopdialog();
+	$borgboss.stopdialog();
+
+	//--- remove the boss door in the floor......hey....that ryhms...or rhyms....or....frikker, you know how to spell it!!!!
+	$door_boss_westlock_westlatch_south.remove();
+	$door_boss_westlock_eastlatch_south.remove();
+	$door_boss_eastlock_westlatch_south.remove();
+	$door_boss_eastlock_eastlatch_south.remove();
+	$door_boss_westlock_westlatch_north.remove();
+	$door_boss_westlock_eastlatch_north.remove();
+	$door_boss_eastlock_westlatch_north.remove();
+	$door_boss_eastlock_eastlatch_north.remove();
+
+	$door_boss_westlock_south.remove();
+	$door_boss_eastlock_south.remove();
+	$door_boss_westlock_north.remove();
+	$door_boss_eastlock_north.remove();
+
+	$door_boss_main_south.remove();
+	$door_boss_main_north.remove();
+
+	//--- move the lift to its end position
+	$lift_boss.time( .1 );
+	$lift_boss.moveto( $waypoint_lift_boss_end );
+	waitfor( $lift_boss );
+
+	//--- move the boss forward
+	$borgboss.walkto( "$faceoff_boss_node", "walk" );
+	waitfor( $borgboss );
+
+	//--- turn on the blue forcefield
+	$bluefield.show();
+	$bluefield.solid();
+	$bluefield.loopsound ( "sound/ships/borg/borg_forcefield1.wav", .5, 32 );
+
+	//--- call the ending of the cinematic
+	thread cinematicIntro_end();
+}
+
+//---------------------
+void cinematicIntro_munro_walkforward()
+//---------------------
+{
+	$cinematic_munro.walkto( "$faceoff_player_node", "walk" );
+	waitfor( $cinematic_munro );
+}
+
+//---------------------
+void cinematicIntro_boss_walkforward()
+//---------------------
+{
+	$borgboss.walkto( "$faceoff_boss_node", "walk" );
+	waitfor( $borgboss );
+}
+
+//---------------------
+void cinematicIntro_lift_boss()
+//---------------------
+{
+        $lift_boss.time ( 15 );
+        $lift_boss.playsound( "sound/environment/machine/borg_biglift.wav", 7, 1, 450 );
+        $lift_boss.moveto ( $waypoint_lift_boss_end );
+        waitfor ( $lift_boss );
+        $lift_boss.playsound( "sound/environment/machine/borg_biglift_stop.wav", 7, 1, 450 );
+}
+
+//---------------------
+void cinematicIntro_door_unlatch()
+//---------------------
+{
+	//--- set the times on the latches
+        $door_boss_westlock_westlatch_south.playsound( "sound/environment/machine/borg_latch.wav", 10, 2, 3550 );
+	$door_boss_westlock_westlatch_south.time( 1 );
+	$door_boss_westlock_eastlatch_south.time( 1 );
+	$door_boss_eastlock_westlatch_south.time( 1 );
+	$door_boss_eastlock_eastlatch_south.time( 1 );
+
+	$door_boss_westlock_westlatch_north.time( 1 );
+	$door_boss_westlock_eastlatch_north.time( 1 );
+	$door_boss_eastlock_westlatch_north.time( 1 );
+	$door_boss_eastlock_eastlatch_north.time( 1 );
+
+	//--- move the latches
+	$door_boss_westlock_westlatch_south.movewest( 6 );
+	$door_boss_westlock_eastlatch_south.moveeast( 6 );
+	$door_boss_eastlock_westlatch_south.movewest( 6 );
+	$door_boss_eastlock_eastlatch_south.moveeast( 6 );
+
+	$door_boss_westlock_westlatch_north.movewest( 6 );
+	$door_boss_westlock_eastlatch_north.moveeast( 6 );
+	$door_boss_eastlock_westlatch_north.movewest( 6 );
+	$door_boss_eastlock_eastlatch_north.moveeast( 6 );
+	waitfor( $door_boss_eastlock_eastlatch_north );
+}
+
+//---------------------
+void cinematicIntro_door_unlock()
+//---------------------
+{
+	//--- set the times on the locks
+	$door_boss_westlock_south.time( 1.5 );
+	$door_boss_eastlock_south.time( 1.5 );
+
+	$door_boss_westlock_north.time( 1.5 );
+	$door_boss_eastlock_north.time( 1.5 );
+        $door_boss_westlock_south.playsound( "sound/environment/machine/borg_latch.wav", 11, 2, 3550 );
+	//--- move the locks
+	$door_boss_westlock_south.movesouth( 12 );
+	$door_boss_eastlock_south.movesouth( 12 );
+
+	$door_boss_westlock_north.movenorth( 12 );
+	$door_boss_eastlock_north.movenorth( 12 );
+	waitfor( $door_boss_eastlock_north );
+}
+
+//---------------------
+void cinematicIntro_door_open()
+//---------------------
+{
+	//--- set the times on the doors
+
+	$door_boss_main_south.time( 12 );
+	$door_boss_main_north.time( 12 );
+
+	//--- move the doors
+    	$door_boss_main_south.playsound( "sound/doors/borg_door_02.wav", 12, 2, 3450 );
+	$door_boss_main_south.movesouth( 130 );
+	$door_boss_main_north.movenorth( 130 );
+	waitfor( $door_boss_main_north );
+}
+
+
+//------------------------------------------------------------------
+//------------------------ Ending Cinematic ------------------------
+//------------------------------------------------------------------
+
+//---------------------
+// cinematicBossDeath
+// death cinematic for the boss
+//---------------------
+void cinematicBossDeath()
+{
+	if( boolAlreadyRunning == TRUE )
+	{
+		print ( "BOSS CINEMATIC ALREADY RUNNING!!!\n" );
+		return;
+	}
+	
+	boolAlreadyRunning = TRUE;
+	//print ( "BOSS DEATH CINEMATIC STARTING\n" );
+	
+	float fltBossYaw;
+	vector vecBossOrigin, vecBossAngles, vecMunroOrigin;
+
+	//--- complete the first objective
+	//$player.setobjectivecomplete ( "DestroyBoss" , 1 );
+	$borgboss.missionObjective( 0 );
+	
+	//hzm coop mod Chrissstrahl - set first objective
+	globalCoop_objectives_set("$$DestroyBorgBoss$$","complete",1,1);
+	
+	//--- change the music
+	forcemusic( "success", "surprise" );
+	wait( 3 );
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .2, 1, 1, 1, 1);
+	wait( .3 );
+
+	letterbox( .1 );
+
+	//--- load the camera paths
+	cam.load( "m1l3_BorgBoss_Death_Shot1" );
+	cam.load( "m1l3_BorgBoss_Death_Shot2" );
+	cam.load( "m1l3_BorgBoss_Death_Shot3" );
+	cam.load( "m1l3_BorgBoss_Death_Shot4" );
+	
+	//--- reposition the boss if he's outside the center
+	if( globalMath_GetXYDistance( $borgboss.getOrigin(), $arenaCenter.getOrigin()) > CINEMATIC_STAGE_CHANGE_BOSS_DISTANCE )
+	{
+		cinematicStageChange_PositionBoss();
+	}
+	wait( .1 );
+		
+	//--- capture the current facing and position of the real boss
+	vecBossOrigin = $borgboss.getOrigin();
+	vecBossAngles = $borgboss.getAngles();
+
+	//--- remove the real boss
+	$borgboss.remove();
+
+	//--- get the yaw angle of the boss facing
+	fltBossYaw = vectorGetY( vecBossAngles );
+	
+	//--- setup and scale the dead boss
+	$borgBoss_Dead.show();
+	$borgBoss_Dead.scale( CINEMATIC_BOSS_SCALE );
+	$borgBoss_Dead.origin( vecBossOrigin );
+	$borgBoss_Dead.angles( vecBossAngles );
+	$borgBoss_Dead.setFrame( 66, "death" );
+	
+	//--- orient the paths and position them relative to the bosses facing and location
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Death_Shot1, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Death_Shot2, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Death_Shot3, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	globalCineFX_CameraPathRotate( $m1l3_BorgBoss_Death_Shot4, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+
+	//--- orient and position the lookat nodes
+	globalCineFX_CameraPathRotate( $nodeMunro_BossDeath, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	globalCineFX_CameraPathRotate( $nodeMunroLookAt_Boss, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	globalCineFX_CameraPathRotate( $nodeMunroLookAt_Tuvok, fltBossYaw, $arenaCenter.getOrigin(), vecBossOrigin );
+	
+	//--- position and setup the cinematic munro
+	vecMunroOrigin = $nodeMunro_BossDeath.getOrigin();
+	vecMunroOrigin_z = vecMunroOrigin_z - 7;
+	//$cinematic_munro.scale( 1 );
+	
+	
+	//hzm coop mod chrissstrahl - fix anoying warnings in console - restore original size
+	$cinematic_munro.scale(1);
+	
+	$cinematic_munro.show();
+	$cinematic_munro.origin( vecMunroOrigin );
+	$cinematic_munro.angles( $nodeMunro_BossDeath.getAngles() );
+	$cinematic_munro.alpha( 1 );
+	$cinematic_munro.useActorWeapon( "none" );
+	wait( .1 );
+	
+	//--- munro looks at the boss
+	$cinematic_munro.headWatch( $nodeMunroLookAt_Boss, 5 );
+	
+	//--- change the music
+	forcemusic( "surprise", "surprise" );
+
+	//--- set the skipthread
+	skipthread( "cinematicBossDeath_Skipthread" );
+	
+	//--------------------------------------------------------
+	//shot 1, quick dolly in on munro as he says his catch line
+	
+	//--- next paths
+	$cam1.fov( 50 );
+	$cam1.cut();
+	$cam1.follow( $m1l3_BorgBoss_Death_Shot1 );
+	wait( .2 );
+
+	$cinematic_munro.morph( "exp_Disgust" );
+
+	cuecamera( $cam1 );
+	cam_fadein( .5, .65, 1, .65, 1, 0 );
+	wait( 2.75 );
+
+	//--- munro insults dead borg dork
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_assim.mp3", 1, 20000, 0);  //Assimilation is futile!
+	waitForDialog( $cinematic_munro );
+	wait( .5 );
+
+	//--- munro stops looking at the dead boss
+	$cinematic_munro.resetHead( 2 );
+
+	//--------------------------------------------------------
+	//shot 2, slightly doly right as tuvok calls munro
+	
+	//--- next paths
+	$cam1.follow( $m1l3_BorgBoss_Death_Shot2 );
+
+	//--- tuvok comms munro
+	$tuvok.playdialog( "localization/sound/dialog/borg03/tuvok_tomunro.mp3", 1, 20000, 1);  //Voyager to Munro. The interference is gone. Prepare for transport.
+	wait( .2 );
+	
+	//--- munro looks up
+	$cinematic_munro.headWatch( $nodeMunroLookAt_Tuvok, 5 );
+	wait( 1.8 );
+	
+	$cinematic_munro.morph( "exp_Relief" );
+	
+	waitForDialog( $tuvok );
+	wait( .75 );
+
+	//--------------------------------------------------------
+	//shot 3, slightly doly right as munro looks ahead
+	
+	//--- next paths
+	$cam1.follow( $m1l3_BorgBoss_Death_Shot3 );
+	
+	$cinematic_munro.unmorph( "exp_Relief" );
+	
+	//--- munro says to go home.....yeah......home.......how joyous....I'm so relieved
+	$cinematic_munro.playdialog( "localization/sound/dialog/borg03/munro_gohome.mp3", 1, 20000, 0);  //OK, Voyager. Let's go home.
+
+	//--- munro ahead
+	$cinematic_munro.resetHead( 5 );	
+	waitForDialog( $cinematic_munro );
+
+	wait( .75 );
+
+	//--------------------------------------------------------
+	//shot 4, pull back as munro beams out
+	
+	//--- next paths
+	$cam1.follow( $m1l3_BorgBoss_Death_Shot4 );
+	wait( 1 );
+	
+	//--- show munro beaming out
+	$cinematic_munro.displayEffect( "TransportOut", "Federation" );
+   	$cinematic_munro.playsound ( "sound/environment/transporter/transport2.WAV", 5, 1, 132 );
+	wait( 2.5 );
+	
+	thread cinematicBossDeath_Skipthread();
+}
+
+
+//---------------------
+// cinematicBossDeath_Skipthread
+// skipthread
+//---------------------
+void cinematicBossDeath_Skipthread()
+{
+	//--- set the skipthread
+	skipthread( "" );
+	killthread( "cinematicBossDeath" );
+
+	cam_fadeout( 1, 0, 0, 0, 1);
+    wait ( 1.1 );
+
+	//--- release the cinematic
+	noncinematic();
+	clearLetterbox( .1 );
+	
+	coop_endLevel();
+	
+	//--- change levels    
+	// spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m2l0-sfa" );
+	// wait ( .1 );
+	// trigger ( "$trigger_endlevel" );
+}
+ 
+ 
+//---------------------
+// deathPlayer
+// handle some level specific stuff then call the borg special death cinematic
+//---------------------
+void deathPlayer()
+{
+	killthread( "cinematicIntro_end" );
+	$tuvok.stopDialog();
+	$cinematic_munro.stopDialog();
+	$borgboss.stopDialog();
+	
+	thread m1_playerDeathCinematic();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m2l0-sfa");
+}
+

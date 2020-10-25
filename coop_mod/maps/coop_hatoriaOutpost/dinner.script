@@ -1,0 +1,178 @@
+//Dinner is ready - The purpose of this file is to keep the map-script easy to read
+void dinnerTalk()
+{
+//m9l2/klingcomm_nomatch.mp3 - haha ur no match for a k-warrior
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestActive($klingon2);
+	$klingon1.headwatch(ePlayer,5);
+	$klingon2.headwatch(ePlayer,5);
+	wait(1);
+	
+	//get closest player again
+	ePlayer = globalCoop_return_playerClosestActive($klingon1);
+	$klingon1.headwatch(ePlayer,5);
+	$klingon2.headwatch(ePlayer,5);
+//play dialog - but only if a player is close to the klingon - player could allready be in the hallway
+	if(ePlayer.isWithinDistanceOf($klingon1,196) ){
+		ePlayer.simpleplaydialog( "localization/sound/dialog/m9l1/munro_greetings.mp3", 1, 500);
+		wait(1);
+	}
+	
+//play dialog - Try qagh
+	$klingon1.headwatch($dinnerQagh,10);
+	//get closest player again
+	ePlayer = globalCoop_return_playerClosestActive($klingon1);
+	$klingon2.headwatch(ePlayer,5);
+	$klingon2.playdialog( "localization/sound/dialog/m9l1/klingon_gagh2.mp3", 1, 500, 0);	
+	waitfordialog( $klingon2 );
+	
+//look at player
+	$klingon1.headwatch(globalCoop_return_playerClosestActive($klingon1),5);
+//wait a moment
+	wait(2);
+	thread  dinnerLiftSpawner();
+	wait(1);
+	$klingon1.headwatch($dinner,10);
+	$klingon2.headwatch($dinner,10);
+}
+
+void dinnerOpeningShow()
+{
+	$dinner.anim("crash");
+	waitForAnimation($dinner,"crash");
+	$dinner.anim("idle");
+	$dinner.turnTowardsEntity(globalCoop_return_playerClosestActive($dinner));
+	$dinner.anim("taunt");
+	waitForAnimation($dinner,"taunt");
+	$dinner.turnTowardsEntity(globalCoop_return_playerClosestActive($dinner));
+	$dinner.anim("idle");
+	thread dinnerTime();
+//update objectives
+	globalCoop_objectives_update("inComplete",1,1);//State,Item,ShowIt
+	
+//set missionobjective marker on radar - update 02.02.2018
+	$t214.missionobjective(1);
+}
+
+void dinnerLiftSpawner()
+{
+//SPAN A ENEMY, will be pushed down and triggers the explosion
+	//$spawnDinner.setspawngroupdeaththread("dinnerLiftSpawner");
+	$spawnDinner.modelName("char/alien-type1c-basher.tik");
+	$spawnDinner.setspawngroupID(111);
+	$spawnDinner.spawntargetname("dinner");
+	$spawnDinner.spawnnow();
+	wait(.1);
+	$dinner.ai_off();
+	$dinner.nodamage();
+}
+
+void dinnerTime()
+{
+	if(globalCoop_check_existingLivingEntity($klingon1)){
+		$klingon1.walkto("$nodeKlingon1c","run");
+		$klingon1.strictlyfollowpath(0);
+		wait(2);
+		$klingon1.ai_on();
+		$klingon1.attack($dinner);
+		$klingon1.ai_on();
+		$dinner.ai_on();
+		$dinner.attack($klingon1);
+		if(globalCoop_check_existingLivingEntity($klingon2)){
+			$klingon2.walkto("$nodeKlingon2a","run");
+			wait(1);
+			$klingon2.ai_on();
+			$klingon2.attack($dinner);		
+		}
+	}else if(globalCoop_check_existingLivingEntity($klingon2)){
+	//failsafe!
+		$dinner.ai_on();
+		$dinner.attack($klingon2);
+	}else{
+	//failsafe!
+		$dinner.ai_on();	
+		$dinner.attack(globalCoop_return_playerClosestActive($dinner));
+		$dinner.takedamage();
+		$dinnerChair1.solid();
+		$dinnerChair1Clip.notsolid();
+	}
+}
+
+void dinnerPlayerBeamedIn()
+{
+	$klingon1.archeType("");
+	$klingon2.archeType("");
+	//cinematic
+	
+//setup Munrotz
+	//$munro.forcealpha(1);
+	//$munro.alpha(0);
+	$munro.anim("idle");
+	$munro.killattach();
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	
+	cinematic();
+	
+//WAIT WARMUPTIME
+	globalCoop_main_waitForWarmupTime();
+//fade in slowley
+	cam_fadeIn( 1, 0, 0,0, 0 );	
+	wait(0.1);
+	
+	freezeplayer();
+	letterbox(.01);
+	$cam1.follow($cin_dinner_beamin);
+	$cam2.follow($cin_dinner_watchKlingon);
+	$cam1.cut();
+	cuecamera($cam1);
+//WAIT EXTRA TIME
+	wait(3);
+	$munro.displayeffect("TransportIn","Federation");
+	wait(2);
+//walk over to transporter
+	$klingon1.show();
+	$klingon1.walkto("$nodeKlingon1a","walk");
+	$klingon1.strictlyfollowpath(1);
+	wait(1);
+	$munro.headwatch($klingon1,75);
+	wait(2);
+	$cam2.cut();
+	cuecamera($cam2);
+	$munro.hide();
+	$munro.notsolid();
+	wait(0.2);
+	$klingon1.headwatch(globalCoop_return_playerClosestActive($klingon1),10);
+	wait(1.8);
+	$klingon1.headwatchtarget("none",10);
+	waitFor($klingon1);
+	wait(.2);
+//play dialog - work poroperly - make it look like machine works within klingon paramaters - kick it and it works
+	$klingon1.anim("idle_adjust");
+	wait(.3);
+	$klingon1.playdialog( "localization/sound/dialog/m9l2/klingcomm_workprop.mp3", 1, 500, 0);
+	wait(.2);
+	$klingon1.anim("melee_blast");
+	waitForAnimation($klingon1,"melee_blast");
+	$klingon1.anim("idle");
+	wait(.2);
+	$klingon1.anim("idle_adjust");
+	wait(.2);
+	noncinematic();
+	releaseplayer();
+	clearletterbox(.01);
+	wait(0.2);
+//turn off ff
+	globalCoop_level_triggerEntity($dinnerTransporterClipTrigger);
+	waitForAnimation($klingon1,"idle_adjust");
+//walk towards other klingon
+	$klingon1.headwatch($klingon2,10);
+	$klingon1.strictlyfollowpath(0);
+	$klingon1.walkto("$nodeKlingon1b","walk");
+	waitFor($klingon1);
+//animate casuality
+	$klingon1.anim("bar_standing");
+	$klingon1.headwatch($klingon2,10);
+	wait(2);
+}
+

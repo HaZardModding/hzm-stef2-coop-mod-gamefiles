@@ -1,0 +1,1821 @@
+//[b607] chrissstrahl - this was changed to suite only multiplayer needs
+//do not include this file directly!
+//include the file from maps/global_scripts/
+//the coop mod dll will detect and select the right file for single or multiplayer
+
+//PUBLIC FUNCTIONS
+void globalTricorderRoute_BeginDef();
+void globalTricorderRoute_SetSource1Row( float row );
+void globalTricorderRoute_SetSource2Row( float row );
+void globalTricorderRoute_SetSource3Row( float row );
+void globalTricorderRoute_SetDestination1( float row, float matchingSource );
+void globalTricorderRoute_SetDestination2( float row, float matchingSource );
+void globalTricorderRoute_SetDestination3( float row, float matchingSource );
+void globalTricorderRoute_SetNextRow( float a, float b, float c, float d, float e, float f, float g, float h, float i );
+void globalTricorderRoute_Run( entity entPuzzleObject, float timeLimit );
+void globalTricorderRoute_Reset();
+float _tricorderRoute_chargeDestRow( float row );
+
+void _tricorderRoute_updateGameBoardWidget( float col, float row );
+string _tricorderRoute_getModelForPiece( float pieceValue );
+float _tricorderRoute_destMatchesSource( float row );
+
+void _tricorderRoute_initGameBoard();
+void _tricorderRoute_initializeUI();
+void globalTricorderRoute_Reset();
+
+
+//=================================================================================================
+// CONSTANTS
+//-------------------------------------------------------------------------------------------------
+// notes:
+//	TRI_ROUTE_NAME_PIECETABLE			- variable name prefix used to create a fake table; the
+//										  elements of the table are this cat input dir [0..3] cat
+//										  output dir cat piece number [0..2].
+//	TRI_ROUTE_NAME_GAMETABLE			- variable name prefix used to create a fake table that
+//										  stores the game board.
+//	TRI_ROUTE_STR,TRI_ROUTE_ANG,
+//	TRI_ROUTE_TEE,TRI_ROUTE_BRIDGE		- numeric values of all the pieces
+//	TRI_ROUTE_MASK_PIECE				- each entry in the game table is a bitwise combination of
+//										  piece type and flags.  These are the bits for piece type.
+//	TRI_ROUTE_MASK_FLAGS				- the bits used for piece flags in the game table.
+//	TRI_ROUTE_FLAG_BURNIN				- this piece can't be rotated
+//	TRI_ROUTE_FLAG_EMPTY				- this cell has no piece in it, regardless of what the
+//										  piece type bits are.
+//=================================================================================================
+float 	TRI_ROUTE_UP 				= 0;
+float 	TRI_ROUTE_RIGHT				= 1;
+float	TRI_ROUTE_DOWN				= 2;
+float 	TRI_ROUTE_LEFT				= 3;
+string 	TRI_ROUTE_NAME_IOTABLE 		= "level.trirtept"; // tri-rte-pt, tricorder-route-piecetable
+string 	TRI_ROUTE_NAME_GAMETABLE	= "level.trirtegt";
+											
+											// connection points:
+float 	TRI_ROUTE_STR_0				= 0;	// e,w
+float 	TRI_ROUTE_STR_90			= 1;	// n,s
+float 	TRI_ROUTE_ANG_0				= 2;	// n,e
+float 	TRI_ROUTE_ANG_90			= 3;	// s,e
+float 	TRI_ROUTE_ANG_180			= 4;	// s,w
+float	TRI_ROUTE_ANG_270			= 5;	// n,w
+float	TRI_ROUTE_TEE_0				= 6;	// e,w,s
+float	TRI_ROUTE_TEE_90			= 7;	// w,n,s
+float	TRI_ROUTE_TEE_180			= 8;	// e,w,n
+float	TRI_ROUTE_TEE_270			= 9;	// e,n,s
+float	TRI_ROUTE_BRIDGE			= 10;	// n,e,w,s
+float 	TRI_ROUTE_SHORT_CIRCUT		= 11;	// -
+float 	TRI_ROUTE_INVALID			= 15;
+
+float	TRI_ROUTE_MASK_PIECE		= 15;		// 0000 0000 0000 1111 , 000Fh
+float	TRI_ROUTE_MASK_FLAGS		= 65520;	// 1111 1111 1111 0000 , FFF0h
+
+float 	TRI_ROUTE_FLAG_BURNIN		= 16;		// 0000 0000 0001 0000
+float	TRI_ROUTE_FLAG_EMPTY		= 32;		// 0000 0000 0010 0000
+
+float 	TRI_ROUTE_FLAG_ENERGIZED	= 64;		// 0000 0000 0100 0000
+float 	TRI_ROUTE_FLAG_ENERGIZED_B	= 128;		// 0000 0000 1000 0000 FOR BRIDGE PIECES, INDICATES NORTH/SOUTH POWER FLOW
+float	TRI_ROUTE_FLAG_SIGNAL1		= 256;		// 0000 0001 0000 0000
+float	TRI_ROUTE_FLAG_SIGNAL2		= 512;		// 0000 0010 0000 0000
+float	TRI_ROUTE_FLAG_SIGNAL3		= 1024;		// 0000 0100 0000 0000
+float 	TRI_ROUTE_FLAG_SIGNAL1_B	= 2048;		// 0000 1000 0000 0000 FOR BRIDGE PIECES, INDICATES WHICH TYPE OF NORTH/SOUTH POWER FLOW
+float 	TRI_ROUTE_FLAG_SIGNAL2_B	= 4096;		// 0001 0000 0000 0000 
+float 	TRI_ROUTE_FLAG_SIGNAL3_B	= 8192;		// 0010 0000 0000 0000 
+
+float 	TRI_ROUTE_NUMROWS 			= 11;
+float 	TRI_ROUTE_NUMCOLS 			= 9;
+
+float 	TRI_ROUTE_ROTATE_LEFT		= -1;
+float	TRI_ROUTE_ROTATE_RIGHT		= 1;
+
+float 	TRI_ROUTE_MAXCOMMANDS		= 8;
+
+
+//=================================================================================================
+// GLOBAL VARIABLES
+//-------------------------------------------------------------------------------------------------
+// notes:
+//	_numRows,_numCols			- size of the game board measured in cells.
+//	_numSources					- from 1 to 3
+//	_source[n]Row				- where that source begins
+//	_lockInput					- don't accept any input when this is 1
+//=================================================================================================
+float _tricorderRoute_source1Row, _tricorderRoute_source2Row, _tricorderRoute_source3Row;
+float _tricorderRoute_dest1Row, _tricorderRoute_dest2Row, _tricorderRoute_dest3Row;
+float _tricorderRoute_dest1Source, _tricorderRoute_dest2Source, _tricorderRoute_dest3Source;
+float _tricorderRoute_dest1Charged, _tricorderRoute_dest2Charged, _tricorderRoute_dest3Charged;
+float _tricorderRoute_recalcPuzzleState_sourceRow;
+float _tricorderRoute_shortCircut;
+float _tricorderRoute_lockInput;
+
+string _tricorderRoute_menuName;
+
+float _tricorderRoute_defCol, _tricorderRoute_defRow;
+
+float _tricorderRoute_clientCommands;
+
+//=================================================================================================
+float _tricorderRoute_isValidPosition( float col, float row )
+{
+	float a;
+	a = col >= 0 && col < TRI_ROUTE_NUMCOLS && row >= 0 && row < TRI_ROUTE_NUMROWS;
+	return a;
+}
+
+//=================================================================================================
+void _tricorderRoute_cleanup()
+{
+	globalTricorderRoute_Reset();
+	_tricorderRoute_initializeUI();
+}
+
+//=================================================================================================
+// globalTricorderRoute_Solve
+//=================================================================================================
+void globalTricorderRoute_Solve()
+{
+	_tricorderRoute_lockInput = 1;
+	_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_success.wav", 9, 1, 64);
+	wait( 1 );
+
+	_tricorderRoute_cleanup();
+	globalTricorder_BaseClose();
+	_tricorderBase_entity.puzzleobject_solved();
+	
+	
+	//hzm gameupdate chrissstrahl - reenables sv_floodProtect if it was activated, needs to be disabled when using puzzles
+	if( _globalTricorder_svFloodProtectEnable )
+	{
+		stuffcmd("set sv_floodProtect 1\n");
+		_globalTricorder_svFloodProtectEnable = 0;
+	}
+	//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	_globalTricorder_lockedDown = 0;
+}
+
+//=================================================================================================
+// globalTricorderRoute_Reset
+//=================================================================================================
+void globalTricorderRoute_Reset()
+{
+	_tricorderRoute_source1Row = -1;
+	_tricorderRoute_source2Row = -1;
+	_tricorderRoute_source3Row = -1;
+	_tricorderRoute_dest1Row = -1;
+	_tricorderRoute_dest2Row = -1;
+	_tricorderRoute_dest3Row = -1;
+	_tricorderRoute_dest1Source = -1;
+	_tricorderRoute_dest2Source = -1;
+	_tricorderRoute_dest3Source = -1;
+	_tricorderRoute_dest1Charged = 0;
+	_tricorderRoute_dest2Charged = 0;
+	_tricorderRoute_dest3Charged = 0;
+	_tricorderRoute_lockInput = 1;
+	_tricorderRoute_shortCircut = 0;
+	
+	_tricorderRoute_initGameBoard();
+}
+
+//=================================================================================================
+float _tricorderRoute_setSignalBit( float pieceVal )
+{
+	if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source1Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL1;
+	}
+	else if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source2Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL2;
+	}
+	else if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source3Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL3;
+	}
+	else return pieceVal;
+}
+
+//=================================================================================================
+float _tricorderRoute_setSignalBit_B( float pieceVal )
+{
+	if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source1Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL1_B;
+	}
+	else if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source2Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL2_B;
+	}
+	else if( _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_source3Row ) {
+		return pieceVal | TRI_ROUTE_FLAG_SIGNAL3_B;
+	}
+	else return pieceVal;
+}
+
+//=================================================================================================
+float _tricorderRoute_getSignalNumber_B( float pieceVal )
+{
+	if( pieceVal & TRI_ROUTE_FLAG_SIGNAL1_B ) return 1;	
+	else if( pieceVal & TRI_ROUTE_FLAG_SIGNAL2_B ) return 2;	
+	else if( pieceVal & TRI_ROUTE_FLAG_SIGNAL3_B ) return 3;	
+	else return 0;
+}
+
+//=================================================================================================
+float _tricorderRoute_getSignalNumber( float pieceVal )
+{
+	if( pieceVal & TRI_ROUTE_FLAG_SIGNAL1 ) return 1;	
+	else if( pieceVal & TRI_ROUTE_FLAG_SIGNAL2 ) return 2;	
+	else if( pieceVal & TRI_ROUTE_FLAG_SIGNAL3 ) return 3;	
+	else return 0;
+}
+
+//=================================================================================================
+// _tricorderRoute_setGameBoardValue
+//		row,col		- coordinates of the piece to set the value of
+//		val			- the new value
+//-------------------------------------------------------------------------------------------------
+// Updates a specific piece of the game board with a new value.
+//=================================================================================================
+void _tricorderRoute_setGameBoardValue( float col, float row, float val )
+{
+	string varname;
+	
+	if( row < 0 || col < 0 || row >= TRI_ROUTE_NUMROWS || col >= TRI_ROUTE_NUMCOLS )
+		globalTricorder_BaseError( "_tricorderRoute_setGameBoardValue: invalid row,col" );
+	
+	varname = TRI_ROUTE_NAME_GAMETABLE + col + "_" + row;
+	
+	setfloatvar( varname, val );
+}
+
+//=================================================================================================
+// _tricorderRoute_getGameBoardValue
+//		row,col		- coordinates of the piece to get the value of
+//		RETURNS		- the value of the piece at the given coordinates
+//-------------------------------------------------------------------------------------------------
+// Look up a specific piece of the game board and return it's value
+//=================================================================================================
+float _tricorderRoute_getGameBoardValue( float col, float row )
+{
+	string varname;
+	
+	if( row < 0 || col < 0 || row >= TRI_ROUTE_NUMROWS || col >= TRI_ROUTE_NUMCOLS )
+		return TRI_ROUTE_INVALID;
+
+	varname = TRI_ROUTE_NAME_GAMETABLE + col + "_" + row;
+	
+	return getfloatvar( varname );
+}
+
+//=================================================================================================
+// _tricorderRoute_initGameBoard
+//-------------------------------------------------------------------------------------------------
+// This creates the game board, a fake table of NxM entries that are initialized to empty space.
+//=================================================================================================
+void _tricorderRoute_initGameBoard()
+{
+	float row, col;
+	for( row = 0; row < TRI_ROUTE_NUMROWS; row++ )
+	{
+		for( col = 0; col < TRI_ROUTE_NUMCOLS; col++ )
+		{
+			_tricorderRoute_setGameBoardValue( col, row, TRI_ROUTE_INVALID | TRI_ROUTE_FLAG_EMPTY );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void globalTricorderRoute_SetMenuUI( string menuName )
+{
+	_tricorderRoute_menuName = menuName;
+}
+
+//-------------------------------------------------------------------------------------------------
+void globalTricorderRoute_BeginDef()
+{
+	_tricorderRoute_menuName = "TricorderRoute";
+	_tricorderRoute_defRow = 0;
+	_tricorderRoute_defCol = 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+void globalTricorderRoute_SetSource1Row( float row ) { _tricorderRoute_source1Row = row - 1; }
+void globalTricorderRoute_SetSource2Row( float row ) { _tricorderRoute_source2Row = row - 1; }
+void globalTricorderRoute_SetSource3Row( float row ) { _tricorderRoute_source3Row = row - 1; }
+void globalTricorderRoute_SetDestination1( float row, float matchingSource ) { _tricorderRoute_dest1Row = row - 1; _tricorderRoute_dest1Source = matchingSource - 1; }
+void globalTricorderRoute_SetDestination2( float row, float matchingSource ) { _tricorderRoute_dest2Row = row - 1; _tricorderRoute_dest2Source = matchingSource - 1; }
+void globalTricorderRoute_SetDestination3( float row, float matchingSource ) { _tricorderRoute_dest3Row = row - 1; _tricorderRoute_dest3Source = matchingSource - 1; }
+
+//-------------------------------------------------------------------------------------------------
+void tricorderRoute_setNextPiece( float pieceVal )
+{
+	if( _tricorderRoute_defRow == TRI_ROUTE_NUMROWS )
+		globalTricorder_BaseError( "tricorderRoute_setNextPiece: TOO MANY PIECES!\n" );
+
+	_tricorderRoute_setGameBoardValue( _tricorderRoute_defCol, _tricorderRoute_defRow, pieceVal );
+	_tricorderRoute_defCol++;
+	if( _tricorderRoute_defCol == TRI_ROUTE_NUMCOLS )
+	{
+		_tricorderRoute_defCol = 0;
+		_tricorderRoute_defRow++;
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void globalTricorderRoute_SetNextRow( float a, float b, float c, float d, float e, float f, float g, float h, float i )
+{
+	tricorderRoute_setNextPiece( a );
+	tricorderRoute_setNextPiece( b );
+	tricorderRoute_setNextPiece( c );
+	tricorderRoute_setNextPiece( d );
+	tricorderRoute_setNextPiece( e );
+	tricorderRoute_setNextPiece( f );
+	tricorderRoute_setNextPiece( g );
+	tricorderRoute_setNextPiece( h );
+	tricorderRoute_setNextPiece( i );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getTeeLeftDir( float pieceType, float inputDir )
+{
+	if( pieceType == TRI_ROUTE_TEE_0 )
+	{
+		if( inputDir == TRI_ROUTE_RIGHT )		return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_RIGHT;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeLeftDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_90 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeLeftDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_180 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeLeftDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_270 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeLeftDir: invalid inputDir" );
+	}
+	globalTricorder_BaseError( "_tricorderRoute_getTeeLeftDir: invalid pieceType" );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getTeeRightDir( float pieceType, float inputDir )
+{
+	if( pieceType == TRI_ROUTE_TEE_0 )
+	{
+		if( inputDir == TRI_ROUTE_RIGHT )		return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_DOWN;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeRightDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_90 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_UP;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_DOWN;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeRightDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_180 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_UP;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_RIGHT;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeRightDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_TEE_270 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_UP;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_RIGHT;
+		else globalTricorder_BaseError( "_tricorderRoute_getTeeRightDir: invalid inputDir" );
+	}
+	globalTricorder_BaseError( "_tricorderRoute_getTeeRightDir: invalid pieceType" );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getOutputDir( float pieceType, float inputDir )
+{
+	if( pieceType == TRI_ROUTE_STR_0 )
+	{
+		if( inputDir == TRI_ROUTE_RIGHT )		return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_RIGHT;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_STR_90 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	
+	else if( pieceType == TRI_ROUTE_ANG_0 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_ANG_90 )
+	{
+		if( inputDir == TRI_ROUTE_DOWN )			return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_DOWN;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_ANG_180 )
+	{
+		if( inputDir == TRI_ROUTE_LEFT )			return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_DOWN )	return TRI_ROUTE_LEFT;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	else if( pieceType == TRI_ROUTE_ANG_270 )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT )	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+	
+	else if( pieceType == TRI_ROUTE_BRIDGE )
+	{
+		if( inputDir == TRI_ROUTE_UP )			return TRI_ROUTE_DOWN;
+		else if( inputDir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_LEFT;
+		else if( inputDir == TRI_ROUTE_LEFT ) 	return TRI_ROUTE_RIGHT;
+		else if( inputDir == TRI_ROUTE_DOWN ) 	return TRI_ROUTE_UP;
+		else globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid inputDir" );
+	}
+
+	globalTricorder_BaseError( "_tricorderRoute_getOutputDir: invalid pieceType" );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getNextColForDir( float startCol, float dir )
+{
+	if( dir == TRI_ROUTE_LEFT )			return startCol - 1;
+	else if( dir == TRI_ROUTE_RIGHT) 	return startCol + 1;
+	else 								return startCol;
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getNextRowForDir( float startRow, float dir )
+{
+	if( dir == TRI_ROUTE_UP )			return startRow - 1;
+	else if( dir == TRI_ROUTE_DOWN) 	return startRow + 1;
+	else 								return startRow;
+}
+
+//-------------------------------------------------------------------------------------------------
+void _tricorderRoute_createIOTable()
+{
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_0  + "_" + TRI_ROUTE_UP,		0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_0  + "_" + TRI_ROUTE_RIGHT,	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_0  + "_" + TRI_ROUTE_DOWN, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_0  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_90  + "_" + TRI_ROUTE_UP, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_90  + "_" + TRI_ROUTE_RIGHT, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_90  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_STR_90  + "_" + TRI_ROUTE_LEFT, 	0 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_0  + "_" + TRI_ROUTE_UP, 	 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_0  + "_" + TRI_ROUTE_RIGHT, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_0  + "_" + TRI_ROUTE_DOWN, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_0  + "_" + TRI_ROUTE_LEFT, 	0 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_90  + "_" + TRI_ROUTE_UP, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_90  + "_" + TRI_ROUTE_RIGHT, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_90  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_90  + "_" + TRI_ROUTE_LEFT, 	0 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_180  + "_" + TRI_ROUTE_UP, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_180  + "_" + TRI_ROUTE_RIGHT, 0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_180  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_180  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_270  + "_" + TRI_ROUTE_UP, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_270  + "_" + TRI_ROUTE_RIGHT, 0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_270  + "_" + TRI_ROUTE_DOWN, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_ANG_270  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_0  + "_" + TRI_ROUTE_UP, 	 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_0  + "_" + TRI_ROUTE_RIGHT, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_0  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_0  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_90  + "_" + TRI_ROUTE_UP, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_90  + "_" + TRI_ROUTE_RIGHT, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_90  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_90  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_180  + "_" + TRI_ROUTE_UP, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_180  + "_" + TRI_ROUTE_RIGHT, 1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_180  + "_" + TRI_ROUTE_DOWN, 	0 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_180  + "_" + TRI_ROUTE_LEFT, 	1 );
+
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_270  + "_" + TRI_ROUTE_UP, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_270  + "_" + TRI_ROUTE_RIGHT, 1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_270  + "_" + TRI_ROUTE_DOWN, 	1 );
+	setfloatvar( TRI_ROUTE_NAME_IOTABLE + TRI_ROUTE_TEE_270  + "_" + TRI_ROUTE_LEFT, 	0 );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_pieceHasConnection( float pieceType, float dir )
+{
+	float reval;
+
+	if( pieceType == TRI_ROUTE_INVALID ) return 0;
+
+	// bridges have connection everywhere
+	if( pieceType == TRI_ROUTE_BRIDGE ) return 1;	
+	
+	reval = getfloatvar( TRI_ROUTE_NAME_IOTABLE + pieceType + "_" + dir );
+//print( "_tricorderRoute_pieceHasConnection: " + TRI_ROUTE_NAME_IOTABLE + pieceType + "_" + dir + " => " + reval + "\n" );
+	return reval;
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_mirrorDir( float dir )
+{
+	if( dir == TRI_ROUTE_UP )			return TRI_ROUTE_DOWN;
+	else if( dir == TRI_ROUTE_RIGHT )	return TRI_ROUTE_LEFT;
+	else if( dir == TRI_ROUTE_DOWN )	return TRI_ROUTE_UP;
+	else if( dir == TRI_ROUTE_LEFT )	return TRI_ROUTE_RIGHT;
+	else return TRI_ROUTE_INVALID;
+}
+
+//=================================================================================================
+// recursiveCheckPath
+//-------------------------------------------------------------------------------------------------
+//	loop forever
+//		if current piece is signal destination
+//			return that puzzle is complete
+//
+//		if current piece is already energized
+//			return that puzzle is incomplete
+//
+//		remember current piece
+//
+//		energize current piece
+//
+//		if current piece is a splitter
+//			if left output connects to valid piece and that piece inputs from current piece
+//				recalcPuzzleState( coords of splitter's left output, and direction of input )
+//				if recalcPuzzleState returned that the puzzle is complete
+//					return that the puzzle is complete
+//			if right output connects to valid piece and that piece inputs from current piece
+//				set current piece to the output piece
+//		else if current piece outputs to valid piece and that piece inputs from current piece
+//			set current piece to the output piece
+//
+//		if current piece is the same as the one remembered
+//			return that puzzle is incomplete
+//=================================================================================================
+
+// this function is bad -josh
+
+void _tricorderRoute_recursiveCheckPath( float col, float row, float inputDir )
+{
+	float nextRow, nextCol, nextPieceVal, nextPieceType;
+	float pieceVal, pieceType;
+	float outputDirA, outputDirB, inputDir;
+	float saveRow, saveCol;
+	float retval;
+	string theModelName;		
+
+	if( !_tricorderRoute_isValidPosition( col, row ) )
+		return;
+
+	saveRow = row;
+	saveCol = col;
+
+	if( inputDir == TRI_ROUTE_UP )			saveRow--;
+	else if( inputDir == TRI_ROUTE_DOWN ) 	saveRow++;
+	else if( inputDir == TRI_ROUTE_LEFT ) 	saveCol--;
+	else if( inputDir == TRI_ROUTE_RIGHT ) 	saveCol++;
+	
+
+//print( "====== Begin checkpath at " + (row + 1) + "," + (col + 1) + "; inputdir=" + inputDir + "\n" );
+
+	while( 1 )
+	{
+//print( "> checkpath loop at " + (row + 1) + "," + (col + 1) + "; inputdir=" + inputDir + "\n" );
+	
+		// get the value of the current piece
+		pieceVal = _tricorderRoute_getGameBoardValue( col, row );
+		pieceType = pieceVal & TRI_ROUTE_MASK_PIECE;
+		
+		if( (pieceVal & TRI_ROUTE_FLAG_EMPTY) || !_tricorderRoute_pieceHasConnection( pieceType, inputDir ) )
+		{
+//print( "Path ended at " + (row + 1) + "," + (col + 1) + " (no input)\n" );
+			return;
+		}
+
+		// energize current piece; watch out for bridges
+		if( pieceType == TRI_ROUTE_BRIDGE )
+		{
+			// power coming in from top or bottom == ENERGIZED2
+			// update the piece value to store that it is energized, and which signal is energizing it
+			if( row != saveRow )
+			{ 	
+				pieceVal |= TRI_ROUTE_FLAG_ENERGIZED_B;
+				pieceVal = _tricorderRoute_setSignalBit_B( pieceVal );
+			}
+			else 
+			{ 
+				pieceVal |= TRI_ROUTE_FLAG_ENERGIZED;
+				pieceVal = _tricorderRoute_setSignalBit( pieceVal );
+			}
+		}
+		else
+		{
+			// update the piece value to store that it is energized, and which signal is energizing it
+			pieceVal |= TRI_ROUTE_FLAG_ENERGIZED;
+			pieceVal = _tricorderRoute_setSignalBit( pieceVal );
+		}
+
+		// store the new energized piece
+		_tricorderRoute_setGameBoardValue( col, row, pieceVal );
+			
+		// update the UI widget
+//print( "> Energizing " + (row + 1) + "," + (col + 1) + "\n" );
+		//_tricorderRoute_updateGameBoardWidget( col, row );
+
+		theModelName = _tricorderRoute_getModelForPiece( pieceVal );
+		globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName );
+//print( "update " + col + "," + row + ":" + theModelName + "\n" );
+
+
+		// remember the current row/column --------------- NOTE: DO NOT MODIFY ROW/COL BEFORE THIS LINE!!!
+		saveRow = row;
+		saveCol = col;
+
+		// if current piece is a splitter
+		if( (pieceType == TRI_ROUTE_TEE_0) || (pieceType == TRI_ROUTE_TEE_90) || (pieceType == TRI_ROUTE_TEE_180) || (pieceType == TRI_ROUTE_TEE_270) )
+		{
+			// figure out which directions the tee outputs to
+			outputDirA = _tricorderRoute_getTeeLeftDir( pieceType, inputDir );
+			outputDirB = _tricorderRoute_getTeeRightDir( pieceType, inputDir );
+
+			// figure out where the left output square is
+			nextRow = _tricorderRoute_getNextRowForDir( row, outputDirA );
+			nextCol = _tricorderRoute_getNextColForDir( col, outputDirA );
+			
+			// current piece is past the end of the board?
+			if( nextCol == TRI_ROUTE_NUMCOLS && _tricorderRoute_destMatchesSource( nextRow ) )
+			{
+				_tricorderRoute_chargeDestRow( nextRow );
+			}
+			else if( _tricorderRoute_isValidPosition( nextCol, nextRow ) )
+			{
+				// if left output connects to valid piece and that piece inputs from current piece
+				nextPieceVal = _tricorderRoute_getGameBoardValue( nextCol, nextRow );
+				nextPieceType = nextPieceVal & TRI_ROUTE_MASK_PIECE;
+				inputDir = _tricorderRoute_mirrorDir( outputDirA );
+	
+				if( nextPieceType == TRI_ROUTE_SHORT_CIRCUT )
+				{
+					_tricorderRoute_shortCircut = 1;
+					return;
+				}
+	
+				if( !(nextPieceVal & TRI_ROUTE_FLAG_EMPTY) )
+				{
+					if( _tricorderRoute_pieceHasConnection( nextPieceType, inputDir ) )
+					{
+						// if the next piece is already energized, bail out
+						if( (nextPieceVal & TRI_ROUTE_FLAG_ENERGIZED) && (nextPieceType != TRI_ROUTE_BRIDGE) )
+						{
+							return;
+						}
+		
+	//print( "====== Tee path branches left at " + (row + 1) + "," + (col + 1) + "; inputdir=" + inputDir + "\n" );
+						_tricorderRoute_recursiveCheckPath( nextCol, nextRow, inputDir );
+					}
+				}
+			}
+
+			// if right output connects to valid piece and that piece inputs from current piece, set current piece to the output piece
+			nextRow = _tricorderRoute_getNextRowForDir( row, outputDirB );
+			nextCol = _tricorderRoute_getNextColForDir( col, outputDirB );
+			
+			// current piece is past the end of the board?
+			if( nextCol == TRI_ROUTE_NUMCOLS && _tricorderRoute_destMatchesSource( nextRow ) )
+			{
+				_tricorderRoute_chargeDestRow( nextRow );
+			}
+			else if( _tricorderRoute_isValidPosition( nextCol, nextRow ) )
+			{
+				// if left output connects to valid piece and that piece inputs from current piece
+				nextPieceVal = _tricorderRoute_getGameBoardValue( nextCol, nextRow );
+				nextPieceType = nextPieceVal & TRI_ROUTE_MASK_PIECE;
+				inputDir = _tricorderRoute_mirrorDir( outputDirB );
+	
+				if( nextPieceType == TRI_ROUTE_SHORT_CIRCUT )
+				{
+					_tricorderRoute_shortCircut = 1;
+					return;
+				}
+	
+				if( !(nextPieceVal & TRI_ROUTE_FLAG_EMPTY) )
+				{
+					if( _tricorderRoute_pieceHasConnection( nextPieceType, inputDir ) )
+					{
+						// if the next piece is already energized, bail out
+						if( (nextPieceVal & TRI_ROUTE_FLAG_ENERGIZED) && (nextPieceType != TRI_ROUTE_BRIDGE) )
+						{
+							return;
+						}
+		
+						row = nextRow;
+						col = nextCol;
+					}
+				}
+			}
+		}
+		else // current piece is not a splitter
+		{
+			// else if current piece outputs to valid piece and that piece inputs from current piece
+			// 		set current piece to the output piece
+			outputDirA = _tricorderRoute_getOutputDir( pieceType, inputDir );
+//print( "-- output dir for type " + pieceType + " and input " + inputDir + " is " + outputDirA + "\n" );
+			nextRow = _tricorderRoute_getNextRowForDir( row, outputDirA );
+			nextCol = _tricorderRoute_getNextColForDir( col, outputDirA );
+			
+			// if current piece is past the end of the board, the path is either finished or bad
+			if( nextCol == TRI_ROUTE_NUMCOLS )
+			{
+				if( _tricorderRoute_destMatchesSource( nextRow ) )
+				{
+					_tricorderRoute_chargeDestRow( nextRow );
+					return;
+				}
+				else
+				{
+					return;
+				}
+			}
+			else if( !_tricorderRoute_isValidPosition( nextCol, nextRow ) )
+			{
+				return;
+			}
+
+			// if left output connects to valid piece and that piece inputs from current piece
+			nextPieceVal = _tricorderRoute_getGameBoardValue( nextCol, nextRow );
+			nextPieceType = nextPieceVal & TRI_ROUTE_MASK_PIECE;
+			inputDir = _tricorderRoute_mirrorDir( outputDirA );
+			
+			if( nextPieceType == TRI_ROUTE_SHORT_CIRCUT )
+			{
+				_tricorderRoute_shortCircut = 1;
+				return;
+			}
+			
+			if( !(nextPieceVal & TRI_ROUTE_FLAG_EMPTY) )
+			{
+				if( _tricorderRoute_pieceHasConnection( nextPieceType, inputDir ) )
+				{
+					// if the next piece is already energized, bail out
+					if( (nextPieceVal & TRI_ROUTE_FLAG_ENERGIZED) && (nextPieceType != TRI_ROUTE_BRIDGE) )
+					{
+						return;
+					}
+		
+					row = nextRow;
+					col = nextCol;
+				}
+			}
+		}
+
+		// if current piece is the same as the one remembered, the path is done because there is no piece for the energy to flow to
+		if( row == saveRow && col == saveCol )
+		{
+			return;
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getAngleForPiece( float pieceValue )
+{
+	float pieceType;
+	pieceType = pieceValue & TRI_ROUTE_MASK_PIECE;
+	
+	if( pieceType == TRI_ROUTE_STR_90 || pieceType == TRI_ROUTE_ANG_90 || pieceType == TRI_ROUTE_TEE_90 )
+		return 90;
+	else if( pieceType == TRI_ROUTE_ANG_180 || pieceType == TRI_ROUTE_TEE_180 )
+		return 180;
+	else if( pieceType == TRI_ROUTE_ANG_270 || pieceType == TRI_ROUTE_TEE_270 )
+		return 270;
+	else
+		return 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+string _tricorderRoute_getModelForPiece_returnvalue; // work around bug in script compiler with returning localstack strings
+string _tricorderRoute_getModelForPiece( float pieceValue )
+{
+	float pieceType;
+	float pieceFlags;
+	float signalNumber;
+	float signalA, signalB;
+	
+	// I'm the boss... need the info...
+	pieceType = pieceValue & TRI_ROUTE_MASK_PIECE;
+	pieceFlags = pieceValue & TRI_ROUTE_MASK_FLAGS;
+	
+	_tricorderRoute_getModelForPiece_returnvalue = "";
+	
+//print( "getModelForPiece: type=" + pieceType + ", flags=" + pieceFlags + "\n" );
+	
+	if( pieceFlags & TRI_ROUTE_FLAG_EMPTY )
+	{
+		_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_gridbase.tik"; // special value used by rendermodel widget to mean "nothing"
+		return _tricorderRoute_getModelForPiece_returnvalue;
+	}
+	
+	if( pieceType == TRI_ROUTE_SHORT_CIRCUT )
+	{
+		if( pieceFlags & TRI_ROUTE_FLAG_ENERGIZED )
+		{
+			signalNumber = _tricorderRoute_getSignalNumber( pieceFlags );
+			_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_sc_locked_on" + signalNumber + ".tik";
+			return _tricorderRoute_getModelForPiece_returnvalue;
+		}
+		else
+		{
+			_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_sc_locked_off.tik";
+			return _tricorderRoute_getModelForPiece_returnvalue;
+		}
+	}
+
+	// find base model _tricorderRoute_getModelForPiece_returnvalue
+	if( pieceType == TRI_ROUTE_STR_0 || pieceType == TRI_ROUTE_STR_90 )
+	{
+		_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_s";
+	}
+	else if( pieceType >= TRI_ROUTE_ANG_0 && pieceType <= TRI_ROUTE_ANG_270 )
+	{
+		_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_l";
+	}
+	else if( pieceType >= TRI_ROUTE_TEE_0 && pieceType <= TRI_ROUTE_TEE_270 )
+	{
+		_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_t";
+	}
+	else if( pieceType == TRI_ROUTE_BRIDGE )
+	{
+		signalA = _tricorderRoute_getSignalNumber( pieceFlags );
+		signalB = _tricorderRoute_getSignalNumber_B( pieceFlags );
+		_tricorderRoute_getModelForPiece_returnvalue = "models/hud/routing_x_" + signalA + "h-" + signalB + "v.tik";
+		return _tricorderRoute_getModelForPiece_returnvalue;
+	}
+	else
+	{
+		print( "Unknown pieceType " + pieceType + "\n" );
+		_tricorderRoute_getModelForPiece_returnvalue = "shit";
+		return _tricorderRoute_getModelForPiece_returnvalue;
+	}
+		
+	// add burned in?
+	if( pieceFlags & TRI_ROUTE_FLAG_BURNIN )													
+		_tricorderRoute_getModelForPiece_returnvalue = _tricorderRoute_getModelForPiece_returnvalue + "_locked";
+		
+	// energized?
+	if( pieceValue & TRI_ROUTE_FLAG_ENERGIZED || pieceValue & TRI_ROUTE_FLAG_ENERGIZED_B ) {
+		signalNumber = _tricorderRoute_getSignalNumber( pieceFlags );
+		_tricorderRoute_getModelForPiece_returnvalue = _tricorderRoute_getModelForPiece_returnvalue + "_on" + signalNumber;
+	}
+	else {
+		_tricorderRoute_getModelForPiece_returnvalue = _tricorderRoute_getModelForPiece_returnvalue + "_off";
+	}
+
+
+	_tricorderRoute_getModelForPiece_returnvalue = _tricorderRoute_getModelForPiece_returnvalue + ".tik";		
+	return _tricorderRoute_getModelForPiece_returnvalue;
+}
+
+//=================================================================================================
+// _tricorderRoute_updateGameBoardWidget
+//-------------------------------------------------------------------------------------------------
+//	update the UI widget for a specific piece to match the internal game state
+//=================================================================================================
+void _tricorderRoute_updateGameBoardWidget( float col, float row )
+{
+	float pieceValue;
+	string theModelName;
+	float theModelAngle;
+
+	pieceValue = _tricorderRoute_getGameBoardValue( col, row );
+	theModelName = _tricorderRoute_getModelForPiece( pieceValue );
+	theModelAngle = _tricorderRoute_getAngleForPiece( pieceValue );
+	globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName );
+	globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll " + theModelAngle );
+}
+
+
+//=================================================================================================
+void _tricorderRoute_decorateShortCircut( float signal, float signal_B )
+{
+	float row, col, pieceVal;
+	for( row = 0; row < TRI_ROUTE_NUMROWS; row++ )
+	{
+		for( col = 0; col < TRI_ROUTE_NUMCOLS; col++ )
+		{
+			pieceVal = _tricorderRoute_getGameBoardValue( col, row );
+			if( pieceVal & (signal | signal_B) )
+			{
+				_tricorderRoute_setGameBoardValue( col, row, TRI_ROUTE_SHORT_CIRCUT );
+			}
+			else
+			{
+				_tricorderRoute_setGameBoardValue( col, row, TRI_ROUTE_INVALID | TRI_ROUTE_FLAG_EMPTY );
+			}
+			_tricorderRoute_updateGameBoardWidget( col, row );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_signalNumForDest( float destNumber )
+{
+	if( destNumber == 1 )
+	{
+		if( _tricorderRoute_dest1Source == _tricorderRoute_source1Row ) 
+		{
+			return 1;
+		}
+		else if( _tricorderRoute_dest1Source == _tricorderRoute_source2Row ) 
+		{
+			return 2;
+		}
+		else if( _tricorderRoute_dest1Source == _tricorderRoute_source3Row ) 
+		{
+			return 3;
+		}
+	}
+	else if( destNumber == 2 )
+	{
+		if( _tricorderRoute_dest2Source == _tricorderRoute_source1Row ) 
+		{
+			return 1;
+		}
+		else if( _tricorderRoute_dest2Source == _tricorderRoute_source2Row ) 
+		{
+			return 2;
+		}
+		else if( _tricorderRoute_dest2Source == _tricorderRoute_source3Row ) 
+		{
+			return 3;
+		}
+	}
+	else if( destNumber == 3 )
+	{
+		if( _tricorderRoute_dest3Source == _tricorderRoute_source1Row ) 
+		{
+			return 1;
+		}
+		else if( _tricorderRoute_dest3Source == _tricorderRoute_source2Row ) 
+		{
+			return 2;
+		}
+		else if( _tricorderRoute_dest3Source == _tricorderRoute_source3Row ) 
+		{
+			return 3;
+		}
+	}
+	return 1; // failsafe
+}
+
+
+//=================================================================================================
+// recalcPuzzleState
+//-------------------------------------------------------------------------------------------------
+//	reset each signal-carrying piece to non-energized
+//	for each output (signal source)
+//		recursiveCheckPath( coordinates of output's first square )
+//=================================================================================================
+void _tricorderRoute_recalcPuzzleState()
+{
+	float row, col;
+	float val;
+	string theModelName;
+	float theModelAngle;
+	float numLeftToSolve, totalLeftToSolve;
+	float shortCircutSignalFlag, shortCircutSignalFlag_B;
+	float dest1WasCharged, dest2WasCharged, dest3WasCharged;
+	
+	dest1WasCharged = _tricorderRoute_dest1Charged;
+	dest2WasCharged = _tricorderRoute_dest2Charged;
+	dest3WasCharged = _tricorderRoute_dest3Charged;
+	
+	_tricorderRoute_dest1Charged = 0;
+	_tricorderRoute_dest2Charged = 0;
+	_tricorderRoute_dest3Charged = 0;
+
+	// reset each signal-carrying piece to non-energized
+	for( row = 0; row < TRI_ROUTE_NUMROWS; row++ )
+	{
+		for( col = 0; col < TRI_ROUTE_NUMCOLS; col++ )
+		{
+			val = _tricorderRoute_getGameBoardValue( col, row );
+
+			// clear the signal flags if set
+			if( val & TRI_ROUTE_FLAG_SIGNAL1 ) val -= TRI_ROUTE_FLAG_SIGNAL1;
+			if( val & TRI_ROUTE_FLAG_SIGNAL2 ) val -= TRI_ROUTE_FLAG_SIGNAL2;
+			if( val & TRI_ROUTE_FLAG_SIGNAL3 ) val -= TRI_ROUTE_FLAG_SIGNAL3;
+			if( val & TRI_ROUTE_FLAG_SIGNAL1_B ) val -= TRI_ROUTE_FLAG_SIGNAL1_B;
+			if( val & TRI_ROUTE_FLAG_SIGNAL2_B ) val -= TRI_ROUTE_FLAG_SIGNAL2_B;
+			if( val & TRI_ROUTE_FLAG_SIGNAL3_B ) val -= TRI_ROUTE_FLAG_SIGNAL3_B;
+
+			// clear the ENERGIZED flag if set
+			if( (val & TRI_ROUTE_FLAG_ENERGIZED) || (val & TRI_ROUTE_FLAG_ENERGIZED_B) )
+			{
+				// update board - there is no ~ operator
+				if( val & TRI_ROUTE_FLAG_ENERGIZED ) val -= TRI_ROUTE_FLAG_ENERGIZED;
+				if( val & TRI_ROUTE_FLAG_ENERGIZED_B ) val -= TRI_ROUTE_FLAG_ENERGIZED_B;
+				_tricorderRoute_setGameBoardValue( col, row, val );
+
+				// update UI
+				theModelName = _tricorderRoute_getModelForPiece( val );
+				theModelAngle = _tricorderRoute_getAngleForPiece( val );
+				globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName );
+				//globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll " + theModelAngle );
+			}
+		}
+	}
+
+	// de-energize dest pieces
+	if( _tricorderRoute_dest1Row > 0 ) {
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ _tricorderRoute_dest1Row 
+			+ " rendermodel models/hud/routing_end_off" 
+			+ _tricorderRoute_signalNumForDest( 1 )
+			+ ".tik" );
+	}
+	if( _tricorderRoute_dest2Row > 0 ) {
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ _tricorderRoute_dest2Row 
+			+ " rendermodel models/hud/routing_end_off" 
+			+ _tricorderRoute_signalNumForDest( 2 )
+			+ ".tik" );
+	}
+	if( _tricorderRoute_dest3Row > 0 ) {
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ _tricorderRoute_dest3Row 
+			+ " rendermodel models/hud/routing_end_off" 
+			+ _tricorderRoute_signalNumForDest( 3 )
+			+ ".tik" );
+	}
+
+	// for each signal source, energize
+	_tricorderRoute_recalcPuzzleState_sourceRow = _tricorderRoute_source1Row;
+	_tricorderRoute_recursiveCheckPath( 0, _tricorderRoute_source1Row, TRI_ROUTE_LEFT );
+	shortCircutSignalFlag = TRI_ROUTE_FLAG_SIGNAL1;
+	shortCircutSignalFlag_B = TRI_ROUTE_FLAG_SIGNAL1_B;
+	
+	if( !_tricorderRoute_shortCircut && _tricorderRoute_source2Row >= 0 )
+	{
+		_tricorderRoute_recalcPuzzleState_sourceRow = _tricorderRoute_source2Row;
+		_tricorderRoute_recursiveCheckPath( 0, _tricorderRoute_source2Row, TRI_ROUTE_LEFT );
+		shortCircutSignalFlag = TRI_ROUTE_FLAG_SIGNAL2;
+		shortCircutSignalFlag_B = TRI_ROUTE_FLAG_SIGNAL2_B;
+	}
+		
+	if( !_tricorderRoute_shortCircut && _tricorderRoute_source3Row >= 0 )
+	{
+		_tricorderRoute_recalcPuzzleState_sourceRow = _tricorderRoute_source3Row;
+		_tricorderRoute_recursiveCheckPath( 0, _tricorderRoute_source3Row, TRI_ROUTE_LEFT );
+		shortCircutSignalFlag = TRI_ROUTE_FLAG_SIGNAL3;
+		shortCircutSignalFlag_B = TRI_ROUTE_FLAG_SIGNAL3_B;
+	}
+		
+	// puzzle short-circuted?
+	if( _tricorderRoute_shortCircut == 1 )
+	{
+		thread _tricorderRoute_decorateShortCircut( shortCircutSignalFlag, shortCircutSignalFlag_B );
+
+		_tricorderRoute_lockInput = 1;
+		_tricorderBase_entity.playsound( "sound/environment/electric/fritz6.wav", 9, 1, 64);
+		wait( 2 );
+		
+		_tricorderRoute_cleanup();
+		_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_failure.wav", 9, 1, 64);
+		globalTricorder_BaseClose();
+		_tricorderBase_entity.puzzleobject_failed();
+		return;
+	}
+	
+	// puzzle solved?
+	numLeftToSolve = 0;
+	if( _tricorderRoute_dest1Row > 0 ) numLeftToSolve++;
+	if( _tricorderRoute_dest2Row > 0 ) numLeftToSolve++;
+	if( _tricorderRoute_dest3Row > 0 ) numLeftToSolve++;
+	
+	totalLeftToSolve = numLeftToSolve;
+	
+	if( (_tricorderRoute_dest1Row > 0) && (_tricorderRoute_dest1Charged == 1) ) numLeftToSolve--;
+	if( (_tricorderRoute_dest2Row > 0) && (_tricorderRoute_dest2Charged == 1) ) numLeftToSolve--;
+	if( (_tricorderRoute_dest3Row > 0) && (_tricorderRoute_dest3Charged == 1) ) numLeftToSolve--;
+	
+	if( numLeftToSolve == 0 )
+	{
+		globalTricorderRoute_Solve();
+	}
+	else if( (_tricorderRoute_dest1Charged && !dest1WasCharged) ||
+		(_tricorderRoute_dest2Charged && !dest2WasCharged) ||
+		(_tricorderRoute_dest3Charged && !dest3WasCharged) )
+	{
+		_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_beep_affirm.wav", 9, 1, 64);
+	}
+	else if( (!_tricorderRoute_dest1Charged && dest1WasCharged) ||
+			(!_tricorderRoute_dest2Charged && dest2WasCharged) ||
+			(!_tricorderRoute_dest3Charged && dest3WasCharged) )
+	{
+		_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_incorrect.wav", 9, 1, 64);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_getRotatedPiece_R( float piece )
+{
+	// *sigh*
+	if( piece == TRI_ROUTE_STR_0 ) 			return TRI_ROUTE_STR_90;
+	else if( piece == TRI_ROUTE_STR_90 ) 	return TRI_ROUTE_STR_0;
+	else if( piece == TRI_ROUTE_ANG_0 ) 	return TRI_ROUTE_ANG_90;
+	else if( piece == TRI_ROUTE_ANG_90 )	return TRI_ROUTE_ANG_180;
+	else if( piece == TRI_ROUTE_ANG_180 )	return TRI_ROUTE_ANG_270;
+	else if( piece == TRI_ROUTE_ANG_270 )	return TRI_ROUTE_ANG_0;
+	else if( piece == TRI_ROUTE_TEE_0 )		return TRI_ROUTE_TEE_90;
+	else if( piece == TRI_ROUTE_TEE_90 )	return TRI_ROUTE_TEE_180;
+	else if( piece == TRI_ROUTE_TEE_180 )	return TRI_ROUTE_TEE_270;
+	else if( piece == TRI_ROUTE_TEE_270 )	return TRI_ROUTE_TEE_0;
+	else globalTricorder_BaseError( "_tricorderRoute_getRotatedPiece: invalid piece\n" );
+}
+
+float _tricorderRoute_getRotatedPiece_L( float piece )
+{
+	// *sigh* shift-ins
+	if( piece == TRI_ROUTE_STR_0 ) 			return TRI_ROUTE_STR_90;
+	else if( piece == TRI_ROUTE_STR_90 ) 	return TRI_ROUTE_STR_0;
+	else if( piece == TRI_ROUTE_ANG_0 ) 	return TRI_ROUTE_ANG_270;
+	else if( piece == TRI_ROUTE_ANG_90 )	return TRI_ROUTE_ANG_0;
+	else if( piece == TRI_ROUTE_ANG_180 )	return TRI_ROUTE_ANG_90;
+	else if( piece == TRI_ROUTE_ANG_270 )	return TRI_ROUTE_ANG_180;
+	else if( piece == TRI_ROUTE_TEE_0 )		return TRI_ROUTE_TEE_270;
+	else if( piece == TRI_ROUTE_TEE_90 )	return TRI_ROUTE_TEE_0;
+	else if( piece == TRI_ROUTE_TEE_180 )	return TRI_ROUTE_TEE_90;
+	else if( piece == TRI_ROUTE_TEE_270 )	return TRI_ROUTE_TEE_180;
+	else globalTricorder_BaseError( "_tricorderRoute_getRotatedPiece: invalid piece\n" );
+}
+
+float _tricorderRoute_getRotatedPiece( float piece, float dir )
+{
+	if( dir > 0 ) return _tricorderRoute_getRotatedPiece_R( piece );
+	else return _tricorderRoute_getRotatedPiece_L( piece );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_chargeDestRow( float row )
+{
+	//print( "charge: " + row + "\n" );
+
+	if( row == _tricorderRoute_dest1Row ) {
+		_tricorderRoute_dest1Charged = 1;
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ row
+			+ " rendermodel models/hud/routing_end_on" 
+			+ _tricorderRoute_signalNumForDest( 1 )
+			+ ".tik" );
+	}
+	else if( row == _tricorderRoute_dest2Row) {
+		_tricorderRoute_dest2Charged = 1;
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ row
+			+ " rendermodel models/hud/routing_end_on" 
+			+ _tricorderRoute_signalNumForDest( 2 )
+			+ ".tik" );
+	}
+	else if( row == _tricorderRoute_dest3Row) {
+		_tricorderRoute_dest3Charged = 1;
+		globalTricorder_doClientCommand( 
+			"globalwidgetcommand trirtedst" 
+			+ row
+			+ " rendermodel models/hud/routing_end_on" 
+			+ _tricorderRoute_signalNumForDest( 3 )
+			+ ".tik" );
+	}
+	else globalTricorder_BaseError( "_tricorderRoute_chargeDestRow: invalid row " + row + "\n" );
+}
+
+//-------------------------------------------------------------------------------------------------
+float _tricorderRoute_destMatchesSource( float row )
+{
+	if( row == _tricorderRoute_dest1Row && _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_dest1Source )
+	{
+		return 1;
+	}
+	if( row == _tricorderRoute_dest2Row && _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_dest2Source )
+	{
+		return 1;
+	}
+	if( row == _tricorderRoute_dest3Row && _tricorderRoute_recalcPuzzleState_sourceRow == _tricorderRoute_dest3Source )
+	{
+		return 1;
+	}
+	return 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+void _tricorderRoute_initializeUI()
+{
+	string widgetName;
+	string theModelName;
+	float theModelAngle;
+	float pieceValue;
+	float row, col;
+
+	// update entire gameboard for the first time
+	for( row = 0; row < TRI_ROUTE_NUMROWS; row++ )
+	{
+		// show or hide source widgets for this row
+		if( row == _tricorderRoute_source1Row )
+		{
+			globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel models/hud/routing_start1.tik" );
+		}
+		else if( row == _tricorderRoute_source2Row )
+		{
+			globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel models/hud/routing_start2.tik" );
+		}
+		else if( row == _tricorderRoute_source3Row )
+		{
+			globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel models/hud/routing_start3.tik" );
+		}
+		else
+		{
+			globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel null" );
+		}
+
+		// de-energize dest pieces
+		if( row == _tricorderRoute_dest1Row ) {
+			globalTricorder_doClientCommand( 
+				"globalwidgetcommand trirtedst" 
+				+ _tricorderRoute_dest1Row 
+				+ " rendermodel models/hud/routing_end_off" 
+				+ _tricorderRoute_signalNumForDest( 1 )
+				+ ".tik" );
+		}
+		else if( row == _tricorderRoute_dest2Row ) {
+			globalTricorder_doClientCommand( 
+				"globalwidgetcommand trirtedst" 
+				+ _tricorderRoute_dest2Row 
+				+ " rendermodel models/hud/routing_end_off" 
+				+ _tricorderRoute_signalNumForDest( 2 )
+				+ ".tik" );
+		}
+		else if( row == _tricorderRoute_dest3Row ) {
+			globalTricorder_doClientCommand( 
+				"globalwidgetcommand trirtedst" 
+				+ _tricorderRoute_dest3Row 
+				+ " rendermodel models/hud/routing_end_off" 
+				+ _tricorderRoute_signalNumForDest( 3 )
+				+ ".tik" );
+		}
+		else
+		{
+			globalTricorder_doClientCommand( "globalwidgetcommand trirtedst" + row + " rendermodel null" );
+		}
+
+		// update this gameboard row
+		for( col = 0; col < TRI_ROUTE_NUMCOLS; col++ )
+		{
+			_tricorderRoute_updateGameBoardWidget( col, row );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+// dir is -1 or 1
+void _tricorderRoute_rotatePiece( float col, float row, float dir )
+{
+	float currentvalue;
+	float currentpiece;
+	float rotatedpiece;
+	float rotatedvalue;
+	float ang;
+	float startang, endang;
+	string thecommand;
+	
+//print( "RotatePiece: " + col + " " + row + " " + dir + "\n" );
+	
+	currentvalue = _tricorderRoute_getGameBoardValue( col, row );
+	currentpiece = currentvalue & TRI_ROUTE_MASK_PIECE;
+	rotatedpiece = _tricorderRoute_getRotatedPiece( currentpiece, dir );
+	rotatedvalue = rotatedpiece | ( currentvalue & TRI_ROUTE_MASK_FLAGS );
+	_tricorderRoute_setGameBoardValue( col, row, rotatedvalue );
+	//_tricorderRoute_updateGameBoardWidget( col, row );
+
+	startang = _tricorderRoute_getAngleForPiece( currentvalue );
+	endang = startang + 90;
+	thecommand = "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll ";
+	for( ang = startang; ang <= endang; ang = ang + 30 )
+	{
+		globalTricorder_doClientCommand( thecommand + ang );
+		wait( 0.05 );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+// dir is -1 or 1
+void _tricorderRoute_pieceClicked( float col, float row, float rotDir )
+{
+	float pieceValue;
+	float threadID;
+	float pieceType;
+	
+//print( "=========== Clicked " + col + ", " + row + "\n" );
+
+	// don't let them click until finished rotating
+	if( _tricorderRoute_lockInput == 1 ) 
+		return;
+	_tricorderRoute_lockInput = 1;
+
+	pieceValue = _tricorderRoute_getGameBoardValue( col, row );
+	pieceType = pieceValue & TRI_ROUTE_MASK_PIECE;
+	
+	// burnin piece can't rotate
+	if( (pieceValue & TRI_ROUTE_FLAG_BURNIN)
+		|| (pieceValue & TRI_ROUTE_FLAG_EMPTY)
+		|| (pieceType == TRI_ROUTE_BRIDGE) 
+		|| (pieceType == TRI_ROUTE_SHORT_CIRCUT) )
+	{
+		// unlock input
+		_tricorderRoute_lockInput = 0;
+		_tricorderBase_entity.playsound( "sound/environment/computer/lcars_error.wav", 9, 1, 64);
+		return;
+	}
+
+	//hzm gameupdate chrissstrahl - update var, this is for multiplayer failsafe
+	globalTricorder_Base_lastClick();
+	
+	_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_beep.wav", 9, 1, 64);
+	
+	// begin rotation; wait for it to finish
+	_tricorderRoute_rotatePiece( col, row, rotDir );
+
+	// update the gameboard
+	_tricorderRoute_recalcPuzzleState();
+
+	// unlock input and relent
+	_tricorderRoute_lockInput = 0;
+}
+
+void globalTricorderRoute_Cancel()
+{
+	_tricorderRoute_cleanup();
+	
+	//hzm gameupdate chrissstrahl - reenables sv_floodProtect if it was activated, needs to be disabled when using puzzles
+	if( _globalTricorder_svFloodProtectEnable )
+	{
+		stuffcmd("set sv_floodProtect 1\n");
+		_globalTricorder_svFloodProtectEnable = 0;
+	}
+	
+	//hzm gameupdate chrissstrahl - set/reset currently bussy status
+	_globalTricorder_lockedDown = 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+void globalTricorderRoute_Run( entity entPuzzleObject, float timeLimit )
+{
+	if( doesEntityExist( entPuzzleObject ) == 0 || _globalTricorder_lockedDown == 1 )//hzm gameupdate chrissstrahl - set/reset currently bussy status
+		return;
+		
+	_tricorderRoute_lockInput = 1;
+	globalTricorder_BaseSetEntity( entPuzzleObject );
+	
+	_tricorderBase_entity.playsound( "sound/weapons/tricorder/tri_puzz_begin.wav", 9, 1, 64);
+	
+	if(getCvarInt("g_gametype") == 0)
+	{
+		$player.addhud( _tricorderRoute_menuName );	
+	}
+	else
+	{
+		//hzm gameupdate chrissstrahl - add puzzle hud/menu
+		entity ePlayer;
+		ePlayer = getentity("player"+entPuzzleObject.getFloatVar("_activator"));
+		
+		if( !doesEntityExist( ePlayer ) )
+			return;
+		
+		//hzm gameupdate chrissstrahl - sets sv_floodProtect to be reenabled after player has finished using the puzzle
+		if( getCvarInt("sv_floodProtect") == 1)
+		{
+			_globalTricorder_svFloodProtectEnable = 1;
+			stuffcmd("set sv_floodProtect 0");
+		}
+		
+		//hzm gameupdate chrissstrahl - set/reset currently bussy status
+		_globalTricorder_lockedDown = 1;
+		
+		//if( ePlayer.getFloatVar("_playerHasCoopMod") != 1)
+		//{
+			//hzm gameupdate chrissstrahl - unmodded players require this for the hud to work! (And yes, the background will fade to black)
+			globalTricorder_doClientCommand( "pushmenu "+_tricorderRoute_menuName );
+			//globalTricorder_doClientCommand( "globalwidgetcommand tri_route_help hide" );
+			//globalTricorder_doClientCommand( "developer 0" );
+			//globalTricorder_doClientCommand( "globalwidgetcommand tri_kp_help hide" );
+			//globalTricorder_doClientCommand( "globalwidgetcommand tri_kp_base_button_solve hide" );
+		//}
+		//else
+		//{
+			//hzm gameupdate chrissstrahl - with the mod we can add the menu this way, without having the background to fade to black. Coop Mod for the win!
+			//globalTricorder_doClientCommand( "ui_addhud "+_globalTricorder_keypadURC+"\n" );
+			//ePlayer.addhud( _globalTricorder_keypadURC );	
+		//}
+	}
+	wait( 0.1 );
+
+	// initialize base variables
+	tricorderBaseExiting = 0;
+	tricorderBaseSetPuzzleType( TRICORDER_PUZZLE_ROUTING );
+	thread globalTricorder_BaseRunTimer( entPuzzleObject, timeLimit );
+	wait( 0.05 );
+
+	_tricorderRoute_createIOTable();
+
+	// initialize the game board
+	//_tricorderRoute_initGameBoard();
+
+	// update the UI to match the puzzle
+	_tricorderRoute_recalcPuzzleState();
+	wait( 0.05 );
+	_tricorderRoute_initializeUI();
+	_tricorderRoute_lockInput = 0;
+}
+
+//=============================================================== STUPID BUTTON WIDGET CLICK FUNCTIONS
+/* PERL CODE TO GENERATE THESE FUNCTIONS
+for( $col = 0; $col < 13; $col++ )
+{
+	for( $row = 0; $row < 12; $row++ )
+	{
+print( "void trirteClick" . $col . "_" . $row . "() \t { _tricorderRoute_pieceClicked( " . $col . ", " . $row . ", 1 ); }\n" );
+	}
+}
+*/
+void trirteClick0_0() 	 { _tricorderRoute_pieceClicked( 0, 0, 1 ); }
+void trirteClick0_1() 	 { _tricorderRoute_pieceClicked( 0, 1, 1 ); }
+void trirteClick0_2() 	 { _tricorderRoute_pieceClicked( 0, 2, 1 ); }
+void trirteClick0_3() 	 { _tricorderRoute_pieceClicked( 0, 3, 1 ); }
+void trirteClick0_4() 	 { _tricorderRoute_pieceClicked( 0, 4, 1 ); }
+void trirteClick0_5() 	 { _tricorderRoute_pieceClicked( 0, 5, 1 ); }
+void trirteClick0_6() 	 { _tricorderRoute_pieceClicked( 0, 6, 1 ); }
+void trirteClick0_7() 	 { _tricorderRoute_pieceClicked( 0, 7, 1 ); }
+void trirteClick0_8() 	 { _tricorderRoute_pieceClicked( 0, 8, 1 ); }
+void trirteClick0_9() 	 { _tricorderRoute_pieceClicked( 0, 9, 1 ); }
+void trirteClick0_10()	 { _tricorderRoute_pieceClicked( 0, 10, 1 ); }
+void trirteClick1_0() 	 { _tricorderRoute_pieceClicked( 1, 0, 1 ); }
+void trirteClick1_1() 	 { _tricorderRoute_pieceClicked( 1, 1, 1 ); }
+void trirteClick1_2() 	 { _tricorderRoute_pieceClicked( 1, 2, 1 ); }
+void trirteClick1_3() 	 { _tricorderRoute_pieceClicked( 1, 3, 1 ); }
+void trirteClick1_4() 	 { _tricorderRoute_pieceClicked( 1, 4, 1 ); }
+void trirteClick1_5() 	 { _tricorderRoute_pieceClicked( 1, 5, 1 ); }
+void trirteClick1_6() 	 { _tricorderRoute_pieceClicked( 1, 6, 1 ); }
+void trirteClick1_7() 	 { _tricorderRoute_pieceClicked( 1, 7, 1 ); }
+void trirteClick1_8() 	 { _tricorderRoute_pieceClicked( 1, 8, 1 ); }
+void trirteClick1_9() 	 { _tricorderRoute_pieceClicked( 1, 9, 1 ); }
+void trirteClick1_10()	 { _tricorderRoute_pieceClicked( 1, 10, 1 ); }
+void trirteClick2_0() 	 { _tricorderRoute_pieceClicked( 2, 0, 1 ); }
+void trirteClick2_1() 	 { _tricorderRoute_pieceClicked( 2, 1, 1 ); }
+void trirteClick2_2() 	 { _tricorderRoute_pieceClicked( 2, 2, 1 ); }
+void trirteClick2_3() 	 { _tricorderRoute_pieceClicked( 2, 3, 1 ); }
+void trirteClick2_4() 	 { _tricorderRoute_pieceClicked( 2, 4, 1 ); }
+void trirteClick2_5() 	 { _tricorderRoute_pieceClicked( 2, 5, 1 ); }
+void trirteClick2_6() 	 { _tricorderRoute_pieceClicked( 2, 6, 1 ); }
+void trirteClick2_7() 	 { _tricorderRoute_pieceClicked( 2, 7, 1 ); }
+void trirteClick2_8() 	 { _tricorderRoute_pieceClicked( 2, 8, 1 ); }
+void trirteClick2_9() 	 { _tricorderRoute_pieceClicked( 2, 9, 1 ); }
+void trirteClick2_10()	 { _tricorderRoute_pieceClicked( 2, 10, 1 ); }
+void trirteClick3_0() 	 { _tricorderRoute_pieceClicked( 3, 0, 1 ); }
+void trirteClick3_1() 	 { _tricorderRoute_pieceClicked( 3, 1, 1 ); }
+void trirteClick3_2() 	 { _tricorderRoute_pieceClicked( 3, 2, 1 ); }
+void trirteClick3_3() 	 { _tricorderRoute_pieceClicked( 3, 3, 1 ); }
+void trirteClick3_4() 	 { _tricorderRoute_pieceClicked( 3, 4, 1 ); }
+void trirteClick3_5() 	 { _tricorderRoute_pieceClicked( 3, 5, 1 ); }
+void trirteClick3_6() 	 { _tricorderRoute_pieceClicked( 3, 6, 1 ); }
+void trirteClick3_7() 	 { _tricorderRoute_pieceClicked( 3, 7, 1 ); }
+void trirteClick3_8() 	 { _tricorderRoute_pieceClicked( 3, 8, 1 ); }
+void trirteClick3_9() 	 { _tricorderRoute_pieceClicked( 3, 9, 1 ); }
+void trirteClick3_10()	 { _tricorderRoute_pieceClicked( 3, 10, 1 ); }
+void trirteClick4_0() 	 { _tricorderRoute_pieceClicked( 4, 0, 1 ); }
+void trirteClick4_1() 	 { _tricorderRoute_pieceClicked( 4, 1, 1 ); }
+void trirteClick4_2() 	 { _tricorderRoute_pieceClicked( 4, 2, 1 ); }
+void trirteClick4_3() 	 { _tricorderRoute_pieceClicked( 4, 3, 1 ); }
+void trirteClick4_4() 	 { _tricorderRoute_pieceClicked( 4, 4, 1 ); }
+void trirteClick4_5() 	 { _tricorderRoute_pieceClicked( 4, 5, 1 ); }
+void trirteClick4_6() 	 { _tricorderRoute_pieceClicked( 4, 6, 1 ); }
+void trirteClick4_7() 	 { _tricorderRoute_pieceClicked( 4, 7, 1 ); }
+void trirteClick4_8() 	 { _tricorderRoute_pieceClicked( 4, 8, 1 ); }
+void trirteClick4_9() 	 { _tricorderRoute_pieceClicked( 4, 9, 1 ); }
+void trirteClick4_10()  { _tricorderRoute_pieceClicked( 4, 10, 1 ); }
+void trirteClick5_0() 	 { _tricorderRoute_pieceClicked( 5, 0, 1 ); }
+void trirteClick5_1() 	 { _tricorderRoute_pieceClicked( 5, 1, 1 ); }
+void trirteClick5_2() 	 { _tricorderRoute_pieceClicked( 5, 2, 1 ); }
+void trirteClick5_3() 	 { _tricorderRoute_pieceClicked( 5, 3, 1 ); }
+void trirteClick5_4() 	 { _tricorderRoute_pieceClicked( 5, 4, 1 ); }
+void trirteClick5_5() 	 { _tricorderRoute_pieceClicked( 5, 5, 1 ); }
+void trirteClick5_6() 	 { _tricorderRoute_pieceClicked( 5, 6, 1 ); }
+void trirteClick5_7() 	 { _tricorderRoute_pieceClicked( 5, 7, 1 ); }
+void trirteClick5_8() 	 { _tricorderRoute_pieceClicked( 5, 8, 1 ); }
+void trirteClick5_9() 	 { _tricorderRoute_pieceClicked( 5, 9, 1 ); }
+void trirteClick5_10()  { _tricorderRoute_pieceClicked( 5, 10, 1 ); }
+void trirteClick6_0() 	 { _tricorderRoute_pieceClicked( 6, 0, 1 ); }
+void trirteClick6_1() 	 { _tricorderRoute_pieceClicked( 6, 1, 1 ); }
+void trirteClick6_2() 	 { _tricorderRoute_pieceClicked( 6, 2, 1 ); }
+void trirteClick6_3() 	 { _tricorderRoute_pieceClicked( 6, 3, 1 ); }
+void trirteClick6_4() 	 { _tricorderRoute_pieceClicked( 6, 4, 1 ); }
+void trirteClick6_5() 	 { _tricorderRoute_pieceClicked( 6, 5, 1 ); }
+void trirteClick6_6() 	 { _tricorderRoute_pieceClicked( 6, 6, 1 ); }
+void trirteClick6_7() 	 { _tricorderRoute_pieceClicked( 6, 7, 1 ); }
+void trirteClick6_8() 	 { _tricorderRoute_pieceClicked( 6, 8, 1 ); }
+void trirteClick6_9() 	 { _tricorderRoute_pieceClicked( 6, 9, 1 ); }
+void trirteClick6_10()  { _tricorderRoute_pieceClicked( 6, 10, 1 ); }
+void trirteClick7_0() 	 { _tricorderRoute_pieceClicked( 7, 0, 1 ); }
+void trirteClick7_1() 	 { _tricorderRoute_pieceClicked( 7, 1, 1 ); }
+void trirteClick7_2() 	 { _tricorderRoute_pieceClicked( 7, 2, 1 ); }
+void trirteClick7_3() 	 { _tricorderRoute_pieceClicked( 7, 3, 1 ); }
+void trirteClick7_4() 	 { _tricorderRoute_pieceClicked( 7, 4, 1 ); }
+void trirteClick7_5() 	 { _tricorderRoute_pieceClicked( 7, 5, 1 ); }
+void trirteClick7_6() 	 { _tricorderRoute_pieceClicked( 7, 6, 1 ); }
+void trirteClick7_7() 	 { _tricorderRoute_pieceClicked( 7, 7, 1 ); }
+void trirteClick7_8() 	 { _tricorderRoute_pieceClicked( 7, 8, 1 ); }
+void trirteClick7_9() 	 { _tricorderRoute_pieceClicked( 7, 9, 1 ); }
+void trirteClick7_10()  { _tricorderRoute_pieceClicked( 7, 10, 1 ); }
+void trirteClick8_0() 	 { _tricorderRoute_pieceClicked( 8, 0, 1 ); }
+void trirteClick8_1() 	 { _tricorderRoute_pieceClicked( 8, 1, 1 ); }
+void trirteClick8_2() 	 { _tricorderRoute_pieceClicked( 8, 2, 1 ); }
+void trirteClick8_3() 	 { _tricorderRoute_pieceClicked( 8, 3, 1 ); }
+void trirteClick8_4() 	 { _tricorderRoute_pieceClicked( 8, 4, 1 ); }
+void trirteClick8_5() 	 { _tricorderRoute_pieceClicked( 8, 5, 1 ); }
+void trirteClick8_6() 	 { _tricorderRoute_pieceClicked( 8, 6, 1 ); }
+void trirteClick8_7() 	 { _tricorderRoute_pieceClicked( 8, 7, 1 ); }
+void trirteClick8_8() 	 { _tricorderRoute_pieceClicked( 8, 8, 1 ); }
+void trirteClick8_9() 	 { _tricorderRoute_pieceClicked( 8, 9, 1 ); }
+void trirteClick8_10()  { _tricorderRoute_pieceClicked( 8, 10, 1 ); }
+void trirteClick9_0() 	 { _tricorderRoute_pieceClicked( 9, 0, 1 ); }
+void trirteClick9_1() 	 { _tricorderRoute_pieceClicked( 9, 1, 1 ); }
+void trirteClick9_2() 	 { _tricorderRoute_pieceClicked( 9, 2, 1 ); }
+void trirteClick9_3() 	 { _tricorderRoute_pieceClicked( 9, 3, 1 ); }
+void trirteClick9_4() 	 { _tricorderRoute_pieceClicked( 9, 4, 1 ); }
+void trirteClick9_5() 	 { _tricorderRoute_pieceClicked( 9, 5, 1 ); }
+void trirteClick9_6() 	 { _tricorderRoute_pieceClicked( 9, 6, 1 ); }
+void trirteClick9_7() 	 { _tricorderRoute_pieceClicked( 9, 7, 1 ); }
+void trirteClick9_8() 	 { _tricorderRoute_pieceClicked( 9, 8, 1 ); }
+void trirteClick9_9() 	 { _tricorderRoute_pieceClicked( 9, 9, 1 ); }
+void trirteClick9_10()  { _tricorderRoute_pieceClicked( 9, 10, 1 ); }
+void trirteClick10_0()  { _tricorderRoute_pieceClicked( 10, 0, 1 ); }
+void trirteClick10_1()  { _tricorderRoute_pieceClicked( 10, 1, 1 ); }
+void trirteClick10_2()  { _tricorderRoute_pieceClicked( 10, 2, 1 ); }
+void trirteClick10_3()  { _tricorderRoute_pieceClicked( 10, 3, 1 ); }
+void trirteClick10_4()  { _tricorderRoute_pieceClicked( 10, 4, 1 ); }
+void trirteClick10_5()  { _tricorderRoute_pieceClicked( 10, 5, 1 ); }
+void trirteClick10_6()  { _tricorderRoute_pieceClicked( 10, 6, 1 ); }
+void trirteClick10_7()  { _tricorderRoute_pieceClicked( 10, 7, 1 ); }
+void trirteClick10_8()  { _tricorderRoute_pieceClicked( 10, 8, 1 ); }
+void trirteClick10_9()  { _tricorderRoute_pieceClicked( 10, 9, 1 ); }
+void trirteClick10_10() { _tricorderRoute_pieceClicked( 10, 10, 1 ); }
+
+
+/* /* ===============================================================================  PERL CODE TO GENERATE URC WIDGETS
+
+$NUMCOLS = 11;
+$NUMROWS = 11;
+
+$SIZE = 24;
+$LEFT = 188;
+$TOP = 123;
+
+print( "//======================================================= RENDERMODEL WIDGETS\n" );
+for( $col = 0; $col < $NUMCOLS; $col++ )
+{
+	print( "//----------------------------- col " . $col . "\n" );
+	for( $row = 0; $row < $NUMROWS; $row++ )
+	{
+		print( "resource\n" );
+		print( "RenderModel\n" );
+		print( "{\n" );
+
+		if( $col == 0 )
+		{
+			print( "\tname \"trirtesrc" . $row . "\"\n" );
+			print( "\trendermodel models/hud/routing_start.tik\n" );
+			print( "\trendermodelanimation idle\n" );
+			print( "\thovercommand \"script thread globalTricorder_TT_RO_Start\"\n" );
+		}
+		elsif( $col == ($NUMCOLS - 1) )
+		{
+			print( "\tname \"trirtedst" . $row . "\"\n" );
+			print( "\trendermodel models/hud/routing_end.tik\n" );
+			print( "\trendermodelanimation idle\n" );
+			print( "\thovercommand \"script thread globalTricorder_TT_RO_End\"\n" );
+		}
+		else
+		{
+			print( "\tname \"trirte" . ($col - 1) . "_" . $row . "\"\n" );
+		}
+
+		print( "\thoverexitcommand \"script thread globalTricorder_TT_Clear\"\n" );
+
+		print( "\trect " . ($LEFT + ($col * $SIZE)) . " " . ($TOP + ($row * $SIZE)) . " " . $SIZE . " " . $SIZE . "\n" );
+		print( "\tborderstyle \"NONE\"\n" );
+		print( "\tfgcolor 0 0 0 0\n" );
+		print( "\tbgcolor 0 0 0 0\n" );
+		print( "}\n\n" );
+	}
+}
+
+print( "//======================================================= BUTTON WIDGETS\n" );
+for( $col = 0; $col < ($NUMCOLS - 2); $col++ )
+{
+	print( "//----------------------------- col " . $col . "\n" );
+	for( $row = 0; $row < $NUMROWS; $row++ )
+	{
+		print( "resource\n" );
+		print( "Button\n" );
+		print( "{\n" );
+		print( "\trect " . ($LEFT + $SIZE + ($col * $SIZE)) . " " . ($TOP + ($row * $SIZE)) . " " . $SIZE . " " . $SIZE . "\n" );
+		print( "\tborderstyle \"NONE\"\n" );
+		print( "\tfgcolor 0 0 0 0\n" );
+		print( "\tbgcolor 0 0 0 0\n" );
+		print( "\tServerThreadToRun trirteClick" . $col . "_" . $row . "\n" );
+		print( "\thovercommand \"script thread trirteTT" . $col . "_" . $row . "\"\n" );
+		print( "\thoverexitcommand \"script thread globalTricorder_TT_Clear\"\n" );
+		print( "}\n\n" );
+	}
+}
+
+
+*/
+
+
+/* =============================================================================== python code to generate tooltip code
+
+NUMROWS = 11
+NUMCOLS = 9
+
+for row in range( 0, NUMROWS ):
+	for col in range( 0, NUMCOLS ):
+		print 'void trirteTT' + `col` + "_" + `row` + '() {globalTricorder_TT_RO_Rotate(' + `col` + "," + `row` + ');}'		
+
+########################## BEGIN TIKI SCRIPT BLOCK
+print """
+void globalTricorder_TT_RO_Rotate( float col, float row )
+{ 
+	float theValue;
+	string theText;
+	float thePiece;
+	
+	killthread( "globalTricorder_SetToolTip" ); 
+	
+	theValue = _tricorderRoute_getGameBoardValue( col, row );
+	thePiece = theValue & TRI_ROUTE_MASK_PIECE;
+	if( thePiece == TRI_ROUTE_SHORT_CIRCUT )		theText = "$$TriPuz_RO_ShortCircut$$";
+	else if( theValue & TRI_ROUTE_FLAG_EMPTY )		theText = "$$TriPuz_Default$$";
+	else if( theValue & TRI_ROUTE_FLAG_BURNIN )		theText = "$$TriPuz_RO_NoRotate$$";
+	else											theText = "$$TriPuz_RO_Rotate$$";
+
+	thread globalTricorder_SetToolTip( theText );
+}
+"""
+########################## END TIKI SCRIPT BLOCK
+
+*/
+
+void globalTricorder_TT_RO_Rotate( float col, float row );
+void globalTricorder_TT_RO_Start()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_RO_Start$$" ); }
+void globalTricorder_TT_RO_End()		{ killthread( "globalTricorder_SetToolTip" ); thread globalTricorder_SetToolTip( "$$TriPuz_RO_End$$" ); }
+
+void trirteTT0_0() {globalTricorder_TT_RO_Rotate(0,0);}
+void trirteTT1_0() {globalTricorder_TT_RO_Rotate(1,0);}
+void trirteTT2_0() {globalTricorder_TT_RO_Rotate(2,0);}
+void trirteTT3_0() {globalTricorder_TT_RO_Rotate(3,0);}
+void trirteTT4_0() {globalTricorder_TT_RO_Rotate(4,0);}
+void trirteTT5_0() {globalTricorder_TT_RO_Rotate(5,0);}
+void trirteTT6_0() {globalTricorder_TT_RO_Rotate(6,0);}
+void trirteTT7_0() {globalTricorder_TT_RO_Rotate(7,0);}
+void trirteTT8_0() {globalTricorder_TT_RO_Rotate(8,0);}
+void trirteTT0_1() {globalTricorder_TT_RO_Rotate(0,1);}
+void trirteTT1_1() {globalTricorder_TT_RO_Rotate(1,1);}
+void trirteTT2_1() {globalTricorder_TT_RO_Rotate(2,1);}
+void trirteTT3_1() {globalTricorder_TT_RO_Rotate(3,1);}
+void trirteTT4_1() {globalTricorder_TT_RO_Rotate(4,1);}
+void trirteTT5_1() {globalTricorder_TT_RO_Rotate(5,1);}
+void trirteTT6_1() {globalTricorder_TT_RO_Rotate(6,1);}
+void trirteTT7_1() {globalTricorder_TT_RO_Rotate(7,1);}
+void trirteTT8_1() {globalTricorder_TT_RO_Rotate(8,1);}
+void trirteTT0_2() {globalTricorder_TT_RO_Rotate(0,2);}
+void trirteTT1_2() {globalTricorder_TT_RO_Rotate(1,2);}
+void trirteTT2_2() {globalTricorder_TT_RO_Rotate(2,2);}
+void trirteTT3_2() {globalTricorder_TT_RO_Rotate(3,2);}
+void trirteTT4_2() {globalTricorder_TT_RO_Rotate(4,2);}
+void trirteTT5_2() {globalTricorder_TT_RO_Rotate(5,2);}
+void trirteTT6_2() {globalTricorder_TT_RO_Rotate(6,2);}
+void trirteTT7_2() {globalTricorder_TT_RO_Rotate(7,2);}
+void trirteTT8_2() {globalTricorder_TT_RO_Rotate(8,2);}
+void trirteTT0_3() {globalTricorder_TT_RO_Rotate(0,3);}
+void trirteTT1_3() {globalTricorder_TT_RO_Rotate(1,3);}
+void trirteTT2_3() {globalTricorder_TT_RO_Rotate(2,3);}
+void trirteTT3_3() {globalTricorder_TT_RO_Rotate(3,3);}
+void trirteTT4_3() {globalTricorder_TT_RO_Rotate(4,3);}
+void trirteTT5_3() {globalTricorder_TT_RO_Rotate(5,3);}
+void trirteTT6_3() {globalTricorder_TT_RO_Rotate(6,3);}
+void trirteTT7_3() {globalTricorder_TT_RO_Rotate(7,3);}
+void trirteTT8_3() {globalTricorder_TT_RO_Rotate(8,3);}
+void trirteTT0_4() {globalTricorder_TT_RO_Rotate(0,4);}
+void trirteTT1_4() {globalTricorder_TT_RO_Rotate(1,4);}
+void trirteTT2_4() {globalTricorder_TT_RO_Rotate(2,4);}
+void trirteTT3_4() {globalTricorder_TT_RO_Rotate(3,4);}
+void trirteTT4_4() {globalTricorder_TT_RO_Rotate(4,4);}
+void trirteTT5_4() {globalTricorder_TT_RO_Rotate(5,4);}
+void trirteTT6_4() {globalTricorder_TT_RO_Rotate(6,4);}
+void trirteTT7_4() {globalTricorder_TT_RO_Rotate(7,4);}
+void trirteTT8_4() {globalTricorder_TT_RO_Rotate(8,4);}
+void trirteTT0_5() {globalTricorder_TT_RO_Rotate(0,5);}
+void trirteTT1_5() {globalTricorder_TT_RO_Rotate(1,5);}
+void trirteTT2_5() {globalTricorder_TT_RO_Rotate(2,5);}
+void trirteTT3_5() {globalTricorder_TT_RO_Rotate(3,5);}
+void trirteTT4_5() {globalTricorder_TT_RO_Rotate(4,5);}
+void trirteTT5_5() {globalTricorder_TT_RO_Rotate(5,5);}
+void trirteTT6_5() {globalTricorder_TT_RO_Rotate(6,5);}
+void trirteTT7_5() {globalTricorder_TT_RO_Rotate(7,5);}
+void trirteTT8_5() {globalTricorder_TT_RO_Rotate(8,5);}
+void trirteTT0_6() {globalTricorder_TT_RO_Rotate(0,6);}
+void trirteTT1_6() {globalTricorder_TT_RO_Rotate(1,6);}
+void trirteTT2_6() {globalTricorder_TT_RO_Rotate(2,6);}
+void trirteTT3_6() {globalTricorder_TT_RO_Rotate(3,6);}
+void trirteTT4_6() {globalTricorder_TT_RO_Rotate(4,6);}
+void trirteTT5_6() {globalTricorder_TT_RO_Rotate(5,6);}
+void trirteTT6_6() {globalTricorder_TT_RO_Rotate(6,6);}
+void trirteTT7_6() {globalTricorder_TT_RO_Rotate(7,6);}
+void trirteTT8_6() {globalTricorder_TT_RO_Rotate(8,6);}
+void trirteTT0_7() {globalTricorder_TT_RO_Rotate(0,7);}
+void trirteTT1_7() {globalTricorder_TT_RO_Rotate(1,7);}
+void trirteTT2_7() {globalTricorder_TT_RO_Rotate(2,7);}
+void trirteTT3_7() {globalTricorder_TT_RO_Rotate(3,7);}
+void trirteTT4_7() {globalTricorder_TT_RO_Rotate(4,7);}
+void trirteTT5_7() {globalTricorder_TT_RO_Rotate(5,7);}
+void trirteTT6_7() {globalTricorder_TT_RO_Rotate(6,7);}
+void trirteTT7_7() {globalTricorder_TT_RO_Rotate(7,7);}
+void trirteTT8_7() {globalTricorder_TT_RO_Rotate(8,7);}
+void trirteTT0_8() {globalTricorder_TT_RO_Rotate(0,8);}
+void trirteTT1_8() {globalTricorder_TT_RO_Rotate(1,8);}
+void trirteTT2_8() {globalTricorder_TT_RO_Rotate(2,8);}
+void trirteTT3_8() {globalTricorder_TT_RO_Rotate(3,8);}
+void trirteTT4_8() {globalTricorder_TT_RO_Rotate(4,8);}
+void trirteTT5_8() {globalTricorder_TT_RO_Rotate(5,8);}
+void trirteTT6_8() {globalTricorder_TT_RO_Rotate(6,8);}
+void trirteTT7_8() {globalTricorder_TT_RO_Rotate(7,8);}
+void trirteTT8_8() {globalTricorder_TT_RO_Rotate(8,8);}
+void trirteTT0_9() {globalTricorder_TT_RO_Rotate(0,9);}
+void trirteTT1_9() {globalTricorder_TT_RO_Rotate(1,9);}
+void trirteTT2_9() {globalTricorder_TT_RO_Rotate(2,9);}
+void trirteTT3_9() {globalTricorder_TT_RO_Rotate(3,9);}
+void trirteTT4_9() {globalTricorder_TT_RO_Rotate(4,9);}
+void trirteTT5_9() {globalTricorder_TT_RO_Rotate(5,9);}
+void trirteTT6_9() {globalTricorder_TT_RO_Rotate(6,9);}
+void trirteTT7_9() {globalTricorder_TT_RO_Rotate(7,9);}
+void trirteTT8_9() {globalTricorder_TT_RO_Rotate(8,9);}
+void trirteTT0_10() {globalTricorder_TT_RO_Rotate(0,10);}
+void trirteTT1_10() {globalTricorder_TT_RO_Rotate(1,10);}
+void trirteTT2_10() {globalTricorder_TT_RO_Rotate(2,10);}
+void trirteTT3_10() {globalTricorder_TT_RO_Rotate(3,10);}
+void trirteTT4_10() {globalTricorder_TT_RO_Rotate(4,10);}
+void trirteTT5_10() {globalTricorder_TT_RO_Rotate(5,10);}
+void trirteTT6_10() {globalTricorder_TT_RO_Rotate(6,10);}
+void trirteTT7_10() {globalTricorder_TT_RO_Rotate(7,10);}
+void trirteTT8_10() {globalTricorder_TT_RO_Rotate(8,10);}
+
+void globalTricorder_TT_RO_Rotate( float col, float row )
+{ 
+	float theValue;
+	string theText;
+	float thePiece;
+	
+	killthread( "globalTricorder_SetToolTip" ); 
+	
+	theValue = _tricorderRoute_getGameBoardValue( col, row );
+	thePiece = theValue & TRI_ROUTE_MASK_PIECE;
+	if( thePiece == TRI_ROUTE_SHORT_CIRCUT )		theText = "$$TriPuz_RO_ShortCircut$$";
+	else if( theValue & TRI_ROUTE_FLAG_EMPTY )		theText = "$$TriPuz_Default$$";
+	else if( theValue & TRI_ROUTE_FLAG_BURNIN )		theText = "$$TriPuz_RO_NoRotate$$";
+	else											theText = "$$TriPuz_RO_Rotate$$";
+
+	thread globalTricorder_SetToolTip( theText );
+}
+

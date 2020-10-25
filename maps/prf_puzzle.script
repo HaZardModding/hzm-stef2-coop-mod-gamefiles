@@ -1,0 +1,296 @@
+//load these scripts first, we need them to run the tricorder puzzles
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderKeypad.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+
+//Co-op
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void main();
+void coop_endLevel();
+#include "coop_mod/matrix/optional_modules/noscript.scr" //load no-script script, makes this whole thing work
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//this threads starts on level load
+void main()
+{
+//set animation to be idle for the borg thingy (Generator this is the 3rd puzzle)
+	$Generator.anim ("idle");
+	
+//bind sphere and then rotate
+	$sphere.bind($sphere_origin);
+	$sphere_origin.rotateX(10);
+	$sphere_origin.rotateY(10);
+	$sphere_origin.rotatez(10);
+	
+//set fog
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane( 1000 );
+
+//Co-op
+/////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////Start the Co-Op Script
+	globalCoop_main();
+//START SETUP ROUTINE\
+	thread coop_setuplevel();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end - End the current level, SUCESSFULLY
+//And load the map specified on the mission complete trigger with->uservar1
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed(coop_string_nextMapToCheck);
+}
+
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+// THIS IS THE KEYPAD PUZZLE
+// this requireds the global tricorder script to be included
+// tken directly from m7l1a
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+void puzzleStart()
+{
+	//starts the keypad puzzle, sets the secret code
+	globalTricorderKeypad_SetSecretCode( 1 , 2 , 3 , 4 , 5 , 0 , 0 , 0 , 0 );
+	//gives the script the actual puzzle entity to start, sets timelimit to 0(unlimited), sets the numer of tries to 0 (unlimited)
+	globalTricorderKeypad_Run( $secretWall1_door1Puzzle , 0 , 0 );
+}
+
+void puzzleSolved()
+{
+	//activates/opens the door, this can also be done in the level editor,
+	//just select the puzzle, then the entity/door you want to open/activate
+	//and press CONTROL + K, this will make the puzzle target the entity/door
+	//and activate/open it as soon as the puzzle has been solved by a player
+	//
+	//look at the borg (Simple MODULATING BAR) puzzle
+	triggerEntity($massiveDoor);
+}
+
+void puzzleReset()
+{
+	//resets the puzzle, so it can be used again, otherwise it might get stuck
+	$secretWall1_door1Puzzle.puzzleobject_reset ();	
+}
+
+
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+// THIS IS THE BORG PUZZLE - WITH ANIMATED MODEL - Simple MODULATING BAR
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+//NOTE: it has been done without scripting
+//please take a look at the *.map file to see how it is working
+//to do it with scripting it would look like this:
+/*
+void puzzle_solved()
+{
+	triggerEntity($smallDoor);
+}
+*/
+
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+// THIS IS THE ROUTING PUZZLE
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+void CargoBayDoor1Button_Used()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+    globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 5 );
+	globalTricorderRoute_SetSource2Row( 11 );
+	globalTricorderRoute_SetDestination1( 5, 5 );
+    globalTricorderRoute_SetDestination2( 7, 11 );
+
+	//--- begin row definitions
+    globalTricorderRoute_BeginDef();
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 16,  1, 16,  5, 11,  6, 16,  1, 16 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32,  3, 16, 21, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 25, 16, 16, 22 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 19, 21, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 19, 24, 16, 23, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32, 17, 32, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 16, 21, 32, 32, 32, 32, 32, 32, 32 );
+
+    //--- run the puzzle
+    globalTricorderRoute_Run( puzzle, 0 );
+}
+void CargoBayDoor1Button_Solved()
+{
+	//wait a moment so the player can see this happening
+	wait(4);
+
+	triggerEntity($thePureFactForceField1337);
+	
+	//animate the shieldpuzzle
+	$Generator.anim( "opening" );
+	$Generator.playsound ( "sound/ships/borg/borg_shieldgen_open.wav", 1, 1, 375 );
+	wait ( 2 );
+	$Generator.anim( "openoff" );
+}
+void CargoBayDoor1Button_Failed()
+{
+	$CargoBayDoor1Button.puzzleobject_reset();
+}
+void CargoBayDoor1Button_Canceled()
+{
+	$CargoBayDoor1Button.puzzleobject_reset();
+}
+
+	
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
+// THIS IS THE FREQUENCY MODULATION PUZZLE
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
+void tricorderPuzzle()
+{
+	//prepare puzzle
+	globalTricorderMod_Run( $forceFieldPanel_1, 0 );
+	globalTricorderMod_SetNumWaves ( 1 );
+	globalTricorderMod_SetAllRandomParms();	
+}
+
+void resetTricorderPuzzle()
+{
+	$forceFieldPanel_1.puzzleobject_reset();
+}
+
+void yellowForcefieldDown()
+{
+	$Generator.anim("closing");
+	waitForAnimation ( $Generator3,"closing", 	0 );
+	$Generator.anim ("idle");
+	
+	//effects
+	$sphere.hide();
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	wait ( 0.1 );
+	$sphere.show();
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	wait ( 0.1 );
+	$sphere.hide();
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	spawn("Explosion","model","models/fx/fx-explosion-generator-large.tik","origin",""+$sphere_origin.getOrigin());
+	wait ( 0.1 );
+	$sphere.show();
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	wait ( 0.1 );
+	$sphere.hide();
+	spawn("Explosion","model","models/fx/fx-explosion-sparks-blue.tik","origin",""+$sphere_origin.getOrigin());
+	
+	wait(3);
+	
+	//spawn borg
+	float integerSpawnerNumber;
+	entity entitySpawner;
+	
+	for(integerSpawnerNumber = 0;integerSpawnerNumber<5;integerSpawnerNumber++)
+	{
+		entitySpawner = getEntity("borgSpawner"+integerSpawnerNumber);
+		if(doesEntityExist(entitySpawner))
+		{
+			triggerEntity(entitySpawner);
+		}
+	}
+	
+	//wait a single frame for the borg to be spawned present registred and processed by the engine
+	wait(0.05);
+	
+	
+	//now display beamin effect
+	
+	//this is a bad example, reusing variables can cause confusion and possible errors if not doné right
+	//reuse integerSpawnerNumber to get each borg, make em agressive
+	//reuse entitySpawner to store each borg entity
+	
+	for(integerSpawnerNumber = 0;integerSpawnerNumber<5;integerSpawnerNumber++)
+	{
+		entitySpawner = getEntity("borg"+integerSpawnerNumber);
+		if(doesEntityExist(entitySpawner))
+		{
+			entitySpawner.displayEffect("TransportIn","Borg");
+		}
+	}
+	
+//if singleplayer beam out player
+	if(getCvarInt("g_gametype") == 0){
+		$player.displayEffect("TransportOut","Federation");
+		$player.nodamage();
+		$player.immobilize(1);
+		wait(0.5);
+	}
+//wait a sec before attacking the players in mp
+	else{
+		wait(1);
+	}
+	
+	//make borg attack player
+	
+	//this is a bad example, reusing variables can cause confusion and possible errors if not doné right
+	//reuse integerSpawnerNumber to get each borg, make em agressive
+	//reuse entitySpawner to store each borg entity
+	
+	for(integerSpawnerNumber = 0;integerSpawnerNumber<5;integerSpawnerNumber++)
+	{
+		entitySpawner = getEntity("borg"+integerSpawnerNumber);
+		if(doesEntityExist(entitySpawner))
+		{
+			entitySpawner.aggressive(1);
+		}
+	}
+	
+//if singleplayer beam out player
+	if(getCvarInt("g_gametype") == 0){
+		wait(1.2);
+		$player.origin($teleportdest1.getOrigin());
+		$player.displayEffect("TransportIn","Federation");
+		wait(1);
+		$player.takedamage();
+		$player.immobilize(0);
+	}	
+	
+	//this is a bad example, reusing variables can cause confusion and possible errors if not doné right
+	//reuse integerSpawnerNumber to get each teleport trigger, and activate it
+	//reuse entitySpawner to store each trigger entity
+	
+	for(integerSpawnerNumber = 0;integerSpawnerNumber<4;integerSpawnerNumber++)
+	{
+		entitySpawner = getEntity("teleportTrigger"+integerSpawnerNumber);
+		if(doesEntityExist(entitySpawner))
+		{
+			entitySpawner.triggerable();
+		}
+	}
+}
+
+	
+

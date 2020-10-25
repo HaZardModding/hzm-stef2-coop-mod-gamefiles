@@ -1,0 +1,257 @@
+void pyramid_stairsFallingWallPice()
+{
+	forcemusic("surprise");
+	$pyramid_fallingWallPice.moveto($pyramid_fallingWallPiceLand);
+	$pyramid_fallingWallPice.time(0.25);
+	$pyramid_fallingWallPice.rotateY(150);
+	wait(0.22);
+	vector vOrigin;
+	vOrigin = $pyramid_fallingWallPiceLand.getOrigin();
+	vOrigin_z += 10;
+	spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin,"scale","0.25");
+	spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin,"scale","0.45");
+	spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin,"scale","1");
+	$pyramid_fallingWallPice.rotateY(0);
+}
+
+
+void pyramid_stairsFragileDamaged()
+{
+	vector vOrigin;
+	vOrigin = $pyramide_fragileStair0.getOrigin();
+	vOrigin_z += 10;
+	spawn("sfx","model","models/fx/fx-explosion-debris-rocks-dust-gray.tik","origin",""+vOrigin,"scale","0.50");
+	$pyramide_fragileStair0Trigger.remove();
+	$pyramide_fragileStair0.remove();
+}
+
+void pyramid_arrivedAtPunisherTrap()
+{
+	$patternenhancer12.missionobjective(0);
+
+	float fBeam;
+	entity eButton;
+	for(fBeam=0;fBeam<7;fBeam++){
+		eButton=getEntity("pyramide_code"+fBeam);
+		eButton.missionobjective(1);
+	}
+	
+	if(!cvar_bool_multiplayer){
+		string command,sName;	
+		command = "ui_savegamewithname ";
+		command = command + "\"";
+		command = command + "^5Coop^8 Bugs - Pyramid";
+		command = command + "\"\n";
+		stuffcmd( command );
+	}
+	
+	while(1){
+		$punisherViewmode.hide();
+		wait(0.2);
+		$punisherViewmode.show();
+		wait(0.2);
+	}
+}
+
+//coop_bugs, pyramid related scripts
+void pyramid_secretDoor1Open()
+{
+//deactivate old area
+	$patternenhancer2Trigger.setStringVar("uservar2","notActive");
+	$patternenhancer2Trigger.nottriggerable();
+//activate new area
+	$patternenhancer3Trigger.setStringVar("uservar2","active");
+	$patternenhancer3Trigger.triggerable();
+	
+	float fBeam;
+	entity eB;
+	entity ePe;
+	
+	//enable new field
+	for(fBeam=12;fBeam<16;fBeam++){
+		ePe=getEntity("patternenhancer"+fBeam);
+		eB=getEntity("patternenhancer"+fBeam+"beam");
+		eB.show();
+		ePe.anim("blue");
+	}
+	
+	$patternenhancer12.missionobjective(0);
+	$t1575_symbol.missionobjective(1);
+
+	$pyramid_secretDoor1_lightBeam.remove();
+	$pyramid_secretDoor1_symbol.remove();
+//	entity ePlayer;
+//	ePlayer=globalCoop_return_playerClosestPreferActive($lift_dude);
+//	globalCoop_dialog_play(ePlayer,"coop_bugs/munro_stayhere.mp3",1,1024,0);
+//	wait(0.1);
+
+	while(1){
+		$pyramid_crush0.hide();
+		$pyramid_crush1.hide();
+		$pyramid_crush2.hide();
+		wait(0.2);
+		$pyramid_crush0.show();
+		$pyramid_crush1.show();
+		$pyramid_crush2.show();
+		wait(0.2);
+	}
+}
+
+void pyramid_removeSymbol()
+{
+	$t1575_symbol.missionobjective(0);
+	$pyramid_cinematicEnd_symbol.missionobjective(1);
+	
+	$t1575_symbol.remove();
+}
+
+void pyramid_stairsBugs()
+//spawn bugs
+{
+	$pyramid_stairsBugsSpawner1.setspawngroupID(02);
+	$pyramid_stairsBugsSpawner1.setspawngroupdeaththread("pyramid_stairsBugsSpawn");
+	$pyramid_stairsBugsSpawner1.spawnnow();
+//more than 2 players on the server
+	if(1 /* globalCoop_return_integerPlayersQuantity(2) > 2 */ )//all=0,living=1,noSpec=2
+	{
+		$pyramid_stairsBugsSpawner2.setspawngroupID(02);
+		$pyramid_stairsBugsSpawner2.setspawngroupdeaththread("pyramid_stairsBugsSpawn");
+		$pyramid_stairsBugsSpawner2.spawnnow();
+	}
+}
+
+void pyramid_stairsBugsSpawn()
+//this respawns the bug, when the bug dies it calls this thread
+{
+	$pyramid_stairsBugsSpawner1.spawnnow();
+	$pyramid_stairsBugsSpawner2.spawnnow();
+}
+
+void pyramid_codeEntred()
+{
+//	centerprint("code entered");
+	entity eTrigger,eCode;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		float fCode,fCodeCurrent,fResetMe;
+	//grab current code
+		fCodeCurrent = eTrigger.getFloatVar("uservar1");
+	//do not allow this entity to be set off again, until the reset
+		eTrigger.noDamage();
+	//move the entity
+		eTrigger.time(.5);
+		eTrigger.moveNorth(2);
+	//remember objects that have been moved
+		$world.setFloatVar("pyramid_resetItem"+pyramid_codeEntredIndex,fCodeCurrent);
+	//check if the code is bad
+		if(	fCodeCurrent == 0 ||
+			fCodeCurrent == 1 ||
+			fCodeCurrent == 5 ||
+			fCodeCurrent == 6 )
+		{
+			pyramid_codeEntredBadCode=1;
+		}
+	//count index
+		pyramid_codeEntredIndex++;
+	//check if limit is hit
+		if(pyramid_codeEntredIndex >= 3 )
+		{
+			if(pyramid_codeEntredBadCode)
+			{
+			//disable code
+				for(fCode=0;fCode<7;fCode++)
+				{
+					eCode = getEntity("pyramide_code"+fCode);
+					if(doesEntityExist(eCode))
+					{
+						eCode.nodamage();
+					}
+				}
+			//punish!!!
+				entity ePlayer;
+				ePlayer=globalCoop_return_playerClosestPreferActive($lift_dude);
+				$lift_dude.headwatch(ePlayer,20);
+				$pyramide_codePunisher.open($world);
+			//wait a moment, restore the onbjects to default position
+				wait(0.5);
+				if(!pyramid_codeEntredDialog)
+				{
+					pyramid_codeEntredDialog=1;
+					thread globalCoop_dialog_playSimple(ePlayer,"m5l2/munro_trap.mp3",1,99999);
+				}
+				wait(1.5);
+				$pyramide_codePunisher.close();
+
+				for(fCode=0;fCode<7;fCode++)
+				{
+					fResetMe = $world.getFloatVar("pyramid_resetItem"+fCode);
+					$world.setFloatVar("pyramid_resetItem"+fCode,-1);
+					if(fResetMe > -1)
+					{
+						eCode = getEntity("pyramide_code"+fResetMe);
+						if(doesEntityExist(eCode))
+						{
+							eCode.time(.5);
+							eCode.moveNorth(-2);
+						}
+					}
+				}
+				wait(1);
+			//reset code, and allow next try
+				pyramid_codeEntredBadCode=0;
+				for(fCode=0;fCode<7;fCode++)
+				{
+					eCode = getEntity("pyramide_code"+fCode);
+					thread setOnDamageThread(eCode,"pyramid_codeEntred");
+				}
+			}
+			else
+			{
+			//code correct - unlock door to next room
+				$pyramide_codeDoor.unlock();
+				$pyramide_codeDoor.open($world);
+				
+				float fBeam;
+				entity eButton;
+				for(fBeam=0;fBeam<7;fBeam++){
+					eButton=getEntity("pyramide_code"+fBeam);
+					eButton.missionobjective(0);
+				}
+				killthread("pyramid_arrivedAtPunisherTrap");
+				$punisherViewmode.remove();
+				
+				$patternenhancer12.missionobjective(1);
+				
+				for(fCode=0;fCode<7;fCode++)
+				{
+					eCode = getEntity("pyramide_code"+fCode);
+					if(doesEntityExist(eCode))
+					{
+						eCode.nodamage();
+					}
+				}
+			}
+		//reset
+			pyramid_codeEntredBadCode=0;
+			pyramid_codeEntredIndex=0;
+		}	
+	}
+}
+
+
+void pyramid_tilesPuzzleCrusher()
+{
+	if(pyramid_tilesPuzzleCrusherActive)
+	{
+		return;
+	}
+	pyramid_tilesPuzzleCrusherActive=1;
+	if(doesEntityExist($pyramid_tilesPuzzleCrusher))
+	{
+		$pyramid_tilesPuzzleCrusher.close();
+		wait(1);
+		$pyramid_tilesPuzzleCrusher.open($world);
+	}
+	pyramid_tilesPuzzleCrusherActive=0;
+}

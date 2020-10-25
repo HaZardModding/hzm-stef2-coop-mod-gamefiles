@@ -1,0 +1,1734 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:	  m8l2-drull_ruins2
+//  Script By:   J. Keehan, A. Bellefeuil, J. Hefty
+//  Geometry By:  J. Keehan, A. Bellefeuil, J. Hefty
+//  Created on:   2/8/2002
+//
+//-----------------------------------------------------------------
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  DEFINE SCRIPT
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void main();
+
+//--- setup
+void setupWorld();
+void setupAI();
+void setupPlayer();
+void setupArmatureCinematics();
+void controlChewerSet1();
+void ambientDamageLoop();
+
+//void basherAttackCheck();
+void basherAttackSequence1();
+//void walkwayDestroyCheck2();
+void walkwayDestroySequence2();
+//void door1_unlock_sequence();
+void randomAlienLaunch( entity alien );
+//restvoid triggerExplosionSequence();
+
+void seqtunneldropshieldblink();
+void seqtunneldrop();
+void inaccessible_sound();
+
+//--- sequences
+void liftDown1();
+void liftDoor1OpenLeft();
+void liftDoor1OpenRight();
+void liftDoor1CloseLeft();
+void liftDoor1CloseRight();
+void missionFail();
+void circuitbroke();
+
+//--- cinematics
+void introCinematic();
+void cinematicArm_InigorDeath_Start();
+void cinematicArm_InigorDeath_Skipthread();
+void cinematicArm_InigorDeath1_ArmEnd();
+void cinematicArm_InigorDeath2_ArmEnd();
+void cinematicArm_InigorDeath_ViewscreenStatic();
+void cinematicArm_InigorDeath_ViewscreenStatic2();
+
+
+//-----------------------------
+//--- variables
+
+//autosave
+void autosave();
+
+//--- float variables
+float idryll_ready = 0;
+float encounter_attacker_counter = 0;
+float canExplodeWalkway = 0;
+float canExplodeWalkway2 = 0;
+
+//--- armature variables
+entity cinematicArm_InigorDeath1;
+entity cinematicArm_InigorDeath2;
+
+
+
+float hack = 0;		//the JJ hack-O-rama....which should be removed....but it'll probably ship with this hack.....*cough* *hack* *cough*....//FIX ME
+
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	m8l2bHostageChoice_failsafe();
+void	coop_manageEntities();
+void	coop_turnTowards(entity eCenterOfAttention);
+void	coop_liftDown1();
+void	coop_liftUp1();
+void	coop_lift1Activate();
+void	coop_waitForTeam();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+float	float_liftState = 1;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_flyin.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/m8/m8_forcefields.scr"
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/maps/m8/m8_drullDoors.script"
+#include "coop_mod/maps/m8/m8_alienCombat.script"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  MAIN THREAD
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+void main ()
+//---------------------
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0 				= 270;
+	coop_float_spawnAngle1 				= 290;
+	coop_vector_spawnOrigin1 			= '-3185 5069 776';
+	//coop_vector_spawnOrigin1 			= '-2714 5281 870';
+	coop_vector_spawnOrigin2 			= '-2606 5291 873';
+	coop_vector_spawnOrigin3 			= '-2532 5217 868';
+	coop_vector_spawnOrigin4 			= '-2451 5215 868';
+	coop_vector_spawnOrigin5 			= '-2369 5240 868';
+	coop_vector_spawnOrigin6 			= '-2293 5210 867';
+	coop_vector_spawnOrigin7 			= '-2215 5115 870';
+	coop_vector_spawnOrigin8 			= '-2154 4965 890';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins2LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - this lift kills people
+	$drull_lift1.dmg(666999);
+	//hzm coop mod chrissstrahl - set kill message
+	$drull_lift1.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ the ^2Lift");
+	//de
+	$drull_lift1.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ einem ^2Aufzug");
+
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox( .1 );
+	cinematic();
+	
+	soundtrack( "music/m8l2a.mus" );
+
+	//--- setup the world
+	setupWorld();
+	setupAI();
+	setupArmatureCinematics();
+	
+	waitforplayer();
+	//freezeplayer(); //hzm coop mod chrissstrahl - messes with the player views
+	
+	//hzm coop mod Chrissstrahl - halt players
+	globalCoop_main_globalCommand("immobilize");
+	
+	setupPlayer();
+	
+	wait( 1 );
+
+	//---call threads
+	//thread basherAttackSequence1();
+	//thread walkwayDestroySequence2();
+	
+	//--- start the intro cinematic
+	thread introCinematic();
+	
+	//thread cinematicArm_InigorDeath_Start();
+	
+	//hzm coop mod chrissstrahl - manage entities without targetname
+	thread coop_manageEntities();
+}
+
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  SETUP FUNCTIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void setupWorld()
+{
+	spawn("camera","targetname","stalkKrindo");
+	spawn("info_splinepath","targetname","stalkKrindoPath","angle","270","origin","-3176 5048 872");
+	
+	//--farplane
+	$world.entity_fade_dist( 8000 );
+	$world.farplane_color( '0.158 0.142 0.159' );
+	$world.farplane( 6000 );
+	$world.farplane_cull( 1 );
+
+	//--hide stuff
+	$walkway_debris.hide();
+	$walkway_debris.notsolid();
+	$basherClipBrush.notsolid();
+	$walkway_debris1.hide();
+	$walkway_debris1.notsolid();
+	$walkway_debris2.hide();
+	$walkway_debris2.notsolid();
+	$steam1.hide();
+/*	$launch1.hide();
+	$launch2.hide();
+	$launch3.hide();
+	$launch4.hide();
+	$tunneldrop_debris.hide();
+	$basherAttackCheck.nottriggerable();*/ //hzm null_Entity
+	
+	$basherAttack_1.setfloatvar ( "dontAllowDeathInTransit" , 1.0 );
+	
+	//--bind doors to lift
+	$liftDoorSide1a.bind( $drull_lift1 );
+	$liftDoorSide1b.bind( $drull_lift1 );
+	$liftDoorSide2a.bind( $drull_lift1 );
+	$liftDoorSide2b.bind( $drull_lift1 );
+	
+	
+	//--playing forcefield sounds
+	$forcefieldSound.loopsound( "sound/ships/drull/drull_forcefield3.wav", 1, 128);
+	$forcefieldSound_remove1.loopsound( "sound/ships/drull/drull_forcefield3.wav", 1, 128);
+	$forcefieldSound_remove2.loopsound( "sound/ships/drull/drull_forcefield3.wav", 1, 128);
+	$forcefieldSound_remove3.loopsound( "sound/ships/drull/drull_forcefield3.wav", 1, 128);
+		
+	globalAccelMove_Rotate( $liftDoorSide1a, '0 -90 0', .05, "rampupdown", "" );
+	globalAccelMove_Rotate( $liftDoorSide1b, '0 90 0', .05, "rampupdown", "" );
+	
+	//--setup our plasma jets for the explosion sequence
+	float i;
+	for ( i = 1 ; i <= 25 ; i++ )
+	{
+		entity e;
+		e=getentity	( "plasma"+i );
+		if(doesEntityExist(e)){e.hide();}//hzm coop mod chrissstrahl - make sure the entity does actually exists, prevents console spam
+	}
+	
+	//hzm coop mod chrissstrahl - remove the original trigger and spawn our own level end trigger
+	//make sure the lift works for coop
+	removeclass("TriggerChangeLevel");
+	$liftClip.notsolid();
+	/*$drull_lift1.setfloatvar("coop_liftState",2);*/
+	spawn("trigger_once","thread","coop_waitForTeam","targetname","coop_levelEndTrigger","origin","-9299 2757 30");
+	wait(.1);
+	$coop_levelEndTrigger.setsize('-256 -256 0','256 256 128');
+}
+
+
+void setupAI()
+{
+	//--- spawn characters
+	spawn ( "Actor" , "model" , "models/char/inigor-noweapon.tik" , "targetname" , "inigor" , "hide" , "1" , "ai_off" , "1" );
+	spawn ( "Actor" , "model" , "models/char/hazardteam_munro.tik" , "targetname" , "munro" , "hide" , "1" , "ai_off" , "1" );
+
+	//--- krindo
+	$krindo.health ( 300 );
+	$krindo.allowfall ( 1 );
+	$krindo.not_allowed_to_kill();
+	$krindo.killthread ( "missionFail" );
+	$krindo.ai_off();
+	
+	
+	$dead_idryll_1.ai_off();
+	$dead_idryll_2.ai_off();
+	$dead_idryll_3.ai_off();
+	$dead_idryll_4.ai_off();
+	$dead_idryll_5.ai_off();
+	
+	$dead_idryll_1.notsolid();
+	$dead_idryll_2.notsolid();
+	$dead_idryll_3.notsolid();
+	$dead_idryll_4.notsolid();
+	$dead_idryll_5.notsolid();
+
+	$dead_idryll_1.anim( "hunched_dead2" );
+	$dead_idryll_2.anim( "hunched_dead4" );
+	$dead_idryll_3.anim( "hunched_dead4" );
+	$dead_idryll_4.anim( "hunched_dead1" );
+	$dead_idryll_5.anim( "hunched_dead3" );
+	
+	//--- munro
+	globalCommon_AiDummy( $munro, "" );
+	
+	//start our randomly launching aliens
+	float i;
+	for ( i = 1 ; i <= 12 ; i++ )
+	{
+		entity alien;
+		alien = getentity ( "launchAlien"+i );
+		thread randomAlienLaunch ( alien );
+	}
+}
+
+
+void setupPlayer()
+{
+}
+
+void setupArmatureCinematics()
+{
+	cam.load ( "m8l2a_krindocam" );
+	cam.load ( "m8l2a_munrocam" );
+	
+	spawn ( "Camera" , "targetname" , "krindoCam" );
+	spawn ( "Camera" , "targetname" , "munroCam" );
+
+	spawn ( "Camera" , "targetname" , "cam1" );
+	spawn ( "Camera" , "targetname" , "cam2" );
+	
+	wait ( .1 );
+	$krindoCam.follow ( $m8l2a_krindocam );
+	$munroCam.follow ( $m8l2a_munrocam );
+	
+	//--- armature setup
+	cinematicArm_InigorDeath1 = createCinematic( "m8l2-fatherintro" );
+	cinematicArm_InigorDeath2 = createCinematic( "m8l2-father" );
+	wait(0.1);
+	cinematicArm_InigorDeath1.setendthread( "cinematicArm_InigorDeath1_ArmEnd" );	
+	cinematicArm_InigorDeath2.setendthread( "cinematicArm_InigorDeath2_ArmEnd" );	
+}
+
+void controlChewerSet1()
+{
+	wait( .25 );
+	$chewer1.ai_off();
+	$chewer2.ai_off();
+	//--set angle of spawned chewers
+	$chewer1.angle( 240 );
+	$chewer2.angle( 290 );
+	$chewer1.settendency ( "fakeattack" , 1.0 );
+	$chewer2.settendency ( "fakeattack" , 1.0 );
+	wait( .25 );
+	$chewer1.ai_on();
+	$chewer2.ai_on();
+}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  GAME FUNCTIONS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+void liftDown1()
+{
+	//thread liftDoor1CloseLeft();
+	//thread liftDoor1CloseRight();
+	//wait( 2 );//wait for doors to close
+	//$liftClip.show();
+	//$liftClip.solid(); //hzm coop mod chrissstrahl - we don't use thsi in coop
+	//wait( .5 ); 
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1.1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 -744', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.1, 1500 );
+	wait( .5 );
+	
+	//hzm coop mod chrissstrahl - assign weapons, now, so that players get the idea of NOT killing KRINDO
+	thread globalLoadout_AssignWeapons ( "m8l2a_drull_ruins2" );
+	
+	//hzm coop mod chrissstrahl - make all players use a weapon now
+	globalCoop_armory_useNamed("AttrexianRifle");
+	
+	thread liftDoor1OpenLeft();
+	thread liftDoor1OpenRight();
+	$liftClip.notsolid();
+	
+	//hzm coop mod chrissstrahl - wait a moment, then spawn triggers that allow the lift to go up and down
+	wait(6);
+	spawn("trigger_multiple","thread","coop_lift1Activate","targetname","coop_tM_lift1_Call_down1","origin","-2612 4573 30");
+	spawn("trigger_multiple","thread","coop_lift1Activate","targetname","coop_tM_lift1_Call_down2","origin","-2437 4558 30");
+	spawn("trigger_multiple","thread","coop_lift1Activate","targetname","coop_tM_lift1_Call_down3","origin","-2437 4558 770");
+	spawn("trigger_multiple","thread","coop_lift1Activate","targetname","coop_tM_lift1_Call_up","origin","-2612 4573 770");
+	wait(0.5);
+	$coop_tM_lift1_Call_down1.setsize('-10 -10 0','10 10 10');
+	$coop_tM_lift1_Call_down2.setsize('-60 -60 0','60 60 40');
+	$coop_tM_lift1_Call_down3.setsize('-60 -60 0','60 60 40');
+	$coop_tM_lift1_Call_up.setsize('-60 -60 0','60 60 40');
+}
+
+void liftDoor1OpenLeft()
+{
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1a, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.1, 1500 );
+}
+
+void liftDoor1OpenRight()
+{
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1b, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.1, 1500 );
+}
+void liftDoor1CloseLeft()
+{
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1a, '0 90 0', 2, "rampupdown", "" );
+	$liftDoorSide1a.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.1, 1500 );
+}
+
+void liftDoor1CloseRight()
+{
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.1, 1500 );
+	globalAccelMove_Rotate( $liftDoorSide1b, '0 -90 0', 2, "rampupdown", "" );
+	$liftDoorSide1b.playsound( "sound/environment/machine/mech_stop1.wav", 8, 1.1, 1500 );
+}
+
+
+void door1_unlock_sequence( )
+{
+//	$krindo.ai_off();
+//	$krindo.walkto ( "$door1_encounter_node" , "run" );
+//	centerprint ( "dialog about needing to unlock the door" );
+
+	while( leftToKill > 0 ) 
+	{
+		wait ( .5 );
+	}
+
+	//allow the player to progress once everything is dead...DEAD!
+	$drull_smalldoor1_trigger.triggerable();
+	$drull_smalldoor2_trigger.triggerable();
+	$drull_smalldoor3_trigger.triggerable();
+
+	trigger ( "$drull_smalldoor1_trigger" );
+	trigger ( "$drull_smalldoor2_trigger" );
+	trigger ( "$drull_smalldoor3_trigger" );
+
+//	wait ( 2.0 );
+//	$krindo.ai_on();
+}
+
+
+//-----------------------------------------------------------------------------------------------
+// Function			: randomAlienLaunch
+// Parameters		: the alien to be launched
+// Returns			: none
+// Comments
+//	In the map there are tubes that eject aliens at random intervals.  This function will
+// 	do that.  Set it up in the map by creating a script_model, set the model to whatever
+//	alien it is, then create a splinepath of where it's supposed to go, then target-chain
+// 	the script_model to the start of the path, then target-chain the path together and
+// 	leave the last node with no target.  Then at the beginning of the map thread this function
+//	with the script_model's targetname.
+//
+//	You can tweak the times by changing the following globals:
+//		ALIEN_LAUNCH_MIN and ALIEN_LAUNCH_MAX
+//-----------------------------------------------------------------------------------------------
+float ALIEN_LAUNCH_MIN = 1;
+float ALIEN_LAUNCH_MAX = 10;
+
+void randomAlienLaunch( entity alien )
+{
+//	entity pathstart;
+//	pathstart = getentity ( alien.gettarget ());
+	vector v;
+	v = alien.getorigin ();
+	while( 1 )
+	{
+//		alien.origin( pathstart.getorigin() );
+//		alien.notsolid();
+		alien.origin ( v );
+		alien.hide();
+
+		wait( ALIEN_LAUNCH_MIN + randomfloat( ALIEN_LAUNCH_MAX - ALIEN_LAUNCH_MIN ) );
+
+		alien.show();
+//		alien.solid();
+//		alien.followpath( pathstart );
+		alien.time ( 1 );
+		alien.moveup ( 2048 );
+		waitfor( alien );
+
+	}
+}
+
+
+/*
+//Trigger the plasma jets etc when the alien bumps into the walkway support
+void triggerSparks ()	//called from an info_splinepath
+{
+	trigger ( "$earthquake"	 );
+	trigger ( "$sparks" );
+	$bob.remove();
+
+	$plasma1.show();
+	$plasma2.show();
+
+	$forceField.hide();
+	wait ( .5 );
+
+	$forceField.show();
+	wait ( .25 );
+
+	$forceField.hide();
+	wait ( .25 );
+
+	$forceField.show();
+	wait ( .25 );
+
+	$forceField.remove();
+
+	//thread triggerExplosionSequence();
+	float i;
+	for ( i = 1 ; i <= 25 ; i++ )
+	{
+		entity e;
+		e=getentity	( "plasma"+i );
+		e.show();
+		wait ( .2 );
+	}
+
+	wait ( 1 );
+	$steam1.show ();
+}
+
+//constantly spawn explosions from the origin of our doomed alien
+void spawnExplosions()
+{
+	entity alien,expl,source,hurtBrush;
+	vector _origin;
+
+	alien = getcurrententity ();
+
+	hurtBrush = spawn ( "trigger_hurt" , "damage" , "10" );
+	wait ( .1 );
+	hurtBrush.mins ( '-256 -256 -256' );
+	hurtBrush.maxs ( '256 256 256' );
+
+	expl = spawn ( "script_model",
+	    	        "model","models/fx/fx-explosion-alienflying-shotdown.tik",
+	    	        "scale" , "2.0");
+	expl.origin ( $steam1.getorigin() );
+	$steam1.remove();
+
+	$plasma1.remove();
+	$plasma2.remove();
+
+	float i;
+	for ( i = 3 ; i <= 25 ; i++ )
+	{
+		expl = spawn ( "script_model",
+	    	        "model","models/fx/fx-explosion-alienflying-shotdown-nosmoke.tik",
+	    	        "scale" , "2.0",
+	    	        "angles" , "90 0 0");
+
+		source = getentity ( "plasma"+i );		//Spawn the explosion from the plasma jet
+		_origin = source.getorigin();
+
+		_origin = vectorsetz ( _origin , vectorgetz ( _origin ) - 128 );	//shift it down a bit
+		expl.origin ( _origin );		//move the explosion to its place
+		source.remove();
+
+		//..then damage the player
+		//$player.hurt ( globalMath_LinearFalloff ( 256 , 10 , _origin , $player.getorigin() ));
+		//nah, let's damage _everyone_
+		hurtBrush.origin ( _origin );
+
+		wait ( .4 );
+	}
+}
+
+void triggerExplosionSequence ()
+{
+	entity e,caller;
+	caller = getcurrententity();
+	caller.remove();
+
+	e = spawn ( "script_model",
+	   	        "model","models/char/alien-type3-quad.tik",
+	   	        "targetname" , "doomedAlien");
+	wait ( .5 );
+	e=getentity ( "doomedAlien" );
+	e.anim ( "flying" );
+	e.notsolid();
+
+	e.followpath ( $doomedAlienPath );
+}
+
+void endExplosionSequence ()
+{
+	entity e;
+	e = spawn ( "script_model",
+			"model" , "models/fx/fx-explosion-alienflying-shotdown.tik",
+			"scale" , "1.5",
+			"targetname" , "finalExplosion" );
+
+	vector v;
+	v = $doomedAlien.getorigin ();
+	trigger ( "$earthquake2" );
+
+	vectorsetz ( v , vectorgetz ( v ) + 256);
+	e.origin ( v );
+	$doomedAlien.remove();
+}
+
+*/
+
+void introCinematic()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - use cam in coop that works better
+	
+	
+	$stalkKrindo.follow( $stalkKrindoPath );
+	$stalkKrindo.fov( 70 );
+	$stalkKrindo.cut();
+	cuecamera( $stalkKrindo );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+
+	//cinematic();
+    music ("aux1");
+
+	wait( .25 );
+	
+	//fakeplayer ();
+	//letterbox ( 1.0 );
+	$krindo.ai_off();
+	wait( .33 );
+	
+	$krindo.warpto( "$krindoIntroStartPos1" );
+	wait( .05 );
+	$krindo.walkTo( "$krindoIntroStartPos2", "walk" );
+	wait( .05 );
+	//$krindo.turntowardsentity( $player );
+	//$krindo.anim( "idle" );
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+	
+	wait( 1.0 );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_unhh.mp3", 1, 8000, 0); //Unnh...
+	waitForDialog( $munro );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+
+	wait( 1.0 );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+	
+	$krindo.turntowardsentity( $forcefieldIntroCell );//hzm coop mod chrissstrahl - make krindo face the forcefield, instead of $player
+	wait( .5 );
+	$krindo.anim( "conv-crossarms" );
+	waitforanimation( $krindo, "conv-crossarms" );
+	//$krindo.anim( "ent-guard-idle" );
+	$krindo.anim( "sfa_hands_back" );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_hostage.mp3", 1, 8000, 0); //You are my hostage. If your Captain won't trade you for Kleeya, you'll die.
+	waitForDialog( $krindo );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	//coop_turnTowards($krindo);
+	
+	$krindo.branchdialog ( "m8l2bHostageChoice" );
+}
+
+void testSetup()
+{
+	cam.load( "m8l2a_Death_Shot1" );
+	cam.load( "m8l2a_Death_Shot2" );
+	cam.load( "m8l2a_Death_Shot3" );
+	cam.load( "m8l2a_Death_Shot4" );
+}
+
+void failedBranch ()
+{
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+        music ("aux2");
+
+	//--- load the camera paths
+	cam.load( "m8l2a_Death_Shot1" );
+	cam.load( "m8l2a_Death_Shot2" );
+	cam.load( "m8l2a_Death_Shot3" );
+	cam.load( "m8l2a_Death_Shot4" );
+
+	//--- setup the scene	
+	$munro.useActorWeapon( "none" );
+	$munro.show();
+	$munro.origin( '-3173 5072 777' );
+	wait( .1 );
+	
+	$munro.turnTowardsEntity( $krindo );	
+	
+	//$krindo.warpto( "$krindoIntroStartPos2" );
+	$krindo.warpto( "$t691" );
+	wait( .1 );
+	$krindo.turnTowardsEntity( $munro );
+	wait( .25 );
+	$krindo.anim( "sfa_hands_back" );
+	wait( .25 );
+	
+	//--------------------------------------------------------
+	//--- shot 1 - slow dolly in on munro
+	
+	$cam1.follow( $m8l2a_Death_Shot1 );
+	$cam1.fov( 40 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .25 );
+
+	//--- fade in
+	cam_fadein( .75, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_picarr.mp3", 1, 8000, 0); //I'm sure Picard can arrange that. She's not a vital member of the crew.
+	wait( 2 );
+
+	//--------------------------------------------------------
+	//--- shot 2 - over shoulder from munro to krindo
+	
+	$cam2.follow( $m8l2a_Death_Shot2 );
+	$cam2.fov( 40 );
+	$cam2.cut();
+	wait( .1 );
+
+	cuecamera( $cam2 );
+	
+	//--- wait for Munro to finish speaking
+	waitForDialog( $munro );	
+	wait( .2 );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_empire.mp3", 1, 8000, 0); //Good. Now I no longer have time for you. I have an Empire to restore.
+	wait( 1 );
+
+	//--------------------------------------------------------
+	//--- shot 3 - slow dolly in on krindo
+	
+	$cam1.follow( $m8l2a_Death_Shot3 );
+	$cam1.fov( 40 );
+	$cam1.cut();
+	wait( .1 );
+
+	cuecamera( $cam1 );
+	wait( 3 );	
+
+	//--------------------------------------------------------
+	//--- shot 2 - over shoulder from munro to krindo
+	
+	$cam2.follow( $m8l2a_Death_Shot4 );
+	$cam2.fov( 40 );
+	$cam2.cut();
+	wait( .1 );
+
+	cuecamera( $cam2 );
+	
+	$munro.headWatchTarget( "krindo", 7 );
+	$krindo.turnTowardsEntity( $nodeKrindo_FailWalkTo );
+	wait( 2 );
+	
+	$krindo.walkTo( "$nodeKrindo_FailWalkTo", "walk" );
+	
+	//--- zoom the camera in
+	thread globalCineFX_CameraFOVLerp( $cam2, 40, 20, 2, "rampupdown" );
+	wait( 3.5 );
+	
+	//hzm coop mod chrissstrahl - fail current mission display the reason
+	clearletterbox(0.05);
+	thread globalCoop_mission_failWithReason("ChoseWrong");
+	endCinematic();
+}
+
+
+//---------------------
+// cinematicArm_InigorDeath_Start
+// dialog with krindo, inigor dies on the attrexian colony planet
+// this is the success branch for the opening dialog choice sequence
+//------------------------
+void cinematicArm_InigorDeath_Start()
+{
+	//--- starting cinematic commands
+	freezeplayer();
+	cinematic();
+        music ("aux3");	
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	
+	letterbox( .1 );
+
+	//--- hide the player and AI
+	globalCommon_AiDummyHide( $krindo );
+	
+	//--- start the armature
+	cinematicArm_InigorDeath1.beginCinematic( "m8l2-fatherintro" );
+	wait( .2 );
+	
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--- set the skipthread
+	skipthread( "cinematicArm_InigorDeath_Skipthread" );
+}
+
+//---------------------
+// cinematicArm_InigorDeath_ArmEnd
+// calls when the first armature cinematic ends
+//------------------------
+void cinematicArm_InigorDeath1_ArmEnd()
+{
+	//--- start the second armature
+	cinematicArm_InigorDeath2.beginCinematic( "m8l2-father" );
+	
+	$armInigor.scale( 5 );
+	wait( .1 );
+	
+	//--- fade the camera back in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	
+	//--- cinematic viewscreen
+	thread cinematicArm_InigorDeath_ViewscreenStatic();
+	wait( 34 );
+	
+	thread cinematicArm_InigorDeath_ViewscreenStatic2();
+	wait( 34.5 );
+	
+	//--turn off the forcefield
+	thread shutdownForcefield( $forcefieldIntroCell );
+}
+
+//---------------------
+// cinematicArm_InigorDeath_ArmEnd
+// calls when the second armature cinematic ends
+//------------------------
+void cinematicArm_InigorDeath2_ArmEnd()
+{
+	//--- end the cinematic
+	thread cinematicArm_InigorDeath_Skipthread();
+}
+
+//----------------------------------------------
+//--- flash static on the viewscreen
+void cinematicArm_InigorDeath_ViewscreenStatic()
+{
+	wait( 2.5 );
+	
+	$viewscreenStatic.show();
+	wait( .2 );
+	
+	$viewscreenStatic.hide();
+	wait( .3 );
+	
+	$viewscreenStatic.show();
+	wait( .1 );
+	
+	$viewscreenStatic.hide();
+}
+
+//----------------------------------------------
+//--- flash to static as inigor dies
+void cinematicArm_InigorDeath_ViewscreenStatic2()
+{
+	$viewscreenStatic.show();
+	wait( .2 );
+	
+	$viewscreenStatic.hide();
+	wait( .3 );
+	
+	$viewscreenStatic.show();
+	wait( .1 );
+	
+	$viewscreenStatic.hide();
+	wait( .3 );
+	
+	$viewscreenStatic.show();
+	$viewscreenPortal.hide();
+}
+
+//---------------------
+// cinematicArm_InigorDeath_Skipthread
+// skipthread for cinematic
+//------------------------
+void cinematicArm_InigorDeath_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- end the armature cinematics, FALSE means don't launch the end thread
+	cinematicArm_InigorDeath1.endCinematic();
+	cinematicArm_InigorDeath2.endCinematic( FALSE );
+
+	killthread( "cinematicArm_InigorDeath_Start" );
+	killthread( "cinematicArm_InigorDeath1_ArmEnd" );
+	killthread( "cinematicArm_InigorDeath2_ArmEnd" );
+
+	//--- krindo
+	//globalCommon_AiDummy( $krindo, "idle" );
+	$krindo.warp( $nodeKrindo_PostIntroCinematic.getOrigin() );
+	$krindo.turntowardsentity( $viewscreenBorder );
+	//globalCineFX_PositionObject( $krindo, $nodeKrindo_PostIntroCinematic );
+	wait( 1 );
+	globalCommon_AiDummy( $krindo, "ent-curvedconsole-gesture" );
+	
+	//--- set the player
+	
+	//hzm coop mod chrissstrahl - move a player to the given location
+	//might be removed again
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.warp( $nodePlayer_PostIntroCinematic.getOrigin() );
+				fPlayerIdInUse=9999;
+			}
+		}
+	}
+	
+	wait( .1 );
+	
+	//hzm coop mod chrissstrahl - make all player turn towards krindo
+	coop_turnTowards($krindo);
+	
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();
+	cueplayer();
+	wait( .5 );
+	
+	$world.loopsound ( "sound/ships/drull/drull_destruct.wav", 1.2, 5120000);//hzm coop mod chrissstrahl - play sound on world, instead of $player
+	
+	if ( doesentityexist( $forcefieldIntroCell ))
+	{
+		$forcefieldIntroCell.remove();
+	}
+	
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .5 );
+	
+	//hzm coop mod Chrissstrahl - allow player movement
+	globalCoop_main_globalCommand("mobilize");
+	
+	thread liftDoor1CloseLeft();
+	thread liftDoor1CloseRight();
+	wait( 2 );
+	//--- move the starting lift down
+	//globalAccelMove( $introLift, '0 0 -740', 5, "rampdown", "" );
+	
+	//---shut down forcefield	
+	//shutdownForcefield( $elevatorShieldFx );
+	//wait( .5 );
+	//$elevatorClip.remove();
+	liftDown1();
+	//$krindo.warpto( "$krindoObjectivePos" ); //hzm coop mod chrissstrahl - do not move him during coop
+	wait( .05 );
+	//--- set the first objective
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$ProtectKrindo$$","incomplete",1,1);
+
+	$krindoObjectivePos.missionobjective( 1 );
+}
+
+void successBranch()
+{
+/*
+	//To be replaced by cinematic armature
+	//skipthread ( "endIntroCinematic" );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_trade.mp3", 1, 8000, 1); //We don't trade hostages.
+	waitForDialog( $munro );
+
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_youcandie.mp3", 1, 8000, 1); //Then you can die.
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_whereteam3.mp3", 1, 8000, 1); //Where's my team?
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_caremyself.mp3", 1, 8000, 1); //I'd care more about myself right now.
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_anoth.mp3", 1, 8000, 1); //That's another difference between us.
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_entirer.mp3", 1, 8000, 1); //I care about my entire RACE!
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_justfather.mp3", 1, 8000, 1); //Just not your father.
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_killyou.mp3", 1, 8000, 1); //I'll kill you!
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_killinghim.mp3", 1, 8000, 1); //Go ahead. You're killing him, too.
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_liar.mp3", 1, 8000, 1); //Liar!
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_taravar.mp3", 1, 8000, 1); //He's on Taravar Seven. Stop the attack now, or you'll kill him with the rest of the planet.
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_nevergo.mp3", 1, 8000, 1); //He'd never go to Taravar Seven!
+	waitForDialog( $krindo );
+	
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_toobad.mp3", 1, 8000, 1); //Too bad we can't contact your father through the electrical storm. You'll have to come to the Enterprise to learn the truth.
+	waitForDialog( $munro );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_defense.mp3", 1, 8000, 1); //Ahh…but we can.  Our comm system is linked to a cloaked communications array in orbit..
+	waitForDialog( $krindo );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_outrange.mp3", 1, 8000, 1); //I'll contact his communicator. But he won't answer because he's not on Taravar 7
+	waitForDialog( $krindo );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_empire.mp3", 1, 8000, 1); //Good. Now I no longer have time for you. I have an Empire to restore
+	waitForDialog( $krindo );	
+
+	fakeplayer();
+	
+	cuecamera ( $krindoCam );
+    music ("aux6");
+	
+	$inigor.playdialog("localization/sound/dialog/m8l2/inigor_stars.mp3", 1, 8000, 1); //Krindo! Thank the stars!
+	waitForDialog( $inigor );
+	
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_father.mp3", 1, 8000, 1); //...Father!
+	waitForDialog( $krindo );
+	$inigor.playdialog("localization/sound/dialog/m8l2/inigor_stop.mp3", 1, 8000, 1); //Please stop! Please spare this planet! I beg you. If you won't stop the killing for the Attrexians, will you stop for me?
+	waitForDialog( $inigor );
+
+
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_wevewon.mp3", 1, 8000, 1); //But we've won!
+	waitForDialog( $krindo );
+	$inigor.playdialog("localization/sound/dialog/m8l2/inigor_outside.mp3", 1, 8000, 1); //They are just outside this room. I can hear them chewing.
+	waitForDialog( $inigor );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_ohno.mp3", 1, 8000, 1); //Oh, no. No!
+	waitForDialog( $krindo );
+	$inigor.playdialog("localization/sound/dialog/m8l2/inigor_goodbye.mp3", 1, 8000, 1); //Goodbye son. Please forgive me.
+	waitForDialog( $inigor );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_stopthem.mp3", 1, 8000, 1); //No! Wait! I'll stop! I'll stop them.
+	waitForDialog( $krindo );
+	$inigor.playdialog("localization/sound/dialog/m8l2/inigor_ahson.mp3", 1, 8000, 1); //Ah, son?
+	waitForDialog( $inigor );
+	
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_sendstop.mp3", 1, 8000, 1); //Send the stop signal!
+	waitForDialog( $munro );
+	
+	cuecamera ( $krindoCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_commands.mp3", 1, 8000, 1); //I did! My Exomorph commands don't work!
+	waitForDialog( $krindo );
+	
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_makework.mp3", 1, 8000, 1); //Make them work!
+	waitForDialog( $munro );
+
+	cuecamera ( $krindoCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_wontyou.mp3", 1, 8000, 1); //Stop! Why won't you stop!
+	waitForDialog( $krindo );
+	
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_letmeout.mp3", 1, 8000, 1); //Let me out! I'll help you!
+	waitForDialog( $munro );
+
+
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_turnedon.mp3", 1, 8000, 1); //The Exomorphs have turned on your troops.
+	waitForDialog( $munro );
+	
+	cuecamera ( $krindoCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_dontunder.mp3", 1, 8000, 1); //I don't understand.
+	waitForDialog( $krindo );
+	
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_getyou.mp3", 1, 8000, 1); //Let me out of here, or they'll get you, too.
+	waitForDialog( $munro );
+	
+	cuecamera ( $krindoCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_deservlive.mp3", 1, 8000, 1); //I don't deserve to live...
+	waitForDialog( $krindo );
+
+
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_litentome.mp3", 1, 8000, 1); //Listen to me, Krindo! You can't bring your father back. But you can help us stop the killing!
+	waitForDialog( $munro );
+
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_opendoor.mp3", 1, 8000, 1); //Now open this door, and I'll get us out of here!
+	waitForDialog( $munro );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_keepalive.mp3", 1, 8000, 1); //Tell your troops to keep them alive. We'll meet them as soon as I get you out of here. And have them prepare one of your shuttles. Now!
+	waitForDialog( $munro );
+	
+	cuecamera ( $munroCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_destruct.mp3", 1, 8000, 1); //I am going to set the manual destruct sequence from here, you must get out of this facility immediately!
+	
+	cuecamera ( $krindoCam );
+	waitForDialog( $krindo );
+	
+	cuecamera ( $munroCam );
+	$munro.playdialog("localization/sound/dialog/m8l2/munro_nocome.mp3", 1, 8000, 1); //No, you are coming with me! I don't want to see anyone else die!
+	waitForDialog( $munro );
+	
+	cuecamera ( $krindoCam );
+	$krindo.playdialog("localization/sound/dialog/m8l2/krindo_goahead.mp3", 1, 8000, 1); //You must go ahead! This is the only way to destroy this facility, don't worry about me, I will meet up with you at the lift to the surface. Now Go!
+	waitForDialog( $krindo );
+	*/
+}
+
+void missionFail()
+{
+	//hzm coop mod chrissstrahl - fail current mission
+	globalCoop_mission_fail();
+}
+
+void wakeupSon ()	//called by trigger_multiple
+{
+	$krindo.ai_on();
+}
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+// Sequences
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+
+
+
+/*
+//------------------------------
+// basherAttackCheck
+// check to make sure krindo and player have both passed trigger before exploding bridge
+//------------------------------
+void basherAttackCheck()
+{
+	entity caller, activator;
+	string tname;
+	caller = getcurrententity();
+	activator = caller.getlastactivatingentity();
+	tname = activator.getrawtargetname();
+	caller.nottriggerable();
+	if ((tname == "player")) //|| (tname == "krindo"))
+		{
+			canExplodeWalkway ++;
+		}
+	else
+		{
+			caller.triggerable();
+		}
+		
+	//--random quaking w/sounds
+	thread ambientDamageLoop();	
+
+}
+*/
+
+//------------------------------
+// basherAttackSequence1
+// after player and krindo pass trigger, explode bridge & basher fly-in
+//------------------------------
+void basherAttackSequence1()
+{
+	//while ( canExplodeWalkway < 1 )//( canExplodeWalkway < 2 )
+	//{
+	//	wait( .25 );
+	//}	
+	forcemusic ("aux4");	
+
+	trigger( "$walkwayQuake_1" );
+	trigger( "$walkwayExplodeFx" );
+	
+	$walkway_solid.remove();
+	$walkway_debris.show();
+	$walkway_debris.notsolid();
+	wait( .5 );
+	globalFlyin_SpawnLaunch ( $basherAttack_1 , "models/char/alien-type1c-basher.tik" , 0, "" , "" , 0 );
+	$basherAttack_1.spawntargetname( "basher_1" );
+	
+	$walkway_debris.solid();
+	wait( 1 );
+	$basher_1.ai_off();
+	$basher_1.settendency ( "twitch_on_start" , 1.0  );
+	wait( 1 );
+	$basher_1.ai_on();
+	wait( 5 );
+	
+	//$basherClipBrush.solid();
+	
+	//--random quaking w/sounds
+	thread ambientDamageLoop();	
+}
+
+/*
+//------------------------------
+// walkwayDestroyCheck1
+// check to make sure krindo and player have both passed trigger before exploding bridge
+//------------------------------
+void walkwayDestroyCheck2()
+{
+	entity caller, activator;
+	string tname;
+	caller = getcurrententity();
+	activator = caller.getlastactivatingentity();
+	tname = activator.getrawtargetname();
+	caller.nottriggerable();
+	if ((tname == "player")) //|| (tname == "krindo"))
+		{
+			canExplodeWalkway2 ++;
+		}
+	else
+		{
+			caller.triggerable();
+		}	
+}
+*/
+
+//------------------------------
+// walkwayDestroySequence2
+// after player and krindo pass trigger, explode bridge & detonate gas sequence
+//------------------------------
+void walkwayDestroySequence2()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle1 				= 275;
+	coop_float_spawnAngle2 				= 275;
+	coop_float_spawnAngle3 				= 275;
+	coop_float_spawnAngle4 				= 275;
+	coop_float_spawnAngle5 				= 275;
+	coop_float_spawnAngle6 				= 275;
+	coop_float_spawnAngle7 				= 275;
+	coop_float_spawnAngle8 				= 275;
+	coop_vector_spawnOrigin1 			= '-5334 1288 140';
+	coop_vector_spawnOrigin2 			= '-5404 1288 140';
+	coop_vector_spawnOrigin3 			= '-5474 1200 140';
+	coop_vector_spawnOrigin4 			= '-5334 1200 140';
+	coop_vector_spawnOrigin5 			= '-5404 1200 140';
+	coop_vector_spawnOrigin6 			= '-5474 1200 140';
+	coop_vector_spawnOrigin7 			= '-5334 1130 140';
+	coop_vector_spawnOrigin8 			= '-5404 1130 140';
+	thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+	//centerprint( "walkwayDestroySequence2 running" );
+	
+	//while ( canExplodeWalkway2 < 1 )//( canExplodeWalkway2 < 2 )
+	//{
+	//	wait( .25 );
+	//}	
+	forcemusic ("aux4");	
+	trigger( "$walkwayExplodeFx2" );
+	//trigger( "$walkwayQuake_2" );
+		
+	
+	//hzm coop mod chrissstrahl - if we remove it players might get stuck
+	$walkwaySection2.time(.2);
+	$walkwaySection2.movedown(40);
+	/*$walkwaySection2.remove();*/
+	
+	
+	$walkway_debris2.show();
+	wait( 2 );
+	//thread triggerExplosionSequence();
+	
+	$forcefieldSound_remove1.stoploopsound();
+	$forcefieldSound_remove2.stoploopsound();
+	$forcefieldSound_remove1.remove();
+	$forcefieldSound_remove2.remove();
+	
+	$forcefield_1.playsound ( "sound/ships/drull/drull_forcetrapstop.wav", 6, 1, 1024 );
+		
+	$forcefield_1.hide();
+	wait( .1 );
+	
+	$forcefield_1.show();
+	wait( .1 );
+	
+	$forcefield_1.hide();
+	wait( .1 );
+		
+	$forcefield_1.show();
+	wait( .1 );
+	
+	$forcefield_1.hide();
+	wait( .1 );
+		
+	$forcefield_1.show();
+	wait( .1 );
+		
+	$forcefield_1.hide();
+	wait( .1 );
+			
+	$forcefield_1.show();
+	wait( .1 );
+	
+	$forcefield_1.hide();
+	wait( .1 );
+		
+	$forcefield_1.show();
+	wait( .1 );
+		
+	$forcefield_1.hide();
+	wait( .1 );
+			
+	$forcefield_1.show();
+	wait( .1 );
+	
+	$forcefield_1.remove();
+	
+}
+
+
+//-------------------------------
+// seqTunnelDrop
+// Tunnel is destroyed and falls into the abyss
+//-------------------------------
+void seqtunneldrop()
+{
+	forcemusic ("aux5");
+	trigger( "$tunneldrop_quake1" );
+	trigger( "$tunneldrop_explode" );
+	$tunneldrop_debris.show();
+	wait( 1 );
+	
+	
+	// bind objects to each other and then wait
+	$tunneldropshield.bind( $tunneldrop );
+	$tunneldrop.bind( $tunneldrop_origin1 );
+	wait( 0.1 );
+	
+	// cause the shield to start blinking
+	thread seqtunneldropshieldblink();
+	
+	// causes the tunnel to move downwards and collide with the root
+	$tunneldrop_origin1.rotateZup( 15 );
+	$tunneldrop_origin1.rotateXdown( 5 );
+	$tunneldrop_origin1.movenorth( 128 );
+	$tunneldrop_origin1.time( 1 );
+	wait( 1 );
+	
+	// this is where the tunnel actually collides with the root
+	$tunneldrop.earthquake( 1.15 , 1 );
+	
+	wait( .1 );
+	
+	thread circuitbroke();
+	
+	// this is where the tunnel bounces back off the root slightly and then lands back on it again
+	$tunneldrop_origin1.rotateZdown( 7 );
+	$tunneldrop_origin1.rotateXdown( 1 );
+	$tunneldrop_origin1.time( 1 );
+	wait( .1 );
+	
+	$tunneldrop_origin1.rotateZup( 7 );
+	$tunneldrop_origin1.rotateXdown( 10 );
+	$tunneldrop_origin2.movewest( 32 );
+	$tunneldrop_origin1.time( 1 );
+	wait( .1 );
+	
+	// here we unbind the tunnel and bind it to the new origin on the root	
+	$tunneldrop.unbind();
+	$tunneldrop.bind( $tunneldrop_origin2 );
+	wait( 0.1 );
+	
+	
+	// this is for when the tunnel travels down the first leg of the root
+	$tunneldrop.earthquake( .25 , 2.4 );
+		
+	$tunneldrop_origin2.rotateXdown( 55 );
+	$tunneldrop_origin2.time( 1.35 );
+	$tunneldrop_origin2.movedown( 128 );
+	$tunneldrop_origin2.movewest( 280 );
+	wait( 1.25 );
+	
+	// this is for when the tunnel travels down the second leg of the root
+	$tunneldrop_origin2.rotateXdown( 60 );
+	$tunneldrop_origin2.time( 1.25 );
+	$tunneldrop_origin2.movedown( 600 );
+	$tunneldrop_origin2.movewest( 450 );
+	wait( 1.15 );
+	
+	// this is for when the tunnel falls off into the void
+	$tunneldrop_origin2.rotateXdown( 75 );
+	$tunneldrop_origin2.time( 3 );
+	$tunneldrop_origin2.movedown( 2048 );
+	$tunneldrop_origin2.movewest( 128 );
+	waitfor( $tunneldrop_origin2 );
+	
+	// now we remove everything as its not needed anymore``
+	$tunneldrop.remove();
+	$tunneldrop_origin1.remove();
+	$tunneldrop_origin1.remove();
+	wait( .5 );
+	
+	//thread circuitbroke();
+	
+}
+
+void seqtunneldropshieldblink()
+{
+	$tunneldropshield.hide();
+	wait( .1 );
+	
+	$tunneldropshield.show();
+	wait( .1 );
+
+	$tunneldropshield.hide();
+	wait( .1 );
+	
+	$tunneldropshield.show();
+	wait( .1 );
+
+	$tunneldropshield.hide();
+	wait( .1 );
+	
+	$tunneldropshield.show();
+	wait( .1 );
+
+	$tunneldropshield.hide();
+	wait( .1 );
+	
+	$tunneldropshield.show();
+	wait( .1 );
+
+	$tunneldropshield.hide();
+	wait( .1 );
+	
+	$tunneldropshield.remove();
+}
+
+//-- Circuit is broke in the tunnel chain... and power fails in the tunnel
+
+void circuitbroke()
+{
+
+	$forcefieldSound_remove3.stoploopsound();
+	$forcefieldSound_remove3.remove();
+			
+	$forcefield_2.playsound ( "sound/ships/drull/drull_forcetrapstop.wav", 6, 1, 512 );
+			
+	$forcefield_2.hide();
+	wait( .1 );
+		
+	$forcefield_2.show();
+	wait( .1 );
+		
+	$forcefield_2.hide();
+	wait( .1 );
+			
+	$forcefield_2.show();
+	wait( .1 );
+		
+	$forcefield_2.hide();
+	wait( .1 );
+			
+	$forcefield_2.show();
+	wait( .1 );
+			
+	$forcefield_2.hide();
+	wait( .1 );
+				
+	$forcefield_2.show();
+	wait( .1 );
+		
+	$forcefield_2.hide();
+	wait( .1 );
+			
+	$forcefield_2.show();
+	wait( .1 );
+			
+	$forcefield_2.hide();
+	wait( .1 );
+				
+	$forcefield_2.show();
+	wait( .1 );
+		
+	$forcefield_2.remove();
+	
+	$forcefield_clip.remove();
+}
+
+
+//autosave
+void autosave()
+{
+	globalCommon_Autosave();
+}
+
+//----------------------------------------------------------------------------------------------
+void ambientDamageLoop()
+{
+	string basesoundname1;
+	string basesoundname2;
+	string fullsoundname;
+	float mag;
+	basesoundname1 = "sound/impact/explosion/expl_rockdebr1.wav";
+	basesoundname2 = "sound/impact/explosion/expl_lowfreq.wav";
+	
+	spawn( "func_earthquake", "targetname", "atmosphereQuake");
+	wait( 0.05 );
+	while( 1 )
+	{
+		mag = randomfloat( 0.4 ) + 0.6;
+		$atmosphereQuake.duration( randomfloat( 1.0 ) + 0.5 );
+		$atmosphereQuake.magnitude( mag );
+	
+		if( randomint( 2 ) == 0 )
+			fullsoundname = basesoundname1;
+		else
+			fullsoundname = basesoundname2;
+		//fullsoundname = fullsoundname + (1 + randomint( 3 )) + ".wav";
+		
+
+		wait( randomint( 15 ) + 1 );
+		$atmosphereQuake.playsound( fullsoundname, 1, 1, 10000 );
+		trigger( "$atmosphereQuake" );
+		wait( 0.05 );
+	}
+}
+
+void growl()
+{
+	$drull_lift1.playsound( "sound/chars/basher/bash_amb1.wav" , 3 , 5 , 8384 );
+}
+
+//--inaccesable doors
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+
+
+
+void m8l2bHostageChoice_failsafe()
+//___IMPORTANT___ NAME THIS FUNCTION AFTER THE NAME OF THE BRANCHDIALOG
+//___EXAMPLE___ $telsia.branchdialog("entDeck11IGM3BranchingDialog");
+//___NAME_IS_THEN___ entDeck11IGM3BranchingDialog
+//___FULL_NAME_IS_THEN___ entDeck11IGM3BranchingDialog_failsafe
+//___WARNING___ it is CASESENSITIVE: xxx_failsafe != xXx_FailSave
+//
+//HZM gameupdate chrissstrahl - this thread is called by the gamex86.dll
+// if a the branchdialog is started with the name prefixed of _failsafe
+//THIS IS A FAILSAFE thread, it makes sure that a option is selected upon a branch dialog
+//otherwise a single player could brake the script or stall the game
+//THIS NEEDS TO BE ADJUSTED FOR EVERY LEVEL-SCRIPT THAT CONTAINS A BRANCHDIALOG
+{
+	string sThread;
+	//___IMPORTANT___ ADJUST THE NAME OF THE THREAD TO RUN HERE
+	sThread = "cinematicArm_InigorDeath_Start";
+	
+	//start thread, this is the actual failsafe
+	runThreadNamed(sThread);
+}
+
+void coop_manageEntities()
+//this manages entities without tragetname, so that we can alter them as we see fit
+{
+	float fEntity;
+	entity e;
+	vector vOrigin;
+	for(fEntity=0;fEntity<1024;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+//grab the data and put it into vars, for significant faster processing!
+			vOrigin		= e.getOrigin();			
+			if(	vOrigin == '-6656 -544 -1984' ||
+				vOrigin == '-2808 4136 -1252' ||
+				vOrigin == '-8064 -1024 -1952' ||
+				vOrigin == '-7060 -2112 -1952' ||
+				vOrigin == '-8064 768 -1952'
+				)
+			{
+				//kill trigger, when player jumps off
+				e.damagetype("falling");
+			}
+		}
+	}
+}
+
+void coop_lift1Activate()
+//------------------------------------------------------------------------------
+//this calls the lift up or down, if a player enters the trigger
+//------------------------------------------------------------------------------
+{
+entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		entity eCaller;
+		eCaller = eTrigger.getLastActivatingEntity();
+		//eCaller.hudprint("trigger: "+eTrigger.getTargetName()+", STATE:"+float_liftState+"\n");
+		
+		$coop_tM_lift1_Call_up.nottriggerable();
+		$coop_tM_lift1_Call_down1.nottriggerable();
+		$coop_tM_lift1_Call_down2.nottriggerable();
+		$coop_tM_lift1_Call_down3.nottriggerable();
+		if(globalCoop_check_entityValidPlayerTargetname(eCaller) == 1)
+		{
+			if(float_liftState == 1 && eTrigger.getRawTargetName() == "coop_tM_lift1_Call_down1")
+			{
+				wait(1);
+			}
+			else if(float_liftState == 1)
+			{
+				float_liftState = 3;
+				coop_liftUp1();
+				float_liftState = 2;
+			}
+			else if(float_liftState == 2 && eTrigger.getRawTargetName() == "coop_tM_lift1_Call_up")
+			{
+				wait(1);
+			}
+			else if(float_liftState == 2)
+			{
+				float_liftState = 3;
+				coop_liftDown1();
+				float_liftState = 1;
+			}
+		}
+		$coop_tM_lift1_Call_up.triggerable();
+		$coop_tM_lift1_Call_down1.triggerable();
+		$coop_tM_lift1_Call_down2.triggerable();
+		$coop_tM_lift1_Call_down3.triggerable();
+	}
+}
+
+void coop_liftDown1()
+//------------------------------------------------------------------------------
+//make lift go down
+//------------------------------------------------------------------------------
+{
+	if(cvar_bool_multiplayer){//Multiplayer
+	//doors close
+		thread liftDoor1CloseLeft();
+		thread liftDoor1CloseRight();
+	//wait for doors to close
+		wait( 2 );
+	//Movelift
+		$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1.1, 1500 );
+		globalAccelMove( $drull_lift1, '0 0 -744', 7, "rampupdown", "" );
+		$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.1, 1500 );
+		wait( .5 );
+	//Open doors
+		thread liftDoor1OpenLeft();
+		thread liftDoor1OpenRight();
+		wait(5);
+	}
+}
+
+
+void coop_liftUp1()
+//------------------------------------------------------------------------------
+//allow the lift to go up again
+//------------------------------------------------------------------------------
+{
+	thread liftDoor1CloseLeft();
+	thread liftDoor1CloseRight();
+	wait( 2 );//wait for doors to close
+
+	//wait( .5 ); 
+	$drull_lift1.playsound( "sound/environment/machine/lift4.wav", 8, 1.1, 1500 );
+	globalAccelMove( $drull_lift1, '0 0 744', 7, "rampupdown", "" );
+	$drull_lift1.playsound( "sound/environment/machine/lift4stop.wav", 8, 1.1, 1500 );
+	wait( .5 );
+	thread liftDoor1OpenLeft();
+	thread liftDoor1OpenRight();
+	wait(5);
+}
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'600 600 400','-9299 2757 30');
+}
+
+void coop_turnTowards(entity eCenterOfAttention)
+//------------------------------------------------------------------------------
+//turn all players toward a specific actor or level object
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eCenterOfAttention))
+	{
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					ePlayer.turnTowardsEntity(eCenterOfAttention);
+				}
+			}
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m8l2b-drull_ruins2");
+}
+
+
+

@@ -1,0 +1,925 @@
+//devmap coop_rescueChell
+//geometry started in 2009 by Daedalus
+//script by chrissstrahl 2015.11.10 ulm, germany
+
+void main();
+void introCinematic();
+void introCinematicEnd();
+void hoverCar();
+void towerToggleFf();
+void chellCellUnlock();
+void rebelWomanAct();
+void wakeUpSackgasseDude();
+void barDrink();
+void setObjective_goToBar();
+void setObjective_lookAtStars();
+void setObjective_beamDown();
+void setObjective_enterTemple();
+void closed_door_sound();
+void closed_door_sound_2();
+void secretGiveStaff();
+void secretAlternativeRoute();
+void secretAlternativeRouteTaken();
+void plantHeal();
+void secretCanBeFoundHere();
+void chellRepairThis();
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+float	float_barCurrentGlasNum=0;
+float	float_barLookingAtTheStars=7;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void main()
+{
+//register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Tricorder-stx.tik");
+	
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	//get the dude overto his table
+	$misterX.anim("ent-table-laptop-gesture1");
+	$misterX.angle(166);
+	//$misterX.origin('1900.55 -1886.45 -1.00');	
+	$misterX.origin('1900 -1886 -1.00');
+	
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl - level author
+	coop_string_levelAuthor		= "Daedalus^0_^8&^0_^8Chrissstrahl";//level creator, team and involved, keep it short(10 chars)!!!
+
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "The USS Atlantis will bring you to the planet.";
+	coop_string_objectiveItem2 = "Go to the bar have something to drink.";
+	coop_string_objectiveItem3 = "You will soon reach the planet, looking at the stars makes time fly by.";
+	coop_string_objectiveItem4 = "Go to Transporter Room and get beamed down to the planet.";
+	coop_string_objectiveItem5 = "Make your way to the temple and locate the entrance.";
+	coop_string_objectiveItem6 = "Enter the Temple and find Chell";
+	coop_string_objectiveItem7 = "Free Chell and Protect him.";
+	coop_string_objectiveItem8 = "Evacuate Chell, use the pattern enhancers.";
+	
+	coop_string_objectiveTacticalInfo1 = "The plants on the planet have a healing effect on Humanoids";
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Die USS Atlantis wird Sie zum Planeten bringen.";
+	coop_string_objectiveItem2_deu = "Gehen Sie zur Bar und trinken Sie etwas.";
+	coop_string_objectiveItem3_deu = "Betrachten Sie die Sterne, Sie werden den Planet sehr bald erreichen.";
+	coop_string_objectiveItem4_deu = "Gehen Sie zum Transporter Raum und lassen Sie sich runter beamen.";
+	coop_string_objectiveItem5_deu = "Erreichen Sie den Tempel und finden Sie den Eingang.";
+	coop_string_objectiveItem6_deu = "Betreten Sie den Tempel und finden Sie Chell.";
+	coop_string_objectiveItem7_deu = "Befreien Sie Chell und sch$$u$$tzen Sie ihn.";
+	coop_string_objectiveItem8_deu = "Evakuieren Sie Chell, nutzen Sie die Musterverst$$a$$rker.";
+	
+	coop_string_objectiveTacticalInfo1_deu = "Die Pflanzen des Planeten haben eine heilende Wirkung.";
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "Rescue Chell! Chell visited an Idryll temple to study Idryll technology. Unfortunately Idryll seperatists have captured Chell and hold him hostage.";
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story_deu = "Retten Sie Chell! Chell besuchte einen idryll Tempel um die idryllische Technolgie zu studieren. Seperatisten  haben Chell gefangen genommen und halten ihn als Geisel";
+	
+//setup pattern enhanchers
+	$enhancher0.anim("off");
+	$enhancher0beam.hide();
+	$enhancher1beam.hide();
+	$enhancher2beam.hide();
+	$enhancher3beam.hide();
+	$enhancherDamaged.anim("off");
+	$callvolumeTrigger.requiredentity("chell");
+	
+//setup actors - uss atlantis
+	$alexia.anim("ent-table-gesture2");
+	$alexia.archetype("");
+	$alexia.headwatchTarget("$katarina" , 5);
+	
+	$katarina.anim("ent-library-seat-idle-look");
+	$katarina.killattach();//remove attached weapon
+	$katarina.headwatchTarget("$alexia" , 5);
+	
+	$repair_lady.anim("cin-m3_hunch");
+	$repair_lady.archetype("");
+	
+	$remote_guy.anim("ent-datapad-use");
+	$remote_guy.archetype("");
+	
+	$buroWoman.anim("ent-library-seat-idle-look");
+	$buroWoman.archetype("");
+	
+	$trans_guy.anim("idle");
+	$trans_guy.archetype("");
+	
+	$alexia.pushable(0);
+	$katarina.pushable(0);
+	$remote_guy.pushable(0);
+	$repair_lady.pushable(0);
+	$remote_guy.pushable(0);
+	$buroWoman.pushable(0);
+	$trans_guy.pushable(0);
+	
+	$remote_guy.useactorweapon( "EnterpriseDatapad" );
+	
+//setup actors - starfleet brefing
+	$munro.anim("idle");
+	
+	$munro.pushable(0);
+	$misterX.pushable(0);
+	
+//remove tricorder description text
+	$misterX.archetype("");
+	$lamp.archetype("");
+	
+//allow player to leave and start the rescue
+	$teleporttoturbo.triggerable();
+		
+//make force fields >solid<, was >notsolid< to allow pathnodes to connect for working paths
+	$forceField.solid();
+	$chellChellPannelRedAndForceField.solid();
+
+//animate chell, make hm look weak and collapsed
+	
+	globalCoop_armory_putAwayWeapon($chell);
+	$chell.anim("cin-m3_idle-collapse");
+	
+//remove archetype for all idryll
+	float i;
+	entity eActor;
+	
+	/* //disabled 2018.03.22
+	for(i=0;i<18;i++){
+		eActor = getEntity("rebel"+i);
+		if(doesEntityExist(eActor)){
+			eActor.archetype("");
+		}
+	}
+	
+	$templeEnergyDispenser.archetype("");
+	$templeHealthDispenser.archetype("");
+	$rebelWoman.archetype("");
+	*/
+		
+//test
+/*
+	entity e;
+	//e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin","1130 -1621 50","targetname","test0");
+	wait(0.1);
+	e.scale(0.7);
+	e = spawn("Object","model","sysimg/icons/mp/team_red.spr","origin","1200 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/items/armor.spr","origin","1300 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/items/holdableitem_transporter.spr","origin","1400 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/items/powerup_speed.spr","origin","1500 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/items/powerup_strength.spr","origin","1600 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/mp/actionhero.spr","origin","1700 -1721 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/mp/actionhero_icon.spr","origin","1700 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/mp/award_demolitionist.spr","origin","1800 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/mp/diffusion_bombOnground.spr","origin","1900 -1621 50","scale","0.5");
+	e = spawn("Object","model","sysimg/icons/mp/team_blue.spr","origin","1900 -1700 50","scale","0.5");
+	*/
+}	
+	
+void introCinematic()
+{
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	wait(0.25);
+	
+	if(doesEntityExist(ePlayer)){	
+		$misterX.headwatch(ePlayer);
+	}
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/ahhh_munro.mp3", 1, 80000, 0);
+	wait(2);
+	
+	//paint it black
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	
+	spawn("camera","targetname","cam1");
+	
+	wait(0.6);
+	
+	//setup mister x
+	$misterX.headwatchtarget("none",10);//reset head
+	$misterX.anim("ent-mainchair-gesture");
+	$misterX.angle(180);
+	$misterX.origin('1887.00 -1505.00 -1.00');
+	
+	//setup munro
+	$munro.show();
+	
+	cinematic();
+	freezeplayer();
+	letterbox ( .1 );
+	
+	$cam1.follow( $introBrefing );
+	$cam1.cut();
+	wait( 0.1);
+	cuecamera($cam1);
+
+	//start the cut scene
+	cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+	
+	wait(1);
+	
+	//paint it black
+	cam_fadeout( 4 , 0, 0, 0, 1, 0 );
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/please_seat.mp3", 1, 80000, 0);//plz sit
+	waitForDialog($misterX);
+	wait(0.5);
+	$munro.anim("ent-seta_sit-down");
+	waitForAnimation($munro,"ent-seta_sit-down",0);
+	//$munro.anim("ent-seta_sit-idle");
+	$munro.anim("ent-mainchair-gesture");
+	
+	/*
+	wait(0.5);
+	$misterX.playdialog("localization/sound/dialog/rescueC/situation.mp3", 1, 80000, 0);//I am sorry for interruping you vacation but this situation that has
+	wait(7.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/friend_chell.mp3", 1, 80000, 0);//your friend chell needs help
+	wait(4.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/as_you_aware.mp3", 1, 80000, 0);//as you are aware chell joint a idryll excavation team to study...
+	wait(9.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/donnt_hostage.mp3", 1, 80000, 0);//here is what you don't know, idryll seperatists
+	wait(7.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/atlantis_infiltrate.mp3", 1, 80000, 0);//the uss atlkantis will bring you to the planet
+	wait(7.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/makeyourway.mp3", 1, 80000, 0);//there seams to be a installation near by
+	wait(3.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/if_lucky.mp3", 1, 80000, 0);//there seams to be a installation near by
+	wait(9.5);
+	
+	$misterX.playdialog("localization/sound/dialog/rescueC/thatsAll.mp3", 1, 80000, 0);//there seams to be a installation near by
+	wait(4);
+	
+	
+	wait(0.5);
+	$munro.playdialog("localization/sound/dialog/m2l2/munro_thanksir2.mp3", 1, 80000, 0);//thank you/thank you sir
+	waitForDialog($munro);
+	*/
+	
+	thread introCinematicEnd();
+}
+
+void introCinematicEnd()
+{
+//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("incomplete" , 1 , 1 );
+	
+//paint it black
+	//cam_fadeout( 0.5 , 0, 0, 0, 1, 0 );
+	
+//wait for the screen to be completely black
+	wait(0.5);	
+	
+//munro should not be there now
+	$munro.hide();
+	$munro.notsolid();
+	
+//remove mister x
+	$misterX.remove();
+	
+	noncinematic();
+	clearletterbox( .1 );
+	releaseplayer();	
+	cueplayer();
+	
+//relocate spawn positions
+	$ipd1.origin('6144 -15528 -16');
+	$ipd2.origin('6144 -15592 -16');
+	$ipd3.origin('6096 -15536 -16');
+	$ipd4.origin('6096 -15592 -16');
+	$ipd5.origin('6096 -15592 -16');
+	$ipd6.origin('6304 -15632 -16');
+	$ipd7.origin('6368 -15632 -16');
+	$ipd8.origin('6368 -15496 -16');
+
+//warp all players to their spawn location
+	if(!cvar_bool_multiplayer){
+		$player.origin('6128 -15568 -16');
+		$player.angle(360);
+		
+		wait(0.25);
+		
+		//remove black
+		cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+		
+		//set objective
+		thread setObjective_goToBar();
+		
+		//exit here
+		return;
+	}
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			thread globalCoop_player_warpToSpawn(ePlayer);
+		}
+	}
+	
+	wait(0.25);
+		
+	//remove black
+	cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+	
+	//set objective
+	thread setObjective_goToBar();
+}
+
+void hoverCar()
+{
+//play hover car move sound
+	triggerEntity($hovercar_sound);
+	
+//bind elements to origin so they can be moved by script command, needs to be done only once
+	$hovercar.bind($hovercar_origin);
+	$hovercarClip.bind($hovercar_origin);
+	$hovercar_crate2.bind($hovercar_origin);
+	$hovercar_crate3.bind($hovercar_origin);
+	$hovercar_crate4.bind($hovercar_origin);
+	$hovercar_crate5.bind($hovercar_origin);
+	$hovercar_crate6.bind($hovercar_origin);
+	$hovercar_crate7.bind($hovercar_origin);
+	$hovercar_sound.bind($hovercar_origin);
+	
+//mover the hover car some where
+	$hovercar_origin.movewest(1100);
+	$hovercar_origin.movewest(6);
+	
+//wait for it to stop
+	waitFor($hovercar_origin);
+	
+//turn off sound
+	triggerEntity($hovercar_sound);
+}
+
+void towerToggleFf()
+{
+	$rebel0.ai_on();
+	$rebel1.ai_on();
+	
+	$towerFfSymbol.missionObjective(0);
+	
+	wait(4);
+	$rebel1.aggressive(1);
+}
+
+void chellCellUnlock()
+{
+	//grab trigger, grab player, make player talk
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	$chellChellPannelGreen.show();
+	
+//set new objective marker
+	$chell.missionObjective(0);
+	$chellEvacObjectivePointer.missionObjective(1);
+	
+	//make sure the player can not push arround the ai
+	//this fixes a bug reported by ricardo (Admiral Abu)
+	$chell.pushable(0);
+	$chell.mass(999999);
+	
+//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("complete" , 6 , 1 );	
+	
+	$munro.origin($chell.getOrigin());
+	
+	$munro.playdialog( "localization/sound/dialog/ent_m2/munro_chell2.mp3", 1, 20000, 0 );
+	
+	$chell.anim("crouch_idle");
+	wait(0.25);
+	$chell.animateOnce("from_crouch");
+	waitForAnimation($chell,"from_crouch");
+	$chell.anim("idle");
+	
+	//$chell.playdialog( "localization/sound/dialog/ent_m2/chell_muchtime.mp3", 1, 20000, 0 );
+	$chell.playdialog( "localization/sound/dialog/dallas01/chell_thanks.mp3", 1, 20000, 0 );
+	waitForDialog($chell);
+	
+	wait(0.25);
+	$chell.walkto("$chellPickup0","walk");
+	waitfor($chell);
+	$chell.animateOnce("ent-datapad_putaway");
+	waitForAnimation($chell,"ent-datapad_putaway");
+	$chell.anim("idle");
+	$chellHypo.remove();
+	$chellTricorder.remove();
+	$chellRock.remove();
+	wait(0.5);
+	$chell.walkto("$chellPickup1","walk");
+	waitfor($chell);
+	$chell.animateOnce("cin-m3_pointing");
+	waitForAnimation($chell,"cin-m3_pointing");
+	$chell.anim("idle");
+	$chellWeapon0.remove();
+	wait(0.1);
+	$chell.animateOnce("ent-datapad_putaway");
+	waitForAnimation($chell,"ent-datapad_putaway");
+	$chell.anim("idle");
+	$chellWeapon1.remove();
+	globalCoop_armory_restoreWeapon($chell);
+	
+	$chell.ai_on();
+	$chell.followTarget($player);
+
+	ePlayer.simplePlayDialog( "localization/sound/dialog/m2l2/munro_chell2.mp3" , 1 , 2048 );	
+	wait(3);
+	
+//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("complete" , 7 , 0 );
+	globalCoop_objectives_update("incomplete" , 8 , 1 );
+	
+//allow now another scripted sequence near pattern enhancers
+	$chellRepairThisTrigger.triggerable();
+}
+
+void rebelWomanAct()
+{
+	$rebelWoman.ai_on();
+	$rebelWoman.angle(90);
+}
+
+void wakeUpSackgasseDude()
+{
+	$rebel11.ai_on();
+}
+
+void makeSureThatDudeWakesUp()
+{
+//turn arround, to look at player
+	$rebel4.angle(110);
+	
+//enable ai
+	$rebel4.ai_on();
+	$rebel4.aggressive(1);
+}
+
+
+void playerCallsChell()
+{
+	//grab trigger, grab player, make player talk
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	//ePlayer.simplePlayDialog( "localization/sound/dialog/dallas02/munro_comingchell.mp3" , 1 , 2048 );
+	ePlayer.simplePlayDialog( "localization/sound/dialog/dallas02/munro_comingchell.mp3" , 1 , 2048 );
+	
+//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("complete" , 6 , 0 );
+	globalCoop_objectives_update("incomplete" , 7 , 1 );
+}
+
+void barDrink()
+{
+	if(float_barCurrentGlasNum > 10){
+	
+		if(doesEntityExist($t16))
+			$t16.remove();//remove usable hand
+			
+		if(float_barCurrentGlasNum > 11)
+			return;
+	}
+	
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+
+	entity eGlas;
+	eGlas = getEntity("barGlas"+float_barCurrentGlasNum);
+	eGlas.remove();
+	float_barCurrentGlasNum++;
+	
+	wait(0.1);
+	
+	if(doesEntityExist(ePlayer)){
+		ePlayer.playsound("sound/player/player_gulp.wav",0,2,128);
+	}
+	
+	if(float_barCurrentGlasNum == 1){
+		$t16.missionObjective(0);
+		$objectiveMarkerLookAtStars.missionObjective(1);
+	
+		globalCoop_objectives_update("complete" , 2 , 1 );//go to bar, drink
+		globalCoop_objectives_update("incomplete" , 3 , 1 );//look at the stars
+		
+		//allow new objective to be completed
+		wait(2);
+		$setObjective_beamDown.triggerable();
+		
+		//make transporter triggers work now
+		float i;
+		entity eTrans;
+		for(i=0;i<6;i++){
+			eTrans = getEntity("transporterTrigger"+i);
+			eTrans.triggerable();			
+		}
+	}
+}
+void setObjective_goToBar()
+{
+	$t16.missionObjective(1);
+	//update objectives - go to bar
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//go to bar, drink
+}
+void setObjective_lookAtStars()
+{
+}
+void setObjective_beamDown()
+{
+	float_barLookingAtTheStars--;
+	if(float_barLookingAtTheStars > 0){
+		return;
+	}
+	
+	//we don't need this trigger anymore
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.remove();	
+	
+	//set new markers
+	$objectiveMarkerLookAtStars.missionObjective(0);
+	$objectiveMarkerTransporterRoomPad.missionObjective(1);
+	$objectiveMarkerTransporterRoom.missionObjective(1);
+
+	
+	//drop ship out of warp now, show space arround ship
+	$warpStripes.remove();
+	wait(0.25);
+	$skyModel.bind($skyModel_origin);
+	$skyModel.show();
+	$skyModel_origin.moveeast(600);
+	$skyModel_origin.time(3);
+	
+	$skyPlanetModel.bind($skyPlanetModel_origin);
+	$skyPlanetModel.show();
+	$skyPlanetModel_origin.moveeast(600);
+	$skyPlanetModel_origin.time(3);
+	
+	wait(3);
+	
+	//update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//uss atlantis will bring you
+	globalCoop_objectives_update("complete" , 3 , 0 );//look at the stars
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//beam down
+}
+void setObjective_beamDownComplete()
+{
+	//remove planet in the sky
+	$skyPlanetModel.hide();
+	
+	//set mission objective markers
+	$towerFfSymbol.missionObjective(1);
+	$objectiveMarkerTransporterRoomPad.missionObjective(0);
+	$objectiveMarkerTransporterRoom.missionObjective(0);
+	
+	//update objective
+	globalCoop_objectives_update("complete" , 4 , 0 );//beam down
+	globalCoop_objectives_update("incomplete" , 5 , 1 );//beam down
+	
+	
+//give and register weapon in the script inventory (players respawn with this)	
+	globalCoop_player_giveAll("models/weapons/worldmodel-BurstRifle.tik",-1);
+	globalCoop_player_giveAll("models/weapons/worldmodel-FieldAssaultRifle.tik",-1);
+//make players use this weapon
+	globalCoop_player_giveAll("models/weapons/worldmodel-Phaser-stx.tik",1);
+}
+void setObjective_enterTemple()
+{
+	//update objectives - found temple, now enter it
+	globalCoop_objectives_update("complete" , 5 , 1 );//find temple
+	globalCoop_objectives_update("incomplete" , 6 , 1 );//enter and find chell
+	
+	//set mission objective markers
+	$chell.missionObjective(1);
+}
+
+void closed_door_sound()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/doors/door_locked.wav");
+}
+
+void closed_door_sound_2()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/environment/computer/lcars_no.wav");
+}
+
+void secretGiveStaff()
+{
+//register weapon in the script inventory (players respawn with this)
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-drull-staff.tik");
+//make all players use that weapon imidiatley
+	globalCoop_armory_useTiki("models/weapons/worldmodel-drull-staff.tik");
+	
+	$secretDrullStaff.notsolid();
+	wait(2);
+	$secretDrullStaff.remove();
+}
+
+void secretAlternativeRoute()
+{
+	triggerEntity($secretExplosionEffect1);
+}
+
+void secretAlternativeRouteTaken()
+{
+	triggerEntity($secretExplosionEffect0);
+	$rebel0.ai_on();
+	$rebel0.aggressive(1);
+	$rebel1.ai_on();
+	
+	$towerFfSymbol.missionObjective(0);
+}
+
+void plantHeal()
+{
+	//get trigger that was activating this function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//get location of the trigger
+	vector vOrigin;
+	vOrigin = eTrigger.getOrigin();
+	
+	//check each player if he is within a specific radius to the plant
+	//the closer the faster you get healed
+	entity ePlayer;
+	float fPlayerIdInUse;
+	float fDistance;
+	float fHeal;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(!cvar_bool_multiplayer){
+			ePlayer = getentity("player");
+		}
+		if(doesEntityExist(ePlayer) == 1){
+			if(ePlayer.getHealth() > 0 && ePlayer.getHealth() < 200 ){
+				fDistance = vectorLength(vOrigin - ePlayer.getOrigin());
+				
+				if(fDistance < 256){
+					fHeal = (ePlayer.getHealth() + 2);
+					if(fHeal > 200){
+						fHeal = 200;
+					}
+					ePlayer.health(fHeal);
+					
+					//only do this once in singleplayer
+					if(!cvar_bool_multiplayer){
+						return;
+					}
+				}
+			}
+		}
+	}	
+}
+
+void secretCanBeFoundHere()
+{
+	//get trigger that was activating this function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	//get player that was activating the trigger
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	//get player name
+	string sNameOfFinder;
+	sNameOfFinder = getStringPlayername(ePlayer);
+
+//german text
+	if(getStringPlayerLanguage(ePlayer) == "Deu" ){
+		ePlayer.hudprint( "Sie sind ganz nah dran ein Versteck zu finden\n");
+	}
+//english text
+	else{
+		ePlayer.hudprint("You are close to finding a secret here\n");
+	}
+	
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0 || coop_float_immobilizeActive != 1){
+			//german text
+				if(getStringPlayerLanguage(ePlayer) == "Deu" ){
+					ePlayer.hudprint( sNameOfFinder + " ^8ist nahe eines Verstecks\n");
+				}
+			//english text
+				else{
+					ePlayer.hudprint(sNameOfFinder + " ^8is close to a hidden secret\n");
+				}
+			}
+		}
+	}	
+}
+
+void extroCinematic()
+{
+	if($world.getFloatVar("extroStartet") == 1.0 ){
+		return;
+	}
+	$world.setFloatVar("extroStartet", 1.0);
+	
+	//delete starfleet munro, and repair woman
+	$munro.remove();
+	$repair_lady.remove();
+	$chellEvacObjectivePointer.missionObjective(0);
+	$chellEvacObjectivePointer.remove();
+	
+	spawn("camera","targetname","cam2");
+	spawn("camera","targetname","cam3");
+	letterbox ( .5 );
+	
+	if(getCvarInt("g_gameType") == 0){
+		$player.notsolid();
+		$player.hide();
+		$player.nodamage();
+	}
+	
+	//paint it black
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait(0.5);
+	
+	cinematic();
+	freezeplayer();
+	spawn("actor","model","models/char/hazardteam_munro.tik","origin","710 -3827 -1563","targetname","munro","ai_off","1");
+	wait(0.1);
+	
+	$munro.killattach();//remove weapon
+	$munro.angle(180);
+	$chell.angle(180);
+	
+	//make sure chell does not RUN or act otherwise strange with a an8imation during transport
+	$chell.ai_off();
+	$chell.anim("idle");
+	
+	$cam2.follow($templeExtroCinematic);
+	$cam2.cut();
+	cuecamera($cam2);
+	wait(0.1);
+	
+	//start the cut scene
+	cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+	wait(3);
+	$chell.animateOnce("tap-comm");
+	wait(2);
+	$chell.displayEffect("TransportOut","Federation");
+	$munro.displayEffect("TransportOut","Federation");
+	wait(2);
+	
+	//paint it black
+	cam_fadeout( 0.5, 0, 0, 0, 1, 0 );
+	wait(0.5);
+	
+	$chell.origin('6352 -15992 17');
+	$munro.origin('6352 -16064 17');
+	$munro.angle(0);
+	$chell.angle(0);	
+	
+	$cam3.follow($atlantisCinematicTransporterRoom);	
+	$cam3.cut();
+	cuecamera($cam3);
+
+	wait(0.1);
+	//start the cut scene
+	cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+	
+	wait(1.5);
+	$chell.displayEffect("TransportIn","Federation");
+	$munro.displayEffect("TransportIn","Federation");
+	wait(5);
+	
+	//paint it black
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait(1);
+	
+	noncinematic();
+	clearletterbox( .1 );
+	//releaseplayer();	
+	//cueplayer();
+	
+	//load next map
+	thread coop_endLevel();
+}
+
+void chellRepairThis()
+{
+	//dialog\ent_m2\chell_almost.mp3
+	//dialog\ent_m2\chell_almost2.mp3
+	//dialog\combat\chell_becareful.mp3
+	//dialog\combat\chell_coverme.mp3
+	//dialog\combat\chell_donesoonsir.mp3
+	//dialog\combat\chell_goodalex.mp3
+	//dialog\m5l2\chell_gotgo.mp3
+	//dialog\combat\chell_havetofin.mp3
+	//dialog\combat\chell_headsup.mp3
+	//dialog\combat\chell_herecome.mp3
+	//dialog\combat\chell_herewego.mp3
+	//dialog\ent_m2\chell_mal.mp3
+	//dialog\ent_m2\chell_muchtime.mp3
+
+	$chell.ai_off();
+	$chell.walkto("$patternEnhancerRepair","run");
+	waitFor($chell);
+	
+	globalCoop_actor_useWeapon($chell,"fed-tricorder-STX");
+	wait(0.1);
+	$chell.animateOnce("tricorder_scan180");
+	waitForAnimation($chell,"tricorder_scan180");
+	
+	$munro.playdialog( "localization/sound/dialog/ent_m2/munro_chell2.mp3", 1, 20000, 0 );
+	waitForDialog($munro);	
+	wait(0.25);
+	$chell.playdialog( "localization/sound/dialog/m5l2/chell_try.mp3", 1, 20000, 0 );
+	waitForDialog($chell);	
+	
+	globalCoop_armory_putAwayWeapon($chell);
+	wait(0.1);
+	//added to align chell correctly [b607]
+	$chell.walkto("$patternEnhancerRepair","walk");
+	waitfor($chell);
+	//$chell.origin($patternEnhancerRepair.getOrigin());
+	//$chell.origin('661 -3691 -1567');
+	//thread globalCoop_player_makeSolidASAP($chell);
+	$chell.turntoangle(160);
+	//end of changes [b607]
+	
+	$chell.animateOnce("kneel_working_down");
+	waitForAnimation($chell,"kneel_working_down");
+	$chell.animateOnce("kneel_working_idle");
+
+	$chell.anim("ent-idryll-shuttle");
+	wait(5);
+	
+//restore pattern enhancers
+	$enhancherDamagedSparks.remove();
+	wait(5);
+	$chell.playdialog( "localization/sound/dialog/borg02/chell_getout.mp3", 1, 20000, 0 );
+	$chell.anim("idle");
+	globalCoop_actor_useWeapon($chell,"CompressionRifleEnhanced");
+	//globalCoop_armory_restoreWeapon($chell);
+	$chell.ai_on();
+	$enhancher0.show();
+	$enhancherDamaged.remove();
+	wait(1);
+	$enhancher0.anim("on");
+	wait(2);
+	$enhancher0.anim("blue");
+	$enhancher1.anim("blue");
+	$enhancher2.anim("blue");
+	$enhancher3.anim("blue");
+	wait(3);
+	$enhancher0beam.show();
+	$enhancher1beam.show();
+	$enhancher2beam.show();
+	$enhancher3beam.show();
+	
+//reactivate trigger, player and chell needs to be inside to make it fire
+	$callvolumeTrigger.triggerable();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	cam_fadeIn( 1, 0, 0, 0, 0, 0 );
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+//credits, and history of map
+	globalCoop_main_globalCommand("nodamage");
+	globalCoop_huds_AddAll("coop_rescueChell_credits");
+	
+	wait(10);
+//load next map
+	thread globalCoop_mission_completed("coop_paradiseIsland");
+}
+

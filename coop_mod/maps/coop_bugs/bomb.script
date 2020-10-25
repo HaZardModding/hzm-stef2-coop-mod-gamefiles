@@ -1,0 +1,279 @@
+//$blowStoneClip.solid();
+void bomb_pickup()
+{
+//remove objective trigger
+	globalCoop_level_remove($objective_findBombs);
+//update Objective
+	thread objective_findBombsComplete();
+	
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		eTrigger.nottriggerable();
+		
+		entity ePlayer,eBomb;
+		ePlayer	= eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			if(ePlayer.getFloatVar("hasBomb") == 1)
+			{
+			//readd the hud, make clear that you can only carry one
+				globalCoop_huds_Add(ePlayer,"coopbugs_bomb"); //this was twice there for coop and sp changed [b607]
+				eTrigger.triggerable();
+				return;
+			}
+			globalCoop_huds_Add(ePlayer,"coopbugs_bomb");
+			ePlayer.setFloatVar("hasBomb",1);
+			
+			if(cvar_bool_multiplayer){
+				//print info text
+				if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+					ePlayer.hudprint("^5INFO:^8 Sie haben eine Bombe aufgenommen.\n");
+				}else{
+					ePlayer.hudprint("^5INFO:^8 You picked up a Bomb.\n");
+				}
+			}
+			else{
+				//print info text
+				if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+					centerprint("^5INFO:^8 Sie haben eine Bombe aufgenommen.\n");
+				}else{
+					centerprint("^5INFO:^8 You picked up a Bomb.\n");
+				}
+			}
+
+			eBomb = eTrigger.getTargetEntity();
+			if(doesEntityExist(eBomb))
+			{
+				if(cvar_bool_multiplayer)
+				{
+					eBomb.hide();
+					wait(120);
+					eBomb.show();
+					eTrigger.triggerable();
+				}
+				else
+				{
+					eBomb.remove();
+					eTrigger.remove();
+				}
+			}
+		}
+	}
+}
+
+
+void bomb_plant()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		entity ePlayer,eFakeBomb,eFakeBombSymbol,eBlowObject,eBlowObjectClip;
+		string sThread;
+		eFakeBomb		= getEntity(""+eTrigger.getstringvar("uservar1"));
+		eFakeBombSymbol	= getEntity(""+eTrigger.getstringvar("uservar1")+"Symbol");
+		eBlowObject		= getEntity(""+eTrigger.getstringvar("uservar2"));
+		eBlowObjectClip	= getEntity(eTrigger.getstringvar("uservar2")+"Clip");
+		sThread			= eTrigger.getstringvar("uservar4");
+		ePlayer			= eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(eFakeBomb))
+		{
+			if(doesEntityExist(ePlayer))
+			{
+				
+				if(ePlayer.getFloatVar("hasBomb") != 1)
+				{
+					eTrigger.playsound("sound/ships/drull/drull_accessdenies.wav",3,1,128);
+					
+					if(cvar_bool_multiplayer)
+					{
+						//print info text
+						if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+							ePlayer.hudprint("^5INFO:^8 Sie m$$ue$$ssen erst eine Bombe aufnehmen.\n");
+						}else{
+							ePlayer.hudprint("^5INFO:^8 You need to pickup a Bomb first.\n");
+						}
+					}
+					else
+					{
+						//print info text
+						if(	getStringPlayerLanguage(ePlayer) == "Deu" ){
+							ePlayer.hudprint("^5INFO:^8 Sie m$$ue$$ssen erst eine Bombe aufnehmen.\n");
+						}else{
+							ePlayer.hudprint("^5INFO:^8 You need to pickup a Bomb first.\n");
+						}
+					}
+
+					ePlayer.setFloatVar("hasBomb",0);//warning...
+					return;
+				}
+				ePlayer.setFloatVar("hasBomb",0);
+				ePlayer.removehud("coopbugs_bomb");
+			}
+			eTrigger.playsound("sound/ships/drull/drull_accessgranted.wav",3,1,128);
+			eFakeBomb.show();
+			eFakeBomb.fadein(.1,1);
+			if(doesEntityExist(eFakeBombSymbol))
+			{
+				eFakeBombSymbol.remove();
+			}
+			
+			if(cvar_bool_multiplayer)
+			{
+				float fPlayer;
+				entity ePlayer;
+				for(fPlayer=0;fPlayer<cvar_integer_sv_maxClients;fPlayer++)
+				{
+					ePlayer = getEntity("player"+fPlayer);
+					if(globalCoop_check_existingLivingEntity(ePlayer))
+					{
+						thread globalCoop_huds_Add(ePlayer,"coopBugs_bombWarning5");
+					}
+				}
+			}
+			else{
+				thread globalCoop_huds_Add($player,"coopBugs_bombWarning5");
+			}
+			
+			wait(5.6);
+			if(sThread != "")
+			{
+				thread globalCoop_level_callReliably(""+sThread);
+			}
+			spawn("sfx","model","fx/fx-explosion-idryllmortar.tik","origin",""+eBlowObject.getOrigin(),"scale","2");
+			eFakeBomb.doradiusdamage(500,"explosion",64,1000,1,0);//damage->1000
+			eFakeBomb.doradiusdamage(350,"explosion",128,500,1,0);//damage->500
+			eFakeBomb.doradiusdamage(75,"explosion",256,150,1,0);//damage->150
+			eFakeBomb.doradiusdamage(25,"explosion",384,75,1,0);//damage->75
+			eFakeBomb.doradiusdamage(25,"explosion",512,50,1,0);//damage->50
+			eFakeBomb.doradiusdamage(25,"explosion",768,25,1,0);//damage->25
+			eFakeBomb.remove();
+			
+		//make bird fly away from the tree if bomb blows
+			if(eBlowObject.getRawTargetname() == "blowStone")
+			{
+				$fakeBomb2Symbol.missionobjective(0);
+				$liftPannel1OnSymbol.missionobjective(1);
+				
+				$blowStone_bugSpawner.kill();
+				globalCoop_level_remove($blowStoneSoundTrigger);
+				globalCoop_level_triggerEntity($blowStoneSoundTrigger2);
+			}
+			else{
+				$fakeBomb0Symbol.missionobjective(0);
+			}
+		}
+		else
+		{
+			centerprint("can not plant bomb, fakebomb is missing");
+		}
+		if(doesEntityExist(eBlowObject))
+		{
+			if(doesEntityExist(eBlowObjectClip))
+			{
+				eBlowObjectClip.remove();
+			}		
+			spawn("sfx","model",""+eTrigger.getstringvar("uservar3"),"origin",""+eBlowObject.getOrigin());
+
+			eBlowObject.remove();
+		}
+	//remove entity that did play the bird flap sound
+		if(eBlowObject.getRawTargetname() == "blowStone")
+		{
+			wait(3);
+			globalCoop_level_remove($blowStoneSoundTrigger2);
+		}
+	}
+}
+
+void bomb_hubBlowUp()
+//blow up the hub and disable the electric field
+{
+	spawn("sfx","model","models/fx/fx-explosion-bomb.tik","origin",""+$hubPlasmaSteam.getOrigin());
+	thread bomb_hubDisable();
+	$hubPlasmaSteam.show();
+}
+
+void bomb_hubDisable()
+{
+//hub disabled not destroyed, remove the plasma effect
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger))
+	{
+		$hubBlowUpTrigger.health(0);
+		$hubPlasmaSteam.remove();
+	}
+//disable the triggers	
+	$hubElectricTriggerUsePannelOn.remove();
+	$hubElectricTriggerUsePannelOff.show();
+	$hubElectricTriggerUse.nottriggerable();
+	$hubBlowUpTrigger.nottriggerable();	
+//do general hub shutdown
+	$hubElectricTriggerBottom.remove();
+	$hubElectricTriggerTop.remove();
+	float fId;
+	entity e;
+	for(fId=0;fId<22;fId++)
+	{
+		e=getEntity("electricViewmode"+fId);
+		if(doesEntityExist(e))
+		{
+			e.remove();
+		}
+	}
+	$hubCabelActive.remove();
+	$hubCabelInactive.show();
+	$hubElectricTriggerUse.remove();
+	$hubBlowUpTrigger.remove();
+}
+
+
+void bomb_found()
+//player found bombs, spawn an ai, and show the player that "There is DANGER"
+{
+	vector vOrigin;
+	vOrigin=$bombsSpawnAi.getOrigin();
+	entity e;
+	e = spawn("Actor","model","char/bug_male.tik","origin",""+vOrigin,"immortal","1","angle","270");
+	wait(1);
+	e.archetype("");
+//check if the electric thingy has been shutdown allready
+	if(doesEntityExist($hubBlowUpTrigger))
+	{
+		if($hubBlowUpTrigger.getHealth() > 0)
+		{
+			e.ai_off();
+			e.anim("pain");
+			e.setcustomshader("electriclines");
+		//check if hub has been destroyed and electric shocks have ended
+			float fRounds;
+			for(fRounds=0;fRounds<16;fRounds++)
+			{
+				wait(.25);
+			//exit this thread and let the player kill the bug
+				if($hubBlowUpTrigger.getHealth() <= 0)
+				{
+					e.immortal(0);
+					e.clearcustomshader("electriclines");
+					e.ai_on();
+					return;
+				}
+			}
+		//if they didn't, just die
+			e.immortal(0);
+			e.suicide();
+		//[b608] chrissstrahl - this fixes the deadbody staying electrified even after the electric filed has been shut down
+			e.clearcustomshader("electriclines");
+		}
+	}
+	e.immortal(0);
+}
+
+
+
+
+
+

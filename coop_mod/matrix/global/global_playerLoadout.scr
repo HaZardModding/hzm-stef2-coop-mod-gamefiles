@@ -1,0 +1,1217 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//	Dependancies:
+//	#include "maps/global_scripts/global_common.scr"
+//
+//  Function:
+//	Loads out the player in terms of weapons, ammo, and viewmodes depending upon if the
+//	player typed the map command, or if they're playing through the single player game
+//
+//	How To Use:
+//	After the waitForPlayer, in the level script, call the AssignWeapons function,
+//	passing the level's map name as a string.  The key to this is the '-' dash in the
+//	middle of the map name must be changed to an '_' underscore.  For example,
+//	'm1l1a-borg_sphere' needs to be changed to 'm1l1a_borg_sphere'
+//
+//	External Functions:
+//	globalLoadout_AssignWeapons( strLevelName )
+//	strLevelName - String, pass a string into this function that is the converted map
+//				   name as mentioned above
+//
+//	Script By:    Benson R
+//  Created on:   9/17/2002
+//
+//  Last Edited:  Chris S
+//
+//--------------------------------------------------------------------------------------
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DEFINE SCRIPT
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--- loadout functions
+void globalLoadout_AssignWeapons( string strLevelName );
+
+//--- intra functions
+void globalLoadout_SecretWeapon();
+void globalLoadout_GiveWeapon( string strTiki );
+void globalLoadout_TakeWeapon( string strTiki );
+void globalLoadout_GiveArmor( float fltAmount );
+void globalLoadout_GiveAmmo( string strAmmo, float fltAmount );
+void globalLoadout_GiveViewmode( string strViewMode );
+void globalLoadout_TakeViewmode( string strViewMode );
+void globalLoadout_ClearAllViewmode();
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CONSTANTS
+
+//--- weapons list - replaced with real strings, this safes us the variables
+string WEAPON_NONE = "";
+
+//--- armor
+float ARMOR_LARGE = 150;
+float ARMOR_MEDIUM = 100;
+float ARMOR_SMALL = 50;
+
+//--- ammo types
+string AMMO_PLASMA = "Plasma";
+string AMMO_PHASER = "Phaser";
+string AMMO_DISRUPTOR = "Disruptor";
+string AMMO_IDRYLL = "Idryll";
+string AMMO_FED = "Fed";
+
+//--- view modes
+string VIEWMODE_TRACE_GAS = "tracegas";
+string VIEWMODE_STRUCTURAL_INTEGRITY = "structuralintegrity";
+string VIEWMODE_SEE_CLOAKED = "phaseshift";
+string VIEWMODE_NIGHT_VISION = "nightvision";
+string VIEWMODE_AIR_STRIKE = "torpedostrike";
+string VIEWMODE_DETECT_ENEMY = "enemydetect";
+string VIEWMODE_TRIPWIRE = "tripwire";
+string VIEWMODE_FORCE_VISIBLE = "forcevisible";
+string VIEWMODE_NONE = "none";
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  LOADOUT FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// globalLoadout_AssignWeapons
+// strLevelName - string, the actual map name, with the dash converted to an underscore
+// master function to call the levels loadout function
+//---------------------
+void globalLoadout_AssignWeapons( string strLevelName )
+{
+	//Original method, scripting language can't handle
+	//stuffcmd( "script thread globalLoadout_" + getcvar( "mapname" ) + "\n" );
+	string s;
+	s = "globalLoadout_" + strLevelName;
+	runThreadNamed( s );	
+}
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  INTRA FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//---------------------
+// globalLoadout_SecretWeapon
+// strTiki - string, the path to the worldmodel tiki to give to the player
+// checks to see if the player has picked up the passed in weapon against
+// it's game variable, if he has it gives it to him
+//---------------------
+void globalLoadout_SecretWeapon()
+{
+	//--- check the game variables and give the weapons
+	
+	//hzm coop mod chrissstrahl - make sure this works even on while jumping accros missions and maps
+	float fFind;
+	string sMapname;
+	sMapname = getCvar("mapname");
+	fFind = getIntStringFind(sMapname,"$");
+	if(fFind > 0){
+		sMapname = getStringFromStringWithLengt(sMapname,0,fFind);
+	}
+	
+	float fMax;
+	string sConstructed;
+	fMax = getIntStringLength(sMapname);
+	
+	if(fMax < 5){
+		return;
+	}
+	
+	string s1;
+	string s2;
+	//hzm coop mod chrissstrahl - get first char and diget [0] [1]
+	s1 = getStringFromStringWithLengt(sMapname,0,1);
+	s1 = getStringToLower(s1);//ie.: map M11L or m11l
+	s2 = getStringFromStringWithLengt(sMapname,1,1);
+	if( s1 != "m" || isDigit(s2) != 1 ){
+		return;
+	}
+	
+	string sConstructed;
+	
+	//hzm coop mod chrissstrahl - get first diget of mission [1]
+	sConstructed = s2;
+	
+	s1 = getStringFromStringWithLengt(sMapname,2,1);
+	s2 = getStringFromStringWithLengt(sMapname,3,1);
+	//hzm coop mod chrissstrahl - get second diget of mission [2]
+	if( isDigit(s1) == 1 ){
+		sConstructed = sConstructed + s1;
+		if( getStringToLower(s2) != "l"){
+			return;
+		}
+	}
+	//hzm coop mod chrissstrahl - check if there is no l
+	else if( getStringToLower(s1) != "l" ){
+		return;
+	}
+
+	float fMiNum;
+	fMiNum = getFloatFromString(sConstructed);
+	
+	//hzm coop mod chrissstrahl - IMOD - at first igm on enterprise
+	if(fMiNum >= 3){
+		if( getFloatVar( "game.secretWeapon_IMOD" ) == 1 )					
+		{
+			globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - Idryll - Staff at mission 5
+	if(fMiNum >= 5){
+		if( getFloatVar( "game.secretWeapon_IdryllStaff" ) == 1 )			
+		{
+			globalLoadout_GiveWeapon( "models/weapons/worldmodel-drull-staff.tik" );
+		}
+	}
+	
+	//hzm coop mod chrissstrahl - compression rifle - unknown
+	if(1){
+		if( getFloatVar( "game.secretWeapon_CompressionRifle" ) == 1 )		//
+		{
+			globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+		}
+	}
+	//hzm coop mod chrissstrahl - Idryll - Staff at mission 11, pickedup from secret in 10
+	if(fMiNum >= 11){
+		if( getFloatVar( "game.secretWeapon_RomulanExperimental" ) == 1 )	//Romulan Rad Weapon
+		{
+			globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+		}
+	}
+}
+
+//---------------------
+// globalLoadout_GiveWeapon
+// strTiki - string, the path to the worldmodel tiki to give to the player
+// takes the passed in worldmodel tiki reference and gives it to the player
+//---------------------
+void globalLoadout_GiveWeapon( string strTiki )
+{
+	if( strTiki != "" ){
+		globalCoop_armory_weaponRegister(strTiki);
+		//work also in singleplayer
+		if(!cvar_bool_multiplayer){
+			$player.give(strTiki);
+			return;
+		}
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.give(strTiki);
+			}
+		}
+	}
+}
+
+
+//---------------------
+// globalLoadout_TakeWeapon
+// strTiki - string, the path to the worldmodel tiki to take from the player
+// takes the passed in worldmodel tiki reference from the player
+//---------------------
+void globalLoadout_TakeWeapon( string strTiki )
+{
+	if( strTiki != "" ){
+		globalCoop_armory_weaponUnregister(strTiki);
+		
+		//work also in singleplayer
+		if(!cvar_bool_multiplayer){
+			$player.safeholster(1);
+			wait(0.05);//wait for the player model animation to change
+			$player.take(strTiki);
+			return;
+		}
+		
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.safeholster(1);
+				wait(0.05);//wait for the player model animation to change
+				if(doesEntityExist(ePlayer)){
+					ePlayer.take(strTiki);
+				}
+			}
+		}
+	}
+}
+
+
+//---------------------
+// globalLoadout_GiveArmor
+// strTiki - string, the path to the armor tiki to give to the player
+// takes the passed in armor tiki reference and gives it to the player
+//---------------------
+void globalLoadout_GiveArmor( float fltAmount )
+{
+	//work also in singleplayer
+	if(!cvar_bool_multiplayer){
+		$player.armor( "BasicArmor", fltAmount );
+		return;
+	}
+
+	float fWaitTime;
+	fWaitTime = getCvarInt("mp_warmuptime");
+	while(getLevelTime() < fWaitTime)
+	{
+		wait(1);
+	}
+
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.armor( "BasicArmor", fltAmount );
+		}
+	}
+}
+
+
+//---------------------
+// globalLoadout_GiveAmmo
+// strAmmo - string, the ammo type to give to the player
+// fltAmount - float, the amount of the specified type
+// takes the passed in worldmodel tiki reference from the player
+//---------------------
+void globalLoadout_GiveAmmo( string strAmmo, float fltAmount )
+{
+
+	//work also in singleplayer
+	if(!cvar_bool_multiplayer){
+		$player.ammo( strAmmo, fltAmount );
+		return;
+	}
+
+	
+	float fWaitTime;
+	fWaitTime = getCvarInt("mp_warmuptime");
+	while(getLevelTime() < fWaitTime)
+	{
+		wait(1);
+	}
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.ammo( strAmmo, fltAmount );
+		}
+	}
+}
+
+
+//---------------------
+// globalLoadout_GiveViewmode
+// strViewMode - string, the viewmode to give to the player
+// assigns a viewmode to the player for him to use
+//---------------------
+void globalLoadout_GiveViewmode( string strViewMode )
+{
+	$world.addAvailableViewMode( strViewMode );
+}
+
+
+//---------------------
+// globalLoadout_TakeViewmode
+// strViewMode - string, the viewmode to take away from the player
+// removes an assigned viewmode from the player
+//---------------------
+void globalLoadout_TakeViewmode( string strViewMode )
+{
+	$world.removeAvailableViewMode( strViewMode );
+}
+
+
+//---------------------
+// globalLoadout_GiveViewmode
+// clears all assigned viewmodes, thus making all available to the player
+//---------------------
+void globalLoadout_ClearAllViewmode()
+{
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("BogusMode");//has to be added for the clear command to work
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  LEVEL LOADOUT FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//====================================================================================================================================================
+//  IGM LOADOUT
+//====================================================================================================================================================
+
+//---------------------
+// igm
+//---------------------
+void globalLoadout_igm()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_TakeViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_TakeViewmode( VIEWMODE_SEE_CLOAKED );
+	globalLoadout_TakeViewmode( VIEWMODE_AIR_STRIKE );
+	globalLoadout_TakeViewmode( VIEWMODE_DETECT_ENEMY );
+	globalLoadout_TakeViewmode( VIEWMODE_TRIPWIRE );
+	globalLoadout_TakeViewmode( VIEWMODE_FORCE_VISIBLE );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 1 - BORG SPHERE
+//====================================================================================================================================================
+
+//---------------------
+// m1l1a-borg_sphere
+//---------------------
+void globalLoadout_m1l1a_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m1l1b-borg_sphere
+//---------------------
+void globalLoadout_m1l1b_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m1l1c-borg_sphere
+//---------------------
+void globalLoadout_m1l1c_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m1l2a-borg_sphere
+//---------------------
+void globalLoadout_m1l2a_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m1l2b-borg_sphere
+//---------------------
+void globalLoadout_m1l2b_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m1l2c-borg_sphere
+//---------------------
+void globalLoadout_m1l2c_borg_sphere()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//---------------------
+// m1l3-borg_boss
+//---------------------
+void globalLoadout_m1l3_borg_boss()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+
+
+//====================================================================================================================================================
+//  MISSION 2 - STAR FLEET ACADEMY
+//====================================================================================================================================================
+
+//---------------------
+// m2l1-sfa
+//---------------------
+void globalLoadout_m2l1_sfa()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m2l2-sfa
+//---------------------
+void globalLoadout_m2l2_sfa()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveAmmo( AMMO_PLASMA, 150 );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m2l3-sfa
+//---------------------
+void globalLoadout_m2l3_sfa()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 3 - DALLAS
+//====================================================================================================================================================
+
+//---------------------
+// m3l1a-forever
+//---------------------
+void globalLoadout_m3l1a_forever()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m3l1b-forever
+//---------------------
+void globalLoadout_m3l1b_forever()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	//--- the player used the map command
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m3l2-forever
+//---------------------
+void globalLoadout_m3l2_forever()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-imod.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//====================================================================================================================================================
+//  MISSION 4 - ATTREXIAN STATION
+//====================================================================================================================================================
+
+//---------------------
+// m4l1a-attrexian_station
+//---------------------
+void globalLoadout_m4l1a_attrexian_station()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	//globalLoadout_GiveAmmo( AMMO_PLASMA, 100 );
+}
+
+//---------------------
+// m4l1b-attrexian_station
+//---------------------
+void globalLoadout_m4l1b_attrexian_station()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+	
+	if( getfloatvar( "game.attrexianWeaponFound" ) == 1 )
+	{
+		globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	}
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m4l2a-attrexian_station
+//---------------------
+void globalLoadout_m4l2a_attrexian_station()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m4l2b-attrexian_station
+//---------------------
+void globalLoadout_m4l2b_attrexian_station()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 5 - DRULL RUINS 1
+//====================================================================================================================================================
+
+//---------------------
+// m5l1a-drull_ruins1
+//---------------------
+void globalLoadout_m5l1a_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+}
+
+//---------------------
+// m5l1b-drull_ruins1
+//---------------------
+void globalLoadout_m5l1b_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+}
+
+//---------------------
+// m5l1c-drull_ruins1
+//---------------------
+void globalLoadout_m5l1c_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+}
+
+//---------------------
+// m5l2a-drull_ruins1
+//---------------------
+void globalLoadout_m5l2a_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+}
+
+//---------------------
+// m5l2b-drull_ruins1
+//---------------------
+void globalLoadout_m5l2b_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+}
+
+//---------------------
+// m5l2c-drull_ruins1
+//---------------------
+void globalLoadout_m5l2c_drull_ruins1()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 6 - ATTACK ON THE ENTERPRISE
+//====================================================================================================================================================
+
+//---------------------
+// m6-deck8_redalert
+//---------------------
+void globalLoadout_m6_deck8_redalert()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m6-deck16_engineering
+//---------------------
+void globalLoadout_m6_deck16_engineering()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m6-deck1_bridge_redalert
+//---------------------
+void globalLoadout_m6_deck1_bridge_redalert()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m6-exterior
+//---------------------
+void globalLoadout_m6_exterior()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-CompressionRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 7 - ATTREXIAN COLONY
+//====================================================================================================================================================
+
+//---------------------
+// m7l1a-attrexian_colony
+//---------------------
+void globalLoadout_m7l1a_attrexian_colony()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+}
+
+//---------------------
+// m7l1b-attrexian_colony
+//---------------------
+void globalLoadout_m7l1b_attrexian_colony()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+}
+
+//---------------------
+// m7l2a-attrexian_colony
+//---------------------
+void globalLoadout_m7l2a_attrexian_colony()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+}
+
+//---------------------
+// m7l2b-attrexian_colony
+//---------------------
+void globalLoadout_m7l2b_attrexian_colony()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+}
+
+//---------------------
+// m7l2c-attrexian_colony
+//---------------------
+void globalLoadout_m7l2c_attrexian_colony()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_TRACE_GAS );
+}
+
+//====================================================================================================================================================
+//  MISSION 8 - DRULL RUINS 2
+//====================================================================================================================================================
+
+//---------------------
+// m8l1a-drull_ruins2
+//---------------------
+void globalLoadout_m8l1a_drull_ruins2()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveAmmo( AMMO_FED, 150 );
+}
+
+//---------------------
+// m8l1b-drull_ruins2
+//---------------------
+void globalLoadout_m8l1b_drull_ruins2()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m8l2a-drull_ruins2
+//---------------------
+void globalLoadout_m8l2a_drull_ruins2()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m8l2b-drull_ruins2
+//---------------------
+void globalLoadout_m8l2b_drull_ruins2()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 9 - KLINGON BASE
+//====================================================================================================================================================
+
+//---------------------
+// m9l1a-klingon_base
+//---------------------
+void globalLoadout_m9l1a_klingon_base()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m9l1b-klingon_base
+//---------------------
+void globalLoadout_m9l1b_klingon_base()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	
+}
+
+//---------------------
+// m9l2-klingon_base
+//---------------------
+void globalLoadout_m9l2_klingon_base()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+//====================================================================================================================================================
+//  MISSION 10 - ROMULAN INSTALLATION
+//====================================================================================================================================================
+
+//---------------------
+// m10l1-romulan_installation
+//---------------------
+void globalLoadout_m10l1_romulan_installation()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-datapad.tik" );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m10l2a-romulan_installation
+//---------------------
+void globalLoadout_m10l2a_romulan_installation()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-disruptor-romhands.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-datapad.tik" );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+//---------------------
+// m10l2b-romulan_installation
+//---------------------
+void globalLoadout_m10l2b_romulan_installation()
+{
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-disruptor-romhands.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-datapad.tik" );
+	globalLoadout_GiveViewmode ( VIEWMODE_TRIPWIRE );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+
+
+
+//====================================================================================================================================================
+//  MISSION 11 - DRULL RUINS 3
+//====================================================================================================================================================
+
+//---------------------
+// m11l1a-drull_ruins3
+//---------------------
+void globalLoadout_m11l1a_drull_ruins3()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	wait ( .1 );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+	wait ( .1 );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-tetryon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	wait ( .1 );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveViewmode( VIEWMODE_AIR_STRIKE );
+}
+
+//---------------------
+// m11l1b-drull_ruins3
+//---------------------
+void globalLoadout_m11l1b_drull_ruins3()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-tetryon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_AIR_STRIKE );
+}
+
+//---------------------
+// m11l2a-drull_ruins3
+//---------------------
+void globalLoadout_m11l2a_drull_ruins3()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+	
+	//--- the player used the map command
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-tetryon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+}
+
+//---------------------
+// m11l3a-drull_ruins3
+//---------------------
+void globalLoadout_m11l3a_drull_ruins3()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-tetryon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+}
+
+//---------------------
+// m11l3b-drull_ruins3
+//---------------------
+void globalLoadout_m11l3b_drull_ruins3()
+{
+	//--- give secret weapons
+	globalLoadout_SecretWeapon();
+
+	//--- the player used the map command
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Phaser-stx.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-BurstRifle.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-FieldAssaultRifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-attrex-rifle.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-GrenadeLauncher.tik" );
+	//globalLoadout_GiveWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-tetryon.tik" );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-photon.tik" );
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
+}
+
+//----------------------
+// zoo1
+//----------------------
+void globalLoadout_zoo1()
+{
+    globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder.tik" );
+}
+
+
+//----------------------
+//training
+//----------------------
+void globalLoadout_training()
+{
+    globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+}
+
+

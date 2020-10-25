@@ -1,0 +1,696 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:        	map4
+//  Script By:    	Nemo22, Argyle, TickNSwisted, LTiefland, Avenger
+//  Geometry By:  	Argyle, TickNSwisted
+//  Created on:	01/04/2004
+// Last Edited on:  $Date: 2007-06-20 22:47:49 +0200 (Mi, 20 Jun 2007) $
+// Last Edited by:	$Author: avenger $
+//-----------------------------------------------------------------
+
+
+
+float cadet1_pos, crew1_pos, lift_a_height, lift_b_height, lift_a_pos, lift_b_pos, player_pos;
+
+void main();
+
+void lock_lab_entry();
+void initArchetypes();
+void init();
+void trigger_shower_door();
+void wall_exp();
+void redalert();
+void kraftfeld();
+void poison_gas();
+void before_lab();
+void inside_lab();
+void secret_button();
+void koi_swim();
+void move_lifta();
+void move_liftb();
+void beamout_puzzle();
+void beamout();
+void closed_door_sound();
+void closed_door_sound_2();
+void puzzleUsed();
+void puzzleReset();
+void puzzleSolved();
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_lockLab();
+void	coop_warpPlayers();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/coop_gbs/attackplayer.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderKeypad.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+
+void main()
+{
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	
+
+	thread initArchetypes();
+	spawn("camera","targetname","cam1");
+	$end_trigger.nottriggerable();
+	
+	waitforPlayer();//what the hell, it was missing
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed" , 1 , 0 );
+	globalCoop_objectives_update("complete" , 2 , 0 );
+	globalCoop_objectives_update("incomplete" , 3 , 1 );
+	
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$kraftfeld.missionobjective(1);
+
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+
+	playerDeathThread("playergotKilled");
+
+	thread init();
+	thread redalert();
+	koi_swim();
+
+	lift_a_height=80;
+	lift_b_height=192;
+	lift_a_pos=0;
+	lift_b_pos=0;
+	crew1_pos=0;
+	cadet1_pos=1;
+
+	$xmas_door.lock();
+	$7_door.lock();
+	globalCommon_Autosave();
+	
+	$kraftfeld_enterPoison.hide();
+	$kraftfeld_enterPoison.notsolid();
+}
+
+
+void init()
+{
+	//--hide forcefield
+	$kraftfeld.hide();
+	$kraftfeld2.hide();
+	$kraftfeld3.hide();
+	$kraftfeld.notsolid();
+	$kraftfeld2.notsolid();
+	$kraftfeld3.notsolid();
+	$kraft_feld_poison.hide();
+	$kraft_feld_poison.notsolid();
+
+	//--Showergirl SetUp
+	$showergirl1.ai_off();
+	$showergirl1.anim("conv-gesture1");
+	$showergirl1.model("char/starfleet_shower-female.tik");
+	$shower_door_trigger.nottriggerable();
+
+	//--Explosion trigger
+	$trigger1.nottriggerable();
+
+	//--Door to bathroom
+	$shower_door_left.time( .1 );
+	$shower_door_right.time( .1 );
+	wait( .1 );
+	$shower_door_left.moveWest( 40 );
+	$shower_door_right.moveEast( 40 );
+
+	//--Gas im Korridor
+	$gas.hide();
+
+
+	// Security Team
+
+	$lab_security1.setgroupid ( 666 );
+	$lab_security2.setgroupid ( 666 );
+
+	$lab_security4.setgroupid ( 666 );
+	$lab_security3.setgroupid ( 666 );
+
+
+	AIHideGroup    ( 666 );
+	spawn ( "Camera" , "targetname" , "cam1" );
+}
+
+void move_lifta()
+{
+	wait(3);
+	$trigger_lift_a_low.nottriggerable();
+	$trigger_lift_a_up.nottriggerable();
+	if (crew1_pos==0)
+	{
+		$lift_a.moveup(lift_a_height);
+		lift_a_pos=2;
+		waitfor($lift_a);
+		lift_a_pos=1;
+		$crew1.walkto("$lift_a_nav2");
+		waitfor($crew1);
+		wait(3);
+		$crew1.walkto("$lift_a_nav3");
+		waitfor($crew1);
+		$lift_a.movedown(lift_a_height);
+		lift_a_pos=2;
+		waitfor($lift_a);
+		lift_a_pos=0;
+		crew1_pos=1;
+	}
+	else
+	{
+		if (lift_a_pos==0)
+		{
+			wait(3);
+			$lift_a.moveup(lift_a_height);
+			waitfor($lift_a);
+			lift_a_pos=1;
+		}
+		else
+		{
+			wait(3);
+			$lift_a.movedown(lift_a_height);
+			waitfor($lift_a);
+			lift_a_pos=0;
+		}
+	}
+	wait(10);
+	$trigger_lift_a_low.triggerable();
+	$trigger_lift_a_up.triggerable();
+}
+
+void move_liftb()
+{
+	$trigger_lift_b_low.nottriggerable();
+	$trigger_lift_b_up.nottriggerable();
+	if (cadet1_pos==1)
+	{
+		$lift_b.moveup(lift_b_height);
+		lift_b_pos=2;
+		wait(3);
+		lift_b_pos=1;
+		$cadet1.walkto("$lift_b_nav2");
+		waitfor($cadet1);
+		$lift_b.movedown(lift_b_height);
+		lift_b_pos=2;
+		waitfor($lift_b);
+		lift_b_pos=0;
+		$cadet1.walkto("$lift_b_nav3");
+		waitfor($cadet1);
+		$cadet1.walkto("$lift_b_nav4");
+		waitfor($cadet1);
+		cadet1_pos=0;
+	}
+	else
+	{
+		if (lift_b_pos==0)
+		{
+			wait(3);
+			$lift_b.moveup(lift_b_height);
+			waitfor($lift_b);
+			lift_b_pos=1;
+		}
+		else
+		{
+			wait(3);
+			$lift_b.movedown(lift_b_height);
+			waitfor($lift_b);
+			lift_b_pos=0;
+		}
+	}
+	wait(10);
+	$trigger_lift_b_low.triggerable();
+	$trigger_lift_b_up.triggerable();
+}
+
+void before_lab()
+{
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$lab_exit1.missionobjective(0);
+	$beamout_puzzle_symbol.missionobjective(1);
+	
+	$kraftfeld2.show();
+	$kraftfeld2.solid();
+	triggerentity( $kraftfeld_sound2 );
+	$kraftfeld2.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$kraftfeld2.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+void inside_lab()
+{
+	//AIShowGroup    ( 666, "Federation" );
+
+	$kraftfeld3.show();
+	$kraftfeld3.solid();
+	triggerentity( $kraftfeld_sound3 );
+	$kraftfeld3.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$kraftfeld3.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+
+	
+	$lab_exit2.time( 1.5 );
+	wait( .1 );
+	
+	$lab_exit2.moveUp( 120 );
+	triggerentity( $lab_exit2_sound );
+
+	$lab_security1.ai_off();
+	$lab_security2.ai_off();
+	$lab_security4.ai_off();
+	$lab_security3.ai_off();
+
+	wait( 0.5 ); 
+
+
+	$lab_security1.walkto( "$lab_security1_nav1", "run" );
+	wait( 0.2 );
+	$lab_security2.walkto( "$lab_security2_nav1", "run" );
+	wait( 3 );
+	$lab_exit2.movedown( 120 );
+	triggerentity( $lab_exit2_sound );
+
+	CommandToGroup ( 666 , "groupactortype" , "enemy" , "");
+	CommandToGroup ( 666 , "visiondistance" , "4000" , "" );
+	CommandToGroup ( 666 , "fov" , "360" , "" );
+	
+	//hzm coop mod chrissstrahl - make aggressive, rather than attack $player
+	CommandToGroup ( 666 , "aggressive" , "1" , "" );
+
+	$lab_security1.ai_on();
+	$lab_security2.ai_on();
+
+	
+	wait(3);
+
+	$lab_exit1.time( 1.5 );
+	wait( .1 );
+	$lab_exit1.moveUp( 120 );
+
+	wait( 0.5 ); 
+
+	$lab_security4.walkto( "$lab_security4_nav1", "run" );
+	wait( 0.2 );
+	$lab_security3.walkto( "$lab_security3_nav1", "run" );
+	wait( 3 );
+	$lab_exit1.movedown( 120 );
+
+	$lab_security4.ai_on();
+	$lab_security3.ai_on();
+}
+
+void secret_button()
+{
+	$obj_button01.time (1);
+	$obj_button01.movenorth (2);
+
+	$xmas_door.unlock();
+	$xmas_trigger.nottriggerable();
+}
+
+void koi_swim()
+{
+	wait(1);
+	$koi1.anim( "idle" );
+	$koi1.followpath( $koi1_path , "loop" , "normalangles" );
+
+	$koi2.anim( "idle" );
+	$koi2.followpath( $koi2_path , "loop" , "normalangles" );
+}
+
+void trigger_shower_door()
+{
+	$shower_door_left.time( .35 );
+	$shower_door_right.time( .35 );
+	wait( .1 );
+	$shower_door_left.playsound( "sound/doors/forever_door1.wav" );
+	$shower_door_left.moveEast( 40 );
+	$shower_door_right.moveWest( 40 );
+	wait( 3 );
+	$shower_door_trigger.triggerable();
+}
+
+///////////////////////////
+//Wand fliegt in die Luft//
+///////////////////////////
+void wall_exp()
+{
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$wall_puzzle.missionobjective(0);
+	$lab_exit1.missionobjective(1);
+
+	//hzm coop mod chrissstrahl - remove archetype and other things
+	$exp_console.remove();
+	$blabla_tut.remove();
+	$blabla_tut_overload.remove();
+	
+	wait( 3.8 );
+	$trigger1.triggerable();
+	triggerentity( $trigger );
+	$console.playsound( "sound/impact/explosion/expl_inside4.wav" );
+	triggerentity( $console_exp );
+	$wallhide.earthquake( .75, 1.4, 512 );
+	$wall_hide.hide();
+	wait( .2 );
+	$console.playsound( "sound/impact/explosion/expl_inside3.wav" );
+	triggerentity( $console_exp1 );
+	
+	//hzm coop mod chrissstrahl - remove exploded
+	$console.remove();
+	$exp_console.remove();
+	$wall_hide.remove();//fixed, this was blocking the player also in the singleplayer gbs mod, this bug was never fixed
+}
+
+/////////////////////////////////////////////////////
+/////////////////////Roter Alarm/////////////////////
+//Wenn möglich nur target_speaker in den Korridoren//
+/////////////////////////////////////////////////////
+void redalert()
+{
+	$world.light_fade( "redalert", .85, .4 );
+	$world.playsound("sound/coop_gbs/redalert.mp3", 3, 1, 1111111);
+	wait( .7 );
+	$world.light_fade( "redalert", .2, .6 );
+	wait( 1.8 );
+	thread redalert();
+}
+
+////////////////////////////////////////
+//Kraffelder + Sound schalten sich ein//
+////////////////////////////////////////
+void kraftfeld()
+{
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$kraftfeld.missionobjective(0);
+	$wall_puzzle.missionobjective(1);
+	
+	
+	$gas.show();
+	$kraftfeld_enterPoison.show();
+	$kraftfeld_enterPoison.solid();	
+	$kraftfeld.show();
+	$kraftfeld.solid();
+	triggerentity( $kraftfeld_sound );
+	$kraftfeld.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$kraftfeld.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	wait( 1 );
+	
+	//hzm coop mod chrissstrahl - play dialog on entity, rather than on $player
+	$gas.simpleplaydialog( "localization/sound/dialog/map05/computer/intruder.mp3", 1, 20000 );
+	waitDialogLength( "localization/sound/dialog/map05/computer/intruder.mp3" );
+	thread poison_gas();
+	//hzm coop mod chrissstrahl - play dialog on entity, rather than on $player
+	$gas.simpleplaydialog( "localization/sound/dialog/map05/computer/gas.mp3", 1, 20000 ); //Lieutenant Munro, you have a visitor waiting for you in the main entrance.
+	waitDialogLength( "localization/sound/dialog/map05/computer/gas.mp3" );
+}
+
+void poison_gas()
+{
+	//hzm coop mod chrissstrahl - damage players that are inside the area
+	entity ePlayer;
+	float fPlayerIdInUse;
+	vector vOriginPlayer;
+	while(1)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					vOriginPlayer = ePlayer.getOrigin();
+					if(	vOriginPlayer_x < 34 && vOriginPlayer_x > -177
+						&& vOriginPlayer_y <= -1287 && vOriginPlayer_y > -1699 )
+					{
+						ePlayer.hurt(5);
+					}
+				}
+			}
+		}
+		wait(1.5);
+	}
+}
+
+void secretRoomDeskLight()
+{
+	if($world.getLightIntensity("secretRoomDeskLight") != 0){
+		$world.light_intensity("secretRoomDeskLight",0);
+		$secretRoomDeskLight.hide();
+	}else{
+		$secretRoomDeskLight.show();
+		$world.light_intensity("secretRoomDeskLight",1);
+	}
+}
+
+void stop_poison_gas()
+{	
+	//killthread( "poison_gas" ); //hzm coop mod chrissstrahl - do not stop the hurting thread, other players might have to pass
+	triggerentity( $kraft_feld_poison_sound );
+	$kraft_feld_poison.show();
+	$kraft_feld_poison.solid();
+}
+
+void beamout_puzzle()
+{
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$beamout_puzzle_symbol.missionobjective(0);
+	$end_trigger.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - play sound on current player
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	ePlayer.simpleplaydialog("localization/sound/dialog/map05/Computer/energy.mp3",1,10000);
+	
+	//hzm coop mod chrissstrahl - remove usable symbol
+	$beamout_puzzle_symbol.remove();
+	
+	waitdialoglength("localization/sound/dialog/map05/Computer/energy.mp3");
+	$end_trigger.triggerable();
+}
+void beamout()
+{
+	//hzm coop mod chrissstrahl - fade cam out
+	cam_fadeout( 0.25, 0, 0, 0, 1, 0 );
+	wait(0.25);
+	
+	freezeplayer();
+	cinematic();
+	
+	//hzm coop mod chrissstrahl - spawn actor
+	spawn("actor","model","models/char/gbs_illia.tik","targetname","illia","ai_off","1");
+	
+	//hzm coop mod chrissstrahl - remove security guards - so that they don't shoot after the cinematic
+	$lab_security1.remove();
+	$lab_security2.remove();
+	$lab_security4.remove();
+	$lab_security3.remove();
+	
+	wait(0.05);	
+	//hzm coop mod chrissstrahl - use no weapon...
+	$illia.killattach();
+	
+    //fakeplayer(); //hzm coop mod chrissstrahl - we don't use this
+    $illia.origin('-3330 -2490 36');
+    $illia.angle(90);
+	letterbox(.1);
+	$cam1.follow($beamout_cam);
+	cuecamera($cam1);
+	wait(.5);
+	cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+	
+	wait(2.5);
+	
+	$illia.displayEffect( "TransportOut", "Federation" );
+	wait(3);
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	clearletterbox(.1);
+	//noncinematic();
+    //removefakeplayer(); //hzm coop mod chrissstrahl - we don't use this
+	//releaseplayer();
+	//cueplayer();
+	
+	//hzm coop mod chrissstrahl - load next level
+	thread coop_endLevel();
+}
+
+void initArchetypes()
+{
+
+      thread globalArchetype_Setup( $exp_console, "exp");
+      thread globalArchetype_Setup( $beam_console, "beama");
+
+	if(doesEntityExist($bails)){
+		$bails.archetype ( "bails" );
+	}
+	if(doesEntityExist($jones)){
+		$jones.archetype ( "jones" );
+	}
+	if(doesEntityExist($shaun)){
+		$shaun.archetype ( "shaun" );
+	}
+	if(doesEntityExist($jenks)){
+		$jenks.archetype ( "jenks" );
+	}
+	if(doesEntityExist($eddie)){
+		$eddie.archetype ( "eddie" );
+	}
+	if(doesEntityExist($catrin)){
+		$catrin.archetype ( "catrin" );
+	}
+}
+
+
+void lock_lab_entry()
+{
+	//hzm coop mod chrissstrahl - objective marker on radar
+	$lab_exit1.missionobjective(0);
+	$beamout_puzzle_symbol.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - spawn a gathering area
+	thread globalCoop_level_gatheringArea("","coop_lockLab",75,'210 210 160','-2533 -1906 0');
+}
+
+void closed_door_sound()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/doors/door_locked.wav",3,1,128);
+}
+
+void closed_door_sound_2()
+{
+	entity eTrigger,ePlayer;
+	eTrigger	= getCurrentEntity();
+	ePlayer		= eTrigger.getLastActivatingEntity();
+	ePlayer.playsound( "sound/environment/computer/lcars_no.wav",3,1,128);
+}
+
+//Secret Room Puzzle
+
+void puzzleUsed()
+{
+	globalTricorderKeypad_SetType( "Starfleet" );
+	globalTricorderKeypad_SetScannedCodeFlag( 0 );
+	globalTricorderKeypad_SetSecretCode( 7, 9, 7, 9, 0, 0, 0, 0, 0 ); //4 digit code
+	globalTricorderKeypad_Run( $secretRoomPuzzle, 10, 3);
+}
+
+void puzzleReset()
+{
+	$secretRoomPuzzle.puzzleobject_reset();
+}
+
+void puzzleSolved()
+{
+	$secretRoomPuzzle.playsound( "sound/ships/romulan/rom_beep_yes.wav", 0, 1 );
+	$7_door.unlock();
+	$7_trigger.nottriggerable();
+	trigger( "$7_door" );
+	$secretRoomPuzzle.remove(); //so that player doesn't have to keep re-entering the puzzle code
+	//hzm coop mod chrissstrahl - remove use symbol so that player does not get confused
+	$secretRoomPuzzle2_symbol.remove();
+}
+
+
+void playergotKilled()
+//played when player dies
+{
+	return;//hzm coop mod chrissstrahl - we don't use this
+	$player.setobjectivefailed("gettocargobay", 1);
+	$player.missionfailed("getToCargoBay");
+}
+
+void coop_lockLab()
+//------------------------------------------------------------------------------
+//players are now inside lab, lock one door and open another
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - make sure the players are in range
+	coop_warpPlayers();
+
+	//hzm coop mod chrissstrahl - allow entry
+	$lab_sideDoor.unlock();
+	$lab_sideDoor.wait(-1);
+	$lab_sideDoor.open($world);
+	
+	wait(1);
+	AIShowGroup    ( 666, "Federation" );
+}
+
+void coop_warpPlayers()
+//------------------------------------------------------------------------------
+//warps players that are outside a specific area, to make sure all players are in a area before it is locked
+//------------------------------------------------------------------------------
+{
+	//hzm coop mod chrissstrahl - lock door und 
+	$lab_entry.close();
+	$lab_entry.lock();
+
+	//move spawn locations first
+	$ipd1.origin('-1800 -1912 0');
+	$ipd2.origin('-1800 -1960 0');
+	$ipd3.origin('-1800 -2008 0');
+	$ipd4.origin('-1800 -2008 0');
+	$ipd5.origin('-1752 -1960 0');
+	$ipd6.origin('-1752 -2008 0');
+	$ipd7.origin('-1952 -1904 0');
+	$ipd8.origin('-2000 -1904 0');
+	//set new angle
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=1;fPlayerIdInUse<9;fPlayerIdInUse++){
+		ePlayer = getentity("ipd"+fPlayerIdInUse);
+		ePlayer.angle(180);
+	}
+	
+	//warp players, that are outside the room
+	entity eSpawn;
+	vector vOriginPlayer;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				vOriginPlayer = ePlayer.getOrigin();
+				if(vOriginPlayer_x > -1708 ||  vOriginPlayer_y < -2075){
+					eSpawn = getEntity("ipd"+ ( 1 + fPlayerIdInUse));
+					ePlayer.origin(eSpawn.getOrigin());
+					ePlayer.angle(180);
+					//ePlayer.hudprint("oustide");
+				}
+			}
+		}
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs6");
+}
+
+
+

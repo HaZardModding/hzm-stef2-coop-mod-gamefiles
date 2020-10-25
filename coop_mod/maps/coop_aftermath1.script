@@ -1,0 +1,509 @@
+void main();
+void cinematic_start();
+void cinematic_end();
+void city_print(string sText);
+void setupLevel();
+void objective2();
+void makeTunnelLightFlicker();
+void hideoutEnter();
+void cinematic_roof();
+void cinematic_roofEnd();
+void createSaveGame_stalker();
+void createSaveGame_sniper();
+void coop_spawnGatheringArea();
+void coop_endLevel();
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_spawnMove1();
+void	coop_spawnMove2();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+//this is executed as soon as the server has finished loading this map
+{
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Daedalus";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Find a way into the city";
+	coop_string_objectiveItem2 = "Find a way into the Spy's hideout";
+	coop_string_objectiveItem3 = "Find the Spy";
+	coop_string_objectiveItem4 = "Stop the Spy";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Finden Sie einen Weg in die City";
+	coop_string_objectiveItem2_deu = "Finden Sie einen Weg zum Versteck des Spions";
+	coop_string_objectiveItem3_deu = "Finden Sie den Spion";
+	coop_string_objectiveItem4_deu = "Stopen Sie den Spion";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
+	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+	
+//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
+
+	cam_fadeOut(0.01,0,0,0,1);
+	// Entity fade dist
+	$world.entity_fade_dist( 16000 );
+	
+	//enable sky(skybox)
+	$sky.rendereffects( "+skyorigin" );
+	
+	//clear/set viewmodes avialbe for Tricorder
+	$world.clearAvailableViewModes();
+	$world.addAvailableViewMode("tripwire");
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	//camrea will be spawned on map
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	
+//wait for the player to spawn
+	waitForPlayer();
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+//start cinematic now
+	thread cinematic_start();
+}
+
+void cinematic_start()
+{
+	//fade cam in
+	cam_fadeIn(0.25,0,0,0,1);
+
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	
+	//hzm coop mod chrissstrahl - this is only for sp
+	if(getCvarInt("g_gametype") == 0){
+		$player.hide();
+		$player.notsolid();		
+	}
+	
+	//wait a moment for cam to be accsessible after spawn, on fast computers
+	wait(0.05);
+	
+	$cam1.fov(70);
+	$cam1.follow($tunnelPath);
+	$cam1.lookat($chang);
+	
+	//let the cam follow the path for a moment to prevent issues
+	wait(0.1);
+	
+	//cut directly to this camera if cuecamera is used, no transition from previouse camera
+	$cam1.cut();
+
+	//start filming from this camera now
+	cuecamera($cam1);
+	
+	//wait a moment to have the player realize that this is a cinematic
+	wait(1);
+	
+	//fade cam in
+	cam_fadeIn(0.25,0,0,0,1);
+	
+	//hzm coop mod chrissstrahl - show mod title - but before get the player out of all menus he currently has showing
+	globalCoop_player_transmittToAll("popmenu 1;popmenu 0");//close 2 layers of menu
+	wait(0.1);
+	globalCoop_player_transmittToAll("popmenu 0");//close 1 layer of menu
+	wait(0.1);
+	globalCoop_player_transmittToAll("showmenu aftermath\n");
+	
+	//wait a moment before allowing skip
+	wait(2);
+	
+	//allow this cinematic to be skipped
+	skipthread("cinematic_end");
+	
+	//wait for the camera to reach the right location
+	wait(9);
+	
+	//make actor usenoweapon
+	$korban.useactorweapon("None");
+	$chang.useactorweapon("None");
+	$munro.useactorweapon("None");
+	
+	//beam the team in
+	$korban.displayeffect("TransportIn","Federation");
+	$korban.show();
+	
+	$munro.displayeffect("TransportIn","Federation");
+	$munro.show();
+	
+	$chang.displayeffect("TransportIn","Federation");
+	$chang.show();
+	
+	//make actor look at hidden seceret
+	$korban.anim("cin-m7l1a_quadintro_Chang");
+	
+	wait(2);
+	
+	//hzm coop mod chrissstrahl - remove mod title
+	globalCoop_player_transmittToAll("popmenu 1;popmenu 0\n");
+
+	//wait for the beam effect to end
+	wait(2);
+	
+	//munro talk: i want a full scan of the area
+	$munro.playDialog("localization/sound/dialog/m7l2/munro_fullscan.mp3",2,128,0);
+	
+	$munro.headwatch( $chang, 70 );
+	wait(2);
+	
+	//make actor use tricorder
+	$chang.anim( "tricorder_draw" );
+	waitforanimation( $chang, "tricorder_draw" );
+	
+	//make actor scan the area
+	$chang.anim( "tricorder_scan180" );
+	waitForAnimation( $chang , "tricorder_scan180" );
+	
+	//make actor stop scanning
+	$chang.anim( "tricorder_calm_idle" );
+	
+	//walk closer to the camera
+	$chang.walkto("changscan","walk");
+	waitfor($chang);
+	
+	//make actor scan the area
+	$chang.anim( "tricorder_scan180" );	
+	waitForAnimation( $chang , "tricorder_scan180" );
+	$chang.anim( "tricorder_calm_idle" );
+	
+	wait(0.5);
+	
+	//chang talk: must be interf. from the electrical storm
+	$chang.playDialog("localization/sound/dialog/m8l1/chang_inter.mp3",2,128,0);
+	waitForDialog($chang);
+	
+	$chang.headwatch( $munro, 70 );
+	
+	//make actor put away tricorder
+	$chang.anim( "tricorder_putaway" );
+	waitforanimation( $chang, "tricorder_putaway" );
+	$chang.anim( "idle" );
+	
+	//chang talk: lets get going
+	$chang.playDialog("localization/sound/dialog/m7l1/chang_getgo.mp3",2,128,0);
+	wait(1);
+	
+//end cinematic now
+	thread cinematic_end();
+}
+
+void cinematic_end()
+{
+	//fade out cam
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.3);
+	
+	//stop the cinematic thread
+	killthread("cinematic_start");	
+
+	//make sure if cinematic is skipped that every thing is as it would be if it where not skipped
+	$munro.remove();
+	$korban.show();
+	$chang.show();
+	
+	//moveactorsout of the way
+	$korban.origin('-4876 -7893 30');
+	$chang.origin('-4876 -8000 30');
+	
+	//enable team ai
+	$chang.useactorweapon( "CompressionRifle" );
+	$korban.useactorweapon( "CompressionRifle" );
+	$korban.ai_on();
+	$chang.ai_on();
+	
+	wait(1);
+
+	//end cinematic
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	//hzm coop mod chrissstrahl - this is only for sp
+	if(getCvarInt("g_gametype") == 0){
+		$player.show();
+		$player.solid();		
+	}
+	
+	//fade cam in
+	cam_fadeIn(1,0,0,0,1);
+	
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("incomplete" , 1 , 1 );//find way in city
+}
+
+void city_print(string sText)
+//----------------------------------------------------------------------
+// Print the text, for linux servers we need echo instead
+// do not use ";", echo does not work with that!!!
+//----------------------------------------------------------------------
+{
+	sText = sText+"\n";
+//detect if this is a linux server
+	if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003"){
+		print(sText + "\n");
+	}else{
+		stuffCMD("echo "+sText + "\n");
+	}
+}
+
+void setupLevel()
+{
+	//don't let her be pushed arround
+	$laptopUser.mass(99999);
+	$laptopUser.pushable(0);
+	$laptopUser.archetype("");
+	//spy's hideout, animate laptop to be opened - can not be set within the radiant
+	$laptop.anim("open_idle");
+	//activat the dynamic light inside the tunnel
+	$world.light_intensity("tunnelDynLight1",1.00); //set light to fullbright
+}
+
+void objective2()
+{
+//hzm coop mod chrissstrahl - make sure players spawn close to the mission
+	thread coop_spawnMove2();
+
+//hzm coop mod chrissstrahl - update objectives
+	globalCoop_objectives_update("complete" , 1 , 0 );//cfindWayIn
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//cfindWaySpy
+}
+
+void makeTunnelLightFlicker()
+//-> a explosion effect will occur
+//-> a baser will bust trough ceiling
+{
+//delete unbusted ceiling
+	$tunnelUnbustedCeiling.remove();
+	
+//show busted ceiling
+	$tunnelBustedCeiling.show();
+	
+//play cave in sound
+	$tunnelBustedCeiling.playsound("sound/impact/explosion/expl_rockdebr1.wav",3,3,256);
+
+//make dynamic light flicker
+	$world.light_lightstyle("tunnelDynLight1","aalzlaaalzzlalzzzzl",0);
+}
+
+void hideoutEnter()
+{
+//save game if player is still alive
+//hzm coop mod chrissstrahl - this is only for sp
+	if(getCvarInt("g_gametype") == 0){
+		if($player.getHealth() > 0 && $laptopUser.getHealth() > 0)
+		{
+			stuffCMD("ui_savegamewithname \"City - Roof Fight\"");
+		}
+	}
+		
+//hzm coop mod chrissstrahl - get closest player
+//monro says -> chang stay behind and secure the area, while I do a chicken dance
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($laptopUser);
+	entityPlayerGlobal.simplePlayDialog("localization/sound/dialog/m7l1/munro_changsecure.mp3",1,128);	
+	
+//wait for dialog
+	wait(3);
+	
+//chang says -> Yes Mam
+	$chang.playDialog("localization/sound/dialog/combat/chang_yessir9.mp3",2,128,0);
+	
+//make Chang and Korban no more follow munro on twitter
+	$korban.settendency("follow",0);
+	$chang.settendency("follow",0);
+}
+
+void laptopUserTalk()
+//make the girl at the laptop say hi
+{
+//hzm coop mod chrissstrahl - get closest player
+	$laptopUser.headWatch(globalCoop_return_playerClosestPreferActive($laptopUser));
+	wait(0.2);
+	$laptopUser.playDialog("localization/sound/dialog/m2l1/cadetf1_hellosir.mp3",2,128,0);
+}
+
+void cinematic_roof()
+{
+//spawn camera entities
+	spawn("camera","targetname","cam1");
+	spawn("camera","targetname","cam2");
+	
+//fade screen black
+	cam_fadeout(0.5,0,0,0,1);
+	wait(0.5);
+	
+//start this thread when player hits escape
+	skipthread("cinematic_roofEnd");
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	$cam1.follow($roofSceneA);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+
+//fade screen from black back in again to normal
+	cam_fadeIn(0.5,0,0,0,1);
+	
+//wait for cutscene
+	wait(5);
+	
+	$cam2.follow($roofSceneB);
+	$cam2.cut();
+	wait(0.1);
+	cuecamera($cam2);
+
+//wait for cutscene
+	wait(4);
+	
+//it ends here
+	thread cinematic_roofEnd();	
+}
+
+void cinematic_roofEnd()
+{
+//delete skip thread
+	skipthread("");
+	
+//terminate cinematic
+	killthread("cinematic_roof");
+	
+	//save game if tehmosnter is killed, in case playerfalls down then, it won'tbe to frustrating
+	$roofStalker.killthread("createSaveGame_stalker");
+	$roofSniper.killthread("createSaveGame_sniper");
+	
+//fade screen black
+	cam_fadeout(0.5,0,0,0,1);
+	wait(0.5);
+
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+//fade screen from black back in again to normal
+	cam_fadeIn(0.5,0,0,0,1);
+	
+//hzm coop mod chrissstrahl - get closest player
+//monro says -> oh great
+	entityPlayerGlobal = globalCoop_return_playerClosestPreferActive($laptopUser);
+	entityPlayerGlobal.simplePlayDialog("localization/sound/dialog/m8l2/munro_cancloak.mp3",1,128);
+}
+
+void createSaveGame_stalker()
+{
+//hzm coop mod chrissstrahl - this is only for sp
+	if(getCvarInt("g_gametype") != 0){
+		return;
+	}
+//save game if player is still alive
+	if($player.getHealth() > 0 )
+	{
+		stuffCMD("ui_savegamewithname \"City - Stalker Dead\"");
+	}
+}
+void createSaveGame_sniper()
+{
+//hzm coop mod chrissstrahl - this is only for sp
+	if(getCvarInt("g_gametype") != 0){
+		return;
+	}
+//save game if player is still alive
+	if($player.getHealth() > 0 )
+	{
+		stuffCMD("ui_savegamewithname \"City - Sniper Dead\"");
+	}
+}
+
+void coop_spawnMove1()
+//spawn players close to the mission in coop
+{
+	//player spawns
+	float f;
+	entity e;
+	for(f=1;f<9;f++){
+		e=getEntity("ipd"+f);
+		if(doesEntityExist(e)){
+			e.angle(90);
+		}
+	}
+	$ipd1.origin('56 -13728 8');	
+	$ipd2.origin('104 -13728 8');
+	$ipd3.origin('8 -13728 8');
+	$ipd4.origin('152 -13728 8');
+	$ipd5.origin('-40 -13728 8');
+	$ipd6.origin('200 -13728 8');
+	$ipd7.origin('248 -13728 8');
+	$ipd8.origin('-88 -13728 8');
+}
+void coop_spawnMove2()
+//spawn players close to the mission in coop
+{
+	//player spawns
+	float f;
+	entity e;
+	for(f=1;f<9;f++){
+		e=getEntity("ipd"+f);
+		if(doesEntityExist(e)){
+			e.angle(90);
+		}
+	}
+	$ipd1.origin('56 -2776 32');	
+	$ipd2.origin('104 -2776 32');
+	$ipd3.origin('8 -2776 32');
+	$ipd4.origin('152 -2776 32');
+	$ipd5.origin('-40 -2776 32');
+	$ipd6.origin('200 -2776 32');
+	$ipd7.origin('248 -2776 32');
+	$ipd8.origin('-88 -2776 32');
+}
+
+void LevelComplete()
+//called when loevel ends
+{
+//do not show sucess hud
+	nointermission();
+}
+
+void coop_spawnGatheringArea()
+{
+//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	$symbol_exitUse.remove();
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'470 470 280','-1013 -331 1598');
+}
+
+//hzm coop mod chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath2");
+}
+
+
+
+
+

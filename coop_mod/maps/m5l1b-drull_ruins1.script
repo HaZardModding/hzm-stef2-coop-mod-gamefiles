@@ -1,0 +1,2870 @@
+//-------------------------------------------
+// EF2 Level Script File
+//
+// Level: Drull Ruins Part 1
+// Script by: R. "Charon" Heath, Kenny "Gullie" Thompson
+// Geometry by: J. Keehan, Adam 'Senn' Bellefeuil, R. "Charon" Heath, Kenny "Gullie" Thompson
+//
+// Last Edited: Kenny "Gullie" Thompson
+//--------------------------------------------
+
+void main();
+
+void init();
+void setupSpawnNodeIds();
+void setupArchetypes();
+
+void caveInSoundThread();
+void caveInThread();
+void talkAboutCaveInBug();
+
+void wallFractureThread();
+void smallBugWallFracture2Thread();
+void introDialog();
+
+void openMainGate();
+void teamTalkAboutMainGateThread();
+
+void smallBugScatterThread();
+void smallBugScatterRemove( entity smallBug, string bugNode );
+
+void spiderRunAwayThread();
+void spiderRunAwayThreadKillthread();
+void smallBugAttackThread2();
+void smallBugAttack2Dead();
+
+void smallBugWave1Over();
+
+void cityPowerRestored();
+void openMainGateForTeam();
+
+void mainGateGroundBugDead();
+void teamTalkAboutAttackThread();
+
+void cityStairsofEvil1_button1_use();
+void cityStairsofEvil1_move();
+
+void mommaAttack1Thread();
+
+void cityFloorTrapDialog();
+void crackingTileWait( entity entityPiece );
+void crackingTileWait2( entity entityPiece );
+void crackingTileGo();
+void tileSecretBoxGo();
+void cityFloorTrap1();
+void cityFloorTrap1_end();
+void trapFractureThread();
+
+void scoutingPartyThread();
+void cinematicScoutingParty();
+void cinematicScoutingPartySkipthread();
+void cinematicScoutingPartyEnd();
+
+void chellProtectDoor();
+void chellProtectFromBugsDone();
+void chellProtectFromBugDrop();
+void bugDropDead();
+
+void cityBridgeofDoom1Setup();
+void cityBridgeofDoom1_show();
+void cityBridgeofDoom1TeamStay();
+void cityBridgeRestore();
+void globalCityBridge( entity globalCityBridgeSection );
+void globalCityBridgeShow( entity globalCityBridgeSection );
+void globalCityBridgeHide( entity globalCityBridgeSection );
+
+void openExitGate();
+void queenBugStageChange();
+void queenBugIsDead();
+
+void queenBackBugSpawnThread();
+void bugBackOfQueenAreaDead();
+
+void moveExitGate( float moveAmount );
+
+void makeTeamJump();
+void makeTeamCombatFar();
+void makeTeamCombatClose();
+
+void smallBugAttackThread1();
+void globalCitySpawn( entity citySpawnName, string citySpawnTargetName, string citySpawnModelName );
+
+void cityPowerTricorderPuzzle();
+void cityPowerResetTricorderPuzzle();
+
+void cityGiantPillarofDoom1_fall();
+void cityGiantPillarofDoom1_fall_piece3();
+
+void cityPillarTrap1();
+
+void liftDown();
+void liftDownSkipThread();
+
+void cityAutoSave();
+void teamWait();
+void teamFollow();
+void setTeamFollowDistance( float distMin, float distMax );
+void killAllTalking();
+
+float restorePowerObjective = 0;
+float mainGateOpened = 0;
+float teamHasTalkedAboutMainGate = 0;
+float cityGiantPillarofDoom1HasFallen = 0;
+float cityStairsofEvilOn = 0;
+float teamShouldWaitHere = 1;
+float queenStageNumber = 0;
+float cityBridgeofDoomActivated = 0;
+float bridgePieceVisible = 0;
+
+float smallBugAttackBugsAreDead = 0;
+float smallBugWave1Dead = 0;
+
+float secretTileCounter = 0;
+float bridgeIsFlashing = 1;
+
+float playerMakeTeamJump = 0;
+float chellMakeTeamJump = 0;
+float telsiaMakeTeamJump = 0;
+float korbanMakeTeamJump = 0;
+float chellProtectDoorOn = 0;
+float chellProtectBugsDead = 0;
+
+float bugDropIsDead = 0;
+
+float totalNumerOfDropBugsDead = 0;
+float totalNumerOfDropBugsNeededDead = 10;
+
+float bridgeWaitTimeVisible = 1;
+float bridgeWaitTimeHidden = 5;
+
+float mainExitGateOpened = 0;
+
+float queenBugDead = 0;
+
+float developerMode = 0;
+
+//==========================================================================================
+//  Include Stuff
+//==========================================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_flyin.scr"
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+#include "coop_mod/matrix/global/global_spawnWave.scr"
+
+//==========================================================================================
+//  Main Stuff
+//==========================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// level start thread
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - make sure the level that gets loaded twiche (m5l2a) starts at the beginning
+	setfloatvar ( "game.statusM5L2CUnlocked", 0 );
+	
+	//hzm coop mod chrissstrahl - staff not yet found
+	setfloatvar( "game.secretWeapon_IdryllStaff", FALSE );
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$RuinsLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - remove trigger to prevent premature
+	$endLevelTrigger.remove();
+	
+	//hzm coop mod chrissstrahl - make sure players get killed correctly
+	$bridgeDamage.damagetype("falling");
+	
+	//hzm coop mod chrissstrahl - Set spawnangles for this level
+	coop_float_spawnAngle0 			= 70;
+	coop_float_spawnAngle1 			= 161;
+	coop_float_spawnAngle2 			= 161;
+	coop_float_spawnAngle3 			= 161;
+	coop_float_spawnAngle4 			= 120;
+	coop_float_spawnAngle5 			= 100;
+	coop_float_spawnAngle6 			= 95;
+	coop_float_spawnAngle7 			= 85;
+	coop_vector_spawnOrigin1 		= '-273 1799 85';
+	coop_vector_spawnOrigin2 		= '-198 1863 90';
+	coop_vector_spawnOrigin3 		= '-236 1740 85';
+	coop_vector_spawnOrigin4 		= '-332 1701 115';
+	coop_vector_spawnOrigin5 		= '-388 1721 95';
+	coop_vector_spawnOrigin6 		= '-458 1695 120';
+	coop_vector_spawnOrigin7 		= '-559 1756 100'; 
+	coop_vector_spawnOrigin8 		= '-497 1630 163';
+
+	soundtrack( "music/m5l1b.mus" );
+	$world.entity_fade_dist( 3000 );
+	$sky.rendereffects( "+skyorigin" );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane( 3000 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m5l1b_drull_ruins1" );
+
+	init();
+	
+	waitForPlayer();
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ProceedToLifeforms$$","complete",1,0);
+	globalCoop_objectives_set("$$EnterRuins$$","incomplete",2,0);
+	globalCoop_objectives_set("$$FindScientists$$","incomplete",3,0);
+	globalCoop_objectives_set("$$FindScouting$$","incomplete",4,1);
+
+	/*
+	$player.setobjectiveshow( "ProceedToLifeforms", 1 );
+	$player.setobjectivecomplete( "ProceedToLifeforms", 1 );
+	$player.setobjectiveshow( "FindScouting", 1 );
+	$player.setobjectiveshow( "EnterRuins", 1 );
+	$player.setobjectiveshow( "FindScientists", 1 );
+	*/
+}
+
+//---------------------
+// Function: init
+// Comments:
+// setup the world
+//---------------------
+void init()
+{
+	float x;
+	entity entityPiece;
+
+	//Spawn Fake Munro For Dialog
+	globalCommon_SpawnActor( "char/hazardteam_munro.tik", "scriptmunro", '128.00 1856.00 96.00', 0 );
+	$scriptmunro.hide();
+	$scriptmunro.ai_off();
+	$scriptmunro.notsolid();
+
+	//Spawn Camers
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	cam.load( "m5l1b_sparty1" );
+	cam.load( "m5l1b_sparty2" );
+	cam.load( "m5l1b_end" );
+	
+	//Lock door untill player unlocks
+	$doorForTeamTrap.lock();
+	//Main Gate Init
+	$cityGiantDoorofDoom1_button1_green.hide();
+	$cityGiantDoorofDoom1_button1_red.hide();
+	//Keep Explosive Bug Battle From Happening untill ready
+	$smallExplosiveTrigger1.nottriggerable();
+	//Makes Pillar Fall if you are trapped
+	$cityGiantPillarofDoom1_fallTrigger.nottriggerable();
+	//Stops Male Bug Attack untill ready
+	$bugMaleAttackTrigger1.nottriggerable();
+	$bugMaleAttackTrigger2.nottriggerable();
+	//Keeps Chell from warning player if player abandons team
+//	$cityFloorTrapDialogTrigger.nottriggerable();
+	//Make Tile Secret trigger not triggerable untill you find the secret
+	$tileSecret.nottriggerable();
+	//Keeps scouting party cinematic from happening untill ready
+	$scoutingPartyTrigger.nottriggerable();
+	//Spawns Bugs on Munro when ready
+	$cityRoofChellProtectSpawn.nottriggerable();
+	//Lock Door untill team is able to cross Bridge
+	$cityBridgeRestoreDoor.lock();
+	//team Bridge Clip keeps ai from dieing / falling
+	$teamBridgeBlockade.time( .05 );
+	$teamBridgeBlockade.moveDown( 256 );
+	//Hide broken Exit Gate
+	$cityGiantDoorofDoom3.hide();
+	//turn Bug Spawn near Queen Health Terminals off
+	$bugInGroundTrigger7.nottriggerable();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+		
+	//Shut Queen Down
+	$queenBug.ai_off();
+	$queenBug.hide();
+	$queenBug.pushable( 0 );
+	$queenHurt.nottriggerable();
+	
+	for( x = 1; x <= 38; x++ )
+	{
+		entityPiece = getentity( "tileIntegrity" + x );
+		//hzm coop mod chrissstrahl, check if it really exists, otherwise we get warnings
+		if(doesEntityExist(entityPiece)){
+			entityPiece.viewmode( "structuralintegrity" );
+			entityPiece.notsolid();
+			entityPiece = getentity( "tile" + x );
+			thread crackingTileWait( entityPiece );
+			thread crackingTileWait2( entityPiece );
+		}
+	}
+	
+	thread setupArchetypes();
+	thread cityBridgeofDoom1Setup();
+	thread setupSpawnNodeIds();
+
+	$wallFractureField.solid();
+	$wallFractureField.viewmode( "structuralintegrity" );
+		
+	$cityGiantPillarofDoom1_debris1.solid();
+	$cityGiantPillarofDoom1_fracture.viewmode( "structuralintegrity" );
+	
+	$trapFracture.solid();
+	$trapFractureField.solid();
+	$trapFractureField.viewmode( "structuralintegrity" );
+
+	$cityPowerRestore_button1_green.hide();
+	$cityStairsofEvil1_button1_off.hide();
+	$cityStairsofEvil1_button1_on.hide();
+	$cityBridgeRestore_button1_red.hide();
+	
+	$cityGiantLiftofDoom1_door1.solid();
+	$cityGiantLiftofDoom1_door2.solid();
+
+	$cityGiantDoorofDoom1.solid();
+	$cityGiantDoorofDoom2.solid();
+	$cityGiantDoorofDoom3.solid();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$cityFloorTrap1_button1_off.hide();
+
+	$cityRoofDoor1_door1.lock();
+	$cityRoofDoor1_switch1_red.hide();
+
+	$cityBridgeofDoom1_switch1_red.hide();
+
+	//Main Exit Door
+	$cityGiantDoorofDoom2_button1_red.hide();
+
+	$endLiftDoorSW.solid();
+	$endLiftDoorSE.solid();
+	
+	$endLiftDoorSW.bind( $endLift );
+	$endLiftDoorSE.bind( $endLift );
+
+	thread globalAccelMove_Rotate( $endLiftDoorSW, '0 -90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $endLiftDoorSE, '0 90 0', 2, "rampupdown", "" );
+	
+	//$cityPowerRestore_button1.puzzleobject_timeToUse( 5 );
+	$cityPowerRestore_button1.puzzleobject_itemtouse( "Tricorder" );
+	$cityPowerRestore_button1.puzzleobject_solvedthread( "cityPowerRestored" );
+	$cityPowerRestore_button1.puzzleobject_itemusedthread( "cityPowerTricorderPuzzle" );
+	$cityPowerRestore_button1.puzzleobject_canceledthread( "cityPowerResetTricorderPuzzle" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+}
+
+//==========================================================================================
+//  Setup Stuff
+//==========================================================================================
+
+void setupSpawnNodeIds()
+{
+	globalCommon_SetupContextDialog( $chell , "chell" );
+	globalCommon_SetupContextDialog( $telsia, "telsia" );
+	globalCommon_SetupContextDialog( $korban, "korban" );
+	
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 768, 1024 );
+	
+	$chell.setnodeid( 1 );
+	$telsia.setnodeid( 2 );
+	$korban.setnodeid( 3 );
+	
+	$chell.immortal( 1 );
+	$telsia.immortal( 1 );
+	$korban.immortal( 1 );
+
+	$scriptmunro.useactorweapon( "fieldassaultrifle" );
+	
+	//hzm coop mod chrissstrahl, these trow up warnings, do we really need them ?
+	//Set these to check for space
+	//Back of Queen Area
+	/*
+	$bugBackOfQueenAreaSpawn1.checkForSpace();
+	$bugBackOfQueenAreaSpawn2.checkForSpace();
+	$bugBackOfQueenAreaSpawn3.checkForSpace();
+	*/
+	
+	$bugInGroundDelay2.setSpawnKeyValue( "setgroupid", "2" );
+	$bugInGroundDelay2.setSpawnKeyValue( "groupDeathThread", "openMainGateForTeam" );
+	$bugInGroundDelay3.setSpawnKeyValue( "setgroupid", "2" );
+	$bugInGroundDelay3.setSpawnKeyValue( "groupDeathThread", "openMainGateForTeam" );
+	$bugInGroundDelay4.setSpawnKeyValue( "setgroupid", "2" );
+	$bugInGroundDelay4.setSpawnKeyValue( "groupDeathThread", "openMainGateForTeam" );
+	$bugInGroundDelay5.setSpawnKeyValue( "setgroupid", "2" );
+	$bugInGroundDelay5.setSpawnKeyValue( "groupDeathThread", "openMainGateForTeam" );
+	
+	$mainGateGroundBug.setSpawnKeyValue( "setgroupid", "3" );
+	$mainGateGroundBug.setSpawnKeyValue( "groupDeathThread", "mainGateGroundBugDead" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$bugInGroundDelay2.setSpawnKeyValue( "groupDeathThread", "smallBugWave1Over" );
+	$smallHoleBugSpawn1.setSpawnKeyValue( "setgroupid", "4" );
+	$smallHoleBugSpawn1.setSpawnKeyValue( "groupDeathThread", "smallBugWave1Over" );
+	$smallHoleBugSpawn2.setSpawnKeyValue( "setgroupid", "4" );
+	$smallHoleBugSpawn2.setSpawnKeyValue( "groupDeathThread", "smallBugWave1Over" );
+	$smallHoleBugSpawn3.setSpawnKeyValue( "setgroupid", "4" );
+	$smallHoleBugSpawn3.setSpawnKeyValue( "groupDeathThread", "smallBugWave1Over" );
+	$smallCelingBugSpawn1.setSpawnKeyValue( "setgroupid", "4" );
+	$smallCelingBugSpawn1.setSpawnKeyValue( "groupDeathThread", "smallBugWave1Over" );
+	
+	$mommaAttack1a.setSpawnKeyValue( "setgroupid", "5" );
+	$mommaAttack1a.setSpawnKeyValue( "groupDeathThread", "chellWillWarnPlayer" );
+	$mommaAttack1b.setSpawnKeyValue( "setgroupid", "5" );
+	$mommaAttack1b.setSpawnKeyValue( "groupDeathThread", "chellWillWarnPlayer" );
+	
+	//hzm coop mod chrissstrahl, these trow up warnings, do we really need them ?
+	/*
+	$bugInGroundStage9.setSpawnKeyValue( "setgroupid", "6" );
+	$bugInGroundStage9.setSpawnKeyValue( "groupDeathThread", "chellProtectFromBugsDone" );
+	$bugInGroundStage9.checkforspace();
+	*/
+	
+	//hzm coop mod chrissstrahl, these trow up warnings, do we really need them ?
+	/*
+	$bugBackOfQueenAreaSpawn1.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn1.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	$bugBackOfQueenAreaSpawn2.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn2.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	$bugBackOfQueenAreaSpawn3.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn3.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	*/
+	
+	$mommaAttack1a.setSpawnKeyValue( "nodeid", "12" );
+	$mommaAttack1b.setSpawnKeyValue( "nodeid", "11" );
+	
+	$queenAttackHole1a.setSpawnKeyValue( "nodeid", "13" );
+	
+	//hzm coop mod chrissstrahl, these trow up warnings, do we really need them ?
+	/*
+	$queenAttackHole1b.setSpawnKeyValue( "nodeid", "14" );
+	$queenAttackHole2a.setSpawnKeyValue( "nodeid", "15" );
+	$queenAttackHole2b.setSpawnKeyValue( "nodeid", "16" );
+	*/
+	
+	$bugInGroundStage9.setSpawnKeyValue( "nodeid", "17" );
+}
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	$arch_doorpanel1.contents( "targetable" );
+	$arch_doorpanel1.archetype( "IdryllDoorPanel" );
+
+	$arch_doorpanel2.contents( "targetable" );
+	$arch_doorpanel2.archetype( "IdryllDoorPanel" );
+
+	$arch_doorpanel3.contents( "targetable" );
+	$arch_doorpanel3.archetype( "IdryllDoorPanel" );
+	
+	$arch_doorpanel4.contents( "targetable" );
+	$arch_doorpanel4.archetype( "IdryllDoorPanel" );
+
+	$arch_powerpanel1.contents( "targetable" );
+	$arch_powerpanel1.archetype( "IdryllPowerPanel" );
+
+	$arch_bridgeswitch1.contents( "targetable" );
+	$arch_bridgeswitch1.archetype( "IdryllBridgeSwitch" );
+	
+	$arch_bridgeRestorePanel.contents( "targetable" );
+	$arch_bridgeRestorePanel.archetype( "IdryllBridgePower" );
+
+	$arch_doorExitGate.contents( "targetable" );
+	$arch_doorExitGate.archetype( "IdryllDoorPanel" );
+	
+	$arch_waypointRuinEntrance1.archetype( "Waypoint" );
+	$arch_waypointRuinEntrance1.notsolid();
+
+	$arch_liftpanel1.contents( "targetable" );
+	$arch_liftpanel1.archetype( "IdryllLiftPanel" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	
+	//Setup LightStyles
+	$world.light_lightstyle( "cityGiantDoorofDoom1_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityGiantDoorofDoom1_button1_greenLight" , "a" , 1 );
+	
+	$world.light_lightstyle( "cityPowerRestore_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityPowerRestore_button1_greenLight" , "a" , 1 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	
+	$world.light_lightstyle( "cityStairsofEvil1_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityStairsofEvil1_button1_greenLight" , "a" , 1 );
+	
+	$world.light_lightstyle( "cityFloorTrap1_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityFloorTrap1_button1_greenLight" , "a" , 1 );
+
+	$world.light_lightstyle( "cityRoofDoor1_switch1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityRoofDoor1_switch1_greenLight" , "a" , 1 );
+	
+	$world.light_lightstyle( "cityBridgeofDoom1_switch1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityBridgeofDoom1_switch1_greenLight" , "a" , 1 );
+	
+	$world.light_lightstyle( "cityBridgeRestore_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityBridgeRestore_button1_greenLight" , "a" , 1 );
+
+	$world.light_lightstyle( "cityGiantDoorofDoom2_button1_redLight" , "z" , 1 );
+	$world.light_lightstyle( "cityGiantDoorofDoom2_button1_greenLight" , "a" , 1 );
+}
+
+//---------------------
+// Function: caveInSoundThread
+// Comments: Obivious
+//---------------------
+void caveInSoundThread()
+{
+	$caveInBugSpawn.playSound( "sound/environment/rock/rock_divein.wav", 3, 1, 256 );
+}
+
+//---------------------
+// Function: caveInThread
+// Comments:
+// Called in level by triggers designed to create a cave in
+// At start of the level
+//---------------------
+void caveInThread()
+{
+	$caveInRock6.time( .5 );
+	$caveInRock6.moveDown( 240 );
+	wait( .25 );
+
+	$caveInRock3.time( .5 );
+	$caveInRock3.moveDown( 280 );
+	wait( .25 );
+
+	$caveInRock4.time( .5 );
+	$caveInRock4.moveDown( 280 );
+	wait( .25 );
+	
+	$caveInRock2.time( .5 );
+	$caveInRock2.moveDown( 220 );
+	wait( .25 );
+	$cityBridgeFxSpawn1.origin( $caveInRock6.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock6Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+	
+	$caveInRock5.time( .5 );
+	$caveInRock5.moveDown( 220 );
+	wait( .25 );
+	$cityBridgeFxSpawn1.origin( $caveInRock3.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock3Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+
+	$caveInRock1.time( .5 );
+	$caveInRock1.moveDown( 180 );
+	wait( .25 );	
+	$cityBridgeFxSpawn1.origin( $caveInRock4.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock4Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+	wait( .25 );
+
+	$cityBridgeFxSpawn1.origin( $caveInRock2.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock2Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+	wait( .25 );
+	$cityBridgeFxSpawn1.origin( $caveInRock5.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock5Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );
+	wait( .25 );
+	$cityBridgeFxSpawn1.origin( $caveInRock1.getorigin() );
+	thread globalCitySpawn( $cityBridgeFxSpawn1 , "caveInRock1Spawn" , "fx/fx-explosion-rockdebris-brown-falling-sparse.tik" );	
+
+	$caveInBug.remove();
+	
+	wait( 1 );
+	thread talkAboutCaveInBug();
+}
+
+//---------------------
+// Function: talkAboutCaveInBug
+// Comments:
+// makes team talk about cave in bug encounter
+//---------------------
+void talkAboutCaveInBug()
+{
+	//Kill any other talking
+	killthread( "introDialog" );
+	killthread( "teamTalkAboutMainGateThread" );
+	
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+	
+	$scriptmunro.playdialog("localization/sound/dialog/m5l1/munro_thatmust.mp3", 1, 10000, 1 ); //That must be one of those Brood Fiends the Idryll mentioned. 
+	waitForDialog( $scriptmunro );
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_anotherway.mp3", 1, 10000, 1 ); //That blast blocked our way back. Looks like we’ll have to find another way out.
+	waitForDialog( $chell );
+	$telsia.playdialog("localization/sound/dialog/m5l1/telsia_yeahits.mp3", 1, 10000, 1 ); //Yeah. It’s called a transporter. 
+	waitForDialog( $telsia );
+	$scriptmunro.playdialog("localization/sound/dialog/m5l1/munro_findem.mp3", 1, 10000, 1 ); //Let’s see if we can find some answers in these ruins. 
+	waitForDialog( $scriptmunro );
+}
+
+//---------------------
+// Function: wallPumpThread
+// Comments:
+// makes team wait here
+//---------------------
+void wallFractureThread()
+{
+	trigger( "$smallBugWallFractureSpawn1" );
+	wait( .05 );
+	
+	$smallBugWallFracture1.ai_off();
+	
+	teamWait();
+	wait( 2 );
+	thread introDialog();
+	
+	wait( 1 );
+        forcemusic ("mystery");
+	$smallBugWallFracture1.playsound ( "sound/chars/bugsmall/bug_attack1.wav" , 4 , 1.1 , 584 );     
+	$smallBugWallFracture1.walkto( "$smallBugWallFractureNode", "walk2" );
+	waitfor( $smallBugWallFracture1 );
+	
+	$levelSpawner.scale( .35 );
+	$levelSpawner.origin( $smallBugWallFracture1.getorigin() );
+	$levelSpawner.modelname( "fx/fx-explosion-debris-idryllruins-dustpuff.tik" );
+	trigger( "$levelSpawner" );
+	$levelSpawner.scale( 1 );
+	$levelSpawner.playSound( "sound/environment/rock/rock_divein.wav", 3, 1, 556 );
+	wait( .25 );
+	$smallBugWallFracture1.remove();
+	
+}
+
+//---------------------
+// Function: smallBugWallFracture2Thread
+// Comments:
+// makes bug attack player
+//---------------------
+void smallBugWallFracture2Thread()
+{
+	$smallBugWallFracture2.remove();
+	wait( .5 );
+//    forcemusic ("surprise");
+//	$smallBugWallFracture2.attack( $player );
+//	wait( 3 );
+}
+
+//---------------------
+// introDialog
+// Team says stuff about the city
+//---------------------
+void introDialog()
+{
+	//Kill any other talking
+	killthread( "teamTalkAboutMainGateThread" );
+	killthread( "talkAboutCaveInBug" );
+	
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+
+	$arch_powerpanel1.missionobjective( 1 );
+	
+	$chell.ai_off();
+	globalCommon_AiActorUseWeapon( $chell, "tricorder" );
+	
+	$chell.walkto( "$chellScanNode" );
+		
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_fragile.mp3", 1, 10000, 1); //Good job Munro. Looks like some areas of the ruins are unstable. No wonder. My scans indicate they are very old.
+	waitForDialog( $chell );
+	$telsia.playdialog("localization/sound/dialog/m5l1/telsia_lastlong.mp3", 1, 10000, 1); //It’s amazing they’ve lasted as long as they have. I wonder how the inner areas have held up.
+	waitForDialog( $telsia );
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_wellsee.mp3", 1, 10000, 1); //We’ll see. I think I’ve located a path to the main entrance. Munro, I’ve transferred the path to your Tricorder.
+	waitForDialog( $chell );
+	
+	globalCommon_AiActorUseWeapon( $chell, "compressionrifle" );
+	$chell.ai_on();
+}
+
+//---------------------
+// Function: cityGiantDoorofDoom1_move
+// Comments:
+// moves the giant doors at the front gate of the city
+//---------------------
+void openMainGate()
+{
+	$openMainGateTrigger.nottriggerable();
+	
+	//For Testing
+	if( developerMode == 1 )
+	{
+		thread openMainGateForTeam();
+		pause();
+	}
+	
+	if( mainGateOpened == 0 )
+	{
+		
+		$cityGiantDoorofDoom1_button1_red.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+		wait( .5 );
+		$world.simpleplaydialog( "localization/sound/dialog/m5l1/idcomp_mainoff.mp3", 1.1, 1256000 );
+		
+		
+		wait( 3 );
+		if( teamHasTalkedAboutMainGate == 0 )
+		{
+			teamHasTalkedAboutMainGate = 1;
+			thread teamTalkAboutMainGateThread();
+		}
+		
+	}
+	if( mainGateOpened == 1 )
+	{
+		$cityGiantDoorofDoom1_button1_red.playsound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+	}
+
+	$openMainGateTrigger.triggerable();
+}
+
+//---------------------
+// Function: teamTalkAboutMainGateThread
+// Comments:
+// makes team talk about Main Gate
+//---------------------
+void teamTalkAboutMainGateThread()
+{
+	//Kill any other talking
+	killthread( "introDialog" );
+	killthread( "talkAboutCaveInBug" );
+	
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+	
+	globalCommon_AiActorUseWeapon( $chell, "compressionrifle" );
+	$chell.ai_on();
+
+	if( restorePowerObjective == 0 )
+	{
+		restorePowerObjective = 1;
+		
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$RestorePower$$","incomplete",5,1);
+	}
+
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_otherside.mp3", 1, 10000, 1 ); //Looks like the locking mechanism for this door is on the other side.
+	waitForDialog( $chell );
+	$telsia.playdialog("localization/sound/dialog/m5l1/telsia_lockedout.mp3", 1, 10000, 1 ); //The Idryll search party must have sealed it behind them. Trying to keep others out.
+	waitForDialog( $telsia );
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_orthose.mp3", 1, 10000, 1 ); //Or keep those bugs in. Anyway, there must be another way in.
+	waitForDialog( $chell );
+}
+
+//---------------------
+// Function: smallBugScatterRemove
+// Comments:
+// make first small bug encounter: bugs run
+//---------------------
+void smallBugScatterThread()
+{
+	wait( .25 );
+    forcemusic ("mystery","normal");
+	thread smallBugScatterRemove( $smallBugScatter4, "$smallBugScatterNode1" );
+	thread smallBugScatterRemove( $smallBugScatter5, "$smallBugScatterNode2" );	
+	thread smallBugScatterRemove( $smallBugScatter1, "$smallBugScatterNode3" );
+	thread smallBugScatterRemove( $smallBugScatter2, "$smallBugScatterNode4" );
+	thread smallBugScatterRemove( $smallBugScatter3, "$smallBugScatterNode5" );
+}
+
+//---------------------
+// Function: smallBugScatterRemove
+// Comments:
+// spawns dust puff and removes bug
+//---------------------
+void smallBugScatterRemove( entity smallBug, string bugNode )
+{
+	smallBug.immortal( 1 );
+	smallBug.ai_off();
+	smallBug.anim( "walk" );
+	wait( 2 );
+	smallBug.walkto( bugNode, "walk2" );
+	waitfor( smallBug );
+	
+	$levelSpawner.scale( .35 );
+	$levelSpawner.origin( smallBug.getorigin() );
+	$levelSpawner.modelname( "fx/fx-explosion-debris-idryllruins-dustpuff.tik" );
+	trigger( "$levelSpawner" );
+	$levelSpawner.scale( 1 );
+	$levelSpawner.playSound( "sound/environment/rock/rock_divein.wav", 3, 1, 556 );
+	wait( .25 );
+	smallBug.remove();
+}
+
+//---------------------
+// spiderRunAway
+// makes the spider that is spawned run away
+//---------------------
+void spiderRunAwayThread()
+{
+	//hzm coop mod chrissstrahl, this fixes the bug getting stuck, due to coop mod tiki changes (bbox)
+	$spiderRunAway.setSize('-24 -24 0','24 24 40');
+	
+	wait( .25 );
+	$spiderRunAway.killthread( "spiderRunAwayThreadKillthread" );
+        forcemusic ("surprise");
+	$spiderRunAway.ai_off();
+	$spiderRunAway.playSound( "sound/chars/bugbig/bbug_attack1b.wav", 5, 1.1, 556 );
+	$spiderRunAway.walkto( "bugRunTo1", "run" );
+	waitfor( $spiderRunAway );
+	
+	//hzm coop mod chrissstrahl, even when dead it exists so check for health
+	if( doesEntityExist ( $spiderRunAway ) && $spiderRunAway.getHealth() > 0 )
+	{
+		wait( .1 );
+		$spiderRunAwayDust.playSound( "sound/environment/rock/rock_divein.wav", 3, 1, 356 );
+		trigger( "$spiderRunAwayDust" );
+		$spiderRunAway.remove();
+	}
+}
+
+//---------------------
+// spiderRunAwayThreadKillthread
+// Kills above thread so the splat appears.
+//---------------------
+void spiderRunAwayThreadKillthread()
+{
+	killthread( "spiderRunAwayThreadKillthread" );
+}
+
+//---------------------
+// smallBugAttackThread2
+// activates trigger for team to discuss the first bug attack
+//---------------------
+void smallBugAttackThread2()
+{
+	trigger( "$smallWallBugTrigger2" );
+	wait( 1 );
+        //music ("mystery","action");
+	$smallWallBug3.killthread( "smallBugAttack2Dead" );
+	$smallWallBug4.killthread( "smallBugAttack2Dead" );
+	$smallWallBug5.killthread( "smallBugAttack2Dead" );
+	
+	trigger( "$smallHoleBugTrigger1" );
+	$smallHoleBugTrigger1.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+	wait( .5 );
+	trigger( "$smallHoleBugTrigger2" );
+	$smallHoleBugTrigger2.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+	$smallHoleBug1.killthread( "smallBugAttack2Dead" );
+	wait( .5 );
+	trigger( "$smallHoleBugTrigger3" );
+	$smallHoleBugTrigger3.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+	$smallHoleBug2.killthread( "smallBugAttack2Dead" );
+	wait( .5 );
+	$smallHoleBug3.killthread( "smallBugAttack2Dead" );
+}
+
+//---------------------
+// smallBugAttack2Dead
+// calls second wave
+//---------------------
+void smallBugAttack2Dead()
+{
+	smallBugAttackBugsAreDead++;
+	if( smallBugAttackBugsAreDead == 5 )
+	{
+		$smallHoleBugSpawn1.checkForSpace();
+		$smallHoleBugSpawn2.checkForSpace();
+		$smallHoleBugSpawn3.checkForSpace();
+		
+		trigger( "$smallCelingBugTrigger1" );
+		wait( 4 );
+		trigger( "$smallWallBugTrigger1" );
+		wait( 3 );
+		trigger( "$smallHoleBugTrigger1" );
+		$smallHoleBugTrigger1.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+		wait( 2 );
+		trigger( "$smallHoleBugTrigger2" );
+		$smallHoleBugTrigger2.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+		wait( 1 );
+		trigger( "$smallHoleBugTrigger3" );
+		$smallHoleBugTrigger3.playSound( "sound/environment/rock/rock_popout.wav", 3, 1, 556 );
+	}
+}
+
+//---------------------
+// smallBugWave1Over
+// called after all non-explosive bugs are dead in wave1
+//---------------------
+void smallBugWave1Over()
+{
+	//This keeps small Bug wave 3 From spawning infront of player / before he
+	//powers up Ruins
+	if( cityStairsofEvilOn == 1 )
+	{
+		$smallExplosiveTrigger1.triggerable();
+	}
+	smallBugWave1Dead++;
+	
+        music("normal");
+}
+
+//---------------------
+// Function: cityPowerRestored
+// Comments:
+// restores the power to button that opens the door at the top of the stairwell
+//---------------------
+void cityPowerRestored()
+{
+	$cityGiantPillarofDoom1_fallTrigger.triggerable();
+	
+	//Male Bug Attack Ready
+	$bugMaleAttackTrigger1.triggerable();
+	$bugMaleAttackTrigger2.triggerable();
+	
+	//Explosive Attack Ready
+	//Commented because it calls in to much ai
+	//$smallExplosiveTrigger1.triggerable();
+	
+	$cityPowerRestore_button1_green.playsound( "sound/ships/attrexian/att-powerup.wav", 7, 1, 1500 );
+	$cityPowerRestore_button1_green.playsound( "sound/ships/drull/drull-beepaccept.wav", 8, .7, 1500 );
+	
+	$cityPowerRestore_button1_green.show();
+	$cityPowerRestore_button1_red.hide();
+
+	$cityStairsofEvil1_button1_blue.hide();
+	$cityStairsofEvil1_button1_on.show();
+	
+	//MainGateButton
+	$world.light_lightstyle( "cityGiantDoorofDoom1_button1_redLight" , "a" , 1 );
+	$world.light_lightstyle( "cityGiantDoorofDoom1_button1_greenLight" , "z" , 1 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RestorePower$$","complete",5,1);
+	
+	
+	$arch_waypointRuinEntrance1.missionobjective( 0 );
+	$arch_doorpanel1.missionobjective( 1 );
+	$arch_powerpanel1.missionobjective( 0 );
+	//$arch_powerpanel1.archetype( "IdryllPowerPanelUsed" );
+	$arch_powerpanel1.remove();
+	wait( 1.5 );
+
+	//Power Button and Room Light
+	$world.light_lightstyle( "cityPowerRestore_button1_redLight" , "a" , 1 );
+	$world.light_lightstyle( "cityPowerRestore_button1_greenLight" , "z" , 1 );
+	
+	//$world.light_lightstyle( "powerRestoreRoomLights" , "zff, zzff, zzzff, zzff, zff, zzff zzzzff z" , 1 );
+	
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .05 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .1 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .15 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .1 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .05 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .1 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .2 );
+	$world.light_lightstyle( "powerRestoreRoomLights" , "f" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_stop.wav", 10, 1, 512 );
+	wait( .1 );
+	
+	$world.light_lightstyle( "powerRestoreRoomLights" , "z" , 1 );
+	$cityPowerRestore_button1_green.playsound( "sound/environment/machine/light_startloop.wav", 10, 1, 512 );
+	wait( .05 );
+	
+	$world.simpleplaydialog( "localization/sound/dialog/m5l1/idcomp_mainon.mp3", 1.1, 1256 );
+	
+	if( smallBugWave1Dead == 1 )
+	{
+		$smallExplosiveTrigger1.triggerable();
+	}
+	
+	cityStairsofEvilOn = 1;
+}
+
+//---------------------
+// Function: openMainGateForTeam
+// Comments:
+// Que Main Gate For Team
+//---------------------
+void openMainGateForTeam()
+{
+	$levelQuake.magnitude( .2 );
+	$levelQuake.duration( 9.9 );
+	trigger( "$levelQuake" );
+
+	$cityGiantDoorofDoom1.loopsound( "sound/doors/drull_bigdoor_01.wav", 1.5, 2024 );
+	$cityGiantDoorofDoom1.time( 9.9 );
+	$cityGiantDoorofDoom1.moveDown( 496 );
+
+	mainGateOpened = 1;
+	
+	//Activate the fake "Main Gate Switch"
+	$cityGiantDoorofDoom1_button1_blue.hide();
+	$cityGiantDoorofDoom1_button1_green.show();
+	$cityGiantDoorofDoom1_button1_red.hide();
+	
+	wait( 6 );
+
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 300, 6000 );
+
+	$chell.origin( '-832 3936 160' );
+	$telsia.origin( '-832 3744 160' );
+	$korban.origin( '-256 3936 160' );
+	
+	trigger( "$mainGateGroundBug" );
+
+	//Turns off attack if player helps his teammates before proceeding.
+	$bugMaleAttackTrigger2.nottriggerable();
+	
+	wait( 3.9 );
+	$cityGiantDoorofDoom1.stopLoopSound();
+	$cityGiantDoorofDoom1.playSound( "sound/doors/drull_bigdoor_stop_01.wav", 3, 1.5, 2024 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	
+	ePlayer = globalCoop_return_playerClosestPreferActive($mainGateGroundBug1);
+	$mainGateGroundBug1.attack( ePlayer );
+	
+	ePlayer = globalCoop_return_playerClosestPreferActive($mainGateGroundBug2);
+	$mainGateGroundBug2.attack( ePlayer );
+	
+	ePlayer = globalCoop_return_playerClosestPreferActive($mainGateGroundBug3);
+	$mainGateGroundBug3.attack( ePlayer );
+}
+
+//---------------------
+// Function: mainGateGroundBugDead
+// Comments:
+// Makes the team follow and spawn more after wave is gone
+//---------------------
+void mainGateGroundBugDead()
+{
+	teamFollow();
+
+	wait( 1.5 );
+	teamTalkAboutAttackThread();
+	
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 768, 1024 );
+}
+
+//---------------------
+// teamTalkAboutAttackThread
+// makes team to discuss the first bug attack
+//---------------------
+void teamTalkAboutAttackThread()
+{
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_wasquick.mp3", 1, 10000, 1); //That was quick. I hope that was their best shot.
+	waitForDialog( $chell );
+	$telsia.playdialog("localization/sound/dialog/m5l1/telsia_doubtful.mp3", 1, 10000, 1); //Doubtful. It feels like they’re testing us.
+	waitForDialog( $telsia );
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_passed.mp3", 1, 10000, 1); //Maybe we passed. And they’ll leave us alone.
+	waitForDialog( $chell );
+	$scriptmunro.playdialog("localization/sound/dialog/m5l1/munro_stayalert.mp3", 1, 10000, 1); //Everyone keep quiet. And stay alert.
+	waitForDialog( $scriptmunro );
+}
+
+//---------------------
+// Function: cityStairsofEvil1_button1_use
+// Comments:
+// button for the door at the top of the stairwell
+//---------------------
+void cityStairsofEvil1_button1_use()
+{
+	if( cityStairsofEvilOn == 0 )
+	{
+		$cityGiantDoorofDoom1_button1_red.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+		wait( .5 );
+		$world.simpleplaydialog( "localization/sound/dialog/m5l1/idcomp_mainoff.mp3", 1.1, 12560000 );
+		
+		if( restorePowerObjective == 0 )
+		{
+			restorePowerObjective = 1;
+			
+			//hzm coop mod Chrissstrahl, set the objective
+			globalCoop_objectives_set("$$RestorePower$$","incomplete",5,1);
+		}
+ 	}
+ 	else if( cityStairsofEvilOn == 1 )
+ 	{
+	 	if( mainGateOpened == 0 )
+	 	{
+			trigger( "$cityGiantDoorofDoom1" );	
+			mainGateOpened = 1;
+
+			//Activate the fake "Main Gate Switch"
+			$cityGiantDoorofDoom1_button1_green.show();
+			$cityGiantDoorofDoom1_button1_red.hide();
+			
+			teamFollow();
+			
+			// This sets the teammates follow / combat range
+			setTeamFollowDistance( 768, 1024 );
+	 	}
+	 	
+	 	$cityStairsofEvil1_button1.nouse();
+
+		cityStairsofEvilOn++;
+
+		$cityStairsofEvil1_button1_blue.hide();
+		$cityStairsofEvil1_button1_on.hide();
+		$cityStairsofEvil1_button1_off.show();
+		
+		$cityStairsofEvil1_button1_on.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 1256 );
+		
+		$world.light_lightstyle( "cityStairsofEvil1_button1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityStairsofEvil1_button1_greenLight" , "z" , 1 );
+		
+		$arch_doorpanel1.missionobjective( 0 );
+		$arch_powerpanel1.missionobjective( 0 );
+		$arch_waypointRuinEntrance1.missionobjective( 1 );
+		cityStairsofEvil1_move();
+ 	}
+ 	else
+ 	{
+ 		$cityStairsofEvil1_button1_on.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+ 	}
+}
+
+//---------------------
+// Function: cityStairsofEvil1_move
+// Comments:
+// moves the horizontal pillars(door) that are blocking entrance to the upper portion of the city
+//---------------------
+void cityStairsofEvil1_move()
+{
+	$cityGiantLiftofDoom1_door1.loopSound ( "sound/environment/rock/rock_slab.wav", 1.5 , 768 );
+	
+	$cityGiantLiftofDoom1_door1.time( 5 );
+	$cityGiantLiftofDoom1_door1.moveWest( 178 );
+	$cityGiantLiftofDoom1_door2.time( 5 );
+	$cityGiantLiftofDoom1_door2.moveEast( 178 );
+	waitfor( $cityGiantLiftofDoom1_door1 );
+	
+	$cityGiantLiftofDoom1_door1.stoploopsound();
+	$cityGiantLiftofDoom1_door1.playsound ( "sound/environment/rock/rock_slabstop.wav", 3 , 1.5 , 768 );
+	
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle0			= 90;
+	coop_float_spawnAngle1			= 90;
+	coop_float_spawnAngle2			= 90;
+	coop_float_spawnAngle3			= 90;
+	coop_float_spawnAngle4			= 90;
+	coop_float_spawnAngle5			= 90;
+	coop_float_spawnAngle6			= 90;
+	coop_float_spawnAngle7			= 90;
+	coop_float_spawnAngle8			= 90;
+	coop_vector_spawnOrigin1 			= '2300 5530 1022';
+	coop_vector_spawnOrigin2 			= '2250 5530 1022';
+	coop_vector_spawnOrigin3 			= '2200 5530 1022';
+	coop_vector_spawnOrigin4 			= '2150 5530 1022';
+	coop_vector_spawnOrigin5 			= '2100 5530 1022';
+	coop_vector_spawnOrigin6 			= '2050 5530 1022';
+	coop_vector_spawnOrigin7 			= '2000 5530 1022';
+	coop_vector_spawnOrigin8 			= '1950 5530 1022';
+	//thread globalCoop_applaySpawnOriginOnReSpwanOrigin();
+}
+
+//---------------------
+// Function: mommaAttack1Thread
+// Comments:
+// moves team follow range out a bit
+//---------------------
+void mommaAttack1Thread()
+{
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 300, 6000 );
+}
+
+//---------------------
+// Function: cityFloorTrapDialog
+// Comments:
+// Make trigger triggerable so Chell will warn player
+//---------------------
+void chellWillWarnPlayer()
+{
+//	$cityFloorTrapDialogTrigger.triggerable();
+
+	//Kill any other talking
+	
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+	
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_guesswe.mp3", 1, 10000, 1); //I guess we haven’t seen the last of them. Tougher this time, too.
+	waitForDialog( $chell );
+	$telsia.playdialog("localization/sound/dialog/m5l1/telsia_learning.mp3", 1, 10000, 1); //They seem to have adapted their strategies after the last attack.
+	waitForDialog( $telsia );
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_smaterthan.mp3", 1, 10000, 1); //They’re smarter than they look.
+	waitForDialog( $chell );
+}
+
+//---------------------
+// Function: cityFloorTrapDialog
+// Comments:
+// Make Chell Talk about the unstable Floor
+//---------------------
+void cityFloorTrapDialog()
+{
+	//Kill any other talking
+	killthread( "chellWillWarnPlayer" );
+	
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_munrowait.mp3", 1, 10000, 1); //Munro! Wait! My scans indicate that this pathway is highly unstable. Use your tricorder’s structural integrity viewmode, and watch where you step.
+	waitForDialog( $chell );
+	$scriptmunro.playdialog("localization/sound/dialog/m5l1/munro_pathway.mp3", 1, 10000, 1); //Understood. Hazard Team, wait here. I’ll cross and try to find a safer path.
+	waitForDialog( $scriptmunro );
+}
+
+//---------------------
+// Function: crackingTileThread
+// Comments:
+// Make Cracked floor tiles play a cracked sound
+//---------------------
+void crackingTileWait( entity entityPiece )
+{
+	entityPiece.ontouch( "crackingTileGo" );
+	pause();
+}
+
+//---------------------
+// Function: crackingTileThread
+// Comments:
+// Make Cracked floor tiles play a cracked sound
+//---------------------
+void crackingTileWait2( entity entityPiece )
+{
+	entityPiece.ondamage( "crackingTileGo" );
+	pause();
+}
+
+//---------------------
+// Function: crackingTileThread
+// Comments:
+// Make Cracked floor tiles play a cracked sound
+//---------------------
+void crackingTileGo()
+{
+	entity currentEntity;
+	string stringToRemove;
+	entity entityToRemove;
+	entity tileExplosionToTrigger;
+	
+	currentEntity = getCurrentEntity();
+	currentEntity.notouch();
+	
+	stringToRemove = currentEntity.getstringvar ( "uservar1" );
+	entityToRemove = getentity( stringToRemove );
+	entityToRemove.remove();
+	
+	secretTileCounter++;
+	
+	$levelQuake.magnitude( .25 );
+	$levelQuake.duration( .5 );
+	trigger( "$levelQuake" );
+
+	currentEntity.playsound ( "sound/ships/drull/drull_tilebreak.wav", 3 , 1.5 , 356 );
+	
+	currentEntity.notsolid();
+	currentEntity.time( .5  );
+	currentEntity.moveDown( 320 );
+	waitfor( currentEntity );
+
+	stringToRemove = currentEntity.getstringvar ( "uservar2" );
+	entityToRemove = getentity( stringToRemove );
+	triggerentity( entityToRemove );
+	
+//	currentEntity.time( .3  );
+//	currentEntity.moveDown( 256 );
+//	wait( .3  );
+	
+	currentEntity.remove();
+	
+	if( developerMode == 1 )
+	{
+		secretTileCounter = 36;
+	}
+	
+	if( secretTileCounter >= 36 )
+	{
+		$tileSecret.triggerable();
+		trigger( "$tileSecret" );
+		$tileSecretBox.origin( '-32 7392 1856' );
+		$tileSecretBox.time( 1 );
+		$tileSecretBox.moveDown( 480 );
+		waitfor( $tileSecretBox );
+		$tileSecretBox.playsound( "sound/environment/rock/rock_hit3.wav", 3, 1, 2500 );
+		
+		$tileSecretBox.onDamage( "tileSecretBoxGo" );
+		pause();
+	}
+}
+
+//---------------------
+// Function: tileSecretBoxGo
+// Comments:
+// This make the secret box Exlplode and spawn
+//---------------------
+void tileSecretBoxGo()
+{
+	$tileSecretBox.noDamage();
+	$levelSpawner.origin( '-32 7392 1374' );
+	$levelSpawner.modelName( "fx/fx-explosion-debris-idryllruins-large.tik" );
+	trigger( "$levelSpawner" );
+	$levelSpawner.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 3, 1, 1500 );
+	$tileSecretShip.origin( '-32 7392 1374' );
+	
+	wait( .05 );
+	$tileSecretBox.remove();
+}
+
+//---------------------
+// Function: cityFloorTrap1
+// Comments:
+// 
+//---------------------
+void cityFloorTrap1()
+{
+	//Make sure team doesn't come running untill door is open
+	if( teamShouldWaitHere == 1 )
+	{
+		teamWait();
+	}
+}
+
+//---------------------
+// Function: cityFloorTrap1_end
+// Comments:
+//
+//---------------------
+void cityFloorTrap1_end()
+{
+	if( chellProtectDoorOn == 0 )
+	{
+		//make the trigger that makes chell unlock door a go.
+		chellProtectDoorOn = 1;
+
+		// This sets the teammates follow / combat range
+		setTeamFollowDistance( 768, 1024 );
+
+		$cityFloorTrap1_button1_on.hide();
+		$cityFloorTrap1_button1_off.show();
+
+		$cityFloorTrap1_button1_on.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 1256 );
+
+		$world.light_lightstyle( "cityFloorTrap1_button1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityFloorTrap1_button1_greenLight" , "z" , 1 );
+
+		$doorForTeamTrap.unlock();
+
+		//hzm coop mod chrissstrahl, relocate ai, make sure no player gets stuck inside it
+		thread globalCoop_level_warpEntityToVectorSafty($chell,'2048 7744 1392');
+		thread globalCoop_level_warpEntityToVectorSafty($telsia,'2048 7632 1392');
+		thread globalCoop_level_warpEntityToVectorSafty($korban,'2048 7520 1392');
+
+		teamShouldWaitHere = 0;
+
+		teamFollow();
+
+		$scoutingPartyTrigger.triggerable();
+
+		trigger( "$doorForTeamTrap" );
+		
+		$chell.playdialog("localization/sound/dialog/m5l1/chell_thisway.mp3", 1, 10000, 1); //Thanks Munro. Good to see you.
+		waitForDialog( $chell );
+	}
+	else
+	{
+		$cityFloorTrap1_button1_on.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+	}
+}
+
+//---------------------
+// Function: trapFractureThread
+// Comments:
+// Calls Str. Integ. trap explosion spawners
+//---------------------
+void trapFractureThread()
+{
+	trigger( "$trapFractureSpawn" );
+	$trapFractureSpawn.playsound( "sound/environment/rock/impact3.wav", 2, 1, 768 );
+}
+
+//---------------------
+// Function: scoutingPartyThread
+// Comments:
+// Calls Cinematic
+//---------------------
+void scoutingPartyThread()
+{
+	//hzm coop mod chrissstrahl, get player that activated this sequence, for later reference
+	entity eTrigger;
+	eTrigger			= getCurrentEntity();
+	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	
+	thread cinematicScoutingParty();
+}
+
+
+//---------------------
+// cinematicScoutingParty
+// setup and begin cinematicScoutingParty
+//---------------------
+void cinematicScoutingParty()
+{
+	//--- Fade Out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .75 );
+
+	freezeplayer();
+	cinematic();   
+	forcemusic ("aux4");
+
+	// --- Setup
+	
+	$scriptmunro.ai_off();
+	$chell.ai_off();
+	$telsia.ai_off();
+	$korban.ai_off();
+
+	wait( .25 );
+
+	$scriptmunro.anim( "idle" );
+	$chell.anim( "idle" );
+	$telsia.anim( "idle" );
+	$korban.anim( "idle" );
+
+	$scriptmunro.show();
+	$scriptminro.solid();
+
+	wait( .25 );
+	
+	$scriptmunro.origin( '1088 7820 1344' );
+	$chell.origin( '1064 7888 1344' );
+	$telsia.origin( '1054 7764 1344' );
+	$korban.origin( '1160 7712 1344' );
+
+	$scriptmunro.angles( '0 90 0' );
+	$chell.angles( '0 25 0' );
+	$telsia.angles( '0 65 0' );
+	$korban.angles( '0 120 0' );
+	
+	$chell.useactorweapon( "tricorder" );
+	$chell.anim( "tricorder_fire" );
+	
+	$scriptmunro.anim( "fieldassaultrifle_idle" );
+	
+	// --- Que Cams
+	$cam1.follow ( $m5l1b_sparty1 );
+
+	$cam1.cut();
+	wait( .5 );
+	cuecamera( $cam1 );
+	wait( .3 );
+	
+	letterbox( .01 );
+	
+	// --- Skip Thread
+	skipthread( "cinematicScoutingPartySkipthread");
+		
+	//--- Start & Fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1.5 );
+
+	$cam1.follow ( $m5l1b_sparty2 );
+
+	wait( 6 );
+
+	$scriptmunro.playdialog( "localization/sound/dialog/m5l1/munro_chellcheck.mp3", 1, 10000, 0 ); //Chell, any lifesigns?
+	waitForDialog( $scriptmunro );
+	$chell.playdialog( "localization/sound/dialog/m5l1/chell_nosigns.mp3", 1, 10000, 0 ); //They’ve been dead for several days.
+	waitForDialog( $chell );
+	$telsia.playdialog( "localization/sound/dialog/m5l1/telsia_guesswe.mp3", 1, 10000, 0 ); //I guess we found the Idryll scouting party.
+	waitForDialog( $telsia );
+
+	//--- End Thread
+	thread cinematicScoutingPartyEnd();
+}
+
+//---------------------
+// cinematicScoutingPartySkipthread
+// skipthread that calls the skipthread routines
+//------------------------
+void cinematicScoutingPartySkipthread()
+{
+	//--- kill the cinematicScoutingParty thread
+	skipthread( "Null" );
+	killthread( "cinematicScoutingParty" );
+        forcemusic ("normal");
+	//--- call the ending of the cinematicScoutingParty
+	thread cinematicScoutingPartyEnd();
+}
+
+//---------------------
+// cinematicScoutingPartyEnd
+// wrapup the cinematicScoutingParty
+//------------------------
+void cinematicScoutingPartyEnd()
+{
+	//--- fade out and set the level up
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .75 );
+
+	killAllTalking();
+
+	$chell.useactorweapon( "CompressionRifle" );
+	$chell.anim( "idle" );
+
+	$scriptmunro.origin( '1088 7820 1344' );
+	$chell.origin( '1064 7888 1344' );
+	$telsia.origin( '1054 7764 1344' );
+	$korban.origin( '1160 7712 1344' );
+
+	$scriptmunro.angles( '0 90 0' );
+	$chell.angles( '0 25 0' );
+	$telsia.angles( '0 65 0' );
+	$korban.angles( '0 120 0' );
+
+	$scriptmunro.hide();
+	
+	//hzm coop mod chrissstrahl, fixed targetname typo from ritual, make sure this does not fire back
+	$scriptmunro.notsolid();
+	
+	//hzm coop mod chrissstrahl, grab player that was triggering this sequence, and move him, like in singleplayer
+	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
+		entityPlayerGlobal.origin( '1028 7800 1344' );
+		//entityPlayerGlobal.playerviewangles( '0 -486 0' );
+	}
+
+	forcemusic ("normal");
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	clearletterbox( .1 );
+	
+	cam_fadein( .5, 0, 0, 0, 1, 0 ) ;
+	
+	//Allow Bug Spawn Near Chell Door
+	$cityRoofChellProtectSpawn.triggerable();
+	
+	wait( .5 );
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$FindScouting$$","complete",4,1);
+
+	$chell.ai_on();
+	$telsia.ai_on();
+	$korban.ai_on();
+
+}
+
+//---------------------
+// Function: chellProtectDoor
+// Comments:
+// chell runs to the door and opens it
+//---------------------
+void chellProtectDoor()
+{
+	$cityRoofDoor1_trigger.nottriggerable();
+	
+	if( chellProtectDoorOn == 1 )
+	{
+		$cityRoofDoor1_switch1_green.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+				
+		$chell.ai_off();
+		
+		//trigger( "$cityRoofChellProtectSpawn" );
+
+		$chell.sethatemodifier ( 2.0 );
+		
+		//hzm coop mod chrissstrahl, make the ai hate the player a little less than usual, this is like in singleplayer
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.sethatemodifier ( 0.5 );
+			}
+		}
+		
+
+		$chell.walkto( "$cityRoofDoor1_node1" , "run" );
+		wait( .5 );
+		$chell.playdialog("localization/sound/dialog/m5l1/chell_crack.mp3", 1, 10000, 1); //Cover me while I crack the security code! 
+		waitForDialog( $chell );
+
+		$chell.walkto( "$cityRoofDoor1_node1" , "run" );
+		waitfor( $chell );
+
+		globalCommon_AiActorUseWeapon( $chell, "tricorder" );
+
+		//while( chellProtectBugsDead == 0 )
+		//{
+		//	wait( 1 );
+		//}
+		
+		thread chellProtectFromBugDrop();
+		
+		while( totalNumerOfDropBugsDead <= totalNumerOfDropBugsNeededDead )
+		{
+			wait( 1 );
+		}
+
+		trigger( "$cityRoofLittleSpawn" );
+
+		$chell.sethatemodifier ( 1.0 );
+		
+		
+		//hzm coop mod chrissstrahl, make the ai hate the player as usual
+		entity ePlayer;
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.sethatemodifier ( 1.0 );
+			}
+		}
+
+		$cityRoofDoor1_switch1_green.hide();
+		$cityRoofDoor1_switch1_red.show();
+		
+		$cityRoofDoor1_switch1_green.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 1256 );
+		
+		$world.light_lightstyle( "cityRoofDoor1_switch1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityRoofDoor1_switch1_greenLight" , "z" , 1 );
+
+		$cityRoofDoor1_door1.unlock();
+
+		$chell.playdialog("localization/sound/dialog/m5l2/chell_gotgo.mp3", 1, 10000, 1); //OK, Got it!  Let's go! 
+		waitForDialog( $chell );
+		
+		globalCommon_AiActorUseWeapon( $chell, "compressionrifle" );
+		$chell.ai_on();
+	}
+	else
+	{
+		$cityRoofDoor1_switch1_green.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+		wait( 1 );
+		$cityRoofDoor1_trigger.triggerable();
+	}
+}
+
+//---------------------
+// Function: chellProtectFromBugsDone
+// Comments:
+// counter for chellProtectDoor thread
+//---------------------
+void chellProtectFromBugsDone()
+{
+        forcemusic ("normal");
+	chellProtectBugsDead++;
+}
+
+//---------------------
+// Function: chellProtectFromBugDrop
+// Comments:
+// these functions spawn bugs on 1 of 2 spawners untill there are X alive then waits untill one dies.
+// Then the next spawner spawns another untill Y <= Z.
+//---------------------
+void chellProtectFromBugDrop()
+{
+	string bugTypeToDrop;
+	float x;
+
+	while( totalNumerOfDropBugsDead <= totalNumerOfDropBugsNeededDead )
+	{
+		x = randomInt( 2 );
+		
+		if( x == 0 ){ bugTypeToDrop = "char/bug_small.tik"; }
+		if( x == 1 ){ bugTypeToDrop = "char/bug_small-explosive.tik"; }
+		
+		$bugDropSpawner1.modelname( bugTypeToDrop );
+		$bugDropSpawner1.spawnTargetName( "bugDrop1" );
+		trigger( "$bugDropSpawner1" );
+		wait( .05 );
+		$bugDrop1.killthread( "bugDropDead" );
+		
+		bugDropIsDead++;
+		
+		wait( .4 );
+		
+		while( bugDropIsDead >= 5 )
+		{
+			wait( .5 );
+		}
+		
+		x = randomInt( 2 );
+				
+		if( x == 0 ){ bugTypeToDrop = "char/bug_small.tik"; }
+		if( x == 1 ){ bugTypeToDrop = "char/bug_small-explosive.tik"; }
+		
+		$bugDropSpawner2.modelname( bugTypeToDrop );
+		$bugDropSpawner2.spawnTargetName( "bugDrop2" );
+		trigger( "$bugDropSpawner2" );
+		wait( .05 );
+		$bugDrop2.killthread( "bugDropDead" );
+		
+		bugDropIsDead++;
+		
+		wait( .4 );
+		
+		while( bugDropIsDead >= 5 )
+		{
+			wait( .5 );
+		}
+	}
+}
+
+void bugDropDead()
+{
+	totalNumerOfDropBugsDead++;
+	bugDropIsDead--;
+}
+
+//---------------------
+// Function: cityBridgeofDoom1Setup
+// Comments:
+// setups the appearing bridge
+//---------------------
+void cityBridgeofDoom1Setup()
+{
+	float x;
+	entity entityPiece;
+	
+	
+	for( x = 1; x <= 12; x++ )
+	{
+		entityPiece = getentity( "cityBridgeofDoom1_piece" + x );
+		entityPiece.hide();
+		entityPiece.notsolid();
+	}
+}
+
+//---------------------
+// Function: cityBridgeofDoom1_show
+// Comments:
+// reveals the giant bridge of doom
+//---------------------
+void cityBridgeofDoom1_show()
+{
+	if( cityBridgeofDoomActivated == 0 )
+	{
+		//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+		coop_float_spawnAngle1		= 180;
+		coop_float_spawnAngle2		= 180;
+		coop_float_spawnAngle3		= 180;
+		coop_float_spawnAngle4		= 180;
+		coop_float_spawnAngle5		= 180;
+		coop_float_spawnAngle6		= 180;
+		coop_float_spawnAngle7		= 180;
+		coop_float_spawnAngle8		= 180;
+		coop_vector_spawnOrigin1 	= '480 11080 1429';
+		coop_vector_spawnOrigin2 	= '480 11020 1429';
+		coop_vector_spawnOrigin3 	= '540 11140 1429';
+		coop_vector_spawnOrigin4 	= '540 11080 1429';
+		coop_vector_spawnOrigin5 	= '540 11020 1429';
+		coop_vector_spawnOrigin6 	= '603 11020 1429';
+		coop_vector_spawnOrigin7 	= '603 11080 1429';
+		coop_vector_spawnOrigin8 	= '603 11140 1429';
+		globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	
+		cityBridgeofDoomActivated = 1;
+		
+		$cityBridgeofDoom1_switch1_green.hide();
+		$cityBridgeofDoom1_switch1_red.show();
+		$cityBridgeofDoom1_switch1_green.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 1256 );
+
+		$world.light_lightstyle( "cityBridgeofDoom1_switch1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityBridgeofDoom1_switch1_greenLight" , "z" , 1 );
+
+		thread cityBridgeofDoom1TeamStay();
+		
+		float x;
+		entity entityPiece;
+		
+		teamWait();
+
+		for( x = 1; x <= 12; x++ )
+		{
+			entityPiece = getentity( "cityBridgeofDoom1_piece" + x );	
+			
+			thread globalCityBridge( entityPiece );
+			wait( 1 );
+		}
+	}
+	else
+	{
+		$cityBridgeofDoom1_switch1_green.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+	}
+}
+
+//---------------------
+// Function: cityBridgeRestore
+// Comments:
+// thread
+//---------------------
+void cityBridgeofDoom1TeamStay()
+{
+	$chell.stopDialog();
+	$telsia.stopDialog();
+	$korban.stopDialog();
+	$world.stopDialog();
+	$scriptmunro.stopDialog();
+
+	$chell.playdialog("localization/sound/dialog/m5l1/chell_nrgbridge.mp3", 1, 10000, 1); //The power relay for this energy bridge is on the other side.
+	waitForDialog( $chell );
+	$scriptmunro.playdialog("localization/sound/dialog/m5l1/munro_illactivate.mp3", 1, 10000, 1); //Wait here. I’ll activate the bridge.
+	waitForDialog( $scriptmunro );
+}
+
+//---------------------
+// Function: cityBridgeRestore
+// Comments:
+// thread
+//---------------------
+void cityBridgeRestore()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations
+	coop_float_spawnAngle1			= 1;
+	coop_float_spawnAngle2			= 1;
+	coop_float_spawnAngle3			= 1;
+	coop_float_spawnAngle4			= 1;
+	coop_float_spawnAngle5			= 1;
+	coop_float_spawnAngle6			= 1;
+	coop_float_spawnAngle7			= 1;
+	coop_float_spawnAngle8			= 1;
+	coop_vector_spawnOrigin1 			= '-2266 11150 170';
+	coop_vector_spawnOrigin2 			= '-2266 11270 170';
+	coop_vector_spawnOrigin3 			= '-2266 11340 170';
+	coop_vector_spawnOrigin4 			= '-2266 11410 170';
+	coop_vector_spawnOrigin5 			= '-2266 11550 170';
+	coop_vector_spawnOrigin6 			= '-2266 11620 170';
+	coop_vector_spawnOrigin7 			= '-2266 11690 170';
+	coop_vector_spawnOrigin8 			= '-2266 11760 170';
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+
+	$cityBridgeofDoom1_switch1.nottriggerable();
+	
+	if( bridgeIsFlashing == 1 )
+	{
+		// This sets the teammates follow / combat range
+		setTeamFollowDistance( 300, 1024 );
+	
+//		$korban.origin( '-3296 11136 1392' );
+//		$chell.origin( '-3168 11072 1392' );
+//		$telsia.origin( '-3040 11136 1392' );
+		
+		/*
+		$korban.origin( '-4088 12296 1264' );
+		$chell.origin( '-4000 12384 1264' );
+		$telsia.origin( '-4088 12472 1264' );
+		*/
+		
+		//hzm coop mod chrissstrahl, relocate ai, make sure no player gets stuck
+		thread globalCoop_level_warpEntityToVectorSafty($korban,'-4088 12296 1264');
+		thread globalCoop_level_warpEntityToVectorSafty($chell,'-4000 12384 1264');
+		thread globalCoop_level_warpEntityToVectorSafty($telsia,'-4088 12472 1264');
+		
+		$korban.followrange( 384 );
+		$korban.followrangemin( 256 );
+		$korban.followcombatrange( 512 );
+		$korban.followcombatrangemin( 384 );
+
+		$chell.followrange( 384 );
+		$chell.followrangemin( 256 );
+		$chell.followcombatrange( 512 );
+		$chell.followcombatrangemin( 384 );
+		
+		$telsia.followrange( 384 );
+		$telsia.followrangemin( 256 );
+		$telsia.followcombatrange( 512 );
+		$telsia.followcombatrangemin( 384 );
+		
+		$cityBridgeRestore_button1_green.hide();
+		$cityBridgeRestore_button1_red.show();
+		$cityBridgeRestore_button1_green.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 1256 );
+
+		$world.light_lightstyle( "cityBridgeRestore_button1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityBridgeRestore_button1_greenLight" , "z" , 1 );
+
+		bridgeWaitTimeVisible = .05;
+		bridgeWaitTimeHidden = .05;
+
+		$cityBridgeRestoreDoor.unlock();
+		
+		trigger( "$cityBridgeRestoreDoor" );
+
+		bridgeIsFlashing = 0;
+		
+		$telsia.playdialog("localization/sound/dialog/m5l1/telsia_bridgegj.mp3", 1, 10000, 1); //Good job Munro.
+				
+		while( bridgePieceVisible <= 11 ) { wait( 1 ); }
+
+		$teamBridgeBlockade.remove();
+
+		teamFollow();
+	}
+	else
+	{
+		$cityBridgeRestore_button1_green.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 1256 );
+	}
+	wait( 1 );
+	$cityBridgeofDoom1_switch1.triggerable();
+}
+
+//---------------------
+// Function: globalCityBridge
+// Comments:
+// global for each piece of the bridge as it flickers in
+// globalCityBridgeSection - entity name of the actual bridge piece
+//---------------------
+void globalCityBridge( entity globalCityBridgeSection )
+{
+	while( bridgeIsFlashing == 1 )
+	{
+		globalCityBridgeShow( globalCityBridgeSection );
+		wait( bridgeWaitTimeVisible );
+		globalCityBridgeHide( globalCityBridgeSection );
+		wait( bridgeWaitTimeHidden );
+	}
+	globalCityBridgeShow( globalCityBridgeSection );
+	
+	bridgePieceVisible++;
+}
+
+void globalCityBridgeShow( entity globalCityBridgeSection )
+{
+	globalCityBridgeSection.solid();
+
+	//Cycle 1
+	globalCityBridgeSection.playsound ( "sound/ships/drull/drull_citytrans.wav", 1 ,1.5 , 196 );
+	globalCityBridgeSection.show();
+	wait( .1 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 2
+	globalCityBridgeSection.show();
+	wait( .15 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 3
+	globalCityBridgeSection.show();
+	wait( .2 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 4
+	globalCityBridgeSection.show();
+	wait( .25 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 5
+	globalCityBridgeSection.show();
+	wait( .3 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//On
+	globalCityBridgeSection.show();
+	
+}
+
+void globalCityBridgeHide( entity globalCityBridgeSection )
+{
+	//Off
+	globalCityBridgeSection.playsound ( "sound/ships/drull/drull_citytransout.wav", 1 ,1.5 , 256 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 3
+	globalCityBridgeSection.show();
+	wait( .2 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 2
+	globalCityBridgeSection.show();
+	wait( .15 );
+	globalCityBridgeSection.hide();
+	wait( .1 );
+
+	//Cycle 1
+	globalCityBridgeSection.show();
+	wait( .1 );
+
+	globalCityBridgeSection.hide();	
+	
+	globalCityBridgeSection.notsolid();
+}
+
+//---------------------
+// Function: makeTeamJump
+// Comments:
+// this thread make teammates able to jump off ledge and them turns their normal stuff back on
+// Used in conjunction with pathnode targeted to other node and jump flaged: You are welome
+//---------------------
+void makeTeamJump()
+{
+	centerprint("COOP: UNFINSIHED - makeTeamJump");
+	
+	entity currentEntity;
+	
+	currentEntity = getcurrententity();
+	if( currentEntity == $player )
+	{
+		if( playerMakeTeamJump == 0 )
+		{
+			playerMakeTeamJump = 1;
+			
+			$chell.strictlyfollowpath( 1 );
+			$chang.strictlyfollowpath( 1 );
+			$korban.strictlyfollowpath( 1 );
+		}
+	}
+	if( currentEntity == $chell )
+	{ 
+		if( chellMakeTeamJump == 0 )
+		{
+			chellMakeTeamJump = 1;
+			$chell.strictlyfollowpath( 0 );
+		}
+	}
+	if( currentEntity == $telsia )
+	{ 
+		if( telsiaMakeTeamJump == 0 )
+		{
+			telsiaMakeTeamJump = 1;
+			$telsia.strictlyfollowpath( 0 );
+		}
+	}
+	if( currentEntity == $korban )
+	{ 
+		if( korbanMakeTeamJump == 0 )
+		{
+			korbanMakeTeamJump = 1;
+			$korban.strictlyfollowpath( 0 );
+		}
+	}
+}
+
+void makeTeamCombatFar()
+{
+	$makeTeamCombatFarTrigger.nottriggerable();
+
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 300, 6000 );
+
+	wait ( 1 );
+	$makeTeamCombatFarTrigger.triggerable();
+	
+}
+
+void makeTeamCombatClose()
+{
+	$makeTeamCombatCloseTrigger.nottriggerable();
+
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 768, 1024 );
+
+	wait ( 1 );
+	$makeTeamCombatCloseTrigger.triggerable();
+	
+}
+
+//---------------------
+// Function: smallBugAttackThread1
+// Comments:
+// makes small bug ambush in Queen Area attack player
+//---------------------
+void smallBugAttackThread1()
+{
+	wait( .05 );
+	
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($smallBugAttackSpawn1);
+	$smallBugAttackSpawn1.attack( ePlayer );
+}
+
+//---------------------
+// Function: spawnCanisterBugsThread
+// Comments:
+// makes bud holes near Canisters in Queen Area spawn bugs on approach
+//---------------------
+void spawnCanisterBugsThread()
+{
+	trigger( "$queenAttackHoleDelay1" );
+	trigger( "$queenAttackHoleDelay2" );
+	trigger( "$queenAttackHoleDelay3" );
+}
+
+//---------------------
+// Function: openExitGate
+// Comments:
+// make exit gate open
+//---------------------
+void openExitGate()
+{
+	$openExitGateTrigger.nottriggerable();
+	
+	if( mainExitGateOpened == 0 )
+	{
+		mainExitGateOpened = 1;
+	
+		//turn Bug Spawn near Queen Health Terminals on
+		$bugInGroundTrigger7.triggerable();
+
+		$cityGiantDoorofDoom2_button1_green.hide();
+		$cityGiantDoorofDoom2_button1_red.show();
+		$cityBridgeRestore_button1_green.playSound( "sound/ships/drull/drull-beepaccept.wav", 3, 1, 256 );
+
+		$world.light_lightstyle( "cityGiantDoorofDoom2_button1_redLight" , "a" , 1 );
+		$world.light_lightstyle( "cityGiantDoorofDoom2_button1_greenLight" , "z" , 1 );
+
+		// This sets the teammates follow / combat range
+		setTeamFollowDistance( 300, 6000 );
+
+		moveExitGate( 100 );
+		wait( .25 );
+		moveExitGate( 50 );
+		wait( 1 );
+		$openExitGateSpawn.playsound( "sound/ships/drull/drull_doorpound.wav", 8, 1, 1500 );
+		wait( 1.5 );
+		$openExitGateSpawn.playsound( "sound/ships/drull/drull_doorgrind.wav", 7, 1, 1500 );
+		moveExitGate( 10 );
+		wait( .5 );
+		$openExitGateSpawn.playsound( "sound/ships/drull/drull_doorpound.wav", 8, 1, 1500 );
+		moveExitGate( 12 );
+
+		wait( 2 );
+
+		$openExitGateSpawn.playsound( "sound/ships/drull/drull_doorpound.wav", 8, 1, 1500 );
+
+		wait( 2 );
+
+		$openExitGateSpawn.scale( 1.85 );
+
+		trigger( "$openExitGateSpawn" );
+
+		$openExitGateSpawn.playsound( "sound/ships/drull/drull_doorexplode.wav", 8, 1, 1500 );
+		$cityGiantDoorofDoom3.playsound( "sound/environment/rock/rock_pillarfall.wav", 7, 1, 1500 );
+
+                forcemusic ("surprise","aux3");
+		$queenBug.ai_on();
+		
+		//hzm coop mod chrissstrahl, make the queen attack the closest player
+		//entity ePlayer;
+		//ePlayer = globalCoop_return_playerClosestPreferActive();
+		/*$queenBug.attack ( $player , 1 );*/
+		
+		$queenBug.show();
+        $leftweb.loopsound  ( "sound/chars/bugsmall/bug_web1.wav" , 1 , 1384 );
+        $rightweb.loopsound  ( "sound/chars/bugsmall/bug_web2.wav" , 1 , 1384 );
+
+		wait( .25 );
+		$queenBug.killthread( "queenBugIsDead" );
+		
+		$cityGiantDoorofDoom3.show();
+		$cityGiantDoorofDoom2.remove();
+		
+		wait( 1 );
+		$queenHurt.triggerable();
+	}
+	else
+	{
+		$cityBridgeRestore_button1_green.playSound( "sound/ships/drull/drull-beepreject.wav", 3, 1, 256 );	
+	}
+	wait( 1 );
+	$openExitGateTrigger.triggerable();
+}
+
+//---------------------
+// Function: queenBugStageChange
+// Comments:
+// makes more bugs to battle 
+//---------------------
+void queenBugStageChange()
+{
+	queenStageNumber++;
+	
+	if( queenStageNumber == 1 )
+	{
+		trigger( "$queenAttackTrigger1" );
+		wait( 4 );
+		trigger( "$queenAttackTrigger4" );
+	}
+
+	if( queenStageNumber == 2 )
+	{
+		trigger( "$queenAttackTrigger2" );
+		wait( 3 );
+		trigger( "$queenAttackTrigger3" );
+		wait( 3 );
+		trigger( "$queenAttackTrigger5" );
+	}
+	if( queenStageNumber == 3 )
+	{
+		thread globalFlyin_SpawnLaunch( $cityGiantDoorofDoom2_flyin1, "char/alien-type1a-lurker.tik", 2, "", "", 0 );
+		wait( .5 );
+		thread globalFlyin_SpawnLaunch( $cityGiantDoorofDoom2_flyin2, "char/alien-type1a-lurker.tik", 2, "", "", 0 );
+		wait( 1 );
+		thread globalFlyin_SpawnLaunch( $cityGiantDoorofDoom2_flyin3, "char/alien-type1a-lurker.tik", 2, "", "", 0 );
+		wait( .5 );
+		thread globalFlyin_SpawnLaunch( $cityGiantDoorofDoom2_flyin1, "char/alien-type1a-lurker.tik", 2, "", "", 0 );
+	}
+}
+
+//---------------------
+// Function: queenBugIsDead
+// Comments:
+// removes blockade for player progression
+//---------------------
+void queenBugIsDead()
+{
+	float x;
+	entity currentEntity;
+	
+        forcemusic ("success","normal");
+
+	//Add splats here if necessary
+	for( x = 1; x <= 8; x++ )
+	{
+		currentEntity = getentity( "cocoon" + x );
+		
+		$levelSpawner.origin( currentEntity.getorigin() );
+		$levelSpawner.modelname( "fx/fx-explosion-bugblood-orange.tik" );
+		trigger( "$levelSpawner" );
+		wait( .1 );
+		
+		currentEntity.remove();
+	}
+	
+	$queenBugHole.remove();
+	$queenHurt.remove();
+	
+	queenBugDead++;
+	
+	// This sets the teammates follow / combat range
+	setTeamFollowDistance( 768, 1024 );
+}
+
+//---------------------
+// Function: queenBugIsDead
+// Comments:
+// spawns bugs in back of Queen area
+//---------------------
+void queenBackBugSpawnThread()
+{
+	$queenBackBugSpawn.nottriggerable();
+	
+	float x;
+
+	$bugBackOfQueenAreaSpawn1.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn1.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	$bugBackOfQueenAreaSpawn2.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn2.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	$bugBackOfQueenAreaSpawn3.setSpawnKeyValue( "setgroupid", "7" );
+	$bugBackOfQueenAreaSpawn3.setSpawnKeyValue( "groupDeathThread", "bugBackOfQueenAreaDead" );
+	wait( .5 );
+
+	if( queenBugDead == 0 )
+	{
+		x = randomint( 3 ) + 1;
+		
+		if( x == 1 )
+		{
+			trigger( "$bugBackOfQueenAreaTrigger1" );
+			trigger( "$bugBackOfQueenAreaTrigger2" );
+		}
+		if( x == 2 )
+		{
+			trigger( "$bugBackOfQueenAreaTrigger2" );
+			trigger( "$bugBackOfQueenAreaTrigger3" );
+		}
+		if( x == 3 )
+		{
+			trigger( "$bugBackOfQueenAreaTrigger3" );
+			trigger( "$bugBackOfQueenAreaTrigger1" );
+		}
+	}
+}
+
+//---------------------
+// Function: bugBackOfQueenAreaDead
+// Comments:
+// called when wave is dead; rests trigger
+//---------------------
+void bugBackOfQueenAreaDead()
+{
+	$queenBackBugSpawn.triggerable();
+}
+
+//---------------------
+// Function: moveExitGate
+// Comments:
+// make gate move with sound
+//---------------------
+void moveExitGate( float moveAmount )
+{
+	float moveTime;
+	float moveSpeed = 50;
+
+	moveTime = moveAmount / moveSpeed;
+
+	$levelQuake.magnitude( .2 );
+	$levelQuake.duration( moveTime );
+	trigger( "$levelQuake" );
+
+	$cityGiantDoorofDoom2.loopsound( "sound/doors/drull_bigdoor_01.wav", 1.5, 1024 );
+	$cityGiantDoorofDoom2.time( moveTime );
+	$cityGiantDoorofDoom2.moveDown( moveAmount );
+	$cityGiantDoorofDoom3.time( moveTime );
+	$cityGiantDoorofDoom3.moveDown( moveAmount );
+	waitfor( $cityGiantDoorofDoom3 );
+	$cityGiantDoorofDoom2.stoploopsound();
+	$cityGiantDoorofDoom2.playsound( "sound/doors/drull_bigdoor_stop_01.wav", 3, 1.5, 1024 );
+}
+
+//---------------------
+// Function: liftDown
+// Comments:
+// end level transition cinematic
+//---------------------
+void liftDown()
+{
+	$world.playsound( "sound/ships/drull/drull-beepaccept.wav", 6, 1, 500000 );	
+
+	//--- Fade Out
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .75 );
+
+	freezeplayer();
+	cinematic();   
+	forcemusic ("aux4");
+
+	// --- Setup
+	
+	$chell.ai_off();
+	$telsia.ai_off();
+	$korban.ai_off();
+	
+	$scriptmunro.show();
+	$scriptmunro.solid();
+
+	$korban.origin( '-1142 15808 152' );
+	$telsia.origin( '-1088 15872 160' );
+	$chell.origin( '-1216 15872 160' );
+	$scriptmunro.origin( '-1162 15928 160' );
+
+	$korban.angles( '0 270 0' );
+	$telsia.angles( '0 270 0' );
+	$chell.angles( '0 270 0' );
+	$scriptmunro.angles( '0 270 0' );
+
+	// --- Cams
+	$cam1.follow ( $m5l1b_end );
+
+	$cam1.cut();
+	wait( .2 );
+	cuecamera( $cam1 );
+
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$EnterRuins$$","complete",2,1);
+	
+	$arch_waypointRuinEntrance1.missionobjective( 0 );
+
+	wait( .2 );
+	
+	letterbox( .01 );
+	
+	//--- Start & Fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	// --- Skip Thread
+	skipthread( "liftDownSkipThread");
+
+	wait( 1 );
+
+	$endLiftDoorSW.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.5, 1500 );
+	$endLiftDoorSE.playsound( "sound/environment/machine/mech_move1.wav", 8, 1.5, 1500 );
+	thread globalAccelMove_Rotate( $endLiftDoorSW, '0 90 0', 2, "rampupdown", "" );
+	thread globalAccelMove_Rotate( $endLiftDoorSE, '0 -90 0', 2, "rampupdown", "" );
+	
+	wait( 2.5 );
+
+	$endLift.playsound( "sound/environment/machine/lift3.wav", 5, 1.5, 1500 );	
+	$endLift.time( 7 );
+	$endLift.moveDown( 1024 );
+	
+	wait( 2 );
+
+	thread liftDownSkipThread();
+}
+
+//---------------------
+// Function: liftDownSkipThread
+// Comments:
+// skip thread for the end of the level transition cinematic thread
+//---------------------
+void liftDownSkipThread()
+{
+	killthread( "liftDown" );
+
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+
+	wait( 1 );
+
+    forcemusic ("normal");
+//	cueplayer();
+//	noncinematic();
+//	releaseplayer();
+	clearletterbox( .1 );
+
+	wait( .1 );
+	
+	thread coop_endLevel();
+
+	/*trigger( "$endLevelTrigger" );*/
+}
+
+
+//==========================================================================================
+//  Traps
+//==========================================================================================
+
+//---------------------
+// Function: cityGiantPillarofDoom1_fall
+// Comments:
+// player causes giant pillar of doom falls over onto debris
+//---------------------
+void cityGiantPillarofDoom1_fall()
+{
+	if( cityGiantPillarofDoom1HasFallen == 0 )
+	{
+		$cityGiantPillarofDoom1_clip.solid();
+
+		cityGiantPillarofDoom1HasFallen = 1;
+		wait( .5 );
+
+		$cityGiantPillarofDoom1_fracture.remove();
+
+		$cityGiantPillarofDoom1_piece2.bind( $cityGiantPillarofDoom1_piece1 );
+		$cityGiantPillarofDoom1_piece3.bind( $cityGiantPillarofDoom1_piece1 );
+
+        forcemusic( "aux2" , "normal" );
+		$cityGiantPillarofDoom1_piece1.playsound( "sound/environment/rock/rock_pillarfall.wav", 8, 1, 1500 );
+
+		$cityGiantPillarofDoom1_piece1.dmg( 16384 );
+		$cityGiantPillarofDoom1_piece2.dmg( 16384 );
+		$cityGiantPillarofDoom1_piece3.dmg( 16384 );
+
+		$cityGiantPillarofDoom1_piece1.time( 2 );
+		$cityGiantPillarofDoom1_piece2.time( 2 );
+		$cityGiantPillarofDoom1_piece3.time( 2 );
+
+		float cityGPD1_piece1_time = 1;
+		float cityGPD1_piece1_rotate = 9;
+		float cityGPD1_piece1_down = 6.4;
+		float cityGPD1_piece1_east = 3.2;
+		float cityGPD1_piece1_moving = 0;
+
+		while( cityGPD1_piece1_moving < 10 )
+		{
+			$cityGiantPillarofDoom1_piece1.time( cityGPD1_piece1_time );
+			$cityGiantPillarofDoom1_piece2.time( cityGPD1_piece1_time );
+			$cityGiantPillarofDoom1_piece3.time( cityGPD1_piece1_time );
+
+			if( cityGPD1_piece1_moving == 5 )
+			{
+				$cityGiantPillarofDoom1_piece3.rotateXdown( 35 );
+				$cityGiantPillarofDoom1_piece3.moveUp( 10 );
+				$cityGiantPillarofDoom1_piece3.unbind();
+				thread globalCitySpawn( $cityGiantPillarofDoom1_explosion1 , "cityGiantPillarofDoom1_exploder1" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+				thread globalCitySpawn( $cityGiantPillarofDoom1_explosion3 , "cityGiantPillarofDoom1_exploder3" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+				$cityGiantPillarofDoom1_debris1.remove();
+			}
+			else if( cityGPD1_piece1_moving == 6 )
+			{
+				thread cityGiantPillarofDoom1_fall_piece3();
+			}
+			else if( cityGPD1_piece1_moving < 5 )
+			{
+				$cityGiantPillarofDoom1_piece3.rotateXdown( 2 );
+				$cityGiantPillarofDoom1_piece3.moveUp( 10 );
+			}
+
+			$cityGiantPillarofDoom1_piece2.rotateZup( 1 );
+			$cityGiantPillarofDoom1_piece2.rotateXdown( 1 );
+			$cityGiantPillarofDoom1_piece2.moveUp( 1 );
+			$cityGiantPillarofDoom1_piece2.moveSouth( 1 );
+
+			$cityGiantPillarofDoom1_piece1.rotateXup( cityGPD1_piece1_rotate );
+			$cityGiantPillarofDoom1_piece1.moveDown( cityGPD1_piece1_down );
+			$cityGiantPillarofDoom1_piece1.moveEast( cityGPD1_piece1_east );
+			waitfor( $cityGiantPillarofDoom1_piece1 );
+
+			cityGPD1_piece1_time = cityGPD1_piece1_time * .625;
+
+			if( cityGPD1_piece1_time < .05 )
+			{
+				cityGPD1_piece1_time = .05;
+			}
+
+			cityGPD1_piece1_moving++;
+		}
+
+		$levelQuake.magnitude( .5 );
+		$levelQuake.duration( 1 );
+		trigger( "$levelQuake" );
+		
+		$cityGiantPillarofDoom1_piece1.playsound( "sound/environment/rock/rock_hit3.wav", 8, 1, 2500 );
+		$cityGiantPillarofDoom1_piece1.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 7, 1, 1500 );
+
+		$cityGiantPillarofDoom1_piece1.dmg( 0 );
+		$cityGiantPillarofDoom1_piece2.dmg( 0 );
+		$cityGiantPillarofDoom1_piece3.dmg( 0 );
+		
+		$cityGiantPillarofDoom1_explosion2.scale( 1.5 );
+		thread globalCitySpawn( $cityGiantPillarofDoom1_explosion2 , "cityGiantPillarofDoom1_exploder2" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+	}
+}
+
+//---------------------
+// Function: cityGiantPillarofDoom1_fall_piece3
+// Comments:
+// top piece that hits wall and seperates off the pillar that falls
+//---------------------
+void cityGiantPillarofDoom1_fall_piece3()
+{
+	float cityGPD1_piece3_time = .30;
+	float cityGPD1_piece3_rotate = 9;
+	float cityGPD1_piece3_down = 12.8;
+	float cityGPD1_piece3_north = 6.4;
+	float cityGPD1_piece3_moving = 0;
+	
+	while( cityGPD1_piece3_moving < 10 )
+	{
+		$cityGiantPillarofDoom1_piece3.time( cityGPD1_piece3_time );
+		$cityGiantPillarofDoom1_piece3.rotateXdown( 4 );
+		$cityGiantPillarofDoom1_piece3.moveDown( 64 );
+		waitfor( $cityGiantPillarofDoom1_piece3 );
+
+		cityGPD1_piece3_time = cityGPD1_piece3_time * .625;
+	
+		if( cityGPD1_piece3_time < .05 )
+		{
+			cityGPD1_piece3_time = .05;
+		}
+	
+		cityGPD1_piece3_moving++;
+	}
+	$cityGiantPillarofDoom1_explosion2.playsound( "sound/environment/rock/rock_hit3.wav", 8, 1, 2500 );
+ 	$cityGiantPillarofDoom1_explosion2.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 7, 1, 1500 );
+
+ 	$levelQuake.magnitude( .5 );
+	$levelQuake.duration( 1 );
+	trigger( "$levelQuake" );
+	
+	$cityGiantPillarofDoom1_piece2.remove();
+	$cityGiantPillarofDoom1_piece3.notsolid();
+	$cityGiantPillarofDoom1_explosion2.scale( 1.5 );
+	thread globalCitySpawn( $cityGiantPillarofDoom1_explosion2 , "cityGiantPillarofDoom1_exploder2" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+}
+
+//---------------------
+// Function: cityPillarTrap1
+// Comments:
+// giant pillar of doom falls over blocking path
+//---------------------
+void cityPillarTrap1()
+{
+	$cityGiantPillarofDoom2_wallexplode1.remove();
+
+	$cityGiantPillarofDoom2_piece2.bind( $cityGiantPillarofDoom2_piece1 );
+	$cityGiantPillarofDoom2_piece3.bind( $cityGiantPillarofDoom2_piece1 );
+
+	$cityGiantPillarofDoom2_piece1.dmg( 16384 );
+	$cityGiantPillarofDoom2_piece2.dmg( 16384 );
+	$cityGiantPillarofDoom2_piece3.dmg( 16384 );
+	wait( .1 );
+	
+        forcemusic ("aux2","normal");
+ 	$cityGiantPillarofDoom2_piece1.playsound( "sound/environment/rock/rock_pillarfall.wav", 8, 1, 1500 );
+	$cityGiantPillarofDoom2_piece1.time( 2 );
+	$cityGiantPillarofDoom2_piece2.time( 2 );
+	$cityGiantPillarofDoom2_piece3.time( 2 );
+
+	float cityGPD2_piece1_time = 1;
+	float cityGPD2_piece1_rotate = 9;
+	float cityGPD2_piece1_down = 12.8;
+	float cityGPD2_piece1_north = 6.4;
+	float cityGPD2_piece1_moving = 0;
+
+	while( cityGPD2_piece1_moving < 10 )
+	{
+		$cityGiantPillarofDoom2_piece1.time( cityGPD2_piece1_time );
+		$cityGiantPillarofDoom2_piece2.time( cityGPD2_piece1_time );
+		$cityGiantPillarofDoom2_piece3.time( cityGPD2_piece1_time );
+
+		$cityGiantPillarofDoom2_piece2.rotateZup( 1 );
+		$cityGiantPillarofDoom2_piece2.rotateXdown( 1 );
+		$cityGiantPillarofDoom2_piece2.moveUp( 1 );
+		$cityGiantPillarofDoom2_piece2.moveSouth( 1 );
+		
+		$cityGiantPillarofDoom2_piece3.rotateZup( 2 );
+		$cityGiantPillarofDoom2_piece3.moveUp( 10 );
+		$cityGiantPillarofDoom2_piece3.moveSouth( 10 );
+		
+		$cityGiantPillarofDoom2_piece1.rotateZdown( cityGPD2_piece1_rotate );
+		$cityGiantPillarofDoom2_piece1.moveDown( cityGPD2_piece1_down );
+		$cityGiantPillarofDoom2_piece1.moveNorth( cityGPD2_piece1_north );
+		waitfor( $cityGiantPillarofDoom2_piece1 );
+	
+		cityGPD2_piece1_time = cityGPD2_piece1_time * .625;
+	
+		if( cityGPD2_piece1_time < .05 )
+		{
+			cityGPD2_piece1_time = .05;
+		}
+	
+		cityGPD2_piece1_moving++;
+	}
+
+	$cityGiantPillarofDoom2_explosion1.scale( 1.85 );
+	$cityGiantPillarofDoom2_explosion2.scale( 1.85 );
+	$cityGiantPillarofDoom2_explosion3.scale( 1.85 );
+	$cityGiantPillarofDoom2_explosion4.scale( 1.85 );
+
+	thread globalCitySpawn( $cityGiantPillarofDoom2_explosion1 , "cityGiantPillarofDoom2_exploder1" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+	thread globalCitySpawn( $cityGiantPillarofDoom2_explosion2 , "cityGiantPillarofDoom2_exploder2" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+	thread globalCitySpawn( $cityGiantPillarofDoom2_explosion3 , "cityGiantPillarofDoom2_exploder3" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+	thread globalCitySpawn( $cityGiantPillarofDoom2_explosion4 , "cityGiantPillarofDoom2_exploder4" , "fx/fx-explosion-debris-idryllruins-large.tik" );
+
+ 	$levelQuake.magnitude( .5 );
+	$levelQuake.duration( 1 );
+	trigger( "$levelQuake" );
+ 	
+ 	$cityGiantPillarofDoom2_piece2.playsound( "sound/environment/rock/rock_hit3.wav", 8, 1, 1500 );
+ 	$cityGiantPillarofDoom2_piece3.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 7, 1, 1500 );
+
+	wait( .05 );
+
+	$cityGiantPillarofDoom2_piece2.time( .15 );
+	$cityGiantPillarofDoom2_piece3.time( .15 );
+
+	$cityGiantPillarofDoom2_piece2.rotateZdown( 1 );
+	$cityGiantPillarofDoom2_piece2.rotateXup( 2 );
+	
+	$cityGiantPillarofDoom2_piece3.rotateZdown( 2 );
+	$cityGiantPillarofDoom2_piece3.rotateXdown( 1.5 );
+	waitfor( $cityGiantPillarofDoom2_piece3 );
+
+	$cityGiantPillarofDoom2_piece1.dmg( 0 );
+	$cityGiantPillarofDoom2_piece2.dmg( 0 );
+	$cityGiantPillarofDoom2_piece3.dmg( 0 );
+}
+
+//==========================================================================================
+//  Tricorder Stuff
+//==========================================================================================
+
+//---------------------
+// Function: cityPowerTricorderPuzzle
+// Comments:
+//
+//---------------------
+void cityPowerTricorderPuzzle()
+{
+	globalTricorderMod_SetNumWaves ( 1 );
+	globalTricorderMod_SetAllRandomParms();
+	globalTricorderMod_Run( $cityPowerRestore_button1, 0 );
+}
+
+//---------------------
+// Function: cityPowerResetTricorderPuzzle
+// Comments:
+//
+//---------------------
+void cityPowerResetTricorderPuzzle()
+{
+	$cityPowerRestore_button1.puzzleobject_reset();
+}
+
+//==========================================================================================
+//  Generic Stuff
+//==========================================================================================
+
+//----------------------------
+// Function: globalCitySpawn
+// Comments:
+// Used to spawn in entity via a func_spawn and will give the new entity a targetname
+// Variables:
+// citySpawnName - entity targetname of the func_spawn to use
+// citySpawnTargetName - string targetname of the newly spawned entity
+// citySpawnModelName - string modelname for the newly spawned entity
+//----------------------------
+void globalCitySpawn( entity citySpawnName, string citySpawnTargetName, string citySpawnModelName )
+{
+	citySpawnName.spawntargetname( citySpawnTargetName );
+	citySpawnName.modelname( citySpawnModelName );
+	triggerentity( citySpawnName );	
+}
+
+//---------------------
+// Function: cityAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void cityAutoSave()
+{
+	globalCommon_Autosave();
+}
+
+//---------------------
+// Function: teamWait
+// Comments:
+// makes team wait in given area
+//---------------------
+void teamWait()
+{
+	$chell.settendency ( "follow" , 0.0 );
+	$korban.settendency ( "follow" , 0.0 );
+	$telsia.settendency ( "follow" , 0.0 );
+}
+
+//---------------------
+// Function: teamFollow
+// Comments:
+// makes team follow player
+//---------------------
+void teamFollow()
+{
+	$chell.settendency ( "follow" , 1.0 );
+	$korban.settendency ( "follow" , 1.0 );
+	$telsia.settendency ( "follow" , 1.0 );
+}
+
+//---------------------
+// Function: setTeamFollowDistance
+// Comments:
+// set min and max follow values
+//---------------------
+void setTeamFollowDistance( float distMin, float distMax )
+{
+	// This sets the teammates follow / combat range
+	$chell.followcombatrange( distMax );
+	$chell.followcombatrangemin( distMin );
+	
+	$telsia.followcombatrange( distMax );
+	$telsia.followcombatrangemin( distMin );
+
+	$korban.followcombatrange( distMax );
+	$korban.followcombatrangemin( distMin );
+}
+
+//---------------------
+// Function: killAllTalking
+// Comments:
+// stops all the peeps from yapping
+//---------------------
+void killAllTalking()
+{
+	$world.stopDialog();
+	$scriptmunro.stopdialog();
+	$telsia.stopdialog();
+	$chell.stopdialog();
+	$korban.stopdialog();
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	stuffcmd("seta coop_igm 4\n");
+	stuffcmd("seta coop_igmH 0\n");
+	stuffcmd("seta coop_igmT 0\n");
+	wait(0.05);
+	setfloatvar ( "game.globalMissionEnterprise", 4 );
+	thread globalCoop_mission_completed("m5l2a-drull_ruins1");
+}
+

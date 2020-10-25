@@ -1,0 +1,1009 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	      ent-training3
+//  Script By:    J. Keehan
+//  Geometry By:  R. Gray, J. Keehan
+//  Created on:   11/08/2002
+//
+//	Last Edited:  J. Keehan
+//-----------------------------------------------------------------
+
+void main();
+//hzm coop mod chrissstrahl - declare our new functions
+void coop_immobilizeWhenInCoord(vector vCoord,string sLogX,string sLogY,string sLogZ);
+void coop_immobilizeWhenInCoordDrop(entity ePlayer);
+void coop_immobilizeWhenInCoordStop();
+void coop_endLevel();
+//hzm coop mod eof edit
+void setupWorld();
+
+void area3Start ();
+void area3StartDialog();
+
+void area3bridge_button_OnUse();
+void area3BridgeDialog();
+void scanCrystalComplete();
+void postTricorderScanObjective();
+void startTuvokWatch();
+void area3nightVisionTraining();
+void area3nightVisionTrainingDialog();
+
+void removeLaser();
+void destroyPlasmaConduit1();
+void destroyPlasmaDialog();
+
+//void setupTricorderFilterMode();
+//void removeWoodStructureWait();
+//void removeWoodStructure();
+
+void area3modulateTrainingDialog();
+void area3shootPlasmaTrainingDialog();
+void area3filterModeTrainingDialog();
+
+//hzm coop mod chrissstrahl - prevent thread from starting while already completed
+float bBridgeExpanded = 0;
+
+float rockDestroyed = 0;
+
+
+//==========================================================================================
+// Includes
+//==========================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/training/global_training.script"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+//================================================================================
+// Main
+//================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// the main thread run at the start of the level
+//---------------------
+void main()
+{
+	//--- fade out
+	cam_fadeout( .1, 0, 0, 0, 1 );
+	soundtrack( "music/training3.mus" );
+	
+	//hzm coop mod chrissstrahl - Spawn Players on those locations, at map start
+	coop_float_spawnAngle0		= 90;
+	coop_vector_spawnOrigin1	= '140 -2228 -94';
+	coop_vector_spawnOrigin2	= '220 -2228 -94';
+	coop_vector_spawnOrigin3	= '300 -2228 -94';
+	coop_vector_spawnOrigin4	= '40 -2400 -94';
+	coop_vector_spawnOrigin5	= '110 -2400 -94';
+	coop_vector_spawnOrigin6	= '190 -2400 -94';
+	coop_vector_spawnOrigin7	= '260 -2400 -94';
+	coop_vector_spawnOrigin8	= '330 -2400 -94';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$TrainingLoadingText$$";
+	
+	setupWorld();
+	initTuvok();
+	
+	//waitforplayer();
+	//$player.model( "models/char/munro_voyager.tik" );
+	//$player.origin( '256 -2368 -84' );
+	//$player.loadobjectives( "ent-training3" );
+	globalLoadout_ClearAllViewmode();
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	wait( 1 );
+	
+	area3Start();
+}
+
+//---------------------
+// Function: setupWorld
+// Comments:
+// world setup varialbles
+//---------------------
+void setupWorld()
+{
+	$tuvokPathClip.remove();
+	$clipWall.solid();
+	thread globalCommon_OnUse( $area1bridge_button, "area3bridge_button_OnUse" );
+	thread globalCommon_OnDamage( $plasmaConduit1, "destroyPlasmaConduit1" );
+
+	$plasmaConduit1.contents( "+shootable" );
+	$plasmaConduit1_fx.hide();
+
+	$laserShield1.loopsound( "sound/environment/energy/electricfield1.wav", 1 ,200 );
+	$laserShield2.loopsound( "sound/ships/borg/borg_forcefield2.wav", .7 ,200 );
+	$area3_clipMovement1.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7 ,150 );
+	$scanObject.setsize( '0 0 0', '0 0 0' );
+	//setupTricorderFilterMode();
+	//thread removeWoodStructureWait();
+
+	//---setup archetypes
+	float i;
+	float totalNumberOfCrystals;
+
+	totalNumberOfCrystals = 18;
+	for ( i = 1 ; i<= totalNumberOfCrystals; i++ )
+		{
+		string tName;
+		tName = "archetype_crystalFormation" + i;
+		entity crystalEnt;
+		crystalEnt = GetEntity( tName );
+		globalArchetype_Setup( crystalEnt , "TrainingCrystalFormation" );
+		}
+
+	//globalArchetype_Setup( $archetype_crystalFormation1, "TrainingCrystalFormation" );
+	
+	globalArchetype_Setup( $archetype_panel1, "TrainingPanel" );
+	globalArchetype_Setup( $archetype_panel2, "TrainingPanel2" );
+
+	globalLoadout_ClearAllViewmode();
+	globalLoadout_GiveViewmode( VIEWMODE_STRUCTURAL_INTEGRITY );
+	//--set to not trigger end event, done via destruction of rock formation
+	$area3_EndTrigger.nottriggerable();
+}
+
+//================================================================================
+// Area 3
+//================================================================================
+
+//---------------------
+// Function: area3Start
+// Comments:
+// area 3 of training start
+//---------------------
+void area3Start()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod Chrissstrahl - halt players
+	globalCoop_main_globalCommand("immobilize");
+	
+	//$player.immobilize( 1 );
+	
+	$world.playsound( "sound/environment/computer/holo_change.wav", 3 ,1 ,10000 );
+	
+	//--fade in
+	cam_fadein( 1, 0, 0, 0, 1 );
+	wait( 1 );
+
+	$tuvok.warpTo( "$tuvokWarpToPos1" );
+	fadeTuvokIn();
+	
+	if(!bBridgeExpanded){
+		thread area3StartDialog();
+	}
+
+	//hzm coop mod Chrissstrahl - allow move
+	globalCoop_main_globalCommand("mobilize");
+	
+	//$tuvok.walkto( "$tuvokWalkToPos1" );
+}
+
+//---------------------
+// Function: area3StartDialog
+// Comments:
+//
+//---------------------
+void area3StartDialog()
+{
+	//hzm coop mod Chrissstrahl - set first objective
+	globalCoop_objectives_set("$$consoleT3$$","incomplete",1,1);
+
+	//$player.setobjectiveshow( "consoleT3", 1 );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_interwrld.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_interwrld.mp3", 1, 20000, 1); //Interacting with your world is vital to your success and survival.  You've already seen where interaction can operate a door, activate a lift, or draw energy from a terminal.  Here you'll see that interaction can change the very environment itself. 
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_moveterm.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_moveterm.mp3", 1, 20000, 1); //Move to the nearby operations panel and activate it by pressing your Use key
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area3bridge_button_OnUse
+// Comments:
+// on use thread for the button at the extending bridge
+//---------------------
+
+void area3bridge_button_OnUse()
+{
+	bBridgeExpanded = 1;
+	
+	$area1bridge_button.nouse();
+	$archetype_panel1.remove();
+	$area1bridge_button.playsound ( "sound/ships/klingon/kling_beepyes.wav", 5, 1, 500 );
+	$area1bridge_button.playsound ( "sound/environment/machine/bigswitch.wav", 6, 1, 500 );
+	$clipWall.remove();
+	wait( .5 );
+	killthread( "area3StartDialog" );
+	killAllTalking();
+	wait( .5 );
+
+	thread area3BridgeDialog();
+
+	$area1bridge.time( 7.0 );
+	$area1bridge.playsound ( "sound/ships/attrexian/att-elevat_start.wav", 3, 1, 500 );
+	$area1bridge.moveSouth( 352 );
+	waitfor( $area1bridge );
+	$area1bridge.playsound ( "sound/doors/drull_smldoor_stop_01.wav", 3, 1, 500 );
+	
+	//$player.setobjectivecomplete( "consoleT3", 1 );
+	
+	//hzm coop mod Chrissstrahl - set first objective complete
+	globalCoop_objectives_set("$$consoleT3$$","complete",1,1);
+}
+
+//---------------------
+// Function: area3bridge_button_OnUse
+// Comments:
+// on use thread for the button at the extending bridge
+//---------------------
+
+void area3BridgeDialog()
+{
+	killAllTalking();
+	killthread( "area3StartDialog" );
+	
+	$tuvok.walkto( "$tuvokWalkToPos1" );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_excnotehow.mp3", 1, 0, 0); 
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_excnotehow.mp3", 1, 20000, 1); //Excellent.  Note how using the panel activated the bridge.  Interacting with the environment will often allow you continue when there seems to be no way to progress.  Now, Lieutenant, cross the bridge and exit through the door on the other side.  We are ready to begin the next exercise.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area3tricorderScanTraining
+// Comments:
+// Equip player with Tri-Corder
+//---------------------
+void area3tricorderScanTraining()
+{
+	//float onGround = 0;	
+	//while ( onGround != 1 )
+	//	{
+	//	onGround = $player.isplayeronground();
+	//	wait ( .1 );
+	//	}
+	
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('0 -1655 0',"-","g","-");
+	
+	//$player.immobilize( 1 );
+	//$player.give( "models/weapons/worldmodel-tricorder.tik" );
+	
+	//hzm coop mod chrissstrahl - make weapons availabe for players when they spawn
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-tricorder.tik");
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	
+	//hzm coop mod chrissstrahl - give all the spawn weapons the players, otherwhise they would need to respawn to have these weapons
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				//give weapon, but do not make the player use it, they shall have to grab it them self from their inventory
+				globalCoop_armory_equipWithWeapons(ePlayer);
+			}
+		}
+	}
+	
+	killAllTalking();
+	killthread( "area3BridgeDialog" );
+	wait( 1 );
+	$tuvok.turntowardsentity( globalCoop_return_playerClosestPreferActive($tuvok) );
+	wait( 1 );
+	$tuvok.anim( "sfa_hands_back" );
+	wait( .25 );
+	//$player.use( "tricorder" );
+	$scanObject.setsize( '-96 -96 -96', '96 96 96' );
+	wait( 1 );
+	
+	//hzm coop mod Chrissstrahl - allow move
+	coop_immobilizeWhenInCoordStop();
+	
+	//hzm coop mod Chrissstrahl - set second objective
+	globalCoop_objectives_set("$$tricorderT3$$","incomplete",2,1);
+	
+	//$player.setobjectiveshow( "tricorderT3", 1 );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_yourz.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_yourz.mp3", 1, 20000, 1); //Like your hazard suit, your tricorder also has an interface to your Tactical Eye Display.  Approach one of the crystal deposits.  Use your tricorder key to activate your tricorder.  Notice that once your tricorder is active, an identification overly appears around the deposit in your TED.
+	waitForDialog( $tuvokDummy );
+
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_nowaimy.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_nowaimy.mp3", 1, 20000, 1); //Now, aim your tricorder at the crystal deposit and press and hold the fire button.  This will activate your tricorder's scanning functionality, and provide you with additional information about the object -- An important feature to remember if you find yourself in a… difficult situation.
+	waitForDialog( $tuvokDummy );
+}
+
+void scanCrystalComplete()
+{
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+	
+	killAllTalking();
+	killthread( "area3tricorderScanTraining" );
+	$scanObject.remove();
+	
+	//hzm coop mod Chrissstrahl - set second objective complete
+	globalCoop_objectives_set("$$tricorderT3$$","complete",2,1);
+	
+	//$player.setobjectivecomplete( "tricorderT3", 1 );
+	
+	wait( .25 );
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 8000, 1); //Excellent work, Lieutenant.
+	waitForDialog( $tuvokDummy );
+	wait( 1 );
+	thread postTricorderScanObjective();
+}
+
+void postTricorderScanObjective()
+{
+	//hzm coop mod Chrissstrahl - set third objective
+	globalCoop_objectives_set("$$blipT3$$","incomplete",3,1);
+	
+	//$player.setobjectiveshow( "blipT3", 1 );
+	
+	//HZM coop mod chrissstrahl - Radar is now working :)
+	
+	//hzm coop mod chrissstrahl - make tuvok apper on the coop radar
+	$tuvok.missionobjective(1);
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_tricofeed.mp3", 1, 0, 0); 
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_tricofeed.mp3", 1, 20000, 1); //When active, your tricorder also feeds tactical data to your TED.  Data from the tricorder's annular proximity discriminator is presented in the upper right of your display.  Now, note the green resonance beacon… That beacon represents my location in your environment
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.headwatchtarget ( "none" , 10 );
+	$tuvok.resethead();
+	wait( .25 );
+	
+	$tuvok.walkTo( "$tuvokWalkToPos3" );
+	waitfor( $tuvok );
+	
+	$tuvok.walkTo( "$tuvokWalkToPos2" );
+	
+	thread startTuvokWatch();
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_watchbe.mp3", 1, 0, 0); 
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_watchbe.mp3", 1, 20000, 1); //Watch the beacon as I move through the environment.  Notice how it moves to track my relative location.
+	waitForDialog( $tuvokDummy );
+	
+	//hzm coop mod chrissstrahl - wait for tuvok to stop and then allow to beam him out
+	waitFor($tuvok);
+	
+	/* HZM COOP MOD CHRISSSTRAHL - this is still not working in the coop, to traffic intense, without accsess to the client dll, so we only show mission objectives in coop on teh radar
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_yourr.mp3", 1, 0, 0); 
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_yourr.mp3", 1, 20000, 1); //The annular proximity discriminator provides a unique resonance beacon for most object types.  For example, non-hostile life forms are marked with a green beacon, while hostile or aggressive ones are red.  Additionally, the discriminator will denote your mission objectives with a gold circle to signify their importance. 
+	waitForDialog( $tuvokDummy );
+	*/
+
+	//hzm coop mod Chrissstrahl - set third objective complete
+	globalCoop_objectives_set("$$blipT3$$","complete",3,1);
+	
+	//$player.setobjectivecomplete( "blipT3", 1 );
+	
+	
+	//hzm coop mod chrissstrahl - no longer on the radar
+	$tuvok.missionobjective(0);
+	
+	fadeTuvokOut();
+	
+	$area3_clipMovement1.stoploopsound ();
+	$area3_clipMovement1.playsound( "sound/ships/enterprise/ent_forcefield_down.wav", 3 ,.7 ,10000 );
+
+	$area3_clipMovement1.remove();
+}
+
+void startTuvokWatch()
+{
+	wait( 7 );
+	//hzm coop mod chrissstrahl - get closest player to look at
+	//we had problems with chrashes here, so leave this part as it is
+	//somehow string operations do not allways handle as you would expect them to
+	entity ePlayer; 
+	ePlayer = globalCoop_return_playerClosestPreferActive($tuvok);
+	string sTarget;
+	if(doesEntityExist(ePlayer)){
+		sTarget = ePlayer.getRawTargetname();
+	}
+	
+	if(sTarget == ""){
+		sTarget = "world";
+	}
+	$tuvok.headwatchtarget( sTarget , 10 );
+	
+}
+//---------------------
+// Function: area3nightVisionTraining
+// Comments:
+// Equip player with Night Vision Tri-Corder
+//---------------------
+void area3nightVisionTraining()
+{
+	//float onGround = 1;
+	//hzm coop mod Chrissstrahl - wait for all players to stand(move) on solid ground
+/*	entity ePlayer;
+	float fPlayerIdInUse;
+	float fActivePlayers;
+	float fGroundPlayers;
+	while(onGround != 1)
+	{
+		fActivePlayers=0;
+		fGroundPlayers=0;
+		
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				onGround=1;
+				
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 && ePlayer.getHealth() != 0){
+					fActivePlayers++;
+					onGround = ePlayer.isplayeronground();
+					if(onGround == 1){
+						fGroundPlayers++;
+					}
+				}
+			}
+		}
+		if(fGroundPlayers >= fActivePlayers ){
+			onGround=1;
+		}else{
+			onGround=0;
+		}
+		//hzm coop mod chrissstrahl - wait one frame, the smallest ammount we can wait
+		wait( coop_float_oneFrameTime );
+	}
+*/
+
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('-440 -540 0',"l","g","-");
+	
+	//while ( onGround != 1 )
+		//{
+		//onGround = $player.isplayeronground();
+		//wait ( .1 );
+		//}
+	
+	//$player.immobilize( 1 );
+	$tuvok.warpTo( "$tuvokWarpToPos2" );
+	
+	fadeTuvokIn();
+	
+	//hzm coop mod Chrissstrahl - set forth objective
+	globalCoop_objectives_set("$$nightvisionT3$$","incomplete",4,1);
+	
+	//$player.setobjectiveshow( "nightvisionT3", 1 );
+
+	thread area3nightVisionTrainingDialog();
+	
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	wait(1);
+	coop_immobilizeWhenInCoordStop();
+}
+
+//---------------------
+// Function: area3nightVisionTrainingDialog
+// Comments:
+// Equip player with Night Vision Tri-Corder
+//---------------------
+void area3nightVisionTrainingDialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_inaddvis.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_inaddvis.mp3", 1, 20000, 1); //Your Tactical Eye Display is capable of artificially boosting the gain levels in all photonic registers.  This allows you some degree of night vision	
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_forthisexcave.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_forthisexcave.mp3", 1, 20000, 1); //For this exercise, use your night vision key to activate the night vision mode -- then navigate through this cave to the exit on the other side.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area3modulateTraining
+// Comments:
+// Equip player with Tri-Corder
+//---------------------
+void area3modulateTraining()
+{
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	//coop_immobilizeWhenInCoordStop();
+	
+	//float onGround = 0;
+	/*
+	while ( onGround != 1 )
+		{
+		onGround = $player.isplayeronground();
+		wait ( .1 );
+		}
+	*/
+	
+	//$player.immobilize( 1 );
+
+	
+	//hzm coop mod Chrissstrahl - set forth/fith objective
+	globalCoop_objectives_set("$$nightvisionT3$$","complete",4,0);//complete
+	globalCoop_objectives_set("$$consoleModulateT3$$","incomplete",5,1);//active
+	
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('-2700 -1800 0',"l","l","-");
+	
+	//$player.setobjectivecomplete( "nightvisionT3", 1 );
+	//$player.setobjectiveshow( "consoleModulateT3", 1 );
+	
+	fadeTuvokOut();
+	
+	killthread( "area3nightVisionTrainingDialog" );
+	killAllTalking();
+	$tuvok.warpTo( "$tuvokWarpToPos3" );
+	
+	fadeTuvokIn();
+	
+	thread area3modulateTrainingDialog();
+	
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	wait(1);
+	coop_immobilizeWhenInCoordStop();
+	
+	//$player.immobilize( 0 );
+}
+
+//---------------------
+// Function: area3modulateTrainingDialog
+// Comments:
+// Equip player with Tri-Corder
+//---------------------
+void area3modulateTrainingDialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 20000, 1); //Excellent work, Lieutenant.
+	waitForDialog( $tuvokDummy );
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_recert.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_recert.mp3", 1, 20000, 1); //Now, Lieutenant, we will re-certify you on advanced tricorder mechanics.  Activate your tricorder and move to the nearby console marked with an identification overlay in your TED.
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_tricons.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_tricons.mp3", 1, 20000, 1); //Modulate the console by first aiming your tricorder at it, then pressing and holding the fire button.  Your tricorder will feed progress data to your TED, providing you with constant feedback on your progress.   Continue modulating the console until the process completes.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: removeLaser
+// Comments:
+// remove forcefield after modulation
+//---------------------
+void removeLaser()
+{
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+
+	$archetype_panel2.remove();
+	$laserShield1.remove();
+	$laserShield1_clip.remove();
+	$laserShield1.stoploopsound();
+		
+	killAllTalking();
+	killthread( "area3modulateTrainingDialog" );
+	
+	//hzm coop mod Chrissstrahl - set fith objective complete
+	globalCoop_objectives_set("$$consoleModulateT3$$","complete",5,1);
+	
+	//$player.setobjectivecomplete( "consoleModulateT3", 1 );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_satwrksim.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_satwrksim.mp3", 1, 20000, 1); //Satisfactory work, Lieutenant.  On simple consoles, like this one, your tricorder will be able to modulate itself.  However, more sophisticated systems will require user assistance to complete.  Let’s move on.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area3shootPlasmaTraining
+// Comments:
+// Equip player with phaser
+//---------------------
+void area3shootPlasmaTraining()
+{
+	//float onGround = 0;
+	//while ( onGround != 1 )
+		//{
+		//onGround = $player.isplayeronground();
+		//wait ( .1 );
+	//	}
+	
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('0 0 255',"-","-","g");
+	
+	//$player.immobilize( 1 );
+	
+	killthread( "area3modulateTrainingDialog" );
+	killthread( "removeLaser" );
+	killAllTalking();
+	
+	fadeTuvokOut();
+	
+	$tuvok.warpTo( "$tuvokWarpToPos4" );
+	wait( 1 );
+	
+	fadeTuvokIn();
+	
+	thread area3shootPlasmaTrainingDialog();
+
+	//hzm coop mod Chrissstrahl - set sixth objective
+	globalCoop_objectives_set("$$destroyConduitT3$$","incomplete",6,1);
+	
+	//$player.setobjectiveshow( "destroyConduitT3", 1 );
+
+	//hzm coop mod chrissstrahl - make weapons availabe for players when they spawn
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-phaser.tik");
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	//hzm coop mod chrissstrahl - give all the spawn weapons the players, otherwhise they would need to respawn to have these weapons
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				//give weapon, but do not make the player use it, they shall have to grab it them self from their inventory
+				globalCoop_armory_equipWithWeapons(ePlayer);
+			}
+		}
+	}
+	
+	//$player.give( "models/weapons/worldmodel-phaser.tik" );
+	//$player.immobilize( 0 );
+	
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	wait(1);
+	coop_immobilizeWhenInCoordStop();
+
+}
+
+//---------------------
+// Function: area3shootPlasmaTrainingDialog
+// Comments:
+// Equip player with phaser
+//---------------------
+void area3shootPlasmaTrainingDialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_actiph.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_actiph.mp3", 1, 20000, 1); //Activate your phaser by pressing the weapon group 1 key.  Your tricorder will lower, your view will return to normal, and your phaser should be readied.
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_redimp.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_redimp.mp3", 1, 20000, 1); //Notice the red forcefield impeding your progress.  To disable the forcefield, you must shoot the plasma conduit that powers it. When you are ready, press the fire key to destroy the conduit.  As you fire, notice how the energy register on your lower right rapidly decreases… This energy bar measures the current energy count for your currently active weapon… In this case, the phaser.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: area3filterModeTraining
+// Comments:
+// Equip player with structural integrity mode
+//---------------------
+void area3filterModeTraining()
+{
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+
+	//float onGround = 0;
+	//while ( onGround != 1 )
+		//{
+		//onGround = $player.isplayeronground();
+		//wait ( .1 );
+		//}
+		
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('-2130 -3350 260',"g","l","g");
+		
+	//$player.immobilize( 1 );
+	
+	fadeTuvokOut();
+
+	killthread( "area3shootPlasmaTrainingDialog" );
+	killAllTalking();
+	$tuvok.warpTo( "$tuvokWarpToPos5" );
+	wait( .5 );
+	
+	fadeTuvokIn();
+	
+	thread area3filterModeTrainingDialog();
+
+	globalLoadout_GiveViewmode( VIEWMODE_NONE );
+	globalLoadout_GiveViewmode( VIEWMODE_NIGHT_VISION );
+
+	//hzm coop mod Chrissstrahl - set seventh objective
+	globalCoop_objectives_set("$$integrityT3$$","incomplete",7,1);
+	
+	//$player.setobjectiveshow( "integrityT3", 1 );
+
+	//$player.immobilize( 0 );
+
+}
+
+//---------------------
+// Function: area3filterModeTrainingDialog
+// Comments:
+// Equip player with structural integrity mode
+//---------------------
+void area3filterModeTrainingDialog()
+{
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_tedtri.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_tedtri.mp3", 1, 20000, 1); //Through its interface to your TED, your tricorder can provide you with additional viewmodes to analyze your environment.  With your tricorder active, press the alternate fire button.  Notice how your view changes.  Your tricorder is feeding information on the structural integrity of nearby objects directly to your TED.  In this viewmode you can see stress fractures and structural weaknesses that would normally go unnoticed.
+	
+	wait( 6 );
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+	
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_struint.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_struint.mp3", 1, 20000, 1); //While you are in the structural integrity view mode, notice how the conduit stands out in your display.  That denotes a structural flaw or stress fracture in the object.  Objects with structural flaws are often susceptible to weapons fire.
+	waitForDialog( $tuvokDummy );
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_aimyph.mp3", 1, 0, 0); 
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_aimyph.mp3", 1, 20000, 1); //Aim your phaser at the conduit you identified with the structural integrity mode.  When you are ready, press the fire key to destroy the conduit.  As you fire, notice how the energy register on your lower right rapidly decreases… This energy bar measures the current energy count for your currently active weapon… In this case, the phaser.
+	waitForDialog( $tuvokDummy );
+}
+
+//---------------------
+// Function: destroyPlasmaConduit1
+// Comments:
+// remove forcefield after destroying the plasma conduit
+//---------------------
+void destroyPlasmaConduit1()
+{
+	$plasmaConduit1.nodamage();
+	trigger( "$plasmaConduit1_explode" );
+	$plasmaConduit1.model( "enviro/borg-sphere_plasmacon_plasmacon_damaged.tik" );
+	$plasmaConduit1.notsolid();
+	$plasmaConduit1.contents( "-targetable" );
+	$plasmaConduit1_fx.show();
+	$laserShield2.remove();
+	$laserShield2_clip.remove();
+	$laserShield2.stoploopsound();
+	
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+	
+	//hzm coop mod Chrissstrahl - set sixth objective complete
+	globalCoop_objectives_set("$$destroyConduitT3$$","complete",6,1);
+	
+	//$player.setobjectivecomplete( "destroyConduitT3", 1 );
+	
+	thread destroyPlasmaDialog();
+}
+
+void destroyPlasmaDialog()
+{	
+	killthread( "area3shootPlasmaTrainingDialog" );
+	killAllTalking();
+	wait( 1 );
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_exw.mp3", 1, 20000, 1); //Excellent work, Lieutenant.
+	waitForDialog( $tuvokDummy );
+	wait( .5 );
+	
+	fadeTuvokOut();
+
+	//hzm coop mod Chrissstrahl - allow all players to move again
+	coop_immobilizeWhenInCoordStop();
+}
+//---------------------
+// Function: area3_End
+// Comments:
+// end level
+//---------------------
+void area3_End()
+{
+	//$player.immobilize( 1 );
+	
+	//hzm coop mod Chrissstrahl - immobilize players that are within range	
+	thread coop_immobilizeWhenInCoord('-440 -540 0',"g","g","-");
+	
+	//hzm coop mod Chrissstrahl - set seventh objective
+	globalCoop_objectives_set("$$integrityT3$$","complete",7,1);
+	
+	//$player.setobjectivecomplete( "integrityT3", 1 );
+	
+	//--- setup the holodeck
+	$holoDeck.bind( $nodeHoloDeckCenter );
+	$holoDeck.rendereffects( "+depthhack" );
+	$holoDeck.notSolid();
+	$holoDeck.forcealpha( 1 );
+	$holoDeck.alpha( 0 );
+	$holoDeck.show();
+	wait( .5 );
+	
+	killthread( "area3filterModeTrainingDialog" );
+	killAllTalking();
+	wait( 1 ); 
+	
+	$tuvok.playdialog("localization/sound/dialog/train2/tuvok_satltmv.mp3", 1, 0, 0);
+	$tuvokDummy.playdialog("localization/sound/dialog/train2/tuvok_satltmv.mp3", 1, 20000, 1); //Satisfactory, Lietuenant.  Let us move on to the weapons examination.
+	waitForDialog( $tuvokDummy );
+	wait( .2 );
+	
+	fadeTuvokOut();
+
+	//$nodeHoloDeckCenter.origin( $player0.getOrigin() );
+	//$nodeHoloDeckCenter.angles( $player0.getAngles() );
+	wait( .1 );
+	
+	//$holoDeck.fadein( 1, 1 );
+	$world.playsound( "sound/environment/computer/holo_change.wav", 3 ,1 ,10000 );
+	wait( 1 );
+	
+	//--tell the game to not translate the player's orientation
+	dontSaveOrientation();
+	
+	coop_endLevel();
+	
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "ent-training4" );
+	//wait ( .5 );
+	//trigger ( "$trigger_endlevel" );
+}
+
+void incrementRockCounter()
+{
+	if (rockDestroyed >= 4)
+	{
+		thread area3_End();
+	}
+	else
+	{
+		rockDestroyed++;
+	}
+}
+
+/*
+//------------------------
+// Function: setupTricorderFilterMode
+// Comments:
+// setup viewmode for struc integ filter for wooden blockade
+//------------------------
+void setupTricorderFilterMode()
+{
+	$woodStructure1_crack.notsolid();
+	$woodStructure1_crack.viewmode( "structuralintegrity" );
+}
+
+//---------------------
+// Function: removeWoodStructureWait
+// Comments:
+// wait thread for removing the wood
+//---------------------
+void removeWoodStructureWait()
+{
+	$woodStructure1.ondamage( "removeWoodStructure" );
+	$woodStructure1.playsound( "sound/impact/explosion/expl_inside3.wav", 3 ,.7 ,300 );
+	pause();
+}
+
+//---------------------
+// Function: removeWoodStructure
+// Comments:
+// removes the wood when it is shot
+//---------------------
+void removeWoodStructure()
+{
+
+	$woodStructure1.nodamage();
+	wait( .1 );
+	$woodStructure1_crack.remove();
+	$woodStructure1.remove();
+	
+	$player.setobjectivecomplete( "integrityT3", 1 );
+}
+*/
+
+
+void coop_immobilizeWhenInCoord(vector vCoord,string sLogX,string sLogY,string sLogZ)
+//------------------------------------------------------------------------------
+//immobilizes players if they are within the given coordinates, if a coordinate is set to 0 it will not be checked
+//------------------------------------------------------------------------------
+{
+	float fImmo=0;
+	float fNeed=0;
+	entity ePlayer;
+	vector vOriginPlayer;
+	float fPlayerIdInUse;
+	$world.setFloatVar("coop_immobilizeWhenInCoordStop",0);
+	while($world.getFloatVar("coop_immobilizeWhenInCoordStop") != 1)
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			fImmo=0;
+			fNeed=0;
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					vOriginPlayer = ePlayer.getOrigin();
+				//check x
+					if(vCoord_x != 0){
+						fNeed++;
+						if(sLogX == "l"){
+							if( vOriginPlayer_x <= vCoord_x ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_x >= vCoord_x ){
+								fImmo++;
+							}						
+						}
+					}
+				//check y
+					if(vCoord_y != 0){
+						fNeed++;
+						if(sLogY == "l"){
+							if( vOriginPlayer_y <= vCoord_y ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_y >= vCoord_y ){
+								fImmo++;
+							}						
+						}
+					}
+				//check z
+					if(vCoord_z != 0){
+						fNeed++;
+						if(sLogZ == "l"){
+							if( vOriginPlayer_z <= vCoord_z ){
+								fImmo++;
+							}						
+						}else{//"g"
+							if( vOriginPlayer_z >= vCoord_z ){
+								fImmo++;
+							}						
+						}
+					}
+					if(fImmo == fNeed){
+						thread coop_immobilizeWhenInCoordDrop(ePlayer);
+					}
+				}
+			}
+		}
+		wait( 0.1 );
+	}
+}
+
+void coop_immobilizeWhenInCoordDrop(entity ePlayer)
+//------------------------------------------------------------------------------
+//drops player to floor and then immobilizes him
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist( ePlayer )){
+		ePlayer.droptofloor();
+		wait( coop_float_oneFrameTime );
+		ePlayer.immobilize( 1 );
+	}
+}
+
+void coop_immobilizeWhenInCoordStop()
+//------------------------------------------------------------------------------
+//do no longer immobilize the players
+//------------------------------------------------------------------------------
+{
+	$world.setFloatVar("coop_immobilizeWhenInCoordStop",1);
+	wait(0.1);
+	globalCoop_player_imobilizeAll(0);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("ent-training4");
+}
+

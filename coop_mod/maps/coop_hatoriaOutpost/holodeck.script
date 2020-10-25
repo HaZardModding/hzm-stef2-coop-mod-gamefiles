@@ -1,0 +1,696 @@
+
+/***
+$sultan.forceAlpha(1);
+$sultan.fadeout(2,0);
+$holodeckSpawn0.playsound("sound/environment/computer/holo_changesml2.wav",3,2,128);
+$holodeckSpawn0.playsound("sound/environment/computer/holo_yes.wav",3,1,128);
+globalCoop_dialog_playSimple(e,"dm/comp_initprog.mp3",1,128);
+globalCoop_dialog_playSimple(e,"dm/comp_shutdown.mp3",1,128);
+globalCoop_dialog_playSimple(e,"dm/comp_aborting.mp3",1,128);
+//dm\comp_shutdown.mp3
+***/
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void holodeckSelectProgram()
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		string sMessage;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			entity_holodeck_lastActivator = ePlayer;
+			float_holodeckProgrammSelectionLast = getLevelTime();
+			float_holodeckProgrammSelection++;
+			if(float_holodeckProgrammSelection > 3){
+				float_holodeckProgrammSelection = 1;
+			}
+			sMessage = "Romulan Installation";
+			if(float_holodeckProgrammSelection == 2){
+				sMessage = "Bat'leth Arena";
+			}
+			else if(float_holodeckProgrammSelection == 3){
+				sMessage = "Oberlausitz";
+			}
+			singleplayerCompatibilityHudprint(ePlayer,"^5Holodeck: ^2Selected program:^3 "+sMessage+"\n");
+			
+			if(!float_holodeckProgrammSelectionActive){
+				float_holodeckProgrammSelectionActive=1;
+				$holodeckTrigger.playsound("sound/environment/computer/holo_yes.wav",3,1,256);
+//ABORTING PROGRAM
+				if(float_holodeckProgramm != 0){
+					globalCoop_dialog_playSimple($holodeckPortalSurfaceEntity,"dm/comp_aborting.mp3",1,256);
+					holodeckShutdown();//do not run as thread!
+				}
+//DISABLE ENTERING HOLODECK
+				$holodeckEnterTrigger.nottriggerable();
+				$holodeckPortal.hide();
+				float_holodeckProgramm=0;
+//WAIT FOR SELECTION
+				while((float_holodeckProgrammSelectionLast + 2) > getLevelTime())
+				{
+					wait(.2);
+				}
+//savegame
+				if(!cvar_bool_multiplayer){
+					stuffCMD("ui_quicksave");
+				}
+//let player know that a programm will be inizialised
+				thread globalCoop_dialog_playSimple($holodeckPortalSurfaceEntity,"dm/comp_initprog.mp3",1,256);				
+				sMessage = "Romulan Installation";
+				if(float_holodeckProgrammSelection == 2){
+					sMessage = "Bat'leth Arena";
+				}
+				else if(float_holodeckProgrammSelection == 3){
+					sMessage = "Oberlausitz";
+				}				
+				
+				$holodeckTrigger.nottriggerable();
+				if(doesEntityExist(entity_holodeck_lastActivator)){
+					singleplayerCompatibilityHudprint(entity_holodeck_lastActivator,"^5Holodeck: ^3LOADING program:^2 "+sMessage+"\n");
+				}
+				if(float_holodeckProgrammSelection == 1){
+					holodeckProgramRomInstallSetup();
+				}else if(float_holodeckProgrammSelection == 2){
+					holodeckProgramBlArenaSetup();
+				}else if(float_holodeckProgrammSelection == 3){
+					holodeckProgramOberlSetup();
+				}
+//wait a sec, that should be enougfh time for the setup to ready the rooms
+				wait(1);
+//tell the player that the programm is ready
+				if(doesEntityExist(entity_holodeck_lastActivator)){
+					singleplayerCompatibilityHudprint(entity_holodeck_lastActivator,"^5Holodeck: ^3Program READY:^2 "+sMessage+"\n");
+				}
+				wait(.1);
+				$holodeckPortalSurfaceEntity.playsound("sound/environment/computer/holo_changesml2.wav",3,2,256);
+				$holodeckPortalSurfaceEntity.locatecamera();
+				$holodeckPortal.show();
+				float_holodeckProgramm = float_holodeckProgrammSelection;
+				float_holodeckProgrammSelectionActive=0;
+				$holodeckEnterTrigger.triggerable();
+				$holodeckTrigger.triggerable();
+			}
+		}
+	}
+}
+
+
+void holodeckEnter()
+{
+	entity eTrigger;
+	float fLastMessageTime;
+	eTrigger=getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		if(!cvar_bool_multiplayer){
+			$player.setFloatVar("holodeckHealthRestore",$player.getHealth());
+			if($player.getHealth() < 10){
+				$player.health(10);//avoid to quick death
+			}
+			playerDeathThread("holodeckSingleplayerLoadSavegame");
+		}
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer))
+		{
+			if(float_holodeckProgramm == 1){//romulan
+				thread holodeckTransFromTo($holodeckOrigin,$holodeckAreaRomulanOrigin,ePlayer);
+				legacy_putAwayWeapon(ePlayer);
+				ePlayer.give("models/weapons/worldmodel-rom-disruptor.tik");
+				ePlayer.give("models/weapons/worldmodel-rom-datapad.tik");
+				ePlayer.use("models/weapons/worldmodel-rom-disruptor.tik");
+			}else if(float_holodeckProgramm == 2){//BlArena
+				thread holodeckTransFromTo($holodeckOrigin,$holodeckAreaBlArenaOrigin,ePlayer);
+				legacy_putAwayWeapon(ePlayer);
+				ePlayer.give("models/weapons/worldmodel-batleth.tik");
+				ePlayer.use("models/weapons/worldmodel-batleth.tik");
+			}else if(float_holodeckProgramm == 3){//Oberlausitz
+				thread holodeckTransFromTo($holodeckOrigin,$holodeckOberlausitzOrigin,ePlayer);
+				legacy_putAwayWeapon(ePlayer);
+			}
+			else{
+				fLastMessageTime = ePlayer.getFloatvar("holodeckLastNotLoadadMessage");
+				if(getLevelTime() > (fLastMessageTime + 2)){
+					singleplayerCompatibilityHudprint(ePlayer,"^3No Holodeck Program loadad!\n");
+					
+					ePlayer.setFloatvar("holodeckLastNotLoadadMessage",getLevelTime());
+				}else if(fLastMessageTime == 2){
+					ePlayer.setFloatvar("holodeckLastNotLoadadMessage",-1);
+				}
+				return;
+			}
+			thread holodeckPlayerInside(ePlayer);
+			thread holodeckTakeRealWeapons(ePlayer);
+		}
+	}
+}
+
+void holodeckSingleplayerLoadSavegame()
+{
+	if(!cvar_bool_multiplayer){
+		stuffCMD("ui_quickload");
+		wait(5);//avoid the displaying of failure hud
+	}
+}
+
+void holodeckShutdown()
+{
+	float fProgram;
+	entity eHolodeckProgramArea;
+	entity ePlayer;
+	fProgram = float_holodeckProgramm;
+	
+	if(fProgram == 1){
+		eHolodeckProgramArea = $romulanArea;
+	}
+	else if(fProgram == 2){
+		eHolodeckProgramArea = $blArenaArea;
+	}
+	else{
+		eHolodeckProgramArea = $oberlausitzArena;
+	}
+//HIDE PORTAL, DISSALLOW ENTERING
+	$holodeckPortal.hide();
+	float_holodeckProgramm = 0;
+	
+	if(cvar_bool_multiplayer){//MP
+		float fPlayer;
+		killthread("holodeckPlayerInside");//shutdown respawn overwriter
+		for(fPlayer=0;fPlayer<coop_integer_maxPlayers;fPlayer++)
+		{
+			ePlayer = getentity("player"+fPlayer);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_isEntityInsideOfEntity(ePlayer,eHolodeckProgramArea,0)){			
+					thread holodeckShutdownPlayer(ePlayer,fProgram);
+				}
+			}
+		}
+	}
+	else{//SP
+		if(globalCoop_check_isEntityInsideOfEntity($player,eHolodeckProgramArea,0)){
+			thread holodeckShutdownPlayer($player,fProgram);
+		}
+	}
+}
+
+void holodeckShutdownPlayer(entity ePlayer,float fProgram)
+{
+	if(globalCoop_check_existingLivingEntity(ePlayer)){
+		globalCoop_dialog_playSimple(ePlayer,"dm/comp_shutdown.mp3",1,128);
+		float fId;
+		fId = globalCoop_return_integerPlayerId(ePlayer);
+		ePlayer.nodamage();
+		ePlayer.immobilize(1);
+		wait(.7);
+		if(fProgram == 1){
+			holodeckTransFromRomHandle(ePlayer);
+		}
+		else if(fProgram == 2){
+			holodeckTransFromBlArenaHandle(ePlayer);
+		}
+		else{
+			holodeckTransFromOberlausitzHandle(ePlayer);
+		}		
+		ePlayer.takedamage();
+		ePlayer.immobilize(0);
+	}
+}
+
+
+void holodeckPlayerInside(entity ePlayer)
+{
+//do not do that in singleplayer
+	if(!cvar_bool_multiplayer)
+	{
+		return;
+	}
+	threadname("holodeckPlayerInside"+ePlayer.getRawTargetname());
+	while(doesEntityExist(ePlayer))
+	{
+		
+	//player dead
+		if(ePlayer.getHealth() < 1)
+		{
+			float fAtempts;
+			vector vOrigin,vOriginP;
+			while(doesEntityExist(ePlayer))
+			{
+				if(ePlayer.getHealth() < 1)
+				{
+					globalCoop_main_waitAFrame();
+				}
+				else{
+					for(fAtempts=4;fAtempts>0;fAtempts--)
+					{
+						vOrigin		= '2712 -1128 -3';
+						vOriginP	= ePlayer.getOrigin();
+						vOriginP_z	= vOrigin_z;
+						if(vOrigin != vOriginP)
+						{
+							thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vOrigin);
+							ePlayer.playerviewangles('0 170 0');
+						}
+						globalCoop_main_waitAFrame();
+					}
+					return;
+				}
+			}
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void holodeckTakeRealWeapons(entity ePlayer)
+//take all weapons which are not meanst to be used inside the holodeck
+{
+	if(doesEntityExist(ePlayer)){
+		if(float_holodeckProgramm != 2){
+			ePlayer.take("models/weapons/worldmodel-batleth.tik");
+		}
+		ePlayer.take("models/weapons/worldmodel-tricorder-STX.tik");
+		ePlayer.take("models/weapons/worldmodel-phaser-STX.tik");
+		ePlayer.take("models/weapons/worldmodel-compressionrifle.tik");
+		ePlayer.take("models/weapons/worldmodel-sniperrifle.tik");
+		ePlayer.take("models/weapons/worldmodel-photon.tik");
+	}
+}
+
+void holodeckGiveRealWeapons(entity ePlayer)
+//give all weapons to the player as we can't check if player had them
+{
+	if(doesEntityExist(ePlayer)){
+		float fId;
+		fId = globalCoop_return_integerPlayerId(ePlayer);
+		if(fId > 0)
+		{
+			killthread("holodeckPlayerInsideplayer"+fId);//shutdown respawn overwriter
+		}
+		if(!cvar_bool_multiplayer){
+			float fHealth;
+			fHealth = $player.getFloatVar("holodeckHealthRestore");
+			if(fHealth >= 1){
+				$player.health(fHealth);//restore health in sp
+			}
+			playerDeathThread("");
+		}
+		
+		ePlayer.give("models/weapons/worldmodel-batleth.tik");
+		ePlayer.give("models/weapons/worldmodel-tricorder-STX.tik");
+		if(float_headmasterPuzzleIsSolved){
+			ePlayer.give("models/weapons/worldmodel-phaser-STX.tik");
+			ePlayer.give("models/weapons/worldmodel-compressionrifle.tik");
+			if(float_approachedReplicatorSolvedPuzzle){
+				ePlayer.give("models/weapons/worldmodel-sniperrifle.tik");
+				ePlayer.give("models/weapons/worldmodel-photon.tik");
+			}
+		}
+	}
+}
+
+void holodeckTransFromRom()
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		holodeckTransFromRomHandle(ePlayer);
+	}
+}
+void holodeckTransFromRomHandle(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer)){
+		thread holodeckTransFromTo($holodeckAreaRomulanOrigin,$holodeckOrigin,ePlayer);
+		ePlayer.take("models/weapons/worldmodel-rom-radgun.tik");
+		ePlayer.take("models/weapons/worldmodel-rom-disruptor.tik");
+		ePlayer.take("models/weapons/worldmodel-rom-datapad.tik");
+		holodeckGiveRealWeapons(ePlayer);
+	}
+}
+
+
+void holodeckTransFromBlArena()
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		holodeckTransFromBlArenaHandle(ePlayer);
+	}
+}
+void holodeckTransFromBlArenaHandle(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer)){
+		thread holodeckTransFromTo($holodeckAreaBlArenaOrigin,$holodeckOrigin,ePlayer);
+		holodeckGiveRealWeapons(ePlayer);
+	}
+}
+
+
+void holodeckTransFromOberlausitz()
+{
+	entity eTrigger;
+	eTrigger=getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		holodeckTransFromOberlausitzHandle(ePlayer);
+	}
+}
+void holodeckTransFromOberlausitzHandle(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer)){
+		thread holodeckTransFromTo($holodeckOberlausitzOrigin,$holodeckOrigin,ePlayer);
+		holodeckGiveRealWeapons(ePlayer);
+	}
+}
+
+
+void holodeckTransFromTo(entity eFrom,entity eTo,entity ePlayer)
+{
+	if(	doesEntityExist(eFrom)	!= 1 ||
+		doesEntityExist(eTo)	!= 1 ||
+		doesEntityExist(ePlayer)!= 1)
+	{
+		return;
+	}
+	vector vVelocity;
+	vector vOriginPlayer;
+	vector vOrigin;
+	float fAxisOffsetY;
+	float fAxisOffsetZ;
+	float fYOffsetAdd;
+	vector vCalc1,vCalc2;
+	vVelocity = ePlayer.getVelocity();
+	vOriginPlayer = ePlayer.getOrigin();
+	vOrigin = eFrom.getOrigin();
+	
+//SINGLEPLAYER ONLY
+	if(vOriginPlayer_y >= vOrigin_y){
+		fYOffsetAdd = 1;
+	}
+	
+	vCalc1 = vOrigin;
+	vCalc2 = vOriginPlayer;
+	vCalc1_x = (vCalc1_z = 0);
+	vCalc2_x = (vCalc2_z = 0);
+	fAxisOffsetY = vectorLength(vCalc1 - vCalc2);
+	
+	if(fAxisOffsetY > 240){fAxisOffsetY= 240;}
+	
+	vCalc1 = vOrigin;
+	vCalc2 = vOriginPlayer;
+	vCalc1_x = (vCalc1_y = 0);
+	vCalc2_x = (vCalc2_y = 0);
+	fAxisOffsetZ = vectorLength(vCalc1 - vCalc2);
+	
+	if(fAxisOffsetZ > 90){fAxisOffsetZ= 90;}
+	else if(fAxisOffsetZ < 1){fAxisOffsetZ= 1;}
+	
+	vOrigin = eTo.getOrigin();
+	if(fYOffsetAdd){
+		vOrigin_y += fAxisOffsetY;
+	}
+	else{
+		vOrigin_y -= fAxisOffsetY;
+	}
+	vOrigin_z += fAxisOffsetZ;
+	thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vOrigin);
+	globalCoop_main_waitZeroDotZero5();
+	ePlayer.setVelocity(vVelocity);
+}
+
+
+void holodeckProgramRomInstallSetup()
+{
+	$romffSymbol.show();
+	$romdoorSymbol.show();
+	$romtableUSymbol.show();
+	$romtableMSymbol.hide();
+	float_holodeckProgrammRomInstallSpawn1=0;
+	float_holodeckProgrammRomInstallSpawn2=0;
+	$holodeckPortalSurfaceEntity.target("holodeckCameraRom");
+//HEAVY DOOR
+	killthread("holodeckProgramRomInstallHeavyDesk");
+	$romInstallHeavyDeskTrigger.triggerable();
+	$romInstallCompleteTrigger.triggerable();
+	//$romInstallHeavyLockerTrigger.nottriggerable();
+	$romInstallHeavyDesk.close();
+	$romInstallHeavyDoor.close();
+	$romInstallHeavyLocker.close();
+	$world.light_intensity("holodeckRomInstallLockerLight",0);
+	$holodeckRomInstallLockerLightBeam.hide();
+//SETUP CONFERENCE
+	$romInstallTablePannelTrigger.triggerable();	
+	$romInstallConferenceDoor.close();
+	$romInstallConferenceDoor.lock();
+	$romInstallTablePannel.close();
+	$world.light_intensity("holodeckRomInstallTablePannelLight",1);
+//SETUP FF
+	$holodeckRomInstallFF1Trigger.triggerable();
+	$world.light_intensity("holodeckRomInstallFF1TriggerLight",1);
+	legacy_forcefield_enable($holodeckRomInstallFF1);
+	$holodeckRomInstallFF1.stoploopsound();
+	$holodeckRomInstallFF1.loopsound("sound/ships/klingon/kling_scan.wav",1,128);
+//remove old ai
+	killthread("holodeckProgramRomInstallromInstall1Killed");
+	killthread("holodeckProgramRomInstallromInstall2Killed");
+	globalCoop_level_remove($romInstall1_actor);
+	globalCoop_level_remove($romInstall2_actor);
+//spawn new ai
+	thread holodeckProgramRomInstallSpawnAi($romInstall1);
+	
+//reset tricorder puzzles now
+	$romInstallConference_puzzle.puzzleobject_reset();
+	$romInstallHeavyDoor_puzzle.puzzleobject_reset();
+}
+
+
+void holodeckProgramRomInstallSpawnAi(entity eLocation)
+{
+	if(doesEntityExist(eLocation)){
+		entity eActor;
+		string sTargetname;
+		sTargetname = eLocation.getRawtargetname();
+		if(float_holodeckProgrammSelection == 1){
+			eActor = spawn("actor","model","models/char/romulan-m11-rebel-pistol-m.tik","ai_off","1","forcealpha","1");
+			wait(.05);
+			eActor.killthread("holodeckProgramRomInstall"+sTargetname+"Killed");
+			eActor.warp(eLocation.getOrigin());
+			eActor.targetname(sTargetname+"_actor");
+			eActor.health(100);
+			eActor.show();
+			eActor.displayeffect("TransportIn","Romulan");
+		}
+		wait(1);
+		if(doesEntityExist(eActor)){
+			eActor.ai_on();
+			eActor.aggressive(1);
+			eActor.fov(360);
+			eActor.allowFall(1);
+			eActor.hurt(1);
+		}
+	}
+}
+
+void holodeckProgramRomInstallromInstall1Killed()
+{
+	if(!float_holodeckProgrammRomInstallSpawn1){
+		holodeckProgramRomInstallSpawnAi($romInstall1);
+	}
+}
+
+void holodeckProgramRomInstallromInstall2Killed()
+{
+	if(!float_holodeckProgrammRomInstallSpawn2){
+		holodeckProgramRomInstallSpawnAi($romInstall2);
+	}
+}
+
+
+void holodeckProgramRomInstallDisableFF1()
+//diable the FF which is blocking the player
+{
+	$romffSymbol.hide();
+	float_holodeckProgrammRomInstallSpawn1=1;//stop spawing
+	$holodeckRomInstallFF1Trigger.playsound("sound/environment/computer/holo_yes.wav",3,1,256);
+	$holodeckRomInstallFF1Trigger.nottriggerable();
+	legacy_forcefield_disable($holodeckRomInstallFF1);
+	$holodeckRomInstallFF1.stoploopsound();
+	$world.light_intensity("holodeckRomInstallFF1TriggerLight",0);
+	thread holodeckProgramRomInstallromInstall2Killed();
+}
+
+void holodeckProgramRomInstallConferenceDoor()
+{
+	$romdoorSymbol.hide();
+	$romInstallConferenceDoor.unlock();
+	wait(.1);
+	$romInstallConferenceDoor.open($world);
+}
+
+void holodeckProgramRomInstallHeavyDoor()
+{
+	$romInstallHeavyDoor.open($world);
+}
+
+void holodeckProgramRomInstallHeavyDesk()
+{
+	$romInstallHeavyDeskTrigger.nottriggerable();
+	$romInstallHeavyLockerTrigger.triggerable();
+	wait(.5);
+	$world.light_intensity("holodeckRomInstallLockerLight",1);
+	$holodeckRomInstallLockerLightBeam.show();
+	$romInstallHeavyDesk.close();
+}
+
+void holodeckProgramRomInstallTabelPannel()
+//disable the trigger
+{
+	$romInstallTablePannelTrigger.nottriggerable();
+	$romtableUSymbol.hide();
+	$romtableMSymbol.show();
+	$world.light_intensity("holodeckRomInstallTablePannelLight",0);
+	
+//activate puzzle object
+	$romInstallHeavyDoor_puzzle.puzzleobject_activate();
+}
+
+void holodeckProgramRomInstallComplete()
+{
+	float_holodeckProgrammRomInstallSpawn2=1;
+	wait(3);	
+	thread holodeckShutdown();
+}
+
+
+void holodeckProgramBlArenaSetup()
+{
+	$holodeckPortalSurfaceEntity.target("holodeckCameraBlArena");
+//remove Old AI
+	globalCoop_level_remove($blArena1_actor);
+	globalCoop_level_remove($blArena2_actor);
+	globalCoop_level_remove($blArena3_actor);
+	globalCoop_level_remove($blArena4_actor);
+	globalCoop_level_remove($blArena5_actor);
+	globalCoop_level_remove($blArena6_actor);
+//spawn new AI
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena1);
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena2);
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena3);
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena4);
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena5);
+	thread holodeckProgramBlArenaSetupSpawnAi($blArena6);
+	wait(.5);
+//active first warrior
+	holodeckProgramBlArenaWarriorSetup($blArena1_actor);
+}
+
+
+void holodeckProgramBlArenaSetupSpawnAi(entity eLocation)
+{
+	if(doesEntityExist(eLocation)){
+		entity eActor;
+		string sTargetname;
+		sTargetname = eLocation.getRawtargetname();
+		eActor = spawn("actor","model","models/char/klingon-m9-merc-batleth-m1.tik","targetname",sTargetname+"_actor","origin",""+eLocation.getOrigin(),"ai_off","1");
+		wait(.1);
+		eActor.killthread("holodeckProgramBlArena"+sTargetname+"Killed");
+	}
+}
+
+
+void holodeckProgramBlArenaWarriorSetup(entity eActor)
+{
+	if(doesEntityExist(eActor)){
+		eActor.health(200);
+		eActor.ai_on();
+	}
+}
+
+void holodeckProgramBlArenablArena1Killed()
+{
+	holodeckProgramBlArenaWarriorSetup($blArena2_actor);
+}
+void holodeckProgramBlArenablArena2Killed()
+{
+	holodeckProgramBlArenaWarriorSetup($blArena3_actor);
+}
+void holodeckProgramBlArenablArena3Killed()
+{
+	holodeckProgramBlArenaWarriorSetup($blArena4_actor);
+}
+void holodeckProgramBlArenablArena4Killed()
+{
+	holodeckProgramBlArenaWarriorSetup($blArena5_actor);
+}
+void holodeckProgramBlArenablArena5Killed()
+{
+	holodeckProgramBlArenaWarriorSetup($blArena6_actor);
+}
+void holodeckProgramBlArenablArena6Killed()
+{
+	thread holodeckShutdown();
+}
+
+
+void holodeckProgramOberlSetup()
+//a copy machine from Oberlausitz
+{
+	$holodeckPortalSurfaceEntity.target("holodeckCameraOberlausitz");
+	$copymachineSparks.hide();
+	$copymachineOn.hide();
+	$copymachineOff.show();
+	$copymachineSparks.stopLoopSound();
+	$copymachineSymbol.show();
+//bind papers
+	$copyHaZardModding.bind($copyHaZardModdingOrigin);
+	$copyBad.bind($copyBadOrigin);
+	$copyHaZardModdingOrigin.moveto($copyOrginal0);
+	$copyHaZardModdingOrigin.time(.1);
+	$copyBadOrigin.moveto($copyRip0);
+	$copyBadOrigin.time(.1);
+	wait(.2);
+	$copyBad.angles('0 0 -13');
+	$copyHaZardModding.angles('0 0 12.2');//was 12.5
+	$copymachineTrigger.triggerable();
+	wait(.3);
+}
+
+
+void holodeckProgramOberlCopyFromHZM()
+{
+	$copymachineSymbol.hide();
+	$copymachineTrigger.nottriggerable();
+	$copymachineOff.hide();
+	$copymachineOn.show();
+	$copyHaZardModdingOrigin.moveto($copyOrginal1);
+	$copyHaZardModdingOrigin.time(3);
+	$copyRip0.playSound("sound/environment/machine/mech_move1.wav",0,1,256);
+	waitFor($copyHaZardModdingOrigin);
+	$copyRip0.playSound("sound/environment/machine/lift2a.wav",0,3,256);
+	wait(3);
+	$copyBadOrigin.moveto($copyRip1);
+	$copyBadOrigin.time(2);
+	wait(.4);
+	$copyRip0.playSound("sound/environment/machine/mech_move1.wav",0,1,256);
+	wait(2);
+	$copymachineSparks.selfdetonate();
+	$copymachineSparks.loopSound("sound/environment/electric/fritz5.wav",1,128);
+	$copymachineSparks.show();
+	$copymachineOn.hide();
+	$copymachineOff.show();
+}
+
+
+
+

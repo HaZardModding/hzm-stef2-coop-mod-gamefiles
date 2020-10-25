@@ -1,0 +1,208 @@
+//--------------------------------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:
+//	Contains the uber-l33t sound panning script object that follows the player around the level
+//
+//
+//	How To Use:
+//	Call globalSoundPan_Init() to start it up
+//  Then call globalSoundPan_AddSound() to add sounds to its list
+//  Finally, start globalSoundPan_Start() as a thread
+//  Call globalSoundPan_Stop() to halt it
+//
+//	External Functions:
+//	See the functions below
+//
+//	Script By:    Jared Hefty
+//  Created on:   10/1/2002
+//
+//  Last Edited:  Jared Hefty
+//
+//--------------------------------------------------------------------------------------
+
+entity _soundArray;
+float  _soundArray_size = 0;
+entity _thePanner;
+
+float _running = 0;
+
+entity coop_returnMeARandomPlayer();
+
+
+//call this first, usually in main()
+void globalSoundPan_Init ()
+{
+	_thePanner = spawn ( "script_origin" , "targetname", "_thePanner" );		//This is what will fly around and play the sounds
+	_soundArray = spawn ( "script_origin" );	//This holds all of the sounds that _thePanner can choose from
+
+	wait ( .1 );
+	_thePanner.notsolid();
+}
+
+//Call this for each sound you want to be chosen from
+// _sound: path of the sound
+// _channel: should be 5 for most cases
+// _volume: 0-1.0 scale of how loud it should play
+// _mindist: distance before it starts to fall off
+// _chance: 0-1.0 chance of the sound playing when chosen, 1.0 means 'always'
+// _length: amount of time the panner should be moving (in general should match the approx length of the sound file
+// _offset: distance for the panner to move
+// _pause: number of seconds to wait before choosing another sound
+
+void globalSoundPan_AddSound ( string _sound ,
+							   float _channel,
+							   float _volume,
+							   float _mindist,
+							   float _chance ,
+							   float _length ,
+							   float _offset ,
+							   float _pause   )
+{
+	_soundArray_size++;
+	_soundArray.setstringvar ( "item"         + _soundArray_size , _sound );
+	_soundArray.setfloatvar  ( "item_chance"  + _soundArray_size , _chance );
+	_soundArray.setfloatvar  ( "item_length"  + _soundArray_size , _length );
+	_soundArray.setfloatvar  ( "item_offset"  + _soundArray_size , _offset );
+	_soundArray.setfloatvar  ( "item_pause"   + _soundArray_size , _pause );
+	_soundArray.setfloatvar  ( "item_channel" + _soundArray_size , _channel );
+	_soundArray.setfloatvar  ( "item_volume"  + _soundArray_size , _volume );
+	_soundArray.setfloatvar  ( "item_mindist" + _soundArray_size , _mindist );
+
+	if ( _pause <= 0.0 )
+		_soundArray.setfloatvar  ( "item_pause"  + _soundArray_size , .1 );
+	else
+		_soundArray.setfloatvar  ( "item_pause"  + _soundArray_size , _pause );
+}
+
+void _gspPlaySound ( float index );
+
+//Start the sound loop, make sure to call it as a thread in most cases
+void globalSoundPan_Start ()
+{
+	wait ( .5 );
+
+	if ( !doesEntityExist ( _thePanner ))
+	{
+		print ( "globalSoundPan_Start(): you must call globalSoundPan_Init() first!" );
+		return;
+	}
+
+	_running = 1;
+
+	float choice;
+	float theChance;
+	float waitLength;
+
+	while ( _running )
+	{
+		choice = randomint ( _soundArray_size ) + 1;
+		/*print ( "getting " +choice+" of "+_soundArray_size+"\n" );*/
+		theChance = _soundArray.getfloatvar ( "item_chance" + choice );
+		waitLength = _soundArray.getfloatvar ( "item_pause" + choice );
+
+		/*print ( "theChance " +theChance + "\n" );*/
+		if ( theChance >= randomfloat ( 1.0 ))
+			_gspPlaySound ( choice );
+
+		/*print ( "waiting" + waitLength +"\n");*/
+		if ( waitLength <= 0 )
+			waitLength = .2 ;
+		wait ( waitLength );
+	}
+}
+
+//stop the sound loop, you can restart it again with globalSoundPan_Sstart
+void globalSoundPan_Stop ()
+{
+	_running = 0;
+}
+
+//Private function that actually plays the sound
+void _gspPlaySound ( float index )
+{
+	string wavFile;
+	float counter,
+		  increment,
+		  length,
+		  _offset,	//avoid name overlaps
+		  _channel,
+		  _volume,
+		  mindist;
+
+	wavFile  = _soundArray.getstringvar ( "item" + index);
+	length   = _soundArray.getfloatvar  ( "item_length" + index );
+	_offset  = _soundArray.getfloatvar  ( "item_offset" + index );
+	_channel = _soundArray.getfloatvar  ( "item_volume" + index );
+	_volume  = _soundArray.getfloatvar  ( "item_volume" + index );
+	mindist  = _soundArray.getfloatvar ( "item_mindist" + index );
+
+	if(wavFile!="")
+		_thePanner.playsound( wavFile, _channel, _volume, mindist );
+
+	//hzm coop mod chrissstrahl - pick a random player to scare
+	entity ePlayer;
+	ePlayer = coop_returnMeARandomPlayer();
+	
+	_thePanner.angles( ePlayer.getangles() );	//face the direction of the player
+	_thePanner.warp( ePlayer.getorigin() );	//move to the player
+
+	_thePanner.time ( 1 );
+	_thePanner.moveBackward ( 10 );
+	_thePanner.moveUp ( 10 );
+	_thePanner.moveRight ( _offset );
+	waitfor( _thePanner );
+
+	_thePanner.time ( length );
+	_thePanner.moveLeft ( _offset * -2.0 );
+	waitfor ( _thePanner );
+}
+
+
+entity coop_returnMeARandomPlayer()
+//Advanced Return random player function, originating from H'atoria Outpost
+//returns a random player
+{
+	if(getCvarInt("g_gameType") == 0)
+	{
+		return $player;
+	}
+	
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;	
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("soundPan_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	for(fTries=6;fTries>0;fTries--){
+		fRandom = randomint(fExistingPlayers);
+		fPlayerIdInUse = $world.getFloatVar("soundPan_activeplayer"+fRandom);
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fTries = 0;
+				eRandomPlayer = ePlayer;
+			}
+		}
+	}
+	
+	//return the world if no player could be found
+	if(!doesEntityExist(eRandomPlayer)){
+		eRandomPlayer = $world;
+	}
+	return eRandomPlayer;
+}
+

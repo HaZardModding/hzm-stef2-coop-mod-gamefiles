@@ -1,0 +1,145 @@
+//bliz related functions - purpose: keep script organized
+
+void blitzSetup()
+{
+//Spawn Thunder Pointer (use a notvalid model)
+	spawn("script_model","model","fx/fx.tik","targetname","originThunderPointer");
+//Bind all components
+	$blitzVisual.bind($blitzOrigin);
+	$blitzExplosionOrigin.bind($blitzOrigin);
+//Hide
+	$blitzVisual.hide();
+	wait(.1);
+//set box size
+	$originThunderPointer.notsolid();
+	$originThunderPointer.setSize('-100 -100 0','100 100 0');
+}
+
+void blitzStart()
+{
+//start the blitz routine
+	thread blitzImpact();
+}
+
+
+void blitzBlink()
+{
+	float fBlinkTime = 18;//20=2 sec
+	while(fBlinkTime>0){
+		fBlinkTime--;
+		if(globalCoop_check_isPowerOfGiven(fBlinkTime,2)){
+			$blitzVisual.show();
+		}
+		else{
+			$blitzVisual.hide();
+		}
+		wait(.1);
+	}
+	$blitzVisual.hide();
+}
+
+void blitzImpact()
+{
+//max-x:8029
+//max-y:1344
+//min-x:2704
+//min-y:-1792
+	entity	e;
+	vector	vThunder;
+	float	fZAxis;
+	float	fRandom,fRandom2;
+	float	fMaxX,fMinX;
+	float	fMaxY,fMinY;
+	vector	vPrey;
+//Make thunder rotating all the time
+	$blitzOrigin.rotateY(600);
+	while(1){
+		wait((randomInt(20) + 3));//was 25 + 6
+		
+		fRandom = randomint(100);
+//GRAB A MONSTER
+		if(fRandom < 17 && fRandom != 0){
+			e = $chewer;
+			if(randomint(75) > 40){
+				e = $fallschirmspringer;
+			}
+			else if(randomint(75) < 40){
+				e = $basher;
+			}
+		}
+//GRAB A PLAYR
+		else if(fRandom < 18 && fRandom != 0){
+//do not attack player in sp
+			if(cvar_bool_multiplayer){
+				e = returnMeARandomPlayer();
+			}
+		}
+		
+//Select random impact location
+		if(!doesEntityExist(e) || fRandom > 49){
+//calc for thunder center
+			vThunder = 	$blitzImpactArea.getOrigin();
+			fRandom = randomint(19);//recycle
+			fRandom2 = randomint(19);
+//within the bounding box of teh thunder area script object
+			fMaxX = vectorGetX($blitzImpactArea.getMaxs());
+			fMinX = vectorGetX($blitzImpactArea.getMins());
+			fMaxY = vectorGetY($blitzImpactArea.getMaxs());
+			fMinY = vectorGetY($blitzImpactArea.getMins());
+//transform negartive values, so we can use them for calcualtions with randomint
+			fMinX = globalCoop_return_floatNotNegative(fMinX);
+			fMinY = globalCoop_return_floatNotNegative(fMinY);
+//have a padding from the walls and the outer edge of the impact area
+			fMaxX -= 140;
+			fMinX -= 140;
+			fMaxY -= 140;
+			fMinY -= 140;
+//generate radom locations
+			if(fRandom > 9){
+				vThunder_x += randomInt(fMaxX);
+			}else{
+				vThunder_x -= randomInt(fMinX);
+			}
+			if(fRandom2 < 10){
+				vThunder_y += randomInt(fMaxY);
+			}else{
+				vThunder_y -= randomInt(fMinY);
+			}
+//move the pointer to the randomly generated location
+			$originThunderPointer.movetopos(vThunder);
+			$originThunderPointer.time(.02);
+			waitFor($originThunderPointer);
+			e=$originThunderPointer;
+		}
+//attack anything, or it will chrash
+		if(!doesEntityExist(e)){
+			e=$world;
+		}
+//start impact
+		if(e.getRawTargetname() != "world"){
+			if(globalCoop_check_isEntityInsideOfEntity(e,$blitzImpactArea,0))
+			{
+				fZAxis			=	vectorGetZ($blitzImpactArea.getOrigin());
+				fZAxis			+=	vectorGetZ($blitzImpactArea.getMaxs());
+				vPrey			=	e.getOrigin();
+				vThunder		=	vPrey;
+				vThunder_z		= 	fZAxis;
+				$originThunderPointer.movetopos(vThunder);
+				$originThunderPointer.time(.02);
+				waitFor($originThunderPointer);
+				$originThunderPointer.dropToFloor((vectorgetz($blitzImpactArea.getMaxs()) + globalCoop_return_floatNotNegative((vectorgetz($blitzImpactArea.getMins())))));
+				$blitzOrigin.moveto($originThunderPointer);
+				$blitzOrigin.time(.02);
+				waitFor($blitzOrigin);
+				//$originThunderPointer.playsound("sound/weapons/attrexrifle/attrifle_light.wav",0,2,256);
+				$originThunderPointer.playsound("sound/weapons/attrexrifle/attrifle_light.wav",3,1,96);
+				//doradiusdamage( Float damage, String meansofdeath, Float radius, Float knockback, [ Boolean constant_damage ], [ Float repeat_time ] )
+				$blitzExplosionOrigin.doradiusdamage(fHZMthunderDamage,"ELECTRIC",fHZMthunderMaxDistance,0,0,0);
+				blitzBlink();
+			}
+		}
+	}
+}
+
+
+

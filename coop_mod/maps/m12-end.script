@@ -1,0 +1,643 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m12-end
+//  Script By:    Benson R
+//  Geometry By:  Benson R
+//  Created on:   10/2/2002
+//
+//  Last Edited By:  Benson R
+//
+//-----------------------------------------------------------------
+
+//==========================================================================================
+//==========================================================================================
+//  DEFINE SCRIPT
+//==========================================================================================
+//==========================================================================================
+
+void main();
+
+//--- setup routines
+void setupWorld();
+void setupAI();
+void setupPlayer();
+void setupArmatures();
+void setupGetEnterprise( float enterpriseNumber );
+void setupSetEnterpriseAlpha( float fltAlpha );
+void setupEnterprise();
+
+//--- cinematics
+void cinematicArm_End_Start();
+void cinematicArm_End2_Start();
+void cinematicArm_End_ArmEnd();
+void cinematicArm_End2_ArmEnd();
+void cinematicArm_EndChoice_ArmEnd();
+void cinematicArm_End_Warbird1Fade();
+void cinematicArm_End_Warbird2Fade();
+void cinematicArm_End_WarpEnterprise( float fltEnterprise, float fltTime );
+
+//--- test functions
+void testKleeya();
+void testTelsia();
+void testNone();
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+entity cinematicArm_End;
+entity cinematicArm_End2;
+entity cinematicArm_EndTelsia;
+entity cinematicArm_EndKleeya;
+
+entity enterprisePiece1, enterprisePiece2, enterprisePiece3, enterprisePiece4, enterpriseOrigin;
+
+
+//==========================================================================================
+//==========================================================================================
+//  INCLUDES
+//==========================================================================================
+//==========================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  MAIN FUNCTION
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+void main()
+//---------------------
+{
+	//hzm coop mod chrissstrahl - fix issues we have in multiplayer
+	$krindo.ai_off();
+	$krindo.hide();
+
+	//--- fade the world out
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	cinematic();
+	letterbox( .1 );
+
+	//--- set the soundtrack
+	soundtrack( "music/m12.mus" );
+
+	//--- run setup functions
+	setupArmatures();
+	setupWorld();
+	setupAI();
+
+	//--- wait for player to spawn
+	waitForPlayer();
+	freezePlayer();
+	music ( "aux1" );
+	wait( 1 );
+
+	//--- start the cinematic
+	thread cinematicArm_End_Start();
+}
+
+
+//==========================================================================================
+//==========================================================================================
+//  SETUP FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// setupWorld
+// setup world objects
+//---------------------
+void setupWorld()
+{
+	float i;
+
+	//--- set the sky box
+	$sky.rendereffects( "+skyorigin" );
+
+	//--- spawn cameras
+	spawn( "Camera", "targetname", "cam1");
+	spawn( "Camera", "targetname", "cam2");
+
+	//--- spawn warp flash
+	spawn( "func_spawn", "targetname", "spawnWarpFlash" );
+
+	//--- cam paths
+	cam.load( "m12_Depart_Shot1" );
+	cam.load( "m12_Depart_Shot2" );
+	cam.load( "m12_FinalGoodbye_Shot1" );
+
+	//--- viewscreen stuff
+	$viewscreenLCARS.hide();
+
+	//--- setup the enterprises
+	for( i = 1; i <= 8 ; i++ )
+	{
+		setupGetEnterprise( i );
+		setupEnterprise();
+    }
+
+	//--- show the main enterprise
+	setupGetEnterprise( 1 );
+	enterprisePiece1.show();
+	enterprisePiece2.show();
+	enterprisePiece3.show();
+	enterprisePiece4.show();
+
+	//--- set all the origins to the main enterprise
+	$enterpriseOrigin2.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin3.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin4.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin5.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin6.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin7.origin( $enterpriseOrigin1.getOrigin() );
+	$enterpriseOrigin8.origin( $enterpriseOrigin1.getOrigin() );
+
+	setupGetEnterprise( 2 );
+	setupSetEnterpriseAlpha( .85 );
+	setupGetEnterprise( 3 );
+	setupSetEnterpriseAlpha( .7 );
+	setupGetEnterprise( 4 );
+	setupSetEnterpriseAlpha( .55 );
+	setupGetEnterprise( 5 );
+	setupSetEnterpriseAlpha( .4 );
+	setupGetEnterprise( 6 );
+	setupSetEnterpriseAlpha( .25 );
+	setupGetEnterprise( 7 );
+	setupSetEnterpriseAlpha( .1 );
+
+	$warbird1.bind( $warbird1Origin );
+	$warbird2.bind( $warbird2Origin );
+	$warbird1.forceAlpha( 1 );
+	$warbird1.alpha( 1 );
+	$warbird2.forceAlpha( 1 );
+	$warbird2.alpha( 1 );
+}
+
+//---------------------
+// setupGetEnterprise
+// sets the global enterprise variables to the passed in enterprise
+//---------------------
+void setupGetEnterprise( float enterpriseNumber )
+{
+	enterprisePiece1 = getEntity( "enterprise" + enterpriseNumber + "_1" );
+	enterprisePiece2 = getEntity( "enterprise" + enterpriseNumber + "_2" );
+	enterprisePiece3 = getEntity( "enterprise" + enterpriseNumber + "_3" );
+	enterprisePiece4 = getEntity( "enterprise" + enterpriseNumber + "_4" );
+	enterpriseOrigin = getEntity( "enterpriseOrigin" + enterpriseNumber );
+}
+
+//---------------------
+// setupSetEnterpriseAlpha
+// sets the currently set enterprise to the passed in alpha
+//---------------------
+void setupSetEnterpriseAlpha( float fltAlpha )
+{
+	enterprisePiece1.alpha( fltAlpha );
+	enterprisePiece2.alpha( fltAlpha );
+	enterprisePiece3.alpha( fltAlpha );
+	enterprisePiece4.alpha( fltAlpha );
+}
+
+//---------------------
+// setupEnterprise
+// sets up the currently set enterprise together
+//---------------------
+void setupEnterprise()
+{
+	enterprisePiece1.origin( enterprisePiece2.getOrigin() );
+	enterprisePiece3.origin( enterprisePiece2.getOrigin() );
+	//enterprisePiece4.origin( enterprisePiece2.getOrigin() );
+	wait( .05 );
+
+	enterprisePiece1.bind( enterpriseOrigin );
+	enterprisePiece2.bind( enterpriseOrigin );
+	enterprisePiece3.bind( enterpriseOrigin );
+	enterprisePiece4.bind( enterpriseOrigin );
+
+	enterprisePiece1.hide();
+	enterprisePiece2.hide();
+	enterprisePiece3.hide();
+	enterprisePiece4.hide();
+
+	enterprisePiece1.forceAlpha( 1 );
+	enterprisePiece2.forceAlpha( 1 );
+	enterprisePiece3.forceAlpha( 1 );
+	enterprisePiece4.forceAlpha( 1 );
+}
+
+//---------------------
+// setupAI
+// setup the player
+//---------------------
+void setupAI()
+{
+	return;
+}
+
+//---------------------
+// setupPlayer
+// setup the player
+//---------------------
+void setupPlayer()
+{
+}
+
+//---------------------
+// setupArmatures
+// setup the cinematic armature variables
+//---------------------
+void setupArmatures()
+{
+	//--- setup the main armature
+    cinematicArm_End = createCinematic( "m12-end" );
+    cinematicArm_End.setEndThread( "cinematicArm_End_ArmEnd" );
+    cinematicArm_End2 = createCinematic( "m12-end-2nd" );
+    cinematicArm_End2.setEndThread( "cinematicArm_End2_ArmEnd" );
+
+	//--- setup the telsia armature
+    cinematicArm_EndTelsia = createCinematic( "end_telsia" );
+    cinematicArm_EndTelsia.setEndThread( "cinematicArm_EndChoice_ArmEnd" );
+
+	//--- setup the kleeya armature
+    cinematicArm_EndKleeya = createCinematic( "end_kleeya" );
+    cinematicArm_EndKleeya.setEndThread( "cinematicArm_EndChoice_ArmEnd" );
+}
+
+
+//==========================================================================================
+//==========================================================================================
+//  CINEMATIC FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// cinematicArm_End_Start
+// the main armature cinematic
+//---------------------
+void cinematicArm_End_Start()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	wait(1);
+	
+	//--- start the first piece of the cinematic
+	cinematicArm_End.beginCinematic( "m12-end" );
+	wait( .5 );
+
+	//--- set the skipthread
+	skipthread( "cinematicArm_EndChoice_ArmEnd" );
+	wait( .5 );
+
+	//--- scale up the general for the viewscreen
+	$armRomgeneral.scale( 5 );
+}
+
+//---------------------
+// cinematicArm_End_ArmEnd
+// the main armature cinematic end function, plays the TC of the ships departing
+//---------------------
+void cinematicArm_End_ArmEnd()
+{
+	//--------------------------------------------------------
+	//shot - warbirds departing
+
+	//--- set the camera
+	$cam1.fov( 60 );
+	$cam1.follow( $m12_Depart_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+	//--- fade out warbird1
+	thread cinematicArm_End_Warbird1Fade();
+	wait( 2.75 );
+
+	//--- fade out warbird2
+	thread cinematicArm_End_Warbird2Fade();
+	wait( 3.5 );
+
+	//--------------------------------------------------------
+	//shot - enterprise leaving
+
+	//--- set the camera
+	$cam2.fov( 60 );
+	$cam2.follow( $m12_Depart_Shot2 );
+	$cam2.cut();
+	wait( .2 );
+
+	cuecamera( $cam2 );
+	wait( 10 );
+
+	//--- fade in
+	cam_fadeout( 2.5, 0, 0, 0, 1, 0 );
+	wait( 5 );
+
+	thread cinematicArm_End2_Start();
+}
+
+//---------------------
+// cinematicArm_End_Warbird1Fade
+// the first warbird leaving
+//---------------------
+void cinematicArm_End_Warbird1Fade()
+{
+	$warbird1Origin.time( 5 );
+	$warbird1Origin.moveUp( 96 );
+	$warbird1Origin.moveEast( 96 );
+	$warbird1Origin.rotateYdown( 45 );
+	$warbird1Origin.rotateXup( 35 );
+	$warbird1.fade( 3, 0 );
+	waitFor( $warbird1Origin );
+
+	$warbird1.hide();
+}
+
+//---------------------
+// cinematicArm_End_Warbird2Fade
+// the second warbird leaving
+//---------------------
+void cinematicArm_End_Warbird2Fade()
+{
+	$warbird2Origin.time( 4 );
+	$warbird2Origin.moveUp( 32 );
+	$warbird2Origin.moveWest( 128 );
+	$warbird2Origin.rotateYup( 45 );
+	$warbird2Origin.rotateXdown( 20 );
+	$warbird2.fade( 3, 0 );
+	waitFor( $warbird2Origin );
+
+	$warbird2.hide();
+}
+
+//---------------------
+// cinematicArm_End_Start
+// the main armature cinematic
+//---------------------
+void cinematicArm_End2_Start()
+{
+	//--- start the first piece of the cinematic
+	cinematicArm_End2.beginCinematic( "m12-end-2nd" );
+}
+
+//---------------------
+// cinematicArm_End2_ArmEnd
+// the main armature cinematic end function, determines whether the player chose kleeya or telsia
+//---------------------
+void cinematicArm_End2_ArmEnd()
+{
+	wait( 1 );
+
+	float fltTelsia, fltKleeya, fltNone;
+
+	//setfloatvar( "game.globalNoneChoice", 4 );
+	//setfloatvar( "game.globalTelsiaChoice", 1 );
+	//setfloatvar( "game.globalKleeyaChoice", -1 );
+
+	fltNone = getfloatvar( "game.globalNoneChoice" );
+	fltTelsia = getfloatvar( "game.globalTelsiaChoice" );
+	fltKleeya = getfloatvar( "game.globalKleeyaChoice" );
+
+	print( "NONE: " + fltNone + "\n" );
+	print( "TELSIA: " + fltTelsia + "\n" );
+	print( "KLEEYA: " + fltKleeya + "\n" );
+
+	//--- check which score is highest and play the appropriate ending
+	//if( fltNone >= 4 )
+	//{
+		//thread cinematicArm_EndChoice_ArmEnd();
+		//print( "NONE PICKED\n" );
+	//}
+	if( fltKleeya >= fltTelsia )
+	{
+		forcemusic ( "aux2" );
+		cinematicArm_EndKleeya.beginCinematic( "end_kleeya" );
+		print( "KLEEYA PICKED\n" );
+	}
+	else
+	{
+		forcemusic ( "aux3" );
+		cinematicArm_EndTelsia.beginCinematic( "end_telsia" );
+		print( "TELSIA PICKED\n" );
+	}
+}
+
+
+void testKleeya()
+{
+	setfloatvar( "game.globalKleeyaChoice", 4 );
+	print( "===============================================\n" );
+	print( "            TESTING KLEEYA PATH\n" );
+	print( "===============================================\n" );
+}
+
+void testTelsia()
+{
+	setfloatvar( "game.globalTelsiaChoice", 4 );
+	print( "===============================================\n" );
+	print( "            TESTING TELSIA PATH\n" );
+	print( "===============================================\n" );
+}
+
+void testNone()
+{
+	setfloatvar( "game.globalNoneChoice", 4 );
+	print( "===============================================\n" );
+	print( "            TESTING NONE PATH\n" );
+	print( "===============================================\n" );
+}
+
+//---------------------
+// cinematicArm_EndChoice_ArmEnd
+// roll the credits when the stuff is done
+//---------------------
+void cinematicArm_EndChoice_ArmEnd()
+{
+	skipthread( "null" );
+
+	//--- fade out
+	cam_fadeout( .5, 0, 0, 0, 1 );
+	wait( .1 );
+
+	//--- change the music
+	allowmusicducking ( 0 );
+	forcemusic ( "aux4" );
+	wait( .5 );
+
+	//--- end all the armatures
+    cinematicArm_End.endCinematic( FALSE );
+    cinematicArm_End2.endCinematic( FALSE );
+    cinematicArm_EndTelsia.endCinematic( FALSE );
+    cinematicArm_EndKleeya.endCinematic( FALSE );
+
+	killthread( "cinematicArm_End_Start" );
+	killthread( "cinematicArm_End2_Start" );
+	killthread( "cinematicArm_End_ArmEnd" );
+	killthread( "cinematicArm_End2_ArmEnd" );
+	killthread( "cinematicArm_End2_ArmEnd" );
+	killthread( "cinematicArm_End_Warbird1Fade" );
+	killthread( "cinematicArm_End_Warbird2Fade" );
+
+	//--------------------------------------------------------
+	//shot - warbirds departing
+
+	//--- hide all the other entities
+	$warbird1.hide();
+	$warbird2.hide();
+	$planetLava.hide();
+
+	//--- set the camera
+	$cam1.fov( 60 );
+	$cam1.follow( $m12_FinalGoodbye_Shot1 );
+	$cam1.cut();
+	wait( .2 );
+
+	cuecamera( $cam1 );
+	
+	//--- fade in
+	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	wait( 37.5 );
+
+	$cam1.playsound( "sound/ships/enterprise/ent_enter_warp.wav", 0, 4, 20000 );
+	wait( 2.5 );
+
+	//--- warp the enterprise
+	thread cinematicArm_End_WarpEnterprise( 1, .1 );
+	thread cinematicArm_End_WarpEnterprise( 2, .3 );
+	thread cinematicArm_End_WarpEnterprise( 3, .5 );
+	thread cinematicArm_End_WarpEnterprise( 4, .65 );
+	thread cinematicArm_End_WarpEnterprise( 5, .8 );
+	thread cinematicArm_End_WarpEnterprise( 6, .9 );
+	cinematicArm_End_WarpEnterprise( 7, 1 );
+	wait( .05 );
+
+	$spawnWarpFlash.scale( .6 );
+	$spawnWarpFlash.modelname( "models/fx/fx-warpflash-federation.tik" );
+	$spawnWarpFlash.origin( $enterpriseOrigin1.getOrigin() );
+	wait( .05 );
+
+	triggerEntity( $spawnWarpFlash );
+	wait( 3 );
+
+	cam_fadeOut( 2, 0, 0, 0, 1 );
+	wait( 2.5 );
+
+	
+
+	//hzm coop mod chrisstrahl - load next map
+	thread coop_endLevel();
+	
+	//noIntermission();
+	//stuffcmd( "map credits\n" );
+
+	//--- transition to credits
+	//spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "credits" );
+	//wait ( .1 );
+	//triggerentity ( $trigger_endlevel );
+}
+
+//---------------------
+// cinematicArm_End_WarpEnterprise
+// warps the passed in enterprise
+//---------------------
+void cinematicArm_End_WarpEnterprise( float fltEnterprise, float fltTime )
+{
+	entity _enterprisePiece1, _enterprisePiece2, _enterprisePiece3, _enterprisePiece4, _enterpriseOrigin;
+
+	_enterprisePiece1 = getEntity( "enterprise" + fltEnterprise + "_1" );
+	_enterprisePiece2 = getEntity( "enterprise" + fltEnterprise + "_2" );
+	_enterprisePiece3 = getEntity( "enterprise" + fltEnterprise + "_3" );
+	_enterprisePiece4 = getEntity( "enterprise" + fltEnterprise + "_4" );
+	_enterpriseOrigin = getEntity( "enterpriseOrigin" + fltEnterprise );
+
+	_enterprisePiece1.show();
+	_enterprisePiece2.show();
+	_enterprisePiece3.show();
+	_enterprisePiece4.show();
+
+	globalAccelMoveY( _enterpriseOrigin, -3000, fltTime, "rampup", "");
+
+	_enterprisePiece1.hide();
+	_enterprisePiece2.hide();
+	_enterprisePiece3.hide();
+	_enterprisePiece4.hide();
+}
+
+//===================================================================================================================================================
+//===================================================================================================================================================
+
+void testWarbird1()
+{
+	$warbird1Origin.time( 4 );
+	$warbird1Origin.moveUp( 128 );
+	$warbird1Origin.moveEast( 128 );
+	$warbird1Origin.rotateYdown( 45 );
+	$warbird1Origin.rotateXup( 35 );
+	$warbird1.fade( 3, 0 );
+	waitFor( $warbird1Origin );
+}
+
+void test1()
+{
+	$warbird1.alpha( 0 );
+}
+
+void test2()
+{
+	$warbird1.alpha( 1 );
+}
+
+void testWarbird2()
+{
+	$warbird2Origin.time( 3 );
+	$warbird2Origin.moveUp( 32 );
+	$warbird2Origin.moveWest( 128 );
+	$warbird2Origin.rotateYup( 45 );
+	$warbird2Origin.rotateXdown( 20 );
+	$warbird2.fade( 3, 0 );
+	waitFor( $warbird2Origin );
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//stuffcmd("seta coop_igm 7\n");//set mission number
+	//stuffcmd("seta coop_igmH 0\n");//set spawn in holodeck
+	//globalCoop_main_waitAFrame();
+	//stuffcmd("seta coop_igmT 0\n");//set spawn in turbolift
+	//stuffCMD("seta coop_igmR 0\n");//set rooms visited
+	//setfloatvar("game.globalMissionEnterprise",7);
+	thread globalCoop_mission_completed("credits");
+}
+
+
+
+
+

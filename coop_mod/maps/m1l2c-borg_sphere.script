@@ -1,0 +1,1448 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m1l2c-borg_sphere
+//  Script By:    A. Bellefeuil, J. Keehan
+//  Geometry By:  A. Bellefeuil, J. Keehan
+//  Created on:   04/29/2002
+//
+//	Last edited: 10/24/2002 JK
+//-----------------------------------------------------------------
+
+void main();
+void init();
+void initializeObjectives();
+
+void SetupSounds();
+void setup_m1l2b_to_m1l2c();
+
+//void TempTelsiaHere();
+
+void SecondPathLift_Move();
+void SecondPathLift_ShortMoveDown1();
+void SecondPathLift_ShortMoveDown2();
+void SecondPathLift_Warp();
+
+void Grate1_Wait();
+void Grate1_Destroyed();
+void GreenField1Power_Wait();
+void GreenField1Power_Destroyed();
+void setup_plasmaConduits();
+void destroyPlasmaConduit1();
+//void Plasma1_Wait();
+void Plasma1_Destroyed();
+//void DisNode1_Wait();
+//void DisNode1_Destroyed();
+void DisNode3_Wait();
+void DisNode3_Destroyed();
+
+void Generator3_Animate();
+void Generator3FieldPower_Wait();
+void Generator3FieldPower_Destroyed();
+void Generator3Button_Open();
+void Generator3Button_Close();
+
+//void Generator3Button_Wait();
+//void Generator3Button_Use();
+//void Generator3Button_ModulateStart();
+//void Generator3Button_ModulateEnd();
+//void Generator3Button_Check();
+void Generator3_TurnOff();
+void Generator3Modulated_Dialog();
+
+void BorgSetup();
+void Group1_Spawn1();
+void Group4_Spawn1();
+void Group5_Spawn1();
+
+void Group1_Active();
+void Group2_Active();
+void Group3_Active();
+
+void EndingCinematic();
+void LevelEnd();
+
+void PathGenerator1FieldPower_Destroyed();
+
+float GeneratorLevelComplete = 0;
+float Generator3_On = 1;
+float Generator3Modulated = 0;
+
+float Generator3Button_ModulateLastAmount = 0;
+float Generator3Button_ModulateAmount = 0;
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  INCLUDES
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+void	coop_endLevelAlt();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_debugutils.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+#include "maps/m1/m1_forcefields.scr"
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/maps/m1/m1_deathCinematic.script"
+/////////////////////////////////////////////////////////////////////////
+
+//===================================================
+// Main Stuff
+//===================================================
+
+//---------------------
+// main
+// do start up stuff
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - make sure they don't wander until the script function turns their ai off
+	//so we turn their ai off right here right away, preventing them to walk out on the cinematics area
+	//--end cinematic character setup
+	//$Chang_EndCinematic.ai_off();
+	$tuvok.ai_off();
+	$Chell_EndCinematic.ai_off();
+	$Munro_EndCinematic.ai_off();
+	$Telsia_EndCinematic.ai_off();
+	$munro_assimilate.ai_off();
+	
+	
+	//check what setup to load for this level
+	if(	getCvar("coop_lvlP") == "m1l2aTom1l2b" ){
+		setfloatvar( "game.m1l2_SecondLevelComplete",1 );
+		
+		coop_float_spawnAngle0 				= 90;
+		coop_vector_spawnOrigin8 			= '-3173 3290 -1530';
+		coop_vector_spawnOrigin7 			= '-3097 3290 -1530';
+		coop_vector_spawnOrigin6 			= '-3173 3340 -1530';
+		coop_vector_spawnOrigin5 			= '-3097 3340 -1530';
+		coop_vector_spawnOrigin4 			= '-3249 3340 -1530';
+		coop_vector_spawnOrigin3 			= '-3249 3390 -1530';
+		coop_vector_spawnOrigin2 			= '-3097 3390 -1530';
+		coop_vector_spawnOrigin1 			= '-3173 3390 -1530';
+		thread globalCoop_objectives_set("$$FindGenerator1$$","complete",2,0);
+		thread globalCoop_objectives_set("$$FindGenerator2$$","complete",3,0);
+		thread globalCoop_objectives_set("$$FindGenerator3$$","incomplete",4,1);
+		thread setup_m1l2b_to_m1l2c();
+	}else{
+		setfloatvar( "game.m1l2_SecondLevelComplete",0 );
+		
+		coop_float_spawnAngle0 				= 90;
+		coop_vector_spawnOrigin8 			= '1577 2590 320';
+		coop_vector_spawnOrigin7 			= '1507 2590 320';
+		coop_vector_spawnOrigin6 			= '1577 2640 320';
+		coop_vector_spawnOrigin5 			= '1507 2640 320';
+		coop_vector_spawnOrigin4 			= '1446 2640 320';
+		coop_vector_spawnOrigin3 			= '1577 2690 320';
+		coop_vector_spawnOrigin2 			= '1446 2690 320';
+		coop_vector_spawnOrigin1 			= '1507 2690 320';
+		thread globalCoop_objectives_set("$$FindGenerator1$$","incomplete",2,1);
+		
+		//hzm coop mod chrissstrahl - spawn a gathering area
+		thread globalCoop_level_gatheringArea("","coop_endLevelAlt",50,'230 230 200','-3166 2934 -1530');
+	}
+		
+	//hzm coop mod chrissstrahl, set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$BorgLoadingText$$";
+
+	//hzm coop mod chrissstrahl, Set Tactical information, to be added at the Objectives hud
+	coop_string_objectiveTacticalInfo1	= "YellowFieldInformation";
+	coop_string_objectiveTacticalInfo2	= "GreenFieldInformation";
+	coop_string_objectiveTacticalInfo3	= "BlueFieldInformation";
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m1l2c_borg_sphere" );
+	
+	//keep the ai from wandering into the player spawn point
+	$chell.ai_off();
+	$chang.remove();
+	$munro_assimilate.ai_off();
+	$Chang_EndCinematic.remove();
+	//$Chang.ai_off();
+	$telsia.ai_off();
+
+	soundtrack( "music/m1l2-borg_sphere.mus" );
+	//$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 8000 );
+
+	thread init();
+
+	thread Grate1_Wait();
+	thread GreenField1Power_Wait();
+	thread setup_plasmaConduits();
+	//thread Plasma1_Wait();
+	thread BorgSetup();
+	//thread DisNode1_Wait();
+	thread DisNode3_Wait();
+	thread Generator3_Animate();
+	thread Generator3FieldPower_Wait();
+	thread SetupSounds();
+	wait( .1 );
+
+	$gen_archetype.contents( "targetable" );
+	$gen_archetype.archetype ( "DampeningField" );
+
+	$chell.ai_on();
+	//$Chang.ai_on();
+	$telsia.ai_on();
+
+	waitForPlayer();
+	
+	//--set the player death cinematic
+	playerDeathThread( "m1_playerDeathCinematic" );
+	
+	//---completes objective sets new one	
+	globalCoop_objectives_set("$$FindImod$$","complete",1,1);
+}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+//  SETUP THREADS
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
+
+//---------------------
+// init
+// do start up stuff
+//---------------------
+void init()
+{
+	wait (.1);
+	globalCommon_SetupContextDialog  ( $chell , "chell" );
+	globalCommon_SetupContextDialog  ( $telsia , "telsia" );
+
+	//--setup generator stuff
+	$Generator3Sparks.hide();
+	$Generator3ButtonTrigger.nottriggerable();
+	$Generator3Trigger.nottriggerable();
+	
+	$m1l2c_exittrigger.nottriggerable();
+	
+	//--setup 2ndpath lift
+	$SecondPathLift_ShortMoveDown2Trigger.nottriggerable();
+	$SecondPathLiftTopClip.notsolid();
+	$SecondPathLiftCallVolume.requiredentity ( "chell" );
+	$SecondPathLiftCallVolume.requiredentity ( "telsia" );
+	wait ( .1 );
+	$Generator3FieldClip.movedown (136); //moves clip brush into position, allows node connection
+	$PathGenerator1Field.movedown (136); //moves clip brush into position, allows node connection
+	$PathGenerator1FieldPower_fx.hide();
+
+	GeneratorLevelComplete = getfloatvar ( "game.m1l2_SecondLevelComplete" );
+
+	if ( GeneratorLevelComplete == 0 ) //--sets up borg spawners to face right direction for alternate path
+	{
+		//hzm coop mod chrissstrahl - remove actors we don't need in this scenario
+		//we do not play the level end cienmatic here
+		$Telsia_EndCinematic.remove();
+		$Chell_EndCinematic.remove();
+		$Munro_EndCinematic.remove();
+		//hzm eof
+	
+		$Group1Borg1Spawn.angle( 90 );
+		$Group1Borg2Spawn.angle( 90 );
+		$Group4Borg1Spawn.angle( 360 );
+		$Group4Borg2Spawn.angle( 360 );
+	}
+	if ( GeneratorLevelComplete == 1 ) //--checks to see if player has gone through m1l2b for alternate path
+	{
+		$PathGenerator1Field.remove();
+		//$Chang.origin ( '-3216 3004 -1524' );
+		$chell.origin ( '-3120 3004 -1524' );
+		$telsia.origin ( '-3168 2876 -1524' );
+
+		//$Chell.warpto ("$StartWaypoint_Chell");
+		//$Chang.warpto ("$StartWaypoint_Chang");
+		//$Telsia.warpto ("$StartWaypoint_Telsia");
+
+		//$Chang_EndCinematic.anim ("idle");
+		$Chell_EndCinematic.anim ("idle");
+		$Munro_EndCinematic.anim ("idle");
+
+		//$Chang_EndCinematic.notsolid();
+		$Chell_EndCinematic.notsolid();
+		$Munro_EndCinematic.notsolid();
+
+		//$Chang_EndCinematic.hide();
+		$Chell_EndCinematic.hide();
+		$Munro_EndCinematic.hide();
+
+		$Telsia_EndCinematic.hide();
+		$Telsia_EndCinematic.notsolid();
+		
+		$Telsia_EndCinematic.anim ("idle");
+		
+		//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+		wait(0.05);
+	}
+/*
+	// gets global variable to see if telsia survived
+	TelsiaSurvived = getfloatvar ( "game.mission1_telsia_survived" );
+
+	if ( TelsiaSurvived == 0 )
+	{
+		$Telsia.remove();
+		$Telsia_EndCinematic.remove();
+	}
+*/
+	// give teammates weapons
+	//$Chang.giveactorweapon( "weapons/worldmodel-actorweapon-imod.tik", .9 );
+	//$Chang.giveactorweapon( "weapons/worldmodel-actorweapon-phaser.tik", .1 );
+	//$Chang.giveactorweapon( "weapons/worldmodel-actorweapon-compressionrifle.tik", .2 );
+	//$Chang.useactorweapon ( "i-mod" );
+	$chell.giveactorweapon( "weapons/worldmodel-actorweapon-imod.tik", .5 );
+	$chell.giveactorweapon( "weapons/worldmodel-actorweapon-phaser.tik", .1 );
+	$chell.giveactorweapon( "weapons/worldmodel-actorweapon-compressionrifle.tik", .1 );
+	$chell.giveactorweapon( "weapons/worldmodel-actorweapon-tricorder.tik", .7 );
+	$chell.useactorweapon ( "i-mod" );
+	$chell.immortal( 1 );
+	
+	$telsia.giveactorweapon( "weapons/worldmodel-actorweapon-phaser.tik", .1 );
+	$telsia.giveactorweapon( "weapons/worldmodel-actorweapon-compressionrifle.tik", .2 );
+	$telsia.giveactorweapon( "weapons/worldmodel-actorweapon-imod.tik", .9 );
+	$telsia.useactorweapon ( "i-mod" );
+	$telsia.immortal( 1 );
+	
+	//hzm coop mod chrissstrahl - not needed for coop
+	//--- player model
+	//$player.model( "models/char/munro_voyager.tik" );	
+}
+
+//---------------------
+// initializeObjectives
+// set objectives at beginning of level
+//---------------------
+void initializeObjectives()
+{
+	return;
+	waitForPlayer();
+	//---initialize objectives list
+	$player.loadobjectives( "m1l2-borg_sphere" );
+
+	if ( getfloatvar( "game.borgImodObjective" ) >= 1 )
+	{
+		$player.setobjectiveshow( "FindImod", 1 );
+	}
+	if( getfloatvar( "game.borgImodObjective" ) == 2 )
+	{
+		$player.setobjectivecomplete( "FindImod", 1 );
+	}
+	if ( getfloatvar( "game.borgGenerator1Objective" ) >= 1 )
+	{
+		$player.setobjectiveshow( "FindGenerator1", 1 );
+	}
+	if( getfloatvar( "game.borgGenerator1Objective" ) == 2 )
+	{
+		$player.setobjectivecomplete( "FindGenerator1", 1 );
+	}
+	if ( getfloatvar( "game.borgGenerator2Objective" ) >= 1 )
+	{
+		$player.setobjectiveshow( "FindGenerator2", 1 );
+	}
+	if( getfloatvar( "game.borgGenerator2Objective" ) == 2 )
+	{
+		$player.setobjectivecomplete( "FindGenerator2", 1 );
+	}
+	if ( getfloatvar( "game.borgGenerator3Objective" ) >= 1 )
+	{
+		$player.setobjectiveshow( "FindGenerator3", 1 );
+	}
+	if( getfloatvar( "game.borgGenerator3Objective" ) == 2 )
+	{
+		$player.setobjectivecomplete( "FindGenerator3", 1 );
+	}
+}
+
+//---------------------
+// setup_m1l2b_to_m1l2c
+// setup the level when coming from m1l2b
+//---------------------
+void setup_m1l2b_to_m1l2c()
+{
+	//--- remove the trigger exit
+	$m1l2c_exittrigger.remove();
+	
+	//--- remove the trigger changelevel
+	$triggerChangeLevel_m1l2c_to_m1l2b.remove();
+	
+	//--- initialize objectives
+	initializeObjectives();
+}
+
+//---------------------
+// SetupSounds
+// starts looping sounds for objects
+//---------------------
+void SetupSounds()
+{
+	$GreenField1.loopsound ( "sound/ships/borg/borg_forcefield1.wav", .5, 32 );
+	$Generator3Field.loopsound ( "sound/ships/borg/borg_forcefield1.wav", .5, 32 );
+	$PathGenerator1Field.loopsound ( "sound/ships/borg/borg_forcefield1.wav", .5, 32 );
+}
+
+/*
+void TempTelsiaHere()
+{
+		setfloatvar ( "game.mission1_telsia_survived", 1 );
+}
+*/
+
+//------------------------------------------------------------------------------------------------
+// CINEMATICS AND DIALOG
+//------------------------------------------------------------------------------------------------
+
+//---------------------
+//EndingCinematic
+//---------------------
+
+void EndingCinematic()
+{
+	cinematic();
+	freezeplayer();
+	
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .6 );
+	
+	letterbox( .01 );
+	
+    music( "aux5" );
+	spawn( "Camera", "targetname", "EndingCinematicCam");
+	cam.load( "m1l2c_EndCinematic_Cam1" );
+
+	//--- hide the game characters
+	$chell.ai_off();
+	$chell.hide();
+	$chell.notsolid();
+	$telsia.ai_off();
+	$telsia.hide();
+	$telsia.notsolid();
+
+	//--- show the cinematic characters
+	$Munro_EndCinematic.show();
+	$Munro_EndCinematic.useActorWeapon( "none" );
+	$Chell_EndCinematic.show();
+	$Chell_EndCinematic.useActorWeapon( "none" );
+	$Telsia_EndCinematic.show();
+	$Telsia_EndCinematic.useActorWeapon( "none" );
+	wait( .5 );
+
+	//----------------------------------------------------------------
+	//	Shot 1 - panning camera around hazard team	
+
+	$EndingCinematicCam.follow ( $m1l2c_EndCinematic_Cam1 );
+	$EndingCinematicCam.cut();
+	wait( .25 );
+	cuecamera ( $EndingCinematicCam );
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 ) ;
+	wait( 1 );
+
+	//--- munro taps his comm badge
+	$Munro_EndCinematic.anim( "tap_comm" );
+	waitforanimation( $Munro_EndCinematic, "tap_comm" );
+	
+	$Munro_EndCinematic.anim ("idle");
+
+	//--- hazard team talks to voyager	
+	$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_howdamp.mp3", 1, 20000, 0 );
+	wait( .25 );
+	
+	$Telsia_EndCinematic.headWatchTarget( "Munro_EndCinematic", 7 );
+	wait( .2 );
+	
+	$Chell_EndCinematic.headWatchTarget( "Munro_EndCinematic", 7 );
+	waitfordialog( $Munro_EndCinematic );
+	wait( .2 );
+	
+	$tuvok.playdialog( "localization/sound/dialog/borg02/tuvok_dissipate.mp3", 1, 20000, 1);
+	wait( .4 );
+	
+	$Munro_EndCinematic.headWatchTarget( "Telsia_EndCinematic", 7 );
+	wait( .5 );
+	
+	$Chell_EndCinematic.headWatchTarget( "Telsia_EndCinematic", 7 );
+	waitfordialog( $tuvok );
+	wait( .2 );
+	
+	$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_3tobeam.mp3", 1, 20000, 0 );
+	$Munro_EndCinematic.headWatchTarget( "none", 7 );
+	wait( .5 );
+	
+	$Telsia_EndCinematic.headWatchTarget( "none", 7 );
+	waitfordialog( $Munro_EndCinematic );
+	wait( .5 );
+	
+	$Chell_EndCinematic.headWatchTarget( "none", 3 );
+	wait( 1 );
+	
+	//$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_4tobeam.mp3", 1, 8000, 1);
+	//waitfordialog( $Munro_EndCinematic );
+	//$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_3tobeam.mp3", 1, 8000, 1);
+	//waitfordialog( $Munro_EndCinematic );
+/*
+	else // telsia didn't survive lines
+	{
+
+		$Munro_EndCinematic.anim( "tap-comm" );
+		waitforanimation( $Munro_EndCinematic, "tap-comm" );
+		// play commbadge sound
+		$Munro_EndCinematic.anim ("idle");
+
+		$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_misscomp.mp3", 1, 8000, 1);
+		waitfordialog( $Munro_EndCinematic );
+		$Tuvok.playdialog( "localization/sound/dialog/borg02/tuvok_dampgone.mp3", 1, 8000, 1);
+		waitfordialog( $Tuvok );
+		$Munro_EndCinematic.playdialog( "localization/sound/dialog/borg02/munro_3tobeam.mp3", 1, 8000, 1);
+		waitfordialog( $Munro_EndCinematic );
+
+	}
+*/
+
+	$Chell_EndCinematic.displayEffect( "TransportOut", "Federation" );
+	$Chell_EndCinematic.playsound( "sound/environment/transporter/transport1.WAV", 1, .5, 100 );
+	wait( .1 );
+	
+	$Munro_EndCinematic.displayEffect( "TransportOut", "Federation" );
+	$Munro_EndCinematic.playsound( "sound/environment/transporter/transport1.WAV", 1, .5, 100 );
+	wait( .05 );
+	
+	$Telsia_EndCinematic.displayEffect( "TransportOut", "Federation" );
+	$Telsia_EndCinematic.playsound( "sound/environment/transporter/transport1.WAV", 1, .5, 100 );
+	wait( 3 );
+
+	//--- fade out
+	cam_fadeout( 1, 0, 0, 0, 1, 0 ) ;
+	wait( 1.5 );
+
+	//--- end the level	
+	thread LevelEnd();
+}
+
+//-----------------------------------------------------------------------------------------------
+// Lifts and Misc
+//------------------------------------------------------------------------------------------------
+
+//hzm coop mod chrissstrahl - handle lift down in coop
+void coop_moveLiftDown()
+{
+	//hzm coop mod chrissstrahl
+	float fWait;
+	fWait = 1;
+	while(fWait)
+	{
+		//wait (before repeat)
+		wait(0.25);
+		
+		fWait=0;
+		
+		//lift missing, fuck it
+		if(!doesEntityExist($SecondPathLift))
+			return;
+		
+		//check if actor is inside lift
+		if(doesEntityExist($chell))
+			if(!globalCoop_check_isEntityInsideOfEntity($chell,$SecondPathLift,0))
+				fWait=1;
+				
+		//check if actor is inside lift
+		if(doesEntityExist($telsia))
+			if(!globalCoop_check_isEntityInsideOfEntity($telsia,$SecondPathLift,0))
+				fWait=1;
+	}
+	
+	//fix em getting pushed by weapons fire, fix only now, not before!!! So if they are fucking arround we can force em into the stupid lift
+	$chell.mass(999999);
+	$telsia.mass(999999);
+	//eof hzm
+
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
+	$SecondPathLift.time ( 7 );
+	$SecondPathLift.movedown ( 1916 );
+	waitfor( $SecondPathLift );
+
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );
+	$chell.ai_on();
+	$telsia.ai_on();
+	
+	//hzm coop mod chrissstrahl - spawpoints, have a new set here
+	//set new spawnpoints based upon a base vector
+	float i;
+	float f;
+	vector v;
+	//player 8 to 4
+	v = '1370 4250 -1599';
+	f = v_x;
+	for(i=coop_integer_maxPlayers;i>3;i--){
+		setFloatScriptVariable("coop_float_spawnAngle"+i,90);
+		v_x = f;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		f += 50;
+	}
+	//player 3 to 1
+	v = '1420 4350 -1599';
+	f = v_x;
+	for(i=3;i>0;i--){
+		setFloatScriptVariable("coop_float_spawnAngle"+i,90);
+		v_x = f;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+i,v);
+		f += 50;
+	}
+	//eof hzm
+}
+
+//---------------------
+// SecondPathLift_Move
+//---------------------
+void SecondPathLift_Move()
+{
+	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
+	vector vSize;
+	vSize = $SecondPathLift.getMaxs();
+	vSize_z = 200;
+
+	thread globalCoop_level_gatheringArea("coop_playerGatheringArea","coop_moveLiftDown",100,vSize,$SecondPathLift.getOrigin());
+
+	/*
+	//$SecondPathLiftTopClip.solid(); //hzm coop mod chrissstrahl - do not make solid in coop
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
+	$SecondPathLift.time ( 7 );
+	$SecondPathLift.movedown ( 1916 );
+	waitfor( $SecondPathLift );
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );
+	$chell.ai_on();
+	$telsia.ai_on();
+	//$Chang.ai_on();
+	*/
+}
+//---------------------
+// SecondPathLift_ShortMoveDown1
+// Moves lift down to 2nd level and waits for player to jump on
+//---------------------
+void SecondPathLift_ShortMoveDown1()
+{
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
+	$SecondPathLift.time (2);
+	$SecondPathLift.movedown (504);
+	waitfor ( $SecondPathLift );
+	
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );
+	$SecondPathLift_ShortMoveDown2Trigger.triggerable();
+	$SecondPathLiftClip.notsolid();
+}
+
+//---------------------
+// SecondPathLift_ShortMoveDown2
+// Moves lift down to bottom
+//---------------------
+void SecondPathLift_ShortMoveDown2()
+{
+	
+	//$SecondPathLiftClip.solid(); //hzm coop mod chrissstrahl - do not make solid in coop
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
+	$SecondPathLift.time (5);
+	$SecondPathLift.movedown (1412);
+	waitfor ( $SecondPathLift );
+	$SecondPathLift.playsound( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );
+}
+
+//--------------------------------------------------------------------------------------------------
+// Disnode and Plasma and Generic Shield Stuff
+//--------------------------------------------------------------------------------------------------
+
+//---------------------
+// Grate1_Wait
+//---------------------
+void Grate1_Wait()
+{
+	$Grate1_fracture.notsolid();
+	$Grate1_fracture.viewmode( "structuralintegrity" );
+	$Grate1Damaged.hide();
+	$Grate1Damaged.notsolid();
+	$Grate1.ondamage ( "Grate1_Destroyed" );
+	pause();
+}
+
+//---------------------
+//Grate1_Destroyed
+//---------------------
+void Grate1_Destroyed()
+{
+	$Grate1.nodamage();
+	$Grate1Spawn.modelname( "fx/fx-explosion-sparks-yellow.tik" );
+	$Grate1Spawn.spawntargetname( "Grate1Explosion" );
+	trigger( "$Grate1Spawn" );
+	trigger( "$Grate1WallDamage" );
+	$Grate1Spawn.remove();
+	
+	$Grate1.remove();
+	$Grate1_fracture.remove();
+	$Grate1Damaged.show();
+	wait ( 1 );
+	$Grate1Explosion.remove();
+	//--warps teammates to lift for later
+	thread SecondPathLift_Warp();
+}
+
+
+//---------------------
+// GreenField1Power_Wait
+//---------------------
+void GreenField1Power_Wait()
+{
+	$GreenField1PowerDamaged.hide();
+	$GreenField1PowerDamaged.notsolid();
+	$GreenField1Power.ondamage ( "GreenField1Power_Destroyed" );
+	$GreenField1Power.contents ( "+shootable" ); //---make this item shootable
+	pause();
+}
+
+//---------------------
+//GreenField1Power_Destroyed
+//---------------------
+void GreenField1Power_Destroyed()
+{
+	$GreenField1Power.nodamage();
+	$GreenField1PowerSpawn.modelname( "fx/fx-explosion-fieldgenerator.tik" );
+	$GreenField1PowerSpawn.spawntargetname( "GreenField1PowerExplosion" );
+	trigger( "$GreenField1PowerSpawn" );
+	$GreenField1PowerSpawn.remove();
+	$GreenField1Power.remove();
+	$GreenField1PowerDamaged.show();
+	$GreenField1.stoploopsound ();
+	$GreenField1.playsound ( "sound/ships/borg/borg_forcefield2_down.wav", 6, 1, 800 );
+
+	$Group5Borg3.aggressive ( 1.0 );
+
+	$GreenField1.hide();
+	wait ( .1 );
+	$GreenField1.show();
+	wait ( .1 );
+	$GreenField1.hide();
+	wait ( .12 );
+	$GreenField1.show();
+	wait ( .1 );
+	$GreenField1.hide();
+	wait ( .14 );
+	$GreenField1.show();
+	wait ( .1 );
+	$GreenField1.remove();
+	$GreenField1Clip.remove();
+	wait ( 1 );
+
+	$GreenField1PowerExplosion.remove();
+}
+
+//---------------------
+//  setup_plasmaConduits
+//	setup for shootable plasma conduits
+//---------------------
+void setup_plasmaConduits()
+{
+	thread globalCommon_OnDamage( $plasmaConduit1, "destroyPlasmaConduit1" );
+	$plasmaConduit1.contents( "+shootable" );
+	$plasmaConduit1_fx.hide();
+}
+
+//---------------------
+//  destroyPlasmaConduit1
+//	destroy plasma conduit
+//---------------------
+void destroyPlasmaConduit1()
+{
+	trigger( "$plasmaConduit1_explode" );
+	$plasmaConduit1.contents( "-shootable" );
+	$plasmaConduit1.contents( "-targetable" );
+	$plasmaConduit1.model( "enviro/borg-sphere_plasmacon_plasmacon_damaged.tik" );
+	$plasmaConduit1_fx.show();
+	$plasmaConduit1_fx.loopsound( "sound/environment/plasma/plasma_loop.wav", .3, 62 );
+	
+	thread Plasma1_Destroyed();
+}
+/*
+//---------------------
+// Plasma1_Wait
+//---------------------
+void Plasma1_Wait()
+{
+	$Plasma1Damaged.hide();
+	$Plasma1.show();
+	//$Plasma1Damaged.notsolid();
+	//$Plasma1Damaged.contents ( "+shootable" );
+	$Plasma1.contents( "+shootable" );	//--make this item shootable
+	$Plasma1.contents( "targetable" ); 
+	//$Plasma1.ondamage( "Plasma1_Destroyed" );
+	thread globalCommon_OnDamage( $Plasma1, "Plasma1_Destroyed" );
+	//pause();
+}
+*/
+//---------------------
+//Plasma1_Destroyed
+//---------------------
+void Plasma1_Destroyed()
+{
+	//$Plasma1.nodamage();
+	//$Plasma1Spawn.modelname( "fx/fx-explosion-plasmacon-red.tik" );
+	//$Plasma1Spawn.spawntargetname( "Plasma1Explosion" );
+	//$Plasma1.model( "enviro/borg-sphere_plasmacon_plasmacon_damaged.tik" );
+	//trigger( "$Plasma1Spawn" );
+	trigger( "$Plasma1WallDamage" );
+	//$Plasma1Spawn.remove();
+	//$Plasma1.remove();
+	//$Plasma1Damaged.show();
+	//wait (.05);
+	$Plasma1WallDamage.remove();
+	wait ( 1 );
+	//$Plasma1Explosion.remove();
+		//--sets music mood
+		music( "mystery", "normal" );
+
+	wait ( 1 );
+
+	// playing dialog
+	//$Chang.playdialog( "localization/sound/dialog/borg02/chang_twochoice.mp3", 1, 8000, 1); //We now have two choices.
+	//waitfordialog( $Chang );
+	$chell.playdialog( "localization/sound/dialog/borg02/chell_goback.mp3", 1, 8000, 1); //Is there a choice to go back to Voyager?
+	waitfordialog( $chell );
+	$telsia.playdialog( "localization/sound/dialog/borg02/telsia_breaklegs.mp3", 1, 8000, 1); //You can get a medical deferment if I break your legs.
+	waitfordialog( $telsia );
+	//$Chang.playdialog( "localization/sound/dialog/borg02/chang_whichway.mp3", 1, 8000, 1); //Which way, Munro?
+	//waitfordialog( $Chang );
+}
+/*
+//---------------------
+// DisNode1_Wait
+// DisNode1 in secret area waiting for hit
+//---------------------
+void DisNode1_Wait()
+{
+	$DisNode1Damaged.hide();
+	$DisNode1Damaged.notsolid();
+	$DisNode1.ondamage ( "DisNode1_Destroyed" );
+	$DisNode1.contents ( "+shootable" );	//---make this item shootable
+	pause();
+}
+
+//---------------------
+//DisNode1_Destroyed
+//---------------------
+void DisNode1_Destroyed()
+{
+	$DisNode1.nodamage();
+	trigger ("$DisNode1GroupEvent");
+	$DisNode1Spawn.modelname( "fx/fx-explosion-distnode.tik" );
+	$DisNode1Spawn.spawntargetname( "DisNode1Explosion" );
+	trigger( "$DisNode1Spawn" );
+	wait (.1);
+	$DisNode1Spawn.modelname( "fx/fx-sparkshower-yellow.tik" );
+	$DisNode1Spawn.spawntargetname( "DisNode1Explosion" );
+	trigger( "$DisNode1Spawn" );
+	$DisNode1Spawn.remove();
+	$DisNode1.remove();
+	$DisNode1Damaged.show();
+	wait ( 1 );
+	$DisNode1Explosion.remove();
+
+}
+*/
+//---------------------
+// DisNode3_Wait
+//---------------------
+void DisNode3_Wait()
+{
+	$DisNode3Damaged.hide();
+	$DisNode3Damaged.notsolid();
+	$DisNode3.ondamage ( "DisNode3_Destroyed" );
+	$DisNode1.contents ( "+shootable" );	//---make this item shootable
+	pause();
+}
+
+//---------------------
+//DisNode3_Destroyed
+//---------------------
+void DisNode3_Destroyed()
+{
+	$DisNode3.nodamage();
+	trigger ("$DisNode3GroupEvent");
+	$DisNode3Spawn.modelname( "fx/fx-explosion-distnode.tik" );
+	$DisNode3Spawn.spawntargetname( "DisNode3Explosion" );
+	trigger( "$DisNode3Spawn" );
+	wait (.1);
+	$DisNode3Spawn.modelname( "fx/fx-sparkshower-yellow.tik" );
+	$DisNode3Spawn.spawntargetname( "DisNode3Explosion" );
+	trigger( "$DisNode3Spawn" );
+	$DisNode3Spawn.remove();
+	$DisNode3.remove();
+	$DisNode3Damaged.show();
+	wait ( 1 );
+	$DisNode3Explosion.remove();
+	
+	$chell.playdialog( "localization/sound/dialog/borg02/chell_anothervapor.mp3", 1, 8000, 1);//another node vaporized
+	waitfordialog( $chell );
+	
+
+}
+
+//-------------------------------------------------------------------------------------------------------
+// Generator Stuff
+//-------------------------------------------------------------------------------------------------------
+
+//---------------------
+// Generator3_Sequence
+// sequence to startup generator sequence, moving chell to his place
+//---------------------
+void Generator3_Sequence()
+{
+
+	if ( GeneratorLevelComplete == 0 )
+	{
+		$chell.playdialog( "localization/sound/dialog/borg02/chell_lookone.mp3", 1, 8000, 1);//Look! One of the three generators.
+		waitfordialog( $chell );
+		$munro.playdialog( "localization/sound/dialog/borg02/munro_shutitdown2.mp3", 1, 8000, 1);//Shut it down, Chell.
+		waitfordialog( $munro );
+	}
+	if ( GeneratorLevelComplete == 1 )
+	{
+		$chell.playdialog( "localization/sound/dialog/borg02/chell_thirdgen.mp3", 1, 8000, 1);//the third generator!
+		waitfordialog( $chell );
+	}
+
+	$chell.useactorweapon ( "tricorder" );
+	wait ( .5 );
+	$chell.ai_off();
+	$chell.walkto( "$Generator3ChellWaypoint" , "run" );
+	waitfor ( $chell );
+
+	$chell.pushable ( 0 );
+	$chell.anim( "tricorder_idle" );
+	waitforanimation ( $chell, "tricorder_idle" );
+	wait ( .2 );
+	$chell.anim( "tricorder_fire" );
+
+	if ( GeneratorLevelComplete == 0 )
+	{
+		$chell.playdialog( "localization/sound/dialog/borg02/chell_degen.mp3", 1, 8000, 1);//It's resisting modulation. Munro, use your tricorder on the generator's panel. The two of us can put it into a degenerative feedback loop.
+		waitfordialog( $chell );
+	}
+	thread Generator3Modulated_Dialog();
+	$Generator3ButtonTrigger.triggerable();
+}
+
+//---------------------
+// Generator3_Animate
+// makes generator1part animate, and turn off
+//---------------------
+void Generator3_Animate()
+{
+	if ( Generator3_On == 1 )
+	{
+		$Generator3Part.anim( "idle");
+		$Generator3Part.loopsound ( "sound/ships/borg/borg_shieldgen.wav", 2, 475 );
+		wait( 2 );
+		thread Generator3_Animate();
+	}
+	if ( Generator3_On == 2 )
+	{
+		$Generator3Part.anim( "turnoff" ); //--need powerdown sound
+		$Generator3Part.stoploopsound ();
+		$Generator3Part.playsound ( "sound/ships/borg/borg_shieldgen_down.wav", 9, 2, 475 );
+		wait( 1 );
+		$Generator3Part.anim( "off" );
+		wait( 1 );
+		Generator3_On = 0;
+	}
+	else
+	{
+		wait( 2 );
+	}
+}
+
+//---------------------
+// Generator3FieldPower_Wait
+// PowerCup for Generator3Field waiting for damage
+//---------------------
+void Generator3FieldPower_Wait()
+{
+	$Generator3FieldPowerDamaged.hide();
+	$Generator3FieldPowerDamaged.notsolid();
+	$Generator3FieldPower.contents ( "+shootable" );
+	$Generator3FieldPower.ondamage ( "Generator3FieldPower_Destroyed" );
+	pause();
+}
+
+//---------------------
+// Generator3FieldPower_Destroyed
+// PowerCup blows up and removes green forcefield
+//---------------------
+void Generator3FieldPower_Destroyed()
+{
+	$Generator3FieldPower.nodamage();
+	$Generator3FieldPowerSpawn.modelname( "fx/fx-explosion-fieldgenerator.tik" );
+	$Generator3FieldPowerSpawn.spawntargetname( "Generator3FieldPowerExplosion" );
+	trigger( "$Generator3FieldPowerSpawn" );
+	$Generator3FieldPowerSpawn.remove();
+	$Generator3FieldPower.remove();
+	$Generator3FieldPowerDamaged.show();
+	wait ( 1 );
+	$Generator3FieldPowerExplosion.remove();
+
+	//---starts cut scene
+	spawn ("Camera","targetname","Generator3FieldCam");
+	cam.load ("m1l2b_Generator3Field");
+	freezeplayer();
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	cinematic();
+	wait ( 1 );
+	letterbox( .01 );
+	$Generator3FieldCam.follow ( $m1l2b_Generator3Field );
+	$Generator3FieldCam.cut();
+	cuecamera ($Generator3FieldCam);
+	wait (.1);
+	cam_fadein( 1, 0, 0, 0, 1, 0 ) ;
+	wait (.5);
+
+	$Generator3Field.stoploopsound ();
+	$Generator3Field.playsound ( "sound/ships/borg/borg_forcefield2_down.wav", 6, 1, 300 );
+
+	$Generator3FieldClip.remove();
+	$Generator3Field.hide();
+	wait ( .1 );
+	$Generator3Field.show();
+	wait ( .1 );
+	$Generator3Field.hide();
+	wait ( .15 );
+	$Generator3Field.show();
+	wait ( .15 );
+	$Generator3Field.remove();
+	wait ( 1 );
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait (1);
+	clearletterbox( 1 );
+	cueplayer();
+	noncinematic();
+	releaseplayer();
+	wait (.25);
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	//---trigger for generator sequence triggerable
+	$Generator3Trigger.triggerable();
+}
+
+//---------------------
+// Generator3Button_Open
+// Generator3's button opens up and waits for activation
+//---------------------
+void Generator3Button_Open()
+{
+	$Generator3.anim( "opening" );// need sound for panel opening
+	$Generator3.playsound ( "sound/ships/borg/borg_shieldgen_open.wav", 1, 1, 375 );
+	wait ( 2 );
+	$Generator3.anim( "openoff" );
+	$Generator3Puzzle.puzzleobject_itemToUse ( "Tricorder" );
+	$Generator3Puzzle.puzzleobject_itemUsedThread( "Generator3Button_Begin" );
+	$Generator3Puzzle.puzzleobject_solvedThread( "Generator3_TurnOff" );
+	$Generator3Puzzle.puzzleobject_failedThread( "Generator3Button_Reset" );
+	$Generator3Puzzle.puzzleobject_canceledThread( "Generator3Button_Reset" );
+	globalTricorderMod_SetNumWaves ( 1 );
+	globalTricorderMod_SetAllRandomParms();
+}
+
+void Generator3Button_Begin()
+{
+	Generator3Modulated = 1;
+	globalTricorderMod_Run( $Generator3Puzzle, 0 );
+}
+
+void Generator3Button_Reset()
+{
+	$Generator3Puzzle.puzzleobject_reset ();	
+}
+
+//---------------------
+// Generator3Button_Close
+// makes generator1part animate, and turn off
+//---------------------
+void Generator3Button_Close()
+{
+	$Generator3.anim("closing");
+	waitForAnimation ( $Generator3,"closing", 	0 );
+	$Generator3.anim ("idle");
+}
+
+//---------------------
+// Generator3_Turnoff
+//---------------------
+void Generator3_TurnOff()
+{
+	Generator3Modulated = 1;
+	Generator3_On = 2;
+	thread Generator3Button_Close();
+	$chell.ai_on();
+	$chell.pushable ( 1 );
+	wait ( .1 );
+	$chell.giveactorweapon ("weapons/worldmodel-actorweapon-imod.tik");
+	$chell.useactorweapon ( "i-mod" );
+
+	$Generator3Spawn.modelname( "fx/fx-generatorvortex.tik" );
+	$Generator3Spawn.spawntargetname( "Generator3Vortex" );
+	trigger( "$Generator3Spawn" );
+	wait ( 3 );
+	$Generator3Sparks.show();
+	$Generator3Sparks.loopsound ( "sound/environment/electric/fritz5.wav", .8, 152 );
+	$Generator3Spawn.modelname( "fx/fx-explosion-generator-large.tik" );
+	$Generator3Spawn.spawntargetname( "Generator3Explosion" );
+	wait ( .1 );
+	trigger( "$Generator3Spawn" );
+	$Generator3Vortex.remove();
+	$Generator3.playsound ( "sound/ships/borg/borg_shieldgen_close.wav", 1, 1, 75 );
+	//$Generator3Button.playsound( "sound/environment/switches/switch_01.wav", 6, 1, 250 );
+	//--remove archetype
+	$gen_archetype.remove();
+	
+	GeneratorLevelComplete = getfloatvar( "game.m1l2_SecondLevelComplete" );
+
+	//--checks to see which path you are taking through the level and plays correct dialog
+	if ( GeneratorLevelComplete == 0 )
+	{
+		//--sets music mood
+		music( "success", "normal" );
+		//--stop chell prior dialog
+		$chell.stopdialog();
+		killthread( "Generator3Modulated_Dialog" );
+		thread PathGenerator1FieldPower_Destroyed();
+		wait( 2 );
+		$chell.playdialog( "localization/sound/dialog/borg02/chell_gendeact.mp3", 1, 20000, 1); //Generator deactivated.
+		waitfordialog( $chell );
+		wait( 1.5 );
+		$tuvok.playdialog( "localization/sound/dialog/borg02/tuvok_timeshort.mp3", 1, 20000, 1); //Time is running short. Find the remaining two generators.
+		waitfordialog( $tuvok );
+		
+		setfloatvar ( "game.m1l2_SecondLevelComplete", 1 );
+		
+		$m1l2c_exittrigger.triggerable();
+		
+		//--update objectives
+		globalCoop_objectives_set("$$FindGenerator1$$","complete",2,0);
+		globalCoop_objectives_set("$$FindGenerator2$$","incomplete",3,0);
+		globalCoop_objectives_set("$$FindGenerator3$$","incomplete",4,1);
+	}
+	if ( GeneratorLevelComplete == 1 ) //---checks to see if level should end
+	{
+		// sets music mood
+		music( "aux1", "normal" );
+		globalCoop_objectives_set("$$FindGenerator3$$","complete",4,1);
+		wait ( 1 );
+		thread EndingCinematic();
+	}
+}
+
+//---------------------
+// Generator3Modulated_Dialog
+// Chell checks to see if you've started modulating yet, and says something if you haven't
+//---------------------
+
+void Generator3Modulated_Dialog()
+{
+	wait ( 20 );
+
+	if (( Generator3Modulated == 0 ) && ( Generator3_On == 1 ))
+		{
+			if ( GeneratorLevelComplete == 0 )
+			{
+				$chell.playdialog( "localization/sound/dialog/borg02/chell_tryloop.mp3", 1, 8000, 1);//Munro? Use your tricorder on the generator's panel.
+				waitfordialog( $chell );
+				$chell.playdialog( "localization/sound/dialog/borg02/chell_locate.mp3", 1, 8000, 1);//The panel is located just in front of the generator.
+				waitfordialog( $chell );
+			}
+			else
+			{
+				$chell.playdialog( "localization/sound/dialog/borg02/chell_munroneed.mp3", 1, 8000, 1);//Munro? Use your tricorder to help trigger a feedback loop.
+				waitfordialog( $chell );
+			}
+		}	
+}
+
+//---------------------
+// PathGenerator1FieldPower_Destroyed
+// PowerCup blows up and removes green forcefield
+//---------------------
+void PathGenerator1FieldPower_Destroyed()
+{
+	$PathGenerator1FieldPower.nodamage();
+	$PathGenerator1Field.stoploopsound();
+	$PathGenerator1FieldPowerSpawn.modelname( "fx/fx-explosion-fieldgenerator.tik" );
+	$PathGenerator1FieldPowerSpawn.spawntargetname( "PathGenerator1FieldPowerExplosion" );
+	trigger( "$PathGenerator1FieldPowerSpawn" );
+	$PathGenerator1FieldPowerSpawn.remove();
+	$PathGenerator1FieldPower.remove();
+	$PathGenerator1FieldPower.model( "enviro/borg-sphere_powercup_powercup_damaged.tik" );
+	//$PathGenerator1FieldPowerDamaged.show();
+	$PathGenerator1FieldPower_fx.show();
+	wait ( 1 );
+	$PathGenerator1FieldPowerExplosion.remove();
+	$PathGenerator1Field.remove();
+}
+
+
+//----------------------------------------------------------------------------------------------
+// AI AND SPAWNING STUFF
+//----------------------------------------------------------------------------------------------
+
+//---------------------
+// SecondPathLift_Warp
+// Warps teamates to lift
+//---------------------
+void SecondPathLift_Warp()
+{
+	// corals ai in to prevent them from wandering off the lift up top.
+	//$SecondPathLiftTopClip.solid();
+	
+	thread globalCoop_player_makeSolidASAP($SecondPathLiftTopClip);
+
+	$chell.ai_off();
+	$chell.warpto ( "$SecondPathLiftWaypoint_Chell" );
+	thread globalCoop_player_makeSolidASAP($chell);
+
+	//$Chang.ai_off();
+	//$Chang.warpto ( "$SecondPathLiftWaypoint_Chang" );
+
+	$telsia.ai_off();
+	$telsia.warpto ( "$SecondPathLiftWaypoint_Telsia" );
+	thread globalCoop_player_makeSolidASAP($telsia);
+	wait( .1 );
+	$telsia.ai_on();
+	
+	wait (.1);
+	$chell.ai_on();
+	//$Chang.ai_on();
+}
+
+//---------------------
+// BorgSetup
+// makes borg hibernate and stuff
+//---------------------
+void BorgSetup()
+{
+
+	$Group1Borg3.settendency( "hibernate" , 1.0 );
+	$Group1Borg4.settendency( "hibernate" , 1.0 );
+
+	$Group2Borg1.settendency( "hibernate" , 1.0 );
+	$Group2Borg2.settendency( "hibernate" , 1.0 );
+	$Group2Borg3.settendency( "hibernate" , 1.0 );
+	$Group2Borg4.settendency( "hibernate" , 1.0 );
+
+	$Group3Borg1.settendency( "hibernate" , 1.0 );
+	$Group3Borg2.settendency( "hibernate" , 1.0 );
+	$Group3Borg3.settendency( "hibernate" , 1.0 );
+	$Group3Borg4.settendency( "hibernate" , 1.0 );
+
+	$Group5Borg3.settendency( "work" , 1.0 );
+
+}
+
+
+//---------------------
+// Group1_Spawn1
+// Spawns 2 borg in front of players in bridge looking area
+//---------------------
+
+void Group1_Spawn1()
+{
+	$Group1Borg1Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	$Group1Borg2Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	wait (.1);
+
+	//--- set the spawn effect on the spawner
+	$Group1Borg1Spawn.spawneffectname( "TransportIn", "Borg" );
+	$Group1Borg2Spawn.spawneffectname( "TransportIn", "Borg" );
+
+	//--- spawn the guys
+	trigger ( "$Group1Borg1Spawn" );
+	trigger ( "$Group1Borg2Spawn" );
+
+	wait( .2 );
+
+	//--- make the guys stupid for a second
+	$Group1Borg1.ai_off ();
+	$Group1Borg2.ai_off ();
+
+	// remove clips keeping sidekicks from going to borg spawn spots
+
+	$Group1Borg1.groupnumber (1);
+	$Group1Borg2.groupnumber (1);
+
+	//--- turn the AI on
+	wait ( 1 );
+	$Group1Borg1.ai_on ();
+	$Group1Borg1.aggressive( 1 );
+
+	$Group1Borg2.ai_on ();
+	$Group1Borg2.aggressive( 1 );
+}
+
+
+//---------------------
+// Group4_Spawn1
+// Spawns 2 borg in front of players in bridge looking area
+//---------------------
+
+void Group4_Spawn1()
+{
+	$Group4Borg1Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	$Group4Borg2Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	wait (.1);
+
+	//--- set the spawn effect on the spawner
+	$Group4Borg1Spawn.spawneffectname( "TransportIn", "Borg" );
+	$Group4Borg2Spawn.spawneffectname( "TransportIn", "Borg" );
+
+	//--- spawn the guys
+	trigger ( "$Group4Borg1Spawn" );
+	trigger ( "$Group4Borg2Spawn" );
+
+	$chell.playdialog( "localization/sound/dialog/borg02/chell_watchout.mp3", 1, 8000, 1);//Watch out!
+	waitfordialog( $chell );
+	$telsia.playdialog( "localization/sound/dialog/borg02/telsia_incomingdrones.mp3", 1, 8000, 1);//Incoming drones!
+	waitfordialog( $telsia );
+	
+	//--- make the guys stupid for a second
+	$Group4Borg1.ai_off ();
+	$Group4Borg2.ai_off ();
+
+	//--remove clips keeping sidekicks from going to borg spawn spots
+
+	$Group4Borg1.groupnumber( 4 );
+	$Group4Borg2.groupnumber( 4 );
+
+	//--- turn the AI on
+	wait ( 1 );
+	$Group4Borg1.ai_on ();
+	$Group4Borg1.aggressive( 1 );
+
+	$Group4Borg2.ai_on ();
+	$Group4Borg2.aggressive( 1 );
+}
+
+
+
+//---------------------
+// Group5_Spawn1
+// Spawns 2 borg in front of players at upper lift
+//---------------------
+
+void Group5_Spawn1()
+{
+	$Group5Borg1Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	$Group5Borg2Spawn.playsound ( "sound/environment/transporter/transport2.WAV", 1, .5, 250 );
+	wait (.1);
+
+	//--- set the spawn effect on the spawner
+	$Group5Borg1Spawn.spawneffectname( "TransportIn", "Borg" );
+	$Group5Borg2Spawn.spawneffectname( "TransportIn", "Borg" );
+
+	//--- spawn the guys
+	trigger ( "$Group5Borg1Spawn" );
+	trigger ( "$Group5Borg2Spawn" );
+	wait( .2 );
+	//--- make the guys stupid for a second
+	$Group5Borg1.ai_off ();
+	$Group5Borg2.ai_off ();
+
+	//--remove clips keeping sidekicks from going to borg spawn spots
+	
+	$Group5Borg1.groupnumber( 5 );
+	$Group5Borg2.groupnumber( 5 );
+	//--- turn the AI on
+	wait ( 1 );
+	$Group5Borg1.ai_on ();
+	$Group5Borg1.aggressive( 1 );
+	$Group5Borg2.ai_on ();
+	$Group5Borg2.aggressive( 1 );
+}
+
+//---------------------
+// Group1_Active
+// makes groupnumber 1 aggressive
+//---------------------
+void Group1_Active()
+{
+
+	$Group1Borg4.aggressive ( 1 );
+	wait (  .3 );
+	$Group1Borg3.aggressive ( 1 );
+
+}
+
+//---------------------
+// Group2_Active
+// makes groupnumber 2 aggressive
+//---------------------
+void Group2_Active()
+{
+	$Group2Borg1.aggressive ( 1 );
+	wait (.2);
+	$Group2Borg2.aggressive ( 1 );
+	$Group2Borg3.aggressive ( 1 );
+	wait (.2);
+	$Group2Borg4.aggressive ( 1 );
+
+}
+
+//---------------------
+// Group3_Active
+// makes groupnumber 2 aggressive
+//---------------------
+void Group3_Active()
+{
+	$Group3Borg1.aggressive ( 1 );
+	wait ( .2 );
+	$Group3Borg2.aggressive ( 1 );
+	$Group3Borg3.aggressive ( 1 );
+	wait ( .2 );
+	$Group3Borg4.aggressive ( 1 );
+
+}
+
+//---------------------
+// LevelEnd
+// spawns trigger changelevel
+//---------------------
+void LevelEnd()
+{
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m1l3-borg_boss" );
+	wait ( .5 );
+	trigger ( "$trigger_endlevel" );
+}
+
+void coop_endLevelAlt()
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend ->ALTERNATIVE<- coop function, loads next map on completion
+//------------------------------------------------------------------------------
+{
+	stuffCMD("seta coop_lvlP m1l2aTom1l2c\n");
+	thread globalCoop_mission_completed("m1l2b-borg_sphere");
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m1l3-borg_boss");
+}
+
+

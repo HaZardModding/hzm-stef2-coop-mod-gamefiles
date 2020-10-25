@@ -1,0 +1,1036 @@
+//===================================================
+//  EF2 Level Script File
+//
+//  Level:		ef2_minigame2
+//  Script By:		Richard H., Adam B.
+//  Geometry By:	Richard H., Adam B.
+//  Created On:		12/4/02
+//
+//  Last Edited:	adam - 12/4/02
+//===================================================
+
+void main();
+void init();
+
+void firstCombatRoom_start();
+
+void setCamera1();
+void setCamera2();
+void setCamera3();
+void setCamera4();
+
+void spawnInThread( entity spawnPoint, string spawnPointString, entity spawnName, string spawnNameString);
+void itemSpawn();
+
+void randomPickerTimerThread();
+
+void randomPicker();
+void randomSpawn();
+void randomObject();
+
+void spawnedKillThread();
+
+float objectchoice;
+float objectpicked;
+	
+float spawnchoice;
+float spawnpicked;
+
+float spawntype;
+float objectchoice2spawned = 0;
+float objectchoice3spawned = 0;
+float objectchoice4spawned = 0;
+float objectchoice5spawned = 0;
+float objectchoice6spawned = 0;
+float objectchoice7spawned = 0;
+float objectchoice10spawned = 0;
+float objectchoice11spawned = 0;
+
+float randomPickerTimer = 0;
+float randomPickerTimerCounts = 0;
+
+float degeneratingwait = 3;
+
+float spawnpointchoosen = 0;
+float objecttypechoosen = 0;
+
+float spawn1used = 0;
+float spawn2used = 0;
+float spawn3used = 0;
+float spawn4used = 0;
+float spawn5used = 0;
+float spawn6used = 0;
+float spawn7used = 0;
+float spawn8used = 0;
+float spawn9used = 0;
+float spawn10used = 0;
+float spawn11used = 0;
+float spawn12used = 0;
+float spawnUsed = 0;
+
+float spawned = 0;
+
+string objecttype = "";
+
+float SPAWN_WAIT_TIME = 10;
+float nextItemSpawnerNum = 1;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_givePlasma();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+//==========================================================================================
+//  Main Stuff
+//==========================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// this is the thread called at the start of the level
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
+	coop_bool_showMissionSucessHud	= 1;
+	
+	//hzm coop mod chrissstrahl - set spawn locations
+	coop_float_spawnAngle1 			= 129;
+	coop_float_spawnAngle2 			= 51;
+	coop_float_spawnAngle3 			= 325;
+	coop_float_spawnAngle4 			= 328;
+	coop_float_spawnAngle5 			= 2;
+	coop_float_spawnAngle6 			= 348;
+	coop_float_spawnAngle7 			= 331;
+	coop_float_spawnAngle8 			= 7;
+	coop_vector_spawnOrigin8	= '440 560 150';
+	coop_vector_spawnOrigin7	= '440 500 150';
+	coop_vector_spawnOrigin6	= '440 440 150';
+	coop_vector_spawnOrigin5	= '440 380 150';
+	coop_vector_spawnOrigin4	= '500 560 150';
+	coop_vector_spawnOrigin3	= '500 500 150';
+	coop_vector_spawnOrigin2	= '500 440 150';
+	coop_vector_spawnOrigin1	= '500 380 150';
+
+	soundtrack( "music/m8l1a.mus" );
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 10000 );
+	$world.farplane_color ( '0.1 0.12 0.1' );
+	$world.farplane ( 3000 );
+	$world.weather( "rain", 200 );
+	
+	//stuffcmd( "com_disablewriteconfig 1\n" );
+
+	//stuffcmd( "r_light_emphasizePercent 40\n" );
+	//stuffcmd( "r_light_emphasize 150\n" );
+
+//	stuffcmd( "cl_alternateMouseMove 0;mp_warmUpTime 0\n" );
+	waitForPlayer();
+
+	init();
+
+	wait( 0.1 );
+	
+//	stuffcmd("cg_3rd_person 1;cl_alternateMouseMove 1;g_aimviewangles 1\n");
+	//$player.forceMoveType( "secret" ); //hzm coop mod chrissstrahl - we don't do this in coop
+	
+	// stuff from the first one
+	//stuffcmd ( "give models/weapons/worldmodel-batleth.tik\n" );	
+	
+	//hzm coop mod chrissstrahl - register and distribute the weapons
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-Batleth.tik");
+	globalCoop_armory_useTiki("models/weapons/worldmodel-Batleth.tik");
+	
+	//hzm coop mod chrissstrahl - give ammo to players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.ammo( "Plasma", 200 );
+				ePlayer.ammo( "Fed", 200 );
+				ePlayer.armor( "BasicArmor", 100 );
+			}
+		}
+	}
+}
+
+//---------------------
+// Function: init
+// Comments:
+// thread called by init to handle world setup
+//---------------------
+void init()
+{
+	//hzm coop mod chrissstrahl - we don't do this in coop, it would not work anyway
+	/*
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+	spawn( "Camera", "targetname", "cam3" );
+	spawn( "Camera", "targetname", "cam4" );
+
+	cam.load( "ef2_minigame2_newcam1" );
+	cam.load( "ef2_minigame2_newcam2" );
+	cam.load( "ef2_minigame2_cam2" );
+	cam.load( "ef2_minigame2_cam3" );
+
+	wait( 0.1 );
+	$cam1.follow( $ef2_minigame2_newcam1 );
+	$cam2.follow( $ef2_minigame2_newcam2 );
+	$cam3.follow( $ef2_minigame2_cam2 );
+	$cam4.follow( $ef2_minigame2_cam3 );
+
+	cuecamera( $cam1 );
+	$cam1.watch( "$player" );
+	$cam2.watch( "$player" );
+	$cam3.watch( "$player" );
+	$cam4.watch( "$player" );
+	*/
+
+	// stuff from first one
+	objectpicked = objectchoice;
+	spawnpicked = spawnchoice;
+
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$minigameObjective$$","incomplete",1,1);
+}
+
+entity getNextItemSpawner()
+{
+	entity e;
+	e = getentity( "itemspawner" + nextItemSpawnerNum );
+	nextItemSpawnerNum++;
+	if( nextItemSpawnerNum > 8 )
+		nextItemSpawnerNum = 1;
+	return e;
+}
+
+void coop_freeMeOnPickup(entity eSpawner, entity eSpawned, string sModel)
+//mark the spawner as free as soon as the item it spawned or is gone, or was moved
+{
+	//$player0.hudprint("SPAWNED: " + sModel + "\n");//hzm debug 
+	
+	float fCheck=1;
+	vector vOrigin1,vOrigin2;
+	vOrigin1 = eSpawner.getOrigin();
+	
+	if( sModel !=  "models/weapons/worldmodel-GrenadeLauncher.tik" 	&&
+		sModel !=  "models/weapons/worldmodel-BurstRifle.tik"		&&
+		sModel !=  "models/weapons/worldmodel-imod.tik" 			&&
+		sModel !=  "models/weapons/worldmodel-tetryon.tik" 			)
+	{
+		sModel = "";
+	}
+	
+	while(fCheck)
+	{
+		if(doesEntityExist(eSpawned)){
+			vOrigin2 = eSpawned.getOrigin();
+			vOrigin1_z = 0;
+			vOrigin2_z = 0;	
+			
+			if(vectorLength(vOrigin1 - vOrigin2) > 2){
+				//$player0.hudprint("SPAWNED: was moved\n");//hzm debug 
+				fCheck = 0;
+			}
+		}
+		else{
+			fCheck = 0;
+		}
+		wait(0.1);
+	}
+
+	//$player0.hudprint("SPAWNED: check ended\n");//hzm debug 
+	eSpawner.setFloatVar("isInUse",0);
+	
+	if(sModel != ""){
+		//hzm coop mod chrissstrahl - register and distribute the weapons
+		globalCoop_armory_weaponRegister(sModel);
+		globalCoop_armory_useTiki(sModel);
+	}
+}
+
+void doItemSpawn( string themodelname ) 
+{ 
+	//hzm coop mod chrissstrahl - we need our own script here, the original does not work for our purpose
+	entity spawner, e;
+	float fIsFree;
+	
+	//hzm coop mod chrissstrahl - check if the spawner is free
+	do
+	{
+		spawner = getNextItemSpawner();
+		if(spawner.getFloatVar("isInUse") != 1){
+			fIsFree = 1;
+		}else{
+			fIsFree = 0;
+		}
+		wait(0.1);
+	}while(!fIsFree);
+	
+	//hzm coop mod chrissstrahl - mark spawner
+	spawner.setFloatVar("isInUse",1);
+	
+	//hzm coop mod chrissstrahl - prepare spawner
+	spawner.modelname( themodelname );
+	spawner.spawneffectname( "TransportIn", "Federation" );
+	//spawner.checkforspace();
+	e = spawner.spawnnow();
+	wait(0.05);
+	
+	//hzm coop mod chrissstrahl - monitor item and give spawner free as soon as the item was picked up
+	thread coop_freeMeOnPickup(spawner,e,themodelname);
+	
+	
+	wait( SPAWN_WAIT_TIME ); 
+}
+
+void coop_givePlasma()
+//give ammo to players
+{
+	//hzm coop mod chrissstrahl - give ammo to players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				ePlayer.ammo( "Plasma", 200 );
+				ePlayer.ammo( "Fed", 200 );
+				ePlayer.armor( "BasicArmor", 100 );
+			}
+		}
+	}
+}
+
+void itemSpawn()
+{
+	string sshealth, slhealth, ssplasma, slplasma, sburstrifle, simod, stetryon, sarmor;
+	string ssfed, slfed, sgrenadelauncher;
+	
+	sshealth 	= "item/health_small-hypospray.tik";
+	slhealth 	= "item/health_large-hypospray.tik";
+	ssplasma 	= "item/ammo_large.tik";
+	slplasma 	= "item/ammo_large.tik";
+	ssfed 		= "item/ammo_fed_small.tik";
+	slfed 		= "item/ammo_fed_large.tik";
+	sgrenadelauncher = "models/weapons/worldmodel-GrenadeLauncher.tik";
+	sburstrifle = "models/weapons/worldmodel-BurstRifle.tik";
+	simod 		= "models/weapons/worldmodel-imod.tik";
+	stetryon 	= "models/weapons/worldmodel-tetryon.tik";
+	sarmor 		= "item/sp_armor_large_shield.tik";
+
+	doItemSpawn( sshealth );
+	doItemSpawn( sshealth );
+	doItemSpawn( sburstrifle );
+	
+	//hzm coop mod chrissstrahl - give ammo
+	thread coop_givePlasma();
+	
+	doItemSpawn( slplasma );
+	doItemSpawn( sshealth );
+	
+	//hzm coop mod chrissstrahl - give ammo
+	thread coop_givePlasma();
+	
+	doItemSpawn( slplasma );
+	doItemSpawn( sshealth );
+	
+	//hzm coop mod chrissstrahl - give ammo
+	thread coop_givePlasma();
+	
+	doItemSpawn( slfed );
+	doItemSpawn( sshealth );
+	doItemSpawn( sgrenadelauncher );
+	doItemSpawn( slhealth );
+	
+	//hzm coop mod chrissstrahl - give ammo
+	thread coop_givePlasma();
+	
+	doItemSpawn( ssplasma );
+	doItemSpawn( sshealth );
+	
+	//hzm coop mod chrissstrahl - give ammo
+	thread coop_givePlasma();
+	
+	doItemSpawn( slfed );
+	doItemSpawn( slhealth );
+	doItemSpawn( sarmor );
+	doItemSpawn( stetryon );
+	
+	while( 1 )
+	{
+		doItemSpawn( slhealth );
+	
+		//hzm coop mod chrissstrahl - give ammo
+		thread coop_givePlasma();
+	
+		doItemSpawn( slplasma );
+		doItemSpawn( slfed );
+		doItemSpawn( slhealth );
+	
+		//hzm coop mod chrissstrahl - give ammo
+		thread coop_givePlasma();
+		
+		doItemSpawn( slplasma );
+		doItemSpawn( slhealth );
+	
+		//hzm coop mod chrissstrahl - give ammo
+		thread coop_givePlasma();
+		
+		doItemSpawn( slplasma );
+		doItemSpawn( sarmor );
+	}
+}
+
+//---------------------
+// Function: firstCombatRoom_start
+// Comments:
+// starts the first combat room
+//---------------------
+void firstCombatRoom_start()
+{
+	thread itemSpawn();
+	
+	//hzm coop mod chrissstrahl - we don't do this in coop
+	//$firstCombatRoom_door1.lock();
+	
+	thread randomPickerTimerThread();
+
+	wait( 5 );
+	
+	randomPicker();
+}
+
+//==========================================================================================
+//  Camera Stuff
+//==========================================================================================
+
+//---------------------
+// Function: setCamera1
+// Comments:
+// moves to camera 1 position
+//---------------------
+void setCamera1()
+{
+	return;//hzm coop mod chrissstrahl - we don't use this in coop
+	entity	activator;
+	entity	caller;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if ( activator.getTargetName() == "$player" ) {
+		wait( .25 );
+		cuecamera( $cam1 );
+	}
+}
+
+//---------------------
+// Function: setCamera2
+// Comments:
+// moves to camera 2 position
+//---------------------
+void setCamera2()
+{
+	return;//hzm coop mod chrissstrahl - we don't use this in coop
+	entity activator,caller;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if ( activator.getTargetName() == "$player" ) {
+		wait( .25 );
+		cuecamera( $cam2 );
+	}
+
+}
+
+//---------------------
+// Function: setCamera3
+// Comments:
+// moves to camera 3 position
+//---------------------
+void setCamera3()
+{
+	return;//hzm coop mod chrissstrahl - we don't use this in coop
+	entity activator,caller;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if ( activator.getTargetName() == "$player" ) {
+		wait( .25 );
+		cuecamera( $cam3 );
+	}
+
+}
+
+//---------------------
+// Function: setCamera4
+// Comments:
+// moves to camera 4 position
+//---------------------
+void setCamera4()
+{
+	return;//hzm coop mod chrissstrahl - we don't use this in coop
+	entity activator,caller;
+
+	caller = getCurrentEntity();
+	activator = caller.getLastActivatingEntity();
+
+	if ( activator.getTargetName() == "$player" ) {
+		wait( .25 );
+		cuecamera( $cam4 );
+	}
+
+}
+
+//==========================================================================================
+// Globals
+//==========================================================================================
+
+//---------------------
+// Function:spawnInThread
+// Variables:
+// spawnPoint - name of the func_spawn entity - $spawn1
+// spawnPointString - name of the func_spawn entity in string form - "$spawn1"
+// spawnName - spawntargetname of the func_spawn entity - $spawned1
+// spawnNameString - spawntargetname of the func_spawn entity in string form - "$spawned1"
+// Comments:
+// global thread used for setting the spawn points in the level
+// used mainly in randomSpawn
+//---------------------
+void spawnInThread( entity spawnPoint, string spawnPointString, entity spawnName, string spawnNameString)
+{
+	spawnPoint.spawntargetname ( spawnNameString );
+	spawnPoint.modelname( objecttype );
+	trigger( spawnPointString );
+	wait( .05 );
+
+	spawnpicked = spawnchoice;
+
+	if( spawntype == 1 )
+	{
+		spawnName.health( ((20 * globalCoop_return_integerPlayersQuantity(2) ) + 1) );//hzm coop mod chrissstrahl - give some health, and multiplicate it with the number of players
+		
+		//hzm coop mod chrissstrahl - make aggressive, rather than attacking $player
+		spawnName.aggressive( 1 );
+		
+		spawnName.killthread( "spawnedKillThread" );
+		spawned++;		
+	}
+}
+
+//==========================================================================================
+// Functions
+//==========================================================================================
+
+//---------------------
+// Function: randomPickerTimerThread
+// Comments:
+// starts a timer that counts up every second of the game
+//---------------------
+void randomPickerTimerThread()
+{
+	while( 1 )
+	{
+		randomPickerTimer++;
+		wait( 1 );
+	}
+}
+
+//---------------------
+// Function: randomPicker
+// Comments:
+// picks a random object
+// then picks a random spawn for that object
+// then checks the timer(randomPickerTimerThread)
+// sets a new wait(degeneratingwait) after timer reaches a certain time
+// adds a number to randomPickerTimerCounts every time it sets a new wait(degeneratingwait)
+// checks to make sure that the wait(degeneratingwait) never goes below 1 and if it does it resets it to 1
+//---------------------
+void randomPicker()
+{
+	while( randomPickerTimer <= 120 )
+	{
+		wait( .01 );
+		
+		randomObject();
+		wait( .05 );
+		randomSpawn();
+
+		if( randomPickerTimer >= 20 )
+		{
+			if( degeneratingwait <= .5 )
+			{
+				degeneratingwait = .5;
+				wait( degeneratingwait );
+				randomPickerTimerCounts++;
+			}
+			else
+			{
+				degeneratingwait = degeneratingwait*0.5;
+				wait( degeneratingwait );
+			
+				randomPickerTimer = 0;
+				randomPickerTimerCounts++;
+			}
+		}
+		else
+		{
+			wait( degeneratingwait );
+		}
+	}
+
+	$bossSpawn.modelname( "char/secret-cratemonster.tik" );
+	triggerentity( $bossSpawn );
+	wait( 0.05 );
+	$boss.killthread( "level_complete" );
+	
+	//hzm coop mod Chrissstrahl - add boss to radar
+	$boss.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - make visible, like in mission m7l1b
+	//mehw, to much work allready, I am to lazzy today...
+	/*
+	$crateMonster_head1.attach( $crateMonster, "Bip01 Head" );
+	$crateMonster_torso1.attach( $crateMonster, "Bip01 Spine" );
+	$crateMonster_arm1.attach( $crateMonster, "Bip01 L Forearm" );
+	$crateMonster_arm2.attach( $crateMonster, "Bip01 R Forearm" );
+	$crateMonster_arm1_2.attach( $crateMonster, "Bip01 L Upperarm" );
+	$crateMonster_arm2_2.attach( $crateMonster, "Bip01 R Upperarm" );
+	wait( .1 );
+	$crateMonster_leg1.attach( $crateMonster, "Bip01 L Foot" );
+	$crateMonster_leg2.attach( $crateMonster, "Bip01 R Foot" );
+	*/
+	
+	//$boss.health( 500 );
+}
+
+//---------------------
+// Function: randomObject
+// Comments:
+// randomly chooses an object
+// some objects are setup to only spawn after the randomPickerTimerCounts variable reaches a certain number
+// some objects such as weapons are set to never spawn again after they spawn once
+// objects setup a spawntype of 1 or 0 with 1 being anything AI and 0 being anything else
+//
+// Useable weapons list(or weapons that work well with this mode):
+// models/weapons/worldmodel-imod.tik
+// models/weapons/worldmodel-tetryon.tik
+// models/weapons/worldmodel-GrenadeLauncher.tik
+// weapons/worldmodel-drull-staff.tik
+// weapons/worldmodel-rom-disruptor.tik
+// weapons/worldmodel-rom-radgun.tik
+//---------------------
+void randomObject()
+{
+	objecttypechoosen = 0 ;
+
+	while ( objecttypechoosen == 0 )
+	{
+		objectchoice = randomint ( 12 );
+		wait( .05 );
+		
+		if ( objectchoice == 0 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 1 )
+		{
+			objecttype = "char/alien-type1b-chewer.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 2 )
+		{
+			if ( randomPickerTimerCounts < 2 )
+			{
+				wait( .05 );
+			}
+			//else if( objectchoice2spawned < 3 )
+			//{
+			//	objectchoice2spawned++;
+			//	wait( .05 );
+			//}
+			else
+			{
+				objecttype = "char/alien-type1c-basher.tik";
+				spawntype = 1;
+				objectchoice2spawned = 0;
+				objecttypechoosen = 1;
+			}
+		}
+		
+		if ( objectchoice == 3 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 4 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 5 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+	
+		if ( objectchoice == 6 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+	
+		if ( objectchoice == 7 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+	
+		if ( objectchoice == 8 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 9 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}
+		
+		if ( objectchoice == 10 )
+		{
+			if ( objectchoice10spawned < 2 )
+			{
+				wait( .05 );
+				objectchoice10spawned++;
+			}
+			//else if ( randomPickerTimerCounts < 6 )
+			//{
+			//	wait( .05 );
+			//}
+			else
+			{
+				objecttype = "char/alien-type4-predator.tik";
+				spawntype = 1;
+				objecttypechoosen = 1;
+				objectchoice10spawned = 0;
+			}
+		}
+		
+		if ( objectchoice == 11 )
+		{
+			objecttype = "char/alien-type1a-lurker.tik";
+			spawntype = 1;
+			objecttypechoosen = 1;
+		}		
+	}
+}
+
+//---------------------
+// Function: randomSpawn
+// Comments:
+// called to randomly choose a spawn point after an object has been randomly chosen
+// checks to see if the spawnchoice(current chosen spawn point) is equal to the spawnpicked(last chosen spawn point) and will try for a new randomspawn point if this is true
+// checks to see if the total number of enemies spawned(spawned) is to high and if so it stops spawning until it lowers
+// checks to see if all spawn points have been used and if so it will reset all the spawn points(number can be set lower than total number of spawns)
+// each spawn statement will set itself to used mode(spawn#used) and add a number to spawnUsed
+//---------------------
+void randomSpawn()
+{
+	spawnpointchoosen = 0;
+	float fMaxActive;
+	
+	while ( spawnpointchoosen == 0 )
+	{
+		//hzm coop mod chrissstrahl - have number of active enemies managed dynamically
+		fMaxActive = (4 + globalCoop_return_integerPlayersQuantity(2));
+		if(fMaxActive > 10){
+			fMaxActive = 10;
+		}
+	
+		spawnchoice = randomint ( 12 );
+
+		wait( .05 );
+
+		if ( spawnchoice == spawnpicked )
+		{
+			wait( .05 );
+		}
+		else if ( spawned >= fMaxActive ) //hzm coop mod chrissstrahl - have it managed dynamically
+		{
+			wait( 1 );
+		}
+		else if ( spawnUsed >= 11 )
+		{
+			spawn1used = 0;
+			spawn2used = 0;
+			spawn3used = 0;
+			spawn4used = 0;
+			spawn5used = 0;
+			spawn6used = 0;
+			spawn7used = 0;
+			spawn8used = 0;
+			spawn9used = 0;
+			spawn10used = 0;
+			spawn11used = 0;
+			spawn12used = 0;
+			spawnUsed = 0;
+			wait( .05 );
+		}
+		else
+		{
+			if ( spawnchoice == 0 )
+			{
+				if ( spawn1used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn1, "$spawn1", $spawned1, "spawned1" );
+					spawn1used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 1 )
+			{
+				if ( spawn2used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn2, "$spawn2", $spawned2, "spawned2" );
+					spawn2used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 2 )
+			{
+				if ( spawn3used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn3, "$spawn3", $spawned3, "spawned3" );
+					spawn3used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 3 )
+			{
+				if ( spawn4used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn4, "$spawn4", $spawned4, "spawned4" );
+					spawn4used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 4 )
+			{
+				if ( spawn5used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn5, "$spawn5", $spawned5, "spawned5" );
+					spawn5used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 5 )
+			{
+				if ( spawn6used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn6, "$spawn6", $spawned6, "spawned6" );
+					spawn6used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 6 )
+			{
+				if ( spawn7used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{
+					thread spawnInThread( $spawn7, "$spawn7", $spawned7, "spawned7" );
+					spawn7used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 7 )
+			{
+				if ( spawn8used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{			
+					thread spawnInThread( $spawn8, "$spawn8", $spawned8, "spawned8" );
+					spawn8used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 8 )
+			{
+				if ( spawn9used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{			
+					thread spawnInThread( $spawn9, "$spawn9", $spawned9, "spawned9" );
+					spawn9used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 10 )
+			{
+				if ( spawn10used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{			
+					thread spawnInThread( $spawn10, "$spawn10", $spawned10, "spawned10" );
+					spawn10used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 10 )
+			{
+				if ( spawn11used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{			
+					thread spawnInThread( $spawn11, "$spawn11", $spawned11, "spawned11" );
+					spawn11used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+			else if ( spawnchoice == 11 )
+			{
+				if ( spawn12used == 1 )
+				{
+					wait( .05 );
+				}
+				else
+				{			
+					thread spawnInThread( $spawn12, "$spawn12", $spawned12, "spawned12" );
+					spawn12used = 1;
+					spawnUsed++;
+					spawnpointchoosen = 1;
+				}
+			}
+		}
+	}
+}
+
+//---------------------
+// Function: spawnedKillThread
+// Comments:
+// subtracts a number from spawned(amount of enemies spawned in level) when an enemy dies
+//---------------------
+void spawnedKillThread()
+{
+	if ( spawned <= 0 )
+	{
+		spawned = 0;
+	}
+	else
+	{
+		spawned--;
+	}
+}
+
+//---------------------
+// Function: level_complete
+// Comments:
+// gets called after player defeats the boss, displays the mission successful screen and ends the map
+//---------------------
+void level_complete()
+{
+	//hzm coop mod Chrissstrahl - remove bosss from radar
+	$boss.missionobjective(0);
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$minigameObjective$$","complete",1,1);
+	
+	wait( 5 );
+
+	cam_fadeout( 2, 0, 0, 0, 1, 0 );
+	wait( 1.5 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+	
+	/*
+	spawn( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "" );
+	wait( 1 );
+	triggerentity( $trigger_endlevel );
+	wait( 5 );
+	stuffcmd( "disconnect\n" );
+	*/
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("secret3");
+}
+
+

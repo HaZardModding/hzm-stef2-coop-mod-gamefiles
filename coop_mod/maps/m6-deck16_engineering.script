@@ -1,0 +1,3735 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Level Script File
+//
+//  Level:        m6-deck16_engineering
+//  Script By:    Benson R, Doug S, Josh M., Squirrel
+//  Geometry By:  Benson R, Kenny T
+//  Created on:   7/28/2002
+//
+//  Last Edited By:  jhefty
+//
+//-----------------------------------------------------------------
+
+
+//==========================================================================================
+//==========================================================================================
+//  DEFINE SCRIPT
+//==========================================================================================
+//==========================================================================================
+
+void main();
+
+//--- setup routines
+void setupDamageObjects();
+void setupDefenderSpawners();
+void setupBomberSpawners();
+void setupBomberSpawners_PickTiki( entity entSpawner );
+void setupVariables();
+void setupAI();
+void setupWorld();
+void setupStartingObjectives();
+void setupArchetypes();
+
+//--- setup damage objects
+void setupDamageObjects_Brush( entity entTrigger, float enumImpactFactor );
+void setupDamageObjects_Scriptmodel( entity entTrigger, float enumImpactFactor );
+void setupDamageObjects_Tube( entity entTrigger, float enumImpactFactor );
+void setupDamageObjects_Trigger( entity entTrigger );
+
+//--- damage objects
+void damageObjects_Brush();
+void damageObjects_Scriptmodel();
+void damageObjects_Tube();
+void damageObjects_SetBombStatus( entity entObject );
+void damageObjects_SetSpawner( entity entSpawner );
+void damageObjects_SetTube( entity entModel );
+void damageObjects_BarclayWarning( entity entActivator );
+void damageObjects_RandomSparking( entity entSpawner );
+void damageObjects_ApplyImpactFactor( entity entTrigger );
+float damageObjects_CalcImpactFactor( float enumImpactFactor );
+
+//--- bomb wave
+void bombPuzzle_SpawnWave();
+void bombPuzzle_CheckForDeath();
+void bomberSpawnWave( float fltNumberOfBombers );
+float bomberSpawnWave_PickLocation();
+void bomberSpawnWave_SpawnBomber( string strBomber, float fltZone );
+void bomberSpawnWave_PlantBomb( entity entBomber );
+void bomberSpawnWave_BeamOutBomber( entity entBomber );
+void bomberSpawnWave_Death();
+void defenderSpawnWave();
+void defenderSpawnWave_SpawnDefender( float fltDefender );
+float defenderSpawnWave_PickLocation();
+void defenderSpawnWave_PickTiki( entity entSpawner );
+void defenderSpawnWave_Death();
+
+//--- warp core puzzle
+void puzzleWarpCore_Start();
+void puzzleWarpCore_ChiefCallsMunro();
+void puzzleWarpCore_IdryllStart();
+void puzzleWarpCore_EvacPersonnel();
+void puzzleWarpCore_DeleteAI();
+void puzzleWarpCore_BlowWarpCore();
+void puzzleWarpCore_Warning( float fltWarning );
+void puzzleWarpCore_AreaSecure();
+void puzzleWarpCore_ReturnCrew();
+void puzzleWarpCore_ReturnCrew_Run( entity entCrew, string strNode );
+void puzzleWarpCore_OpenAccessPanel();
+void puzzleWarpCore_Done();
+
+void puzzleWarpCore_MasterLoop();
+void puzzleWarpCore_EvaluateProgress();
+void puzzleWarpCore_WaitUntilNextUpdate();
+void puzzleWarpCore_AdvancePercentDone();
+float puzzleWarpCore_CalcUpdateInterval( float fltPercentDone );
+
+void puzzleWarpCore_CloseBlastDoor();
+void puzzleWarpCore_CloseBlastDoor_Events();
+void puzzleWarpCore_OpenBlastDoor();
+
+void puzzleWarpCore_PowerRoutingHurryWarning();
+void puzzleWarpCore_PowerRoutingCanceled();
+void puzzleWarpCore_PowerRoutingUsed();
+void puzzleWarpCore_PowerRoutingSolved();
+void puzzleWarpCore_OverrideCodeHurryWarning();
+void puzzleWarpCore_OverrideCodeCanceled();
+void puzzleWarpCore_OverrideCodeUsed();
+void puzzleWarpCore_OverrideCodeSolved();
+
+//--- idryll AI functions for starting idryll
+void idryllStart_RunToPlayer();
+void idryllStart_AIOn();
+
+//--- cinematic functions
+void cinematicBombPlant();
+void cinematicBombPlant_Skipthread();
+void cinematicBombPlant_Go();
+
+void cinematicWarpCoreEject();
+void cinematicWarpCoreEject_Skipthread();
+void cinematicWarpCoreEject_MoveCore();
+
+void cinematicDeath();
+void cinematicDeath_Skipthread();
+
+//--- misc functions
+void portalBlastDoor_Exiting();
+void portalBlastDoor_Entering();
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- PARAMETER CONSTANTS
+
+
+//float WCORE_UPDATE_INTERVAL_START = 2.5;	//The starting rate at which the warp core puzzle updates in seconds
+//float WCORE_UPDATE_INTERVAL_END = .25;		//The maximum rate at which the warp core puzzle updates in seconds
+
+//hzm coop mod chrissstrahl - go a bit slower in multiplayer, since it s much more dificult
+float WCORE_UPDATE_INTERVAL_START = 3;	//The starting rate at which the warp core puzzle updates in seconds
+float WCORE_UPDATE_INTERVAL_END = .4;		//The maximum rate at which the warp core puzzle updates in seconds
+
+float WCORE_PUZZLE_MAXIMUM_SECONDS = 600;	//This is the overall time it will take to execute
+											//the warp core puzzle given no player interference.
+											//This is given in seconds, 600 currently is 10 minutes
+
+float WCORE_PUZZLE_CRITICAL_PERCENTAGE = .65;					//percentage of counter when core is considered critical, from 0 - 1
+float WCORE_PUZZLE_ALMOST_MELTDOWN_WARNING_PERCENTAGE = .85;	//percentage of the core timer when the 'almost meltdown' warning will occur
+
+float WCORE_PUZZLE_SECONDS_TO_WAIT_AFTER_EVENT_TO_BEGIN_COUNTDOWN = 3;	//When the player walks through the trigger that
+																		//has the chief engineer call him over, this is the
+																		//amount of time to wait before starting the event
+																		//that begins the countdown to warp core meltdown
+
+float WCORE_PUZZLE_EXTRA_WARNING_DELAY = 60;			//delay before a second warning to the player if he hasn't stopped the idryll yet
+
+float WCORE_ACCEL_IMPACT_FACTOR_HIGH = .7;				//percent increase to acceleration factor when an IMPACT_HIGH device is destroyed
+float WCORE_ACCEL_IMPACT_FACTOR_MEDIUM_WEIGHT = .65;	//WCORE_ACCEL_IMPACT_FACTOR_MEDIUM is this percentage of WCORE_ACCEL_IMPACT_FACTOR_HIGH
+float WCORE_ACCEL_IMPACT_FACTOR_LOW_WEIGHT = .4;		//WCORE_ACCEL_IMPACT_FACTOR_LOW is this percentage of WCORE_ACCEL_IMPACT_FACTOR_HIGH
+
+//float WCORE_IDRYLL_NUMBER_OF_SPAWNERS = 29;
+//float WCORE_IDRYLL_REINFORCEMENT_WAVES = 3;			//number of reinforcement waves to beam in during warp core fight
+//float WCORE_IDRYLL_REINFORCEMENTS_PER_WAVE_MAX = 2;	//number of reinforcements to spawn per wave - maximum/
+//float WCORE_IDRYLL_REINFORCEMENTS_PER_WAVE_MIN = 2;	//number of reinforcements to spawn per wave - minimum
+														//also serves as the minimum number of idryll allowed before
+														//the next wave will spawn in
+
+string WCORE_DAMAGE_OBJECT_EXPLOSION_FX = "fx/fx-explosion-console-blue-directional.tik";	//the effect to play when a panel is destroyed
+float WCORE_DAMAGE_OBJECTS_TRIGGER_HEALTH = 30;		//this is the amount of health the damage object trigger has
+
+float WCORE_BOMB_POS_TOTAL = 28;				//this is the total number of positions
+float WCORE_BOMB_WAVES = 5;						//this is the number of enemy waves the player has to fight
+float WCORE_BOMB_ZONES = 7;						//this is the total number of bomb zones
+float WCORE_BOMB_PLANT_TIME = 6;				//this is the amount of time in seconds that it takes an idryll plant a bomb
+float WCORE_BOMB_PLANT_UPDATE_INTERVAL = .25;	//the time interval that the bomb plant counter will do status checks
+float WCORE_BOMB_DELAY_BETWEEN_WAVES = 3;		//this is the delay time in seconds between waves (meaning once a wave has been eliminated)
+
+string WCORE_BOMB_EXPLOSION_FX = "fx/fx-explosion-enterprise-small.tik";	//the explosion tiki to use for the bomb blowing up
+
+float WCORE_BOMB_DEFENDER_SPAWNERS = 17;			//this is the number of defender spawn points
+float WCORE_BOMB_DEFENDER_NUMBER_OF_GUYS = 2;		//this is the number of defenders to spawn per wave
+float WCORE_BOMB_DEFENDER_ELITE_PERCENTAGE = .15;	//this is the percentage chance of spawning an elite idryll per bomb wave
+float WCORE_BOMB_DEFENDER_RIFLE_PERCENTAGE = .35;	//this is the percentage chance of spawning an rifle idryll per bomb wave
+													//after combining the elite and rifle percentages, the remaining perctage is of pistol idryll
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CALCULATED CONSTANTS
+
+float WCORE_ACCEL_IMPACT_FACTOR_MEDIUM;	//precalculated based off of WCORE_ACCEL_IMPACT_FACTOR_HIGH
+float WCORE_ACCEL_IMPACT_FACTOR_LOW;	//precalculated based off of WCORE_ACCEL_IMPACT_FACTOR_HIGH
+
+float WCORE_PUZZLE_ALMOST_CRITICAL_WARNING_PERCENTAGE;		//this is the percentage of the actual 'going critical' percentage when
+															//the computer will give a warning that the core is almost about to go critical
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- CONSTANTS
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- ENUMERATED LISTS CONSTANTS
+
+//--- warp core status
+float NORMAL = 0;
+float OVERHEATING = 1;
+float CRITICAL = 2;
+float MELTDOWN = 3;
+
+//--- impact value
+float IMPACT_HIGH = 0;
+float IMPACT_MEDIUM = 1;
+float IMPACT_LOW = 2;
+
+
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+//--- variables
+
+float fltPuzzleWarpCore_PercentDone = 0;
+float fltPuzzleWarpCore_PercentPerSecond;
+float fltPuzzleWarpCore_CurrentUpdateIntervalSeconds;
+float fltPuzzleWarpCore_Time_Start;
+float fltPuzzleWarpCore_Time_Current;
+float fltPuzzleWarpCore_Time_Total;
+float fltBomberPreviousChoice = 0;
+float fltBombWavesLeft;
+float fltBarclayDamageWarningCounter = 0;
+
+float boolPuzzleWarpCore_AreaSecure;
+float boolPuzzleWarpCore_PowerRoutingStarted;
+float boolPuzzleWarpCore_OverrideCodeStarted;
+float boolBombBeingPlanted = 0;
+float boolBomberWaveDead = 1;
+float boolDefenderWaveDead = 1;
+float boolWarpCoreWarningActive = 0;
+float boolAlmostCriticalWarningGiven = 0;
+float boolCriticalWarningGiven = 0;
+float boolAlmostMeltdownWarningGiven = 0;
+float boolWarpCorePuzzlePause = 0;
+float boolBlowingWarpCore = 0;
+float boolCinematicDeathStarted = 0;
+
+float boolBombSequenceActivated = 0;		//if the sequence hasn't started and the player is shooting stuff up, fail the mission
+
+float enumPuzzleWarpCore_CoreStatus;
+
+float turboliftActive = 0;
+
+vector vecCinematicWarpCoreOrigin;
+
+
+//==========================================================================================
+//==========================================================================================
+//  INCLUDES
+//==========================================================================================
+//==========================================================================================
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_cinematicFX.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_spawnWave.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+#include "maps/m6/m6-deck16_dialog.scr"
+
+#include "maps/global_scripts/global_tricorderBase.scr"
+#include "maps/global_scripts/global_tricorderMod.scr"
+#include "maps/global_scripts/global_tricorderKeypad.scr"
+#include "maps/global_scripts/global_tricorderRoute.scr"
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  MAIN FUNCTION
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+void main()
+//---------------------
+{
+	//hzm coop mod chrissstrahl, set story
+	coop_string_story = "$$EnterpriseLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set spawnangles for this level
+	coop_float_spawnAngle0 = 170;
+	coop_float_spawnAngle1 = 41;
+	coop_float_spawnAngle2 = 217;
+	coop_float_spawnAngle3 = 296;
+	coop_float_spawnAngle4 = 347;
+	coop_float_spawnAngle5 = 90;
+	coop_float_spawnAngle8 = 80;
+	coop_vector_spawnOrigin1 = '-3381 -2158 10';
+	coop_vector_spawnOrigin2 = '-3283 -2215 266';
+	coop_vector_spawnOrigin3 = '-3399 -2153 266';
+	coop_vector_spawnOrigin4 = '-3407 -2229 266';
+	coop_vector_spawnOrigin5 = '-3150 -1611 0';
+	coop_vector_spawnOrigin6 = '-3150 -1537 0';
+	coop_vector_spawnOrigin7 = '-3150 -1454 0';
+	coop_vector_spawnOrigin8 = '-3318 -2206 15';
+
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	soundtrack( "music/m6l1_decks.mus" );
+
+	////print( "VARIABLE SETUP: " + WCORE_IDRYLL_REINFORCEMENT_WAVES + "\n" );
+
+	//--- skybox stuff
+	$sky.rendereffects( "+skyorigin" );
+
+	//--- allow camera shakes
+	$world.canShakeCamera( 1 );
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m6_deck16_engineering" );
+
+	//--- setup the level
+	setupAI();
+	setupVariables();
+	setupWorld();
+	setupDamageObjects();
+	setupDefenderSpawners();
+	setupBomberSpawners();
+	setupArchetypes();
+
+	//--- wait for player to spawn
+	waitForPlayer ();
+
+	//--- setup starting objectives
+	setupStartingObjectives();
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  SETUP FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// setupVariables
+// setup variables
+//---------------------
+void setupVariables()
+{
+	//--- set the starting percent-done-per-second rate
+	fltPuzzleWarpCore_PercentPerSecond = 1.0 / WCORE_PUZZLE_MAXIMUM_SECONDS;
+
+	//--- set the acceleration impact factors for IMPACT_LOW and IMPACT_MEDIUM objects getting destroyed
+	WCORE_ACCEL_IMPACT_FACTOR_MEDIUM = WCORE_ACCEL_IMPACT_FACTOR_HIGH * WCORE_ACCEL_IMPACT_FACTOR_MEDIUM_WEIGHT;
+	WCORE_ACCEL_IMPACT_FACTOR_LOW = WCORE_ACCEL_IMPACT_FACTOR_HIGH * WCORE_ACCEL_IMPACT_FACTOR_LOW_WEIGHT;
+
+	//--- calculate the 'almost critical' warning percentage
+	WCORE_PUZZLE_ALMOST_CRITICAL_WARNING_PERCENTAGE = WCORE_PUZZLE_CRITICAL_PERCENTAGE * .5;
+
+	//--- set the initial UI update period
+	fltPuzzleWarpCore_CurrentUpdateIntervalSeconds = WCORE_UPDATE_INTERVAL_START;
+
+	//--- set various flags
+	boolPuzzleWarpCore_AreaSecure = FALSE;
+	boolPuzzleWarpCore_PowerRoutingStarted = FALSE;
+	boolPuzzleWarpCore_OverrideCodeStarted = FALSE;
+
+	//--- set the core status
+	enumPuzzleWarpCore_CoreStatus = NORMAL;
+
+	//--- set the number of bomb waves left
+	fltBombWavesLeft = WCORE_BOMB_WAVES;
+
+	//--- grab the cinematic warp core origin
+	vecCinematicWarpCoreOrigin = $cinematicWarpCore_Origin2.getOrigin();
+
+	//--- initialize the defender previous choice array
+	globalArray_FloatSetup( "defenderPreviousChoice", WCORE_BOMB_DEFENDER_NUMBER_OF_GUYS );
+
+	//--- initialize the bomb position status array so that all positions are available
+	globalArray_FloatSetup( "bombPosStatus", WCORE_BOMB_POS_TOTAL );
+	wait( .1 );
+
+	float i;
+	for( i = 1 ; i <= WCORE_BOMB_POS_TOTAL ; i++ )
+	{
+		globalArray_FloatSet( "bombPosStatus", i, TRUE );
+	}
+}
+
+//---------------------
+// setupAI
+// setup the AI
+//---------------------
+void setupAI()
+{
+	//--- hazard team
+	$telsia.ai_off();
+	$munro.ai_off();
+
+	//--- starting idryll
+	$idryllStart1.ai_off();
+	$idryllStart2.ai_off();
+	
+	
+
+	//--- setup engineers
+	globalCommon_AiDummy( $crewEngineer1, "" );
+	globalCommon_AiDummy( $crewEngineer2, "" );
+	globalCommon_AiDummy( $crewEngineer3, "" );
+	globalCommon_AiDummyHide( $crewEngineer4 );
+	globalCommon_AiDummyHide( $crewEngineer5 );
+	globalCommon_AiDummy( $barclay, "" );
+	$barclay.immortal( 1 );
+	
+	//hzm coop mod chrissstrahl - do not allow player to push barclay arround
+	$barclay.pushable( 0 );
+	$barclay.mass( 99999 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$barclay.useActorWeapon( "Tricorder" );
+	$crewEngineer1.useActorWeapon( "Tricorder" );
+	$crewEngineer2.useActorWeapon( "Tricorder" );
+	$crewEngineer3.useActorWeapon( "Tricorder" );
+	//$crewEngineer4.useActorWeapon( "Tricorder" );
+	//$crewEngineer5.useActorWeapon( "Tricorder" );
+
+	//$cargobayidryll1.ai_off();
+	//$cargobayidryll2.ai_off();
+
+	//--- setup spawn wave
+	//globalSpawnWave_Setup( "spawnerIdryll", WCORE_IDRYLL_NUMBER_OF_SPAWNERS, WCORE_IDRYLL_REINFORCEMENT_WAVES, WCORE_IDRYLL_REINFORCEMENTS_PER_WAVE_MIN, WCORE_IDRYLL_REINFORCEMENTS_PER_WAVE_MAX, 10 );
+	//globalSpawnWave_SetupDeathThread( "spawnerIdryll", "puzzleWarpCore_AreaSecure" );
+
+	thread globalCommon_AiDummy( $deadtube1, "hunched_dead3" );
+}
+
+//---------------------
+// setupWorld
+// setup world objects
+//---------------------
+void setupWorld()
+{
+	float i;
+
+	entity entBomb;
+
+	string strBombTargetname;
+
+	//--- spawn cinematic cameras
+	spawn( "Camera", "targetname", "cam1" );
+	spawn( "Camera", "targetname", "cam2" );
+
+	//--- make triggers not triggerable
+	$triggerDeleteAI.nottriggerable();
+	$triggerExit.notTriggerable();
+
+	//--- bind objects
+	$warpCoreConduitLeftOff.bind( $warpCoreConduitFrameLeft );
+	$warpCoreConduitLeftOn.bind( $warpCoreConduitFrameLeft );
+	$warpCoreConduitRightOff.bind( $warpCoreConduitFrameRight );
+	$warpCoreConduitRightOn.bind( $warpCoreConduitFrameRight );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- hide objects
+	$warpCoreConduitLeftOff.hide();
+	$warpCoreConduitRightOff.hide();
+
+	//--- deactivate the puzzle objects for the tricorder
+	$brushTricorderPanel1.puzzleobject_deactivate();
+	$brushTricorderPanel2.puzzleobject_deactivate();
+
+	//--- remove the cinematic warp core travel path guide
+	$cinematicWarpCoreGuide.remove();
+
+	//--- setup the busted hallways pieces
+	$hallBusted1.anim( "off" );
+	$hallBusted2.anim( "open" );
+	$hallBusted3.anim( "open" );
+	$hallBusted4.anim( "open" );
+	$hallBusted5.anim( "open" );
+	$hallBusted6.anim( "open" );
+
+	$damagedPanel1.anim( "off" );
+	$damagedPanel2.anim( "off" );
+	$damagedPanel3.anim( "off" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- somebody set us up the bombs
+	for( i = 1 ; i <= WCORE_BOMB_POS_TOTAL ; i++ )
+	{
+		//--- concactinate the bomb targetname
+		strBombTargetname = "bomb" + i;
+
+		//--- get the bomb entity
+		entBomb = getEntity( strBombTargetname );
+
+		//--- setup the bomb
+		entBomb.notsolid();
+		entBomb.hide();
+	}
+
+	//--- setup steam emitters
+	$steamWarpCore1.hide();
+	$steamWarpCore2.hide();
+	$steamWarpCore3.hide();
+	$steamWarpCore4.hide();
+
+	$steamBlastDoor1.hide();
+	$steamBlastDoor2.hide();
+	$steamBlastDoor3.hide();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- setup spawners
+	$spawnBombExplosion.modelName( WCORE_BOMB_EXPLOSION_FX );
+	$spawnBombExplosion.scale( .3 );
+
+	//--- starting spawners for the closing blast door
+	$spawnExplosionStart1.modelName( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$spawnExplosionStart2.modelName( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+
+	//--- warp core explosion spawners
+	$spawnerWarpCore1.modelname( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnerWarpCore2.modelname( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnerWarpCore3.modelname( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnerWarpCore4.modelname( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnerWarpCoreMain.modelname( "fx/fx-explosion-warpcore.tik" );
+	$spawnExplosionWarpCoreStart.modelName( "fx/fx-explosion-fire-directional-metaldebris.tik" );
+	$spawnExplosionWarpCoreStart2.modelName( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnExplosionWarpCoreStart3.modelName( "fx/fx-explosion-enterprise-small.tik" );
+	$spawnExplosionEnterprise.modelName( "fx/fx-explosion-enterprise-huge.tik" );
+
+	//--- hide the area portal script objects
+	$portalBlastDoor_Exterior.hide();
+	$portalBlastDoor_Exterior.notsolid();
+	$portalBlastDoor_Exterior.openPortal();
+	$portalBlastDoor_Interior.hide();
+	$portalBlastDoor_Interior.notsolid();
+	$portalBlastDoor_Interior.openPortal();
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//--- move the engineering blast door up to starting position
+	$doorEngineeringBlastDoor.solid();
+	$doorEngineeringBlastDoor.time( .1 );
+	$doorEngineeringBlastDoor.moveUp( 200 );
+	waitFor( $doorEngineeringBlastDoor );
+
+	//--- hide the archetypes
+	$tricorderpanel_archetype1.hide();
+	$tricorderpanel_archetype1.notsolid();
+	$tricorderpanel_archetype2.hide();
+	$tricorderpanel_archetype2.notsolid();
+
+	//play warp core sounds
+	$rightWarpcoreSpeaker.loopsound( "sound/ships/enterprise/eng_pulse03.wav", 1, 400 );
+	$leftWarpcoreSpeaker.loopsound( "sound/ships/enterprise/eng_pulse01.wav", 1, 400 );
+	$centerWarpcoreSpeaker.loopsound( "sound/ships/enterprise/eng_pulse02.wav", 1, 400 );
+
+}
+
+//---------------------
+// setupArchetypes
+// setup archetypes
+//---------------------
+void setupArchetypes()
+{
+	globalArchetype_Setup( $turbolift1_archetype, "TurboLiftControls" );
+	globalArchetype_Setup( $tricorderpanel_archetype1, "WarpCoreBleed" );
+	globalArchetype_Setup( $tricorderpanel_archetype2, "WarpCoreEject" );
+
+	$crewEngineer5.archetype ( "StarfleetMale7" );
+	$crewEngineer4.archetype ( "StarfleetFemale7" );
+}
+
+//---------------------
+// setupStartingObjectives
+// setup the starting objectives for the player
+//---------------------
+void setupStartingObjectives()
+{
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$RepelInvaders$$","incomplete",1,0);
+	globalCoop_objectives_set("$$GetToEngineering$$","incomplete",2,1);
+	
+	$barclay.missionobjective( 1 );
+}
+
+//---------------------
+// setupDefenderSpawners
+// setup the defender spawners base properties
+//---------------------
+void setupDefenderSpawners()
+{
+	float i, fltChoice;
+
+	entity entSpawner;
+
+	string strTargetname, strTiki;
+
+	for( i = 1 ; i <= WCORE_BOMB_DEFENDER_SPAWNERS ; i++ )
+	{
+		strTargetname = "spawnDefender" + i;
+		entSpawner = getEntity( strTargetname );
+
+       	//--- setup the spawner
+    	entSpawner.spawnTargetname( "idryllDefender" );
+    	entSpawner.spawneffectname( "TransportIn", "Idryll" );
+    	entSpawner.checkForSpace();
+
+    	//--- pick the tiki
+    	fltChoice = randomInt( 4 ) + 1;
+    	strTiki = "char/idryll-m6-elite-defender-m" + fltChoice + ".tik";
+
+    	//--- set the tiki
+    	entSpawner.modelName( strTiki );
+    }
+}
+
+//---------------------
+// setupBomberSpawners
+// setup the bomber spawners
+//---------------------
+void setupBomberSpawners()
+{
+	float i;
+
+	string strTargetname;
+
+	entity entSpawner;
+
+	for( i = 1 ; i <= WCORE_BOMB_ZONES ; i++ )
+	{
+		//--- setup A bomber in this zone
+		//--- concactinate the targetname
+		strTargetname = "spawnBomberA_Zone" + i;
+
+		//--- get the entity
+		entSpawner = getEntity( strTargetname );
+
+		//--- set the fx stuff
+		entSpawner.spawneffectname( "TransportIn", "Idryll" );
+		entSpawner.spawnTargetname( "idryllBomberA" );
+		entSpawner.checkForSpace();
+
+		//--- randomly pick a model
+		setupBomberSpawners_PickTiki( entSpawner );
+
+		//--- setup B bomber in this zone
+		//--- concactinate the targetname
+		strTargetname = "spawnBomberB_Zone" + i;
+
+		//--- get the entity
+		entSpawner = getEntity( strTargetname );
+
+		//--- set the fx stuff
+		entSpawner.spawneffectname( "TransportIn", "Idryll" );
+		entSpawner.spawnTargetname( "idryllBomberB" );
+		entSpawner.checkForSpace();
+
+		//--- randomly pick a model
+		setupBomberSpawners_PickTiki( entSpawner );
+	}
+}
+
+
+//---------------------
+// 	setupBomberSpawners_PickTiki
+//	entSpawner - entity, the passed in entity to pick the tiki for
+//	randomly pick the proper tiki for the bomber spawners
+//---------------------
+void setupBomberSpawners_PickTiki( entity entSpawner )
+{
+	float fltChoice, boolGender;
+
+	string strGender, strTiki;
+
+	fltChoice = randomInt( 4 ) + 1;
+	boolGender = randomInt( 1 );
+
+	//--- set the gender
+	//if( boolGender == 0 )
+	//{
+	//	strGender = "m";
+	//}
+	//else
+	//{
+	//	strGender = "f";
+	//}
+
+	//--- assemble the tiki
+	//strTiki = "char/idryll-m6-rebel-pistol-shield-" + strGender + fltChoice + ".tik";
+	strTiki = "char/idryll-m6-rebel-bomber-f" + fltChoice + ".tik";
+
+	entSpawner.modelName( strTiki );
+}
+
+//---------------------
+// setupDamageObjects
+// run all the setup functions for the damage object
+//---------------------
+void setupDamageObjects()
+{
+	//--- NOTE: The commented out objects were removed to save on the edict limit that was breaking
+	//---------------------------------------------
+	//--- setup the brush damage objects
+	//---------------------------------------------
+	//thread setupDamageObjects_Brush( $brushLeftStation1, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation2, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation3, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation4, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftStation5, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation6, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation7, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftStation8, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftStation9, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftStation10, IMPACT_LOW );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//thread setupDamageObjects_Brush( $brushLeftPanelCluster1, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftPanelCluster2, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftPanelCluster3, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftPanelCluster4, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftPanelCluster5, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftPanelCluster6, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftPanelCluster7, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushLeftPanelCluster8, IMPACT_LOW );
+	
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+
+	//thread setupDamageObjects_Brush( $brushLeftModule1, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule2, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule3, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule4, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule5, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule6, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule7, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushLeftModule8, IMPACT_LOW );
+
+	thread setupDamageObjects_Brush( $brushForwardLeftStation1, IMPACT_MEDIUM );
+
+	//thread setupDamageObjects_Brush( $brushRightStation1, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation2, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation3, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation4, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation5, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation6, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightStation7, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightStation8, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightStation9, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightStation10, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightStation11, IMPACT_LOW );
+
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+	
+	thread setupDamageObjects_Brush( $brushRightPanelCluster1, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightPanelCluster2, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightPanelCluster3, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightPanelCluster4, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightPanelCluster5, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightPanelCluster6, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightPanelCluster7, IMPACT_LOW );
+	thread setupDamageObjects_Brush( $brushRightPanelCluster8, IMPACT_LOW );
+
+	//thread setupDamageObjects_Brush( $brushRightModule1, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule2, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule3, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule4, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule5, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule6, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule7, IMPACT_LOW );
+	//thread setupDamageObjects_Brush( $brushRightModule8, IMPACT_LOW );
+
+	thread setupDamageObjects_Brush( $brushForwardRightStation1, IMPACT_MEDIUM );
+	
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+
+	thread setupDamageObjects_Brush( $brushPedestal1, IMPACT_HIGH );
+	thread setupDamageObjects_Brush( $brushPedestal2, IMPACT_HIGH );
+	thread setupDamageObjects_Brush( $brushPedestal3, IMPACT_HIGH );
+	thread setupDamageObjects_Brush( $brushPedestal4, IMPACT_HIGH );
+	thread setupDamageObjects_Brush( $brushPedestal5, IMPACT_HIGH );
+
+	//---------------------------------------------
+	//--- setup the scriptmodel damage objects
+	//---------------------------------------------
+	thread setupDamageObjects_Scriptmodel( $scriptmodelLeft1, IMPACT_MEDIUM );
+	thread setupDamageObjects_Scriptmodel( $scriptmodelLeft2, IMPACT_MEDIUM );
+	thread setupDamageObjects_Scriptmodel( $scriptmodelLeft3, IMPACT_MEDIUM );
+
+	thread setupDamageObjects_Scriptmodel( $scriptmodelRight1, IMPACT_MEDIUM );
+	thread setupDamageObjects_Scriptmodel( $scriptmodelRight2, IMPACT_MEDIUM );
+	thread setupDamageObjects_Scriptmodel( $scriptmodelRight3, IMPACT_MEDIUM );
+	
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+
+	//thread setupDamageObjects_Scriptmodel( $scriptmodelCenter1, IMPACT_HIGH );
+
+	//---------------------------------------------
+	//--- setup the tubes damage objects
+	//---------------------------------------------
+	//thread setupDamageObjects_Tube( $tubeLeft1Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeLeft1Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeLeft2Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeLeft2Bottom, IMPACT_MEDIUM );
+
+	//thread setupDamageObjects_Tube( $tubeRight1Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeRight1Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeRight2Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeRight2Bottom, IMPACT_MEDIUM );
+	
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+
+	//thread setupDamageObjects_Tube( $tubeCenter1Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeCenter1Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeCenter2Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeCenter2Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeCenter3Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeCenter3Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeCenter4Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeCenter4Bottom, IMPACT_MEDIUM );
+	//thread setupDamageObjects_Tube( $tubeCenter5Top, IMPACT_MEDIUM );
+	thread setupDamageObjects_Tube( $tubeCenter5Bottom, IMPACT_MEDIUM );
+	
+	//hzm coop mod chrissstrahl - make sure we don't stress the server
+	wait(0.05);
+
+	//---------------------------------------------
+	//--- setup the warp core triggers
+	//---------------------------------------------
+	$triggerWarpCore_Bottom.destructible( 1 );
+	$triggerWarpCore_Middle.destructible( 1 );
+	$triggerWarpCore_Top.destructible( 1 );
+
+	$triggerWarpCore_Bottom.triggerondeath( 1 );
+	$triggerWarpCore_Middle.triggerondeath( 1 );
+	$triggerWarpCore_Top.triggerondeath( 1 );
+
+	$triggerWarpCore_Bottom.health( 100 );
+	$triggerWarpCore_Middle.health( 100 );
+	$triggerWarpCore_Top.health( 100 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	$triggerWarpCore_Bottom.thread( "puzzleWarpCore_BlowWarpCore" );
+	$triggerWarpCore_Middle.thread( "puzzleWarpCore_BlowWarpCore" );
+	$triggerWarpCore_Top.thread( "puzzleWarpCore_BlowWarpCore" );
+}
+
+
+//---------------------
+// setupDamageObjects_Brush
+// entTrigger - entity, the trigger to effect
+// enumImpactFactor - float, the impact effect destroying this object will have on the warp core puzzle
+// sets up the brush model damage objects for the warp core puzzle
+//---------------------
+void setupDamageObjects_Brush( entity entTrigger, float enumImpactFactor )
+{
+	string strSpawner;
+	string strNonDamaged;
+	string strDamaged;
+
+	entity entSpawner;
+	entity entNonDamaged;
+	entity entDamaged;
+
+
+	//---------------------------------------
+	//--- disect the target chain and capture the targetnames, stuffing them into the trigger
+	//---------------------------------------
+
+	//--- grab the triggers target, which is the spawner
+	strSpawner = entTrigger.gettarget();
+
+	////print( "SETUP BRUSH: strSpawner: " + strSpawner + " : entTrigger's target: " + entTrigger.gettarget() + "\n" );
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strSpawner", strSpawner );
+
+	//--- grab the spawner and get its target, which is the nondamaged object
+	entSpawner = getentity( strSpawner );
+
+	strNonDamaged = entSpawner.gettarget();
+
+	//--- setup and trigger the spawner
+	damageObjects_SetSpawner( entSpawner );
+
+	////print( "SETUP BRUSH: strNonDamaged: " + strNonDamaged + " : entSpawner's target: " + entSpawner.gettarget() + "\n" );
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strNonDamaged", strNonDamaged );
+
+	//--- grab the nondamaged object and get it's target, which is the damaged object
+	entNonDamaged = getentity( strNonDamaged );
+
+	strDamaged = entNonDamaged.gettarget();
+
+	////print( "SETUP BRUSH: strDamaged: " + strDamaged + " : entNonDamaged's target: " + entNonDamaged.gettarget() + "\n" );
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strDamaged", strDamaged );
+
+	//--- stuff the impact factor on the trigger
+	entTrigger.setfloatvar( "enumImpactFactor", enumImpactFactor );
+
+	//--- get the damaged entity and hide it
+	entDamaged = getentity( strDamaged );
+	entDamaged.hide();
+
+	//---------------------------------------
+	//--- setup the trigger brush
+	//---------------------------------------
+
+	//--- set the damage stuff
+	thread setupDamageObjects_Trigger( entTrigger );
+
+	//--- set the ontrigger thread
+	entTrigger.thread( "damageObjects_Brush" );
+}
+
+
+//---------------------
+// setupDamageObjects_Scriptmodel
+// entTrigger - entity, the trigger to effect
+// enumImpactFactor - float, the impact effect destroying this object will have on the warp core puzzle
+// sets up the scriptmodel damage objects for the warp core puzzle
+//---------------------
+void setupDamageObjects_Scriptmodel( entity entTrigger, float enumImpactFactor )
+{
+	string strSpawner;
+	string strModel;
+
+	entity entSpawner;
+
+
+	//---------------------------------------
+	//--- disect the target chain and capture the targetnames, stuffing them into the trigger
+	//---------------------------------------
+
+	//--- grab the triggers target, which is the spawner
+	strSpawner = entTrigger.gettarget();
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strSpawner", strSpawner );
+
+	//--- grab the spawner and get it's target, which is the nondamaged object
+	entSpawner = getentity( strSpawner );
+
+	strModel = entSpawner.gettarget();
+
+	//--- setup and trigger the spawner
+	damageObjects_SetSpawner( entSpawner );
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strModel", strModel );
+
+	//--- stuff the impact factor on the trigger
+	entTrigger.setfloatvar( "enumImpactFactor", enumImpactFactor );
+
+
+	//---------------------------------------
+	//--- setup the trigger brush
+	//---------------------------------------
+
+	//--- set the damage stuff
+	thread setupDamageObjects_Trigger( entTrigger );
+
+	//--- set the ontrigger thread
+	entTrigger.thread( "damageObjects_Scriptmodel" );
+}
+
+
+//---------------------
+// setupDamageObjects_Tube
+// entTrigger - entity, the trigger to effect
+// enumImpactFactor - float, the impact effect destroying this object will have on the warp core puzzle
+// sets up the tube damage objects for the warp core puzzle
+//---------------------
+void setupDamageObjects_Tube( entity entTrigger, float enumImpactFactor )
+{
+	string strSpawner;
+	string strModel;
+
+	entity entSpawner;
+	entity entModel;
+
+
+	//---------------------------------------
+	//--- disect the target chain and capture the targetnames, stuffing them into the trigger
+	//---------------------------------------
+
+	//--- grab the triggers target, which is the spawner
+	strSpawner = entTrigger.gettarget();
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strSpawner", strSpawner );
+
+	//--- grab the spawner and get it's target, which is the nondamaged object
+	entSpawner = getentity( strSpawner );
+
+	strModel = entSpawner.gettarget();
+
+	//--- setup and trigger the spawner
+	damageObjects_SetSpawner( entSpawner );
+
+	//--- stuff the rawtargetname into the trigger
+	entTrigger.setstringvar( "strModel", strModel );
+
+	//--- grab the tube
+	entModel = getentity( strModel );
+
+	//--- set the top or bottom flag on the model
+	if( entTrigger.getstringvar( "uservar1" ) == "top" )
+	{
+		entModel.setfloatvar( "top", 1 );
+	}
+	else
+	{
+		entModel.setfloatvar( "bottom", 1 );
+	}
+
+	//--- make the tube notsolid
+	entModel.notsolid();
+
+	//--- stuff the impact factor on the trigger
+	entTrigger.setfloatvar( "enumImpactFactor", enumImpactFactor );
+
+	//--- HACK Used to force the top to being normal...Done to remove some triggers to save on edict limit
+	entModel.setfloatvar( "top", 1 );
+
+	//--- setup the tube for the proper anim
+	thread damageObjects_SetTube( entModel );
+
+	//---------------------------------------
+	//--- setup the trigger brush
+	//---------------------------------------
+
+	//--- set the damage stuff
+	thread setupDamageObjects_Trigger( entTrigger );
+
+	//--- set the ontrigger thread
+	entTrigger.thread( "damageObjects_Tube" );
+}
+
+
+//---------------------
+// setupDamageObjects_Trigger
+// entTrigger - entity, the trigger to effect
+// sets up the trigger brush for damaged objects
+//---------------------
+void setupDamageObjects_Trigger( entity entTrigger )
+{
+	//--- make the trigger damagable
+	entTrigger.destructible( 1 );
+
+	//--- make the trigger activate on death
+	entTrigger.triggerondeath( 1 );
+
+	//--- set it's health
+	entTrigger.health( WCORE_DAMAGE_OBJECTS_TRIGGER_HEALTH );
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  STARTING IDRYLL THAT RUN AT THE PLAYER
+//==========================================================================================
+//==========================================================================================
+
+//---------------------
+// idryllStart_RunToPlayer
+// make the 2 starting idryll run at the player
+//---------------------
+void idryllStart_RunToPlayer()
+{
+	$idryllStart1.walkto( "$nodeIdryllStart1", "run" );
+	$idryllStart2.walkto( "$nodeIdryllStart2", "run" );
+	//$idryllStart1.remove();
+	//$idryllStart2.remove();
+}
+
+
+//---------------------
+// idryllStart_AIOn
+// activate the 2 starting idryll's AI
+//---------------------
+void idryllStart_AIOn()
+{
+	$idryllStart1.ai_on();
+	$idryllStart2.ai_on();
+	$idryllStart1.attackplayer();
+	$idryllStart2.attackplayer();
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+//  WARP CORE PUZZLE
+//==========================================================================================
+//==========================================================================================
+
+//===============================================================================================================================
+//  BOMB PUZZLE FUNCTIONS
+//==============================================================================================================================
+
+//---------------------
+// 	bombPuzzle_SpawnWave
+// 	spawns a wave if there are waves left in the puzzle
+//---------------------
+void bombPuzzle_SpawnWave()
+{
+	if( fltBombWavesLeft > 0 )
+	{
+    	//print( "SPAWN WAVE: ==============================\n" );
+    	//print( "SPAWN WAVE: starting an attack run\n" );
+    	//print( "SPAWN WAVE: ==============================\n" );
+
+		//--- reduce the number of waves left
+		fltBombWavesLeft --;
+
+		//--- spawn a wave
+		thread bomberSpawnWave( 2 );
+		thread defenderSpawnWave();
+	}
+	else
+	{
+		//--- the area's secure
+		thread puzzleWarpCore_AreaSecure();
+	}
+}
+
+//---------------------
+// bombPuzzle_CheckForDeath
+// checks if the entire wave is dead
+//---------------------
+void bombPuzzle_CheckForDeath()
+{
+	if( boolBomberWaveDead == TRUE && boolDefenderWaveDead == TRUE )
+	{
+		wait( WCORE_BOMB_DELAY_BETWEEN_WAVES );
+
+		thread bombPuzzle_SpawnWave();
+	}
+}
+
+
+//===============================================================================================================================
+//  BOMBER AI FUNCTIONS
+//==============================================================================================================================
+
+void testBomb()
+{
+	bomberSpawnWave( 2 );
+}
+
+//---------------------
+// 	bomberSpawnWave
+//	fltNumberOfBombers - float, number of bombers to spawn
+// 	spawn a wave of bomers
+//---------------------
+void bomberSpawnWave( float fltNumberOfBombers )
+{
+	entity entBomb;
+
+	string strTargetname;
+
+	//--- set the flag that the bomber wave is active
+	boolBomberWaveDead = FALSE;
+
+	//--- pick a bomb location
+	fltBomberPreviousChoice = bomberSpawnWave_PickLocation();
+
+	//print( "SPAWN BOMBER WAVE: ==============================\n" );
+	//print( "SPAWN BOMBER WAVE: starting bomber wave\n" );
+	//print( "SPAWN BOMBER WAVE: ==============================\n" );
+
+	//print( "SPAWN BOMBER WAVE: picked bomb location: " + fltBomberPreviousChoice + "\n" );
+
+	//--- grab the bomb entity
+	strTargetname = "bomb" + fltBomberPreviousChoice;
+	entBomb = getEntity( strTargetname );
+
+	//print( "SPAWN BOMBER WAVE: strTargetname of choosen bomb: " + strTargetname + "\n" );
+	//print( "SPAWN BOMBER WAVE: entBomb choosen bomb entity: " + entBomb.getRawTargetname() + "\n" );
+	//print( "SPAWN BOMBER WAVE: stored zone on choosen bomb: " + entBomb.getFloatVar( "uservar3" ) + "\n" );
+	//print( "SPAWN BOMBER WAVE: fltNumberOfBombers to spawn: " + fltNumberOfBombers + "\n" );
+
+	//--- spawn the bombers
+	//print( "SPAWN BOMBER WAVE: spawning A bomber\n" );
+
+	thread bomberSpawnWave_SpawnBomber( "A", entBomb.getFloatVar( "uservar3" ) );
+
+	//--- check if more than one bomber is supposed to spawn
+	if( fltNumberOfBombers > 1 )
+	{
+		//print( "SPAWN BOMBER WAVE: spawning B bomber\n" );
+
+		thread bomberSpawnWave_SpawnBomber( "B", entBomb.getFloatVar( "uservar3" ) );
+	}
+}
+
+//---------------------
+// bomberSpawnWave_PickLocation
+// pick a bomb location
+//---------------------
+float bomberSpawnWave_PickLocation()
+{
+	float fltChoice = 0, boolSuccess = 0;
+
+	while( boolSuccess == FALSE )
+	{
+		//print( "BOMBER PICK LOC: ==============================\n" );
+		//print( "BOMBER PICK LOC: staring to pick location\n" );
+		//print( "BOMBER PICK LOC: ==============================\n" );
+
+		//--- pick a location
+		fltChoice = randomInt( WCORE_BOMB_POS_TOTAL ) + 1;
+
+		//print( "BOMBER PICK LOC: random pick: " + fltChoice + "\n" );
+		//print( "BOMBER PICK LOC: previous random pick: " + fltBomberPreviousChoice + "\n" );
+		//print( "BOMBER PICK LOC: status of random pick: " + globalArray_FloatGet( "bombPosStatus", fltChoice ) + "\n" );
+
+		//--- check to see if it's available
+		if( fltChoice != fltBomberPreviousChoice && (globalArray_FloatGet( "bombPosStatus", fltChoice ) == TRUE) )
+		{
+			boolSuccess = TRUE;
+		}
+	}
+
+	return( fltChoice );
+}
+
+//---------------------
+// 	bomberSpawnWave_SpawnBomber
+//	strBomber - string, bomber designator A or B
+//	fltZone - float, the zone number to spawn the bomber in
+// 	spawn the designated bomber and run him to the choosen bomb
+//---------------------
+void bomberSpawnWave_SpawnBomber( string strBomber, float fltZone )
+{
+	entity entSpawner, entBomber;
+
+	string strTargetname;
+
+	//--- grab the spawner
+	strTargetname = "spawnBomber" + strBomber + "_Zone" + fltZone;
+	entSpawner = getEntity( strTargetname );
+
+	//print( "SPAWN BOMBER: ==============================\n" );
+	//print( "SPAWN BOMBER: spawning bomber - " + strBomber + "\n" );
+	//print( "SPAWN BOMBER: ==============================\n" );
+
+	//print( "SPAWN BOMBER: strTargetname of spawner: " + strTargetname + "\n" );
+	//print( "SPAWN BOMBER: entSpawner entity of spawner: " + entSpawner.getRawTargetName() + "\n" );
+
+	//--- spawn the bomber, loop incase someone is standing in the spawn spot, but quit if the other guy dies before this guy can spawn
+	while( !doesEntityExist( entBomber ) && boolBomberWaveDead == FALSE )
+	{
+		//print( "SPAWN BOMBER: attempting to spawn bomber: " + strBomber + " : boolBomberWaveDead : " + boolBomberWaveDead + "\n" );
+		entBomber = entSpawner.spawnNow();
+		wait( .1 );
+	}
+
+	//--- setup the AI
+	if( doesEntityExist( entBomber ) )
+	{
+		//print( "SPAWN BOMBER: successful spawn of bomber: " + strBomber + " :now setting up bomber\n" );
+    	entBomber.ai_off();
+    	entBomber.removeActorWeapon( "IdryllM6RebelPistolShield" );
+    	entBomber.setGroupID( 50 );
+    	entBomber.groupDeathThread( "bomberSpawnWave_Death" );
+    }
+
+	//--- run him to his designated node
+	if( doesEntityExist( entBomber ) )
+	{
+		//--- get the node to run to
+		strTargetname = "$nodeBomb" + strBomber + fltBomberPreviousChoice;
+
+		//print( "SPAWN BOMBER: running to node: " + strTargetname + "\n" );
+
+		entBomber.walkto( strTargetname, "run" );
+		waitFor( entBomber );
+	}
+
+	//--- if he made it, have him start to plant the bomb
+	if( doesEntityExist( entBomber ) && entBomber.getHealth() > 0 )
+	{
+		//--- run the function to plant the bomb
+		thread bomberSpawnWave_PlantBomb( entBomber );
+	}
+}
+
+//---------------------
+// 	bomberSpawnWave_PlantBomb
+// 	plant the bomb
+//---------------------
+void bomberSpawnWave_PlantBomb( entity entBomber )
+{
+	entity entBomb, entDamageObject;
+
+	string strTargetname;
+
+	float i = 0, fltBombersAlive = 0;
+
+	//print( "BOMBER PLANTING: ==============================\n" );
+	//print( "BOMBER PLANTING: plant the bomb for bomber: " + entBomber.getRawTargetname() + " ....\n" );
+	//print( "BOMBER PLANTING: ==============================\n" );
+
+	//--- check if the bomber's alive
+	if( !doesEntityExist( entBomber ) || entBomber.getHealth() <= 0 )
+	{
+		//print( "BOMBER PLANTING: the bomber died in transit, aborting!!\n" );
+		return;
+	}
+
+	//print( "BOMBER PLANTING: is the bomb being planted: " + boolBombBeingPlanted + "\n" );
+
+	//--- check if the bomb's already being planted, and if the location's still valid
+	if( boolBombBeingPlanted == TRUE )
+	{
+		//print( "BOMBER PLANTING: the bomb is already being planted, " + entBomber.getRawTargetname() + " arming the bomb\n" );
+
+    	//--- bomber arms the bomb
+    	entBomber.anim( "rebel_set" );
+		return;
+	}
+
+	//--- set the flag that the bomb is now being planted
+	boolBombBeingPlanted = TRUE;
+
+	//--- grab the bomb
+	strTargetname = "bomb" + fltBomberPreviousChoice;
+	entBomb = getEntity( strTargetname );
+
+	//print( "BOMBER PLANTING: strTargetname of bomb: " + strTargetname + "\n" );
+	//print( "BOMBER PLANTING: entBomb entity of choosen bomb: " + entBomb.getRawTargetname() + "\n" );
+
+	//--- bomber plants the bomb
+	if( doesEntityExist( entBomber ) )
+	{
+		//print( "BOMBER PLANTING: starting to plant the bomb\n" );
+
+    	//--- set the guy to immortal for bomb planting
+    	entBomber.immortal( 1 );
+    	entBomber.anim( "rebel_plant" );
+    	waitForAnimation( entBomber, "rebel_plant" );
+
+    	//--- make him mortal again
+    	entBomber.immortal( 0 );
+    }
+
+	//--- show the bomb
+	entBomb.show();
+
+	//--- set the bomb as a mission objective
+	entBomb.missionObjective( 1 );
+
+	//print( "BOMBER PLANTING: the bomb has been planted......\n" );
+
+	//--- bomber arms the bomb
+	if( doesEntityExist( entBomber ) )
+	{
+		//print( "BOMBER PLANTING: " + entBomber.getRawTargetname() + " now arming the bomb\n" );
+
+    	entBomber.anim( "rebel_set" );
+	}
+
+	//-- count down on da bomb
+	while( i < WCORE_BOMB_PLANT_TIME && boolBombBeingPlanted == TRUE )
+	{
+		//print( "BOMBER PLANTING: checking status on arming interval: " + i + "\n" );
+
+		//--- check if the location's no longer valid
+		if( globalArray_FloatGet( "bombPosStatus", fltBomberPreviousChoice ) == FALSE )
+		{
+			//print( "BOMBER PLANTING: location: " +  fltBomberPreviousChoice + "is no longer valid on count: " + i + "\n" );
+
+			boolBombBeingPlanted = FALSE;
+		}
+
+		wait( WCORE_BOMB_PLANT_UPDATE_INTERVAL );
+
+		i += WCORE_BOMB_PLANT_UPDATE_INTERVAL;
+	}
+
+	//--- check if the bomb was successfully armed
+	if( boolBombBeingPlanted == TRUE )
+	{
+		//print( "BOMBER PLANTING: the bomb was successfully armed, now blow it up\n" );
+
+		//--- spawn an explosion
+		//spawn( WCORE_BOMB_EXPLOSION_FX, "origin", vectorToString( entBomb.getOrigin() ) );
+
+		//--- position the bomb explosion spawner
+		$spawnBombExplosion.origin( entBomb.getOrigin() );
+		$spawnBombExplosion.angles( entBomb.getAngles() );
+		wait( .1 );
+
+		//--- spawn the explosion
+		triggerEntity( $spawnBombExplosion );
+
+		//--- trigger the damage object
+		entDamageObject = getEntity( entBomb.getTarget() );
+		triggerEntity( entDamageObject );
+
+		//--- spawn an earthquake
+		entDamageObject.earthquake( 1, 1.5 );
+
+		//print( "BOMBER PLANTING: damaging object: " + entDamageObject.getRawTargetname() + "\n" );
+
+		//--- set the bomb planting flag
+		boolBombBeingPlanted = FALSE;
+	}
+
+	//--- hide the bomb
+	entBomb.hide();
+
+	//--- reset the bomb as a mission objective
+	entBomb.missionObjective( 0 );
+
+	//--- find out if any of the bombers are still alive
+	if( doesEntityExist( $idryllBomberA ) )
+	{
+		if( $idryllBomberA.getHealth() > 0 )
+		{
+    		//print( "BOMBER PLANTING: A bomber was still alive\n" );
+
+    		//--- beam the A bomber out
+    		thread bomberSpawnWave_BeamOutBomber( $idryllBomberA );
+
+    		//--- increment the number of bombers that are alive
+    		fltBombersAlive++;
+    	}
+	}
+
+	if( doesEntityExist( $idryllBomberB ) )
+	{
+		if( $idryllBomberB.getHealth() > 0 )
+		{
+    		//print( "BOMBER PLANTING: B bomber was still alive\n" );
+
+    		//--- beam the B bomber out
+    		thread bomberSpawnWave_BeamOutBomber( $idryllBomberB );
+
+    		//--- increment the number of bombers that are alive
+    		fltBombersAlive++;
+    	}
+	}
+
+	//--- if the AI existed, start the bomb sequence over again
+	if( fltBombersAlive > 0 )
+	{
+		//print( "BOMBER PLANTING: bomber(s) were alive, respawning in 7\n" );
+
+		wait( 7 );
+
+		thread bomberSpawnWave( fltBombersAlive );
+	}
+}
+
+
+//---------------------
+// 	bomberSpawnWave_BeamOutBomber
+//	entBomber - entity, the bomber to beam out
+// 	beam out the passed in bomber
+//---------------------
+void bomberSpawnWave_BeamOutBomber( entity entBomber )
+{
+	//print( "BEAM OUT BOMBER: ==============================\n" );
+	//print( "BEAM OUT BOMBER: beaming out bomber: " + entBomber.getRawTargetname() + " ....\n" );
+	//print( "BEAM OUT BOMBER: ==============================\n" );
+
+	entBomber.anim( "idle" );
+	entBomber.notSolid();
+	entBomber.displayEffect( "TransportOut", "Idryll" );
+	wait( 1.5 );
+
+	entBomber.remove();
+}
+
+//---------------------
+// bomberSpawnWave_Death
+// death thread for when all the bombers die
+//---------------------
+void bomberSpawnWave_Death()
+{
+	//print( "BOMBER DEATH: ==============================\n" );
+	//print( "BOMBER DEATH: both bombers are dead\n" );
+	//print( "BOMBER DEATH: ==============================\n" );
+
+	boolBombBeingPlanted = FALSE;
+	boolBomberWaveDead = TRUE;
+
+	//--- check if the entire wave is dead
+	thread bombPuzzle_CheckForDeath();
+}
+
+//===============================================================================================================================
+//  DEFENDER AI FUNCTIONS
+//==============================================================================================================================
+
+//---------------------
+// defenderSpawnWave
+// spawns in a defender wave
+//---------------------
+void defenderSpawnWave()
+{
+	//print( "SPAWN DEFENDER WAVE: ==============================\n" );
+	//print( "SPAWN DEFENDER WAVE: starting defender wave\n" );
+	//print( "SPAWN DEFENDER WAVE: ==============================\n" );
+
+	float i;
+
+	//--- set the defender wave status flag
+	boolDefenderWaveDead = FALSE;
+
+	//--- reset all the previous choices
+	for( i = 1 ; i <= WCORE_BOMB_DEFENDER_NUMBER_OF_GUYS ; i++ )
+	{
+		globalArray_FloatSet( "defenderPreviousChoice", i, 0 );
+	}
+
+	for( i = 1 ; i <= WCORE_BOMB_DEFENDER_NUMBER_OF_GUYS ; i++ )
+	{
+		//--- spawn the defender
+		defenderSpawnWave_SpawnDefender( i );
+	}
+}
+
+//---------------------
+// 	defenderSpawnWave_SpawnDefender
+//	fltDefender - float, the defender number of the current wave to spawn
+// 	spawns an individual defender
+//---------------------
+void defenderSpawnWave_SpawnDefender( float fltDefender )
+{
+	entity entSpawner, entDefender;
+
+	string strTargetname;
+
+	float fltSpawnLoc;
+
+	//print( "SPAWN DEFENDER: ==============================\n" );
+	//print( "SPAWN DEFENDER: spawning defender: " + fltDefender + "\n" );
+	//print( "SPAWN DEFENDER: ==============================\n" );
+
+	//--- wait until the guy's spawned
+	while( !doesEntityExist( entDefender ) )
+	{
+    	//--- pick a spawner location
+    	fltSpawnLoc = defenderSpawnWave_PickLocation();
+
+    	//print( "SPAWN DEFENDER: picked location: " + fltSpawnLoc + "\n" );
+
+    	//--- grab the choosen spawner
+    	strTargetname = "spawnDefender" + fltSpawnLoc;
+    	entSpawner = getEntity( strTargetname );
+
+    	//print( "SPAWN DEFENDER: strTargetname of choosen spawner: " + strTargetname + "\n" );
+    	//print( "SPAWN DEFENDER: entSpawner entity of spawner: " + entSpawner.getRawTargetname() + "\n" );
+
+    	//--- pick the model for the spawner
+    	//defenderSpawnWave_PickTiki( entSpawner );
+
+    	//--- try to spawn the dude (or dudette depending upon you prefered level of political correctness....but then again it's not a human being we're talking about here, but then that would open up discussions about how does game AI feel in terms of political corectness?  Would an Idryll be opposed to being called a dude or dudette???)
+		entDefender = entSpawner.spawnNow();
+	}
+	wait( .1 );
+
+	//print( "SPAWN DEFENDER: spawn successful for defender: " + fltDefender + "\n" );
+
+	//--- store this in the previous choice array
+	globalArray_FloatSet( "defenderPreviousChoice", fltDefender, fltSpawnLoc );
+
+	//--- setup the AI
+	entDefender.setGroupID( 51 );
+	entDefender.groupDeathThread( "defenderSpawnWave_Death" );
+
+	//--- attack the player
+	entDefender.attackPlayer();
+}
+
+//---------------------
+// 	defenderSpawnWave_PickLocation
+// 	picks a spawn location that hasn't been used yet
+//---------------------
+float defenderSpawnWave_PickLocation()
+{
+	float fltChoice = 0, boolSuccess = 0;
+
+	//print( "DEFENDER PICK LOC: ==============================\n" );
+	//print( "DEFENDER PICK LOC: picking location for defender\n" );
+	//print( "DEFENDER PICK LOC: ==============================\n" );
+
+	while( boolSuccess == FALSE )
+	{
+		//--- pick a location
+		fltChoice = randomInt( WCORE_BOMB_DEFENDER_SPAWNERS ) + 1;
+
+		//print( "DEFENDER PICK LOC: fltChoice to check if ok: " + fltChoice + "\n" );
+
+		//--- check to see if it's available
+		if( globalArray_FloatHasMatchingValue( "defenderPreviousChoice", fltChoice ) == FALSE )
+		{
+			//print( "DEFENDER PICK LOC: " + fltChoice + " :this location's available\n" );
+
+			boolSuccess = TRUE;
+		}
+	}
+
+	return( fltChoice );
+}
+
+//---------------------
+// 	defenderSpawnWave_PickTiki
+//	entSpawner - entity, the spawner to pick a tiki for
+// 	picks a tiki for the spawner to use
+//---------------------
+void defenderSpawnWave_PickTiki( entity entSpawner )
+{
+	float fltPercentage, fltChoice, boolGender;
+
+	string strGender, strTiki;
+
+	fltPercentage = randomFloat( 1 );
+	fltChoice = randomInt( 4 ) + 1;
+	boolGender = randomInt( 1 );
+
+	//--- set the gender
+	if( boolGender == 0 )
+	{
+		strGender = "m";
+	}
+	else
+	{
+		strGender = "f";
+	}
+
+	//--- assemble the tiki to use based on percentage chance of different idryll appearing
+	if( fltPercentage < WCORE_BOMB_DEFENDER_ELITE_PERCENTAGE )	//elite idryll
+	{
+		strTiki = "char/idryll-m6-elite-rifle-shield-" + strGender + fltChoice + ".tik";
+	}
+	else if( fltPercentage < WCORE_BOMB_DEFENDER_RIFLE_PERCENTAGE )	//rifle idryll
+	{
+		strTiki = "char/idryll-m6-rebel-rifle-noshield-" + strGender + fltChoice + ".tik";
+	}
+	else	//pistol idryll
+	{
+		strTiki = "char/idryll-m6-rebel-pistol-shield-" + strGender + fltChoice + ".tik";
+	}
+
+	entSpawner.modelName( strTiki );
+}
+
+//---------------------
+// defenderSpawnWave_Death
+// death thread for when all the defenders die
+//---------------------
+void defenderSpawnWave_Death()
+{
+	//print( "DEFENDER DEATH: ==============================\n" );
+	//print( "DEFENDER DEATH: both defenders were killed\n" );
+	//print( "DEFENDER DEATH: ==============================\n" );
+
+	boolDefenderWaveDead = TRUE;
+
+	//--- check if the entire wave is dead
+	thread bombPuzzle_CheckForDeath();
+}
+
+
+//===============================================================================================================================
+//  GAMEPLAY FUNCTIONS
+//==============================================================================================================================
+
+//---------------------
+// puzzleWarpCore_Start
+// start the warp core puzzle
+//---------------------
+void puzzleWarpCore_Start()
+{
+	$doorEngineeringBlastDoor.solid();
+	$doorEngineeringBlastDoor.time( 3 );
+	$doorEngineeringBlastDoor.moveDown( 200 );
+	waitFor( $doorEngineeringBlastDoor );
+
+	//hzm coop mod chrissstrahl - don't do this in coop, other players might wander arround and mess it up
+	return;
+	
+	//--- close the interior portal
+	$portalBlastDoor_Interior.closePortal();
+}
+
+
+//---------------------
+void ambientExplosions()
+{
+	triggerEntity( $spawnExplosionWarpCoreStart );
+
+	$steamWarpCore1.show();
+}
+
+
+void startBombCinematics ()
+{
+	//--- close and lock the side doors
+	$doorEngineering_LeftSide.close();
+	$doorEngineering_RightSide.close();
+	
+	//hzm coop mod chrissstrahl - don't lock these doors during coop, since that could lock out players
+	//$doorEngineering_LeftSide.lock();
+	//$doorEngineering_RightSide.lock();
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$GetToEngineering$$","complete",2,1);
+
+	$barclay.missionobjective( 0 );
+
+	if( boolCinematicDeathStarted == TRUE )
+	{
+		return;
+	}
+
+	//--- execute the cinematic
+	thread cinematicBombPlant();
+
+	boolBombSequenceActivated = TRUE;	//allow the player to shoot more things now that the sequence has started
+}
+
+
+//---------------------
+// puzzleWarpCore_ChiefCallsMunro
+// chief engineer calls munro over, determine whether or not the core needs ejecting
+//---------------------
+void puzzleWarpCore_ChiefCallsMunro()
+{
+	//--- remove the hallway fx
+	$fxRemove.remove();
+
+	// blow up some poop
+	thread ambientExplosions();
+
+	//--- set objective
+	//$player.setobjectiveshow( "FindChiefEngineer", 1 );
+	//$barclay.missionObjective( 1 );
+
+	//--- wait a few seconds, and start the countdown
+	//wait( WCORE_PUZZLE_SECONDS_TO_WAIT_AFTER_EVENT_TO_BEGIN_COUNTDOWN );
+
+	//--- event happens
+	$spawnerWarpCoreMain.earthquake( 2, 1.5 );
+	triggerentity( $spawnerWarpCoreMain );
+
+	//--- give warning
+	//print( "WARNING GIVEN: giving initial warning to start warp core puzzle\n" );
+	thread puzzleWarpCore_Warning( 6 );		//computer: Warp core temperature outside normal levels
+	wait( 2 );
+
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+	
+	//--- chief calls out to evac the area
+	$barclay.playdialog( "localization/sound/dialog/m6l1/barc_warpover.mp3", 1, 11111, 1 ); //The warp core is overheating! Everyone out!
+
+	//--- evac all remaining personnel
+	thread puzzleWarpCore_EvacPersonnel();
+	wait( 3.5 );
+
+	//hzm coop mod chrissstrahl - get player closest to 
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestPreferActive($barclay);
+	
+	$barclay.turnTowardsEntity( ePlayer );
+	wait( 1 );
+
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	$barclay.playdialog("localization/sound/dialog/m6l1/barclay_overhere.mp3", 1, 11111, 1); //Munro! Over here!
+	waitfordialog( $barclay );
+	$startBombCinematics_Trigger.origin ( $barclay.getorigin ()) ;
+	$startBombCinematics_Trigger.triggerable ();
+
+	//	while( globalMath_GetXYDistance( $barclay.getOrigin(), $player.getOrigin() ) > 196 )
+	//	{
+	//		wait( 0.1 );
+	//	}
+}
+
+//---------------------
+// puzzleWarpCore_IdryllStart
+// after the idryll have bombed one object
+//---------------------
+void puzzleWarpCore_IdryllStart()
+{
+	//--- start the idryll bomb waves
+	thread bombPuzzle_SpawnWave();
+
+	//--- barclay tells munro to stop the idryll
+	//print( "WARNING GIVEN: idryll are starting to beam in, give the initial warning\n" );
+	thread puzzleWarpCore_Warning( 1 );		//barclay: Munro! Repel the Idryll before the Warp Core goes critical!
+	wait( 2 );
+
+	$barclay.useActorWeapon( "CompressionRifle" );
+	globalCommon_AiActor( $barclay );
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ClearEngineering$$","incomplete",3,0);
+	globalCoop_objectives_set("$$PreventBombs$$","incomplete",4,1);
+	
+	//-- spawn boss bar tiki for the warp core temp
+	
+	//hzm coop mod chrissstrahl - display timmer hud for all players
+	thread globalCoop_huds_manageAll("warpCoreTemp",1,1);
+
+	//--- start the masterloop
+	thread puzzleWarpCore_MasterLoop();
+	//wait( WCORE_PUZZLE_EXTRA_WARNING_DELAY );
+
+	//--- if the area hasn't been secured, tell the player what to do
+	//if( boolPuzzleWarpCore_AreaSecure == FALSE )
+	//{
+	//	thread puzzleWarpCore_Warning( 9 );		//barclay: Munro! Stop them before the the Warp Core goes critical!
+		//$barclay.playdialog("localization/sound/dialog/m6l1/barc_critical.mp3", 1, 11111, 1); //Munro! Stop them before the the Warp Core goes critical!
+		//waitForDialog( $barclay );
+	//}
+}
+
+
+//---------------------
+// puzzleWarpCore_CloseBlastDoor
+// close the engineering blast door
+//---------------------
+void puzzleWarpCore_CloseBlastDoor()
+{
+	//--- do the events that happen while the door's closing
+	thread puzzleWarpCore_CloseBlastDoor_Events();
+
+	//--- close the door
+	$doorEngineeringBlastDoor.playsound( "sound/doors/airlock_open01.wav", 1, 1.5, 512 );
+	$doorEngineeringBlastDoor.solid();
+	$doorEngineeringBlastDoor.time( 3 );
+	$doorEngineeringBlastDoor.moveDown( 200 );
+	waitFor( $doorEngineeringBlastDoor );
+
+	$doorEngineeringBlastDoor.playsound( "sound/doors/airlock_close01.wav", 1, 1.5, 512 );
+
+	//hzm coop mod chrissstrahl - don't do this in coop, other players might wander arround and mess it up
+	return;
+	
+	//--- close the interior portal
+	$portalBlastDoor_Interior.closePortal();
+}
+
+//---------------------
+// puzzleWarpCore_CloseBlastDoor_Events
+// events happening while the blast door is closing
+//---------------------
+void puzzleWarpCore_CloseBlastDoor_Events()
+{
+	//--- earthquake
+	$spawnExplosionStart1.earthquake( 2, 2 );
+
+	//--- trigger the first explosion
+	triggerEntity( $spawnExplosionStart1 );
+
+	//--- start crew running to their positions
+	$crewEngineer2.walkTo( "$nodeBombB28", "run" );
+	wait( .5 );
+
+	//--- trigger the second explosion
+	triggerEntity( $spawnExplosionStart2 );
+	$barclay.walkTo( "$nodeBarclayStart", "run" );
+	$crewEngineer3.walkTo( "$nodeBombA3", "run" );
+	wait( 1 );
+
+	//--- the steam effect for the blast door
+	$steamBlastDoor1.show();
+	wait( .5 );
+
+	$steamBlastDoor2.show();
+	wait( .5 );
+
+	$steamBlastDoor3.show();
+	$steamBlastDoor1.remove();
+	wait( .25 );
+
+	$steamBlastDoor2.remove();
+	wait( .25 );
+
+	$steamBlastDoor3.remove();
+	wait( 1 );
+
+	$crewEngineer1.anim( "tricorder_use" );
+	$crewEngineer2.anim( "tricorder_use" );
+	$crewEngineer3.anim( "tricorder_use" );
+	//$crewEngineer4.anim( "tricorder_use" );
+	//$crewEngineer5.anim( "tricorder_use" );
+}
+
+//---------------------
+// puzzleWarpCore_OpenBlastDoor
+// open the engineering blast door
+//---------------------
+void puzzleWarpCore_OpenBlastDoor()
+{
+	//--- open the area portals
+	$portalBlastDoor_Interior.openPortal();
+	$portalBlastDoor_Exterior.openPortal();
+
+	//--- remove the blast door portal triggers
+	$triggerBlastDoorPortal.remove();
+
+	$doorEngineeringBlastDoor.playsound( "sound/doors/airlock_open01.wav", 1, 1.5, 512 );
+	$doorEngineeringBlastDoor.time( 7 );
+	$doorEngineeringBlastDoor.moveUp( 352 );
+	waitFor( $doorEngineeringBlastDoor );
+
+	$doorEngineeringBlastDoor.playsound( "sound/doors/airlock_close01.wav", 1, 1.5, 512 );
+}
+
+
+//---------------------
+// puzzleWarpCore_EvacPersonnel
+// all the remaining engineers evac
+//---------------------
+void puzzleWarpCore_EvacPersonnel()
+{
+	//--- make the delete triggers triggerable
+	$triggerDeleteAI.triggerable();
+
+	//--- make the engineers put away their tricorders
+	$crewEngineer1.useActorWeapon( "none" );
+	$crewEngineer2.useActorWeapon( "none" );
+	$crewEngineer3.useActorWeapon( "none" );
+	//$crewEngineer4.useActorWeapon( "none" );
+	//$crewEngineer5.useActorWeapon( "none" );
+
+	//--- make the engineers run to their retreat nodes
+	$crewEngineer1.walkto( "$nodeEngineerRetreat2", "run" );
+	//$crewEngineer5.walkto( "$nodeEngineerRetreat2", "run" );
+	wait( .5 );
+
+	//$crewEngineer4.walkto( "$nodeEngineerRetreat3", "run" );
+	$crewEngineer2.walkto( "$nodeEngineerRetreat4", "run" );
+	wait( .3 );
+
+	$crewEngineer3.walkto( "$nodeEngineerRetreat5", "run" );
+	wait( .5 );
+}
+
+
+//---------------------
+// puzzleWarpCore_DeleteAI
+// delete the AI as they run through the trigger brush at their destination point
+//---------------------
+void puzzleWarpCore_DeleteAI()
+{
+	////print( "DELETE AI!!\n" );
+
+	entity entTrigger;
+	entity entAI;
+
+	//--- grab the trigger brush the AI went through
+	entTrigger = getCurrentEntity();
+
+	//--- grab the AI that triggered it
+	entAI = entTrigger.getLastActivatingEntity();
+
+	//--- remove the AI
+	globalCommon_AiDummyHide( entAI );
+	//entAI.remove();
+}
+
+
+//---------------------
+// puzzleWarpCore_AreaSecure
+// all the reinforcements have been defeated
+//---------------------
+void puzzleWarpCore_AreaSecure()
+{
+	boolPuzzleWarpCore_AreaSecure = TRUE;
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ClearEngineering$$","complete",3,0);
+	globalCoop_objectives_set("$$PreventBombs$$","complete",4,1);
+
+	//--- run the engineer to his final place
+	$barclay.useActorWeapon( "None" );
+	wait( .5 );
+
+	$barclay.ai_off();
+	puzzleWarpCore_ReturnCrew_Run( $barclay, "$nodeChiefEngineer_DataPad" );
+
+	//--- position all of the crew outside of engineering
+	//{'-2540 -560 0', '-2416 -528 0', '-2300 -512 0' }blast door {'-3096 -232 0'}left {'-1736 -232 0'}right
+	$crewEngineer1.origin( '-3096 -232 0' );
+	$crewEngineer2.origin( '-2540 -560 0' );
+	$crewEngineer3.origin( '-2416 -528 0' );
+	$crewEngineer4.origin( '-2300 -512 0' );
+	$crewEngineer5.origin( '-1736 -232 0' );
+	wait( .1 );
+
+	$crewEngineer1.useActorWeapon( "none" );
+	$crewEngineer2.useActorWeapon( "none" );
+	$crewEngineer3.useActorWeapon( "none" );
+	$crewEngineer4.useActorWeapon( "none" );
+	$crewEngineer5.useActorWeapon( "none" );
+
+	$crewEngineer1.turnTowardsEntity( $warpCore );
+	$crewEngineer2.turnTowardsEntity( $warpCore );
+	$crewEngineer3.turnTowardsEntity( $warpCore );
+	$crewEngineer4.turnTowardsEntity( $warpCore );
+	$crewEngineer5.turnTowardsEntity( $warpCore );
+
+	globalCommon_AiDummy( $crewEngineer1, "" );
+	globalCommon_AiDummy( $crewEngineer2, "" );
+	globalCommon_AiDummy( $crewEngineer3, "" );
+	globalCommon_AiDummy( $crewEngineer4, "" );
+	globalCommon_AiDummy( $crewEngineer5, "" );
+	wait( 1 );
+
+	//--- unlock the engineering doors
+	$doorEngineering_LeftSide.unlock();
+	$doorEngineering_RightSide.unlock();
+
+	//--- open the blast door
+	thread puzzleWarpCore_OpenBlastDoor();
+
+	//--- tell the crew to come back into engineering
+	thread puzzleWarpCore_ReturnCrew();
+	wait( 1 );
+
+	//--- if the warp core is goin' down the pooper, no soup for player!!!
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- pause the puzzle progression timer
+	boolWarpCorePuzzlePause = TRUE;
+
+	$munro.playdialog("localization/sound/dialog/m6l1/munro_warpcore.mp3", 1, 11111, 1); //Is the warp core stabilized?
+	waitForDialog( $munro );
+	wait( .2 );
+
+	//--- if the warp core is goin' down the pooper, no soup for player!!!
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- THIS WAS SUPPOSED TO BE BARCLAY!!!!!!!!
+	$crewEngineer2.playdialog("localization/sound/dialog/m6l1/eng_notyet.mp3", 1, 11111, 1); //Not yet. Use your tricorder on the energy distribution panel to help me bleed energy away from the core!
+	waitForDialog( $crewEngineer2 );
+
+	//--- if the warp core is goin' down the pooper, no soup for player!!!
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReReroutePower$$","incomplete",5,1);
+
+	$brushTricorderPanel1.missionobjective( 1 );
+	$tricorderpanel_archetype1.show();
+	$tricorderpanel_archetype1.solid();
+
+	//--- open the access panel for the routing puzzle
+	thread puzzleWarpCore_OpenAccessPanel();
+	
+	//hzm coop mod chrissstrahl - make it less dificult
+	wait(1);
+	
+	//--- unpause the puzzle progression timer
+	boolWarpCorePuzzlePause = FALSE;
+}
+
+//---------------------
+// puzzleWarpCore_ReturnCrew
+// have the crew run back to their panels
+//---------------------
+void puzzleWarpCore_ReturnCrew()
+{
+	thread puzzleWarpCore_ReturnCrew_Run( $crewEngineer1, "$nodeCrewEngineer1_Return" );
+	wait( 1 );
+
+	thread puzzleWarpCore_ReturnCrew_Run( $crewEngineer3, "$nodeCrewEngineer3_Return" );
+	wait( 1 );
+
+	thread puzzleWarpCore_ReturnCrew_Run( $crewEngineer2, "$nodeCrewEngineer2_Return" );
+	wait( .3 );
+
+	thread puzzleWarpCore_ReturnCrew_Run( $crewEngineer4, "$nodeCrewEngineer4_Return" );
+	wait( .2 );
+
+	thread puzzleWarpCore_ReturnCrew_Run( $crewEngineer5, "$nodeCrewEngineer5_Return" );
+}
+
+//---------------------
+// 	puzzleWarpCore_ReturnCrew_Run
+//	entCrew - entity, the crew member to run
+// 	run the passed in crew member to the passed in pathnode, then have him pull out his tricorder and use it
+//---------------------
+void puzzleWarpCore_ReturnCrew_Run( entity entCrew, string strNode )
+{
+	entCrew.walkTo( strNode, "run" );
+	waitfor( entCrew );
+
+	entCrew.useActorWeapon( "Tricorder" );
+	wait( .5 );
+
+	entCrew.anim( "tricorder_use_loop" );
+}
+
+//---------------------
+// puzzleWarpCore_OpenAccessPanel
+// opens the access panel for the power routing puzzle
+//---------------------
+void puzzleWarpCore_OpenAccessPanel()
+{
+	//--- set size on theobject
+	$brushTricorderPanel1.setSize( '-48 -48 -48', '48 48 48' );
+
+	//--- activate the puzzle object
+	$brushTricorderPanel1.puzzleobject_activate();
+
+	//--- setup and activate the power routing puzzle
+	$brushTricorderPanel1.puzzleobject_canceledthread( "puzzleWarpCore_PowerRoutingCanceled" );
+	$brushTricorderPanel1.puzzleobject_itemusedthread( "puzzleWarpCore_PowerRoutingUsed" );
+	$brushTricorderPanel1.puzzleobject_solvedthread( "puzzleWarpCore_PowerRoutingSolved" );
+	$brushTricorderPanel1.puzzleobject_itemtouse( "tricorder" );
+
+	wait( 5 );
+
+	//--- check to see if player has started routing the power yet
+	if( boolPuzzleWarpCore_PowerRoutingStarted == FALSE )
+	{
+    	//--- barclay gives a warning
+    	//print( "WARNING GIVEN: barclay gives the warning to hurry or we're all dead\n" );
+    	thread puzzleWarpCore_Warning( 3 );		//barclay: Hurry! Or we're all dead!
+	}
+}
+
+//---------------------
+// puzzleWarpCore_PowerRoutingHurryWarning
+// warning to give the player if he cancels or fails the puzzles
+//---------------------
+void puzzleWarpCore_PowerRoutingHurryWarning()
+{
+	//--- barclay gives a warning
+	//print( "WARNING GIVEN: barclay gives the warning to hurry or we're all dead\n" );
+	thread puzzleWarpCore_Warning( 3 );		//barclay: Hurry! Or we're all dead!
+}
+
+//---------------------
+// puzzleWarpCore_OverrideCodeHurryWarning
+// warning to the player to eject the core
+//---------------------
+void puzzleWarpCore_OverrideCodeHurryWarning()
+{
+	puzzleWarpCore_PowerRoutingHurryWarning();
+}
+
+
+//---------------------
+// puzzleWarpCore_PowerRoutingCanceled
+// when the player cancels out of the power routing puzzle
+//---------------------
+void puzzleWarpCore_PowerRoutingCanceled()
+{
+	puzzleWarpCore_PowerRoutingHurryWarning();
+}
+
+
+//---------------------
+// puzzleWarpCore_OverrideCodeCanceled
+// when the player cancels out of the override code puzzle
+//---------------------
+void puzzleWarpCore_OverrideCodeCanceled()
+{
+	puzzleWarpCore_OverrideCodeHurryWarning();
+}
+
+
+//---------------------
+// puzzleWarpCore_PowerRoutingUsed
+// when the player uses the puzzle
+//---------------------
+void puzzleWarpCore_PowerRoutingUsed()
+{
+	entity puzzle;
+	puzzle = getcurrententity();
+
+    globalTricorderRoute_Reset();
+	globalTricorderRoute_SetSource1Row( 1 );
+	globalTricorderRoute_SetSource2Row( 4 );
+	globalTricorderRoute_SetSource3Row( 10 );
+	globalTricorderRoute_SetDestination1( 11, 1 );
+	globalTricorderRoute_SetDestination2( 6, 4 );
+	globalTricorderRoute_SetDestination3( 2, 10 );
+
+	//--- begin row definitions
+    globalTricorderRoute_BeginDef();
+    globalTricorderRoute_SetNextRow( 16,  2, 11, 32, 32, 32, 32, 32, 32 );
+    globalTricorderRoute_SetNextRow( 32,  0, 32, 32, 32, 32, 32, 32, 19 );
+    globalTricorderRoute_SetNextRow( 11,  6, 20, 32, 32, 32, 32, 32, 17 );
+    globalTricorderRoute_SetNextRow( 20, 32,  0, 32, 19, 16, 16, 22, 21 );
+    globalTricorderRoute_SetNextRow( 17, 11,  7,  5, 17,  4, 16,  3, 32 );
+    globalTricorderRoute_SetNextRow( 24, 16, 22,  2, 10,  8, 19, 10, 22 );
+    globalTricorderRoute_SetNextRow( 32, 32, 18, 16, 10, 16, 21, 17, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 19, 24, 32, 11,  0, 32 );
+    globalTricorderRoute_SetNextRow( 32, 32, 19, 24, 32, 32,  8,  5, 32 );
+    globalTricorderRoute_SetNextRow( 16, 16, 21, 32, 32, 32,  3,  6, 11 );
+    globalTricorderRoute_SetNextRow( 32, 32, 32, 32, 32, 32, 32, 24,  1 );
+
+    //--- run the puzzle
+    globalTricorderRoute_Run( puzzle, 0 );
+
+	//--- set the flag that tells the puzzle  it is being used
+	boolPuzzleWarpCore_PowerRoutingStarted = TRUE;
+}
+
+
+//---------------------
+// puzzleWarpCore_OverrideCodeUsed
+// when the player uses the puzzle
+//---------------------
+void puzzleWarpCore_OverrideCodeUsed()
+{
+	//--- setup and run the keypad override code puzzle 945912
+	globalTricorderKeypad_SetSecretCode( 9,4,5,9,1,2,0,0,0 );
+	globalTricorderKeypad_SetScannedCodeFlag( TRUE );
+	thread globalTricorderKeypad_Run( $brushTricorderPanel2, 0, 0 );
+
+	//--- set the flag that tells the puzzle has started to be solved
+	boolPuzzleWarpCore_OverrideCodeStarted = TRUE;
+}
+
+//---------------------
+// puzzleWarpCore_PowerRoutingSolved
+// when the player solves the puzzle
+//---------------------
+void puzzleWarpCore_PowerRoutingSolved()
+{
+	////print( "POWER ROUTING:  SOLVED!!!\n" );
+
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$ReReroutePower$$","complete",5,1);
+
+	$brushTricorderPanel1.missionobjective( 0 );
+	$tricorderpanel_archetype1.hide();
+	$tricorderpanel_archetype1.notsolid();
+
+	//--- check the status of the core, if it's beyond critical, the player has to eject it
+	if( enumPuzzleWarpCore_CoreStatus == OVERHEATING )
+	{
+		//--- set the warp core to normal
+		enumPuzzleWarpCore_CoreStatus = NORMAL;
+
+		//--- remove the steam
+		$steamWarpCore1.remove();
+    	$steamWarpCore2.remove();
+    	$steamWarpCore3.remove();
+    	$steamWarpCore4.remove();
+
+		//--- end the sequence
+		thread puzzleWarpCore_Done();
+	}
+	else  //--- player has to eject the core
+	{
+		//--- pause the puzzle progression timer
+		boolWarpCorePuzzlePause = TRUE;
+
+    	//--- set objective
+		
+		//hzm coop mod Chrissstrahl, set the objective
+		globalCoop_objectives_set("$$EjectWarpCore$$","incomplete",6,1);
+		
+    	$brushTricorderPanel2.missionobjective( 1 );
+    	$tricorderpanel_archetype2.show();
+    	$tricorderpanel_archetype2.solid();
+
+		//--- have the chief tell the player
+		$barclay.playdialog("localization/sound/dialog/m6l1/barclay_eject.mp3", 1, 11111, 1); //We have to eject the core!  Munro, the access code to eject the core is 945912.
+
+		//--- open the panel door
+		$doorOverridePanel.time( 3 );
+		$doorOverridePanel.rotateXdown( 120 );
+		waitFor( $doorOverridePanel );
+
+		//--- wait for Barclay to finish speaking
+		waitForDialog( $barclay );
+
+    	//--- unpause the puzzle progression timer
+    	boolWarpCorePuzzlePause = FALSE;
+
+    	//--- activate the puzzle object
+    	$brushTricorderPanel2.puzzleobject_activate();
+
+    	//--- setup and activate the keypad puzzle
+    	$brushTricorderPanel2.puzzleobject_canceledthread( "puzzleWarpCore_OverrideCodeCanceled" );
+    	$brushTricorderPanel2.puzzleobject_itemusedthread( "puzzleWarpCore_OverrideCodeUsed" );
+    	$brushTricorderPanel2.puzzleobject_solvedthread( "puzzleWarpCore_OverrideCodeSolved" );
+    	$brushTricorderPanel2.puzzleobject_itemtouse( "tricorder" );
+    	wait( 10 );
+
+    	//--- check to see if player has entered the code
+    	if( boolPuzzleWarpCore_OverrideCodeStarted == FALSE && boolBlowingWarpCore == FALSE )
+    	{
+   			puzzleWarpCore_OverrideCodeHurryWarning();
+    	}
+	}
+}
+
+
+//---------------------
+// puzzleWarpCore_OverrideCodeSolved
+// when the player solves the puzzle
+//---------------------
+void puzzleWarpCore_OverrideCodeSolved()
+{
+	////print( "OVERRIDE CODE ROUTING:  SOLVED!!!\n" );
+
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+    //--- set the warp core to normal
+    enumPuzzleWarpCore_CoreStatus = NORMAL;
+
+    //--- remove the warpcore
+	$warpCore.remove();
+
+	//--- remove the steam
+	$steamWarpCore1.remove();
+	$steamWarpCore2.remove();
+	$steamWarpCore3.remove();
+	$steamWarpCore4.remove();
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$EjectWarpCore$$","complete",6,1);
+	
+	$brushTricorderPanel2.missionobjective( 0 );
+	$tricorderpanel_archetype2.hide();
+	$tricorderpanel_archetype2.notsolid();
+
+    //--- open the blast door
+    //thread puzzleWarpCore_OpenBlastDoor();
+
+	//--- show the off conduits
+	$warpCoreConduitLeftOn.hide();
+	$warpCoreConduitRightOn.hide();
+	$warpCoreConduitLeftOff.show();
+	$warpCoreConduitRightOff.show();
+
+	//--- move the warp core conduits back
+	$warpCoreConduitFrameLeft.time( .1 );
+	$warpCoreConduitFrameRight.time( .1 );
+	$warpCoreConduitFrameLeft.movewest( 168 );
+	$warpCoreConduitFrameRight.moveeast( 168 );
+	$warpCoreConduitFrameLeft.movenorth( 168 );
+	$warpCoreConduitFrameRight.movenorth( 168 );
+	waitFor( $warpCoreConduitFrameRight );
+
+	//--- do a stop dialog incase a warning's going off
+	$world.stopSound( 6 );
+	$barclay.stopDialog();
+
+    //--- launch the eject cinematic
+    thread cinematicWarpCoreEject();
+}
+
+
+//---------------------
+// puzzleWarpCore_Done
+// when the player solves the puzzle
+//---------------------
+void puzzleWarpCore_Done()
+{
+	//--- tell the player good job
+    $barclay.playdialog("localization/sound/dialog/m6l1/barc_wedidit.mp3", 1, 11111, 1); //We did it!
+    waitForDialog( $barclay );
+
+    $telsia.playdialog("localization/sound/dialog/m6l1/telsia_weneed.mp3", 1, 11111, 1); //Munro, I'm on the Bridge. The Captain's OK, but we're under attack! We need you!
+    waitForDialog( $telsia );
+
+	//--- set objective
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$GetToBridge$$","incomplete",7,1);
+	
+	$turbolift1_archetype.missionobjective( 1 );
+
+	$munro.playdialog("localization/sound/dialog/m6l1/munro_turbolift.mp3", 1, 11111, 1); //Then power up the bridge turbolift.
+	waitForDialog( $munro );
+
+    $barclay.playdialog("localization/sound/dialog/m6l1/barc_onit.mp3", 1, 11111, 1); //I'm on it!
+    waitForDialog( $barclay );
+
+    //--- make the trigger exit triggerable again
+    $triggerExit.triggerable();
+
+    //--- load up barclay's +use dialog
+    initDialog_Barclay( $barclay );
+    initDialog_CrewEngineer1( $crewEngineer2 );
+    initDialog_CrewEngineer1( $crewEngineer3 );
+    initDialog_CrewEngineer1( $crewEngineer5 );
+    initDialog_CrewEngineer2( $crewEngineer1 );
+    initDialog_CrewEngineer2( $crewEngineer4 );
+    //wait( 6 );
+
+	//centerprint( "CHIEF: OK, you should be able to take the turbolift to the bridge!" );
+	wait( 1 );
+
+	turboliftActive = TRUE;
+	wait( 45 );
+
+	$telsia.playdialog("localization/sound/dialog/m6l1/telsia_whereyou.mp3", 1, 11111, 1); //Munro! Where are you? We need you on the Bridge!
+	waitForDialog( $telsia );
+}
+
+
+//---------------------
+// puzzleWarpCore_BlowWarpCore
+// blow the warp core
+//---------------------
+void puzzleWarpCore_BlowWarpCore()
+{
+	//--- remove the triggers
+
+	if( doesEntityExist( $triggerWarpCore_Bottom ) )
+	{
+		$triggerWarpCore_Bottom.remove();
+	}
+
+	if( doesEntityExist( $triggerWarpCore_Middle ) )
+	{
+		$triggerWarpCore_Middle.remove();
+	}
+
+	if( doesEntityExist( $triggerWarpCore_Top ) )
+	{
+		$triggerWarpCore_Top.remove();
+	}
+
+	//--- set the earthquakes, blow the core
+	$spawnerWarpCoreMain.earthquake( 2, 1.75 );
+
+	triggerentity ( $spawnerWarpCore1 );
+	wait( .5 );
+
+	triggerentity ( $spawnerWarpCore3 );
+	wait( .75 );
+
+	//$spawnerWarpCoreMain.earthquake( 2, 4 );
+	triggerentity ( $spawnerWarpCore2 );
+	wait( .3 );
+
+	triggerentity ( $spawnerWarpCore4 );
+	wait( .2 );
+
+	triggerentity ( $spawnerWarpCoreMain );
+
+	//--- whiteout
+	cam_fadeout( .5, 1, 1, 1, 1, 0 );
+	wait( .6 );
+
+	//--- fail the mission
+	thread cinematicDeath();
+}
+
+//---------------------
+// 	puzzleWarpCore_Warning
+//	fltWarning, float - the number of the warning to say
+// 	warnings given to the player over the course of the puzzle
+//---------------------
+void puzzleWarpCore_Warning( float fltWarning )
+{
+	//print( "WARNING: ===================================\n" );
+	//print( "WARNING: PLAY WARNING: " + fltWarning + "\n" );
+	//print( "WARNING: ===================================\n" );
+
+	//--- wait while a warning is active
+	while( boolWarpCoreWarningActive == TRUE )
+	{
+		//print( "WARNING: attempting to play warning: " + fltWarning + ", waiting for another warning to finish!\n" );
+		wait( .2 );
+	}
+
+	//--- if the warp core is goin' down the pooper, no soup for player!!!
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- set the flag
+	boolWarpCoreWarningActive == TRUE;
+
+	//print( "WARNING: playing warning: " + fltWarning + "\n" );
+
+	//--- check which warning to say
+	if( fltWarning == 1 )
+	{
+		$barclay.playdialog( "localization/sound/dialog/m6l1/barc_warpover2.mp3", 1, 11111, 1 ); //Munro! Repel the Idryll before the Warp Core goes critical!
+		waitForDialog( $barclay );
+	}
+	else if( fltWarning == 2 )
+	{
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_reaching.mp3", 1, 11111, 1); 	//Warp Core reaching critical temperature.
+		waitForDialog( $barclay );
+	}
+	else if( fltWarning == 3 )
+	{
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_alldead.mp3", 1, 11111, 1); 	//Hurry! Or we're all dead!
+		waitForDialog( $barclay );
+	}
+	else if( fltWarning == 4 )
+	{
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_imminent.mp3", 1, 11111, 1); 	//Warp Core explosion imminent!
+		waitForDialog( $barclay );
+	}
+	else if( fltWarning == 5 )
+	{
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_watch.mp3", 1, 11111, 1); 		//Munro, watch where you're shooting!
+		waitForDialog( $barclay );
+	}
+	else if( fltWarning == 6 )
+	{
+		$world.simplePlayDialog( "localization/sound/dialog/m6l1/computer_warp30.mp3", 1, 1111111 );	//Warp core temperature outside normal levels.
+		waitDialogLength( "localization/sound/dialog/m6l1/computer_warp30.mp3" );
+	}
+	else if( fltWarning == 7 )
+	{
+		$world.simplePlayDialog( "localization/sound/dialog/m6l1/computer_warp20.mp3", 1, 1111111 );	//Warp core temperature Approaching critical levels.
+		waitDialogLength( "localization/sound/dialog/m6l1/computer_warp20.mp3" );
+	}
+	else if( fltWarning == 8 )
+	{
+		$world.simplePlayDialog( "localization/sound/dialog/m6l1/comp_uterwarp10.mp3", 1, 1111111 );	//Warp core temperature at critical levels.
+		waitDialogLength( "localization/sound/dialog/m6l1/comp_uterwarp10.mp3" );
+	}
+	if( fltWarning == 9 )
+	{
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_critical.mp3", 1, 11111, 1); //Munro! Stop them before the the Warp Core goes critical!
+		waitForDialog( $barclay );
+	}
+	//else if( fltWarning == 10 )
+	//{
+	//	$player.simplePlayDialog( "localization/sound/dialog/m6l1/computer_warp1.mp3", 1, 11111 );	//Warp core detonation in 5, 4, 3, 2, 1.
+	//	waitDialogLength( "localization/sound/dialog/m6l1/computer_warp1.mp3" );
+	//}
+
+	//--- set the flag
+	boolWarpCoreWarningActive == FALSE;
+}
+
+
+//===============================================================================================================================
+//  WARP CORE TIMING
+//==============================================================================================================================
+
+//---------------------
+// puzzleWarpCore_WaitUntilNextUpdate
+// stalls the calling thread for an update interval appropriate to the current percent done of the puzzle
+//---------------------
+void puzzleWarpCore_WaitUntilNextUpdate()
+{
+	//--- calculate the update interval period based on the percentage done of the puzzle
+	fltPuzzleWarpCore_CurrentUpdateIntervalSeconds = puzzleWarpCore_CalcUpdateInterval( fltPuzzleWarpCore_PercentDone );
+
+	//--- suspend thread for that amount of time
+	wait( fltPuzzleWarpCore_CurrentUpdateIntervalSeconds );
+}
+
+
+//---------------------
+// puzzleWarpCore_AdvancePercentDone
+// Advance the puzzle percentage done at the current percent increase rate
+//---------------------
+void puzzleWarpCore_AdvancePercentDone()
+{
+	float fltPercentDoneIncreaseForUpdatePeriod;
+
+	//--- calculate the amount of "percent done" that has elasped during the last update period
+	fltPercentDoneIncreaseForUpdatePeriod = fltPuzzleWarpCore_PercentPerSecond * fltPuzzleWarpCore_CurrentUpdateIntervalSeconds;
+
+	////print( "Percentage done = " + fltPuzzleWarpCore_PercentDone + "\n" );
+	////print( "Percent increase rate (P/Sec) = " + fltPuzzleWarpCore_PercentPerSecond + "\n" );
+	////print( "Period length (sec) = " + fltPuzzleWarpCore_CurrentUpdateIntervalSeconds + "\n" );
+	////print( "Percent increase for update period = " + fltPercentDoneIncreaseForUpdatePeriod + "\n" );
+
+	//--- advance the puzzle by that amount
+	fltPuzzleWarpCore_PercentDone += fltPercentDoneIncreaseForUpdatePeriod;
+//	if( fltPuzzleWarpCore_PercentDone > 1.0 )
+//		fltPuzzleWarpCore_PercentDone = 1.0;
+
+	//hzm coop mod chrissstrahl - send statistic to all players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	float fStat;
+	fStat = ( (50 + (50 * fltPuzzleWarpCore_PercentDone)) );
+	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.setstat("generic",fStat);
+		}
+	}
+	//hzm eof
+	
+	//newline(); //hzm coop mod chrissstrahl - um, what ever the idea here is
+}
+
+
+//-------------------------------------------------------------------------------------------------
+/* this won't work because of the f$!*ing accelleration  //note from Benson: MUUUHAHAAHAHAHAHAHA  SUCKAH!!!!!!!! ;)p
+void puzzleWarpCore_doCountdownVoices()
+{
+	wait( WCORE_PUZZLE_MAXIMUM_SECONDS - 30 );
+	$barclay.playdialog("localization/sound/dialog/m6l1/computer_warp30.mp3", 1, 11111, 1); //Warp core detonation in 30 seconds.
+
+	wait( 10 );
+	$barclay.playdialog("localization/sound/dialog/m6l1/computer_warp20.mp3", 1, 11111, 1); //Warp core detonation in 20 seconds.
+
+	wait( 10 );
+	$barclay.playdialog("localization/sound/dialog/m6l1/computer_warp10.mp3", 1, 11111, 1); //Warp core detonation in 10 seconds.
+
+	wait( 5 );
+	$barclay.playdialog("localization/sound/dialog/m6l1/computer_warp1.mp3", 1, 11111, 1); //Warp core detonation in 5, 4, 3, 2, 1.
+	waitForDialog( $barclay );
+}
+*/
+
+//---------------------
+// puzzleWarpCore_MasterLoop
+// master loop for the warp core puzzle
+//---------------------
+void puzzleWarpCore_MasterLoop()
+{
+	//--- grab the time at which the puzzle started
+	fltPuzzleWarpCore_Time_Start = getleveltime();
+
+	//thread puzzleWarpCore_doCountdownVoices();
+
+	////print( "LEVEL START TIME: " + fltPuzzleWarpCore_Time_Start + "\n" );
+	////print( "TEST EXP: " + exp( 1.0 ) + "\n" );
+
+	//--- set the warp core status to overheating
+	enumPuzzleWarpCore_CoreStatus = OVERHEATING;
+
+	while( enumPuzzleWarpCore_CoreStatus == OVERHEATING || enumPuzzleWarpCore_CoreStatus == CRITICAL )
+	{
+		////print( "NEW CYCLE=================================================\n" );
+
+		//--- check to see if the puzzle needs to be paused for crucial dialog
+		while( boolWarpCorePuzzlePause == TRUE )
+		{
+			wait( .1 );
+		}
+
+		//--- move the percentage done forward incrementally
+		puzzleWarpCore_AdvancePercentDone();
+
+		//--- take action based on the current status & percent complete
+		puzzleWarpCore_EvaluateProgress();
+
+		//--- calculate the number of seconds to delay until next UI update and stall until then
+		puzzleWarpCore_WaitUntilNextUpdate();
+	}
+
+	//--- last chance......
+	if( enumPuzzleWarpCore_CoreStatus == MELTDOWN && enumPuzzleWarpCore_CoreStatus != NORMAL )
+	{
+		$world.simplePlayDialog( "localization/sound/dialog/m6l1/computer_warp1.mp3", 1, 1111111 );	//Warp core detonation in 5, 4, 3, 2, 1.
+		waitDialogLength( "localization/sound/dialog/m6l1/computer_warp1.mp3" );
+
+		//--- check if the player successfully stopped the warp core
+		if( enumPuzzleWarpCore_CoreStatus != NORMAL )
+		{
+			boolBlowingWarpCore = TRUE;
+
+    		//--- blow the core cinematic, end mission....A MIGHTY FAILURE!!!!  NO SOUP FOR YOU!!!!
+    		thread puzzleWarpCore_BlowWarpCore();
+    	}
+	}
+	
+	//hzm coop mod chrissstrahl - remove timmer hud
+	thread globalCoop_huds_manageAll("warpCoreTemp",0,0);
+}
+
+
+//---------------------
+// puzzleWarpCore_EvaluateProgress
+// evaluates the progression of the warp core puzzle and executes warnings and phase changes
+//---------------------
+void puzzleWarpCore_EvaluateProgress()
+{
+	//--- evaluate to see what to set the core status to
+	if( enumPuzzleWarpCore_CoreStatus == NORMAL )
+	{
+		return;
+	}
+	else if( fltPuzzleWarpCore_PercentDone <= WCORE_PUZZLE_CRITICAL_PERCENTAGE )
+	{
+		//--- set the warp core status to overheating
+		enumPuzzleWarpCore_CoreStatus = OVERHEATING;
+
+		//--- check to see if the puzzle is at the pre-critical warning point
+		if( boolAlmostCriticalWarningGiven == FALSE && fltPuzzleWarpCore_PercentDone >= WCORE_PUZZLE_ALMOST_CRITICAL_WARNING_PERCENTAGE )
+		{
+			//--- set the flag that the warning
+			boolAlmostCriticalWarningGiven = TRUE;
+
+			//print( "WARNING GIVEN: computer gives warning that temp approaching critical\n" );
+			thread puzzleWarpCore_Warning( 7 );		//computer: Warp core temperature Approaching critical levels.
+
+			//--- turn on steam 2
+			$steamWarpCore2.show();
+		}
+	}
+	else if( fltPuzzleWarpCore_PercentDone < 1.0 )
+	{
+		//--- set the warp core status to overheating
+		enumPuzzleWarpCore_CoreStatus = CRITICAL;
+
+		//--- warn that the temperature's gon critical
+		if( boolCriticalWarningGiven == FALSE )
+		{
+			//--- set the flag that the warning
+			boolCriticalWarningGiven = TRUE;
+
+			//print( "WARNING GIVEN: computer gives warning that temp at critical\n" );
+			thread puzzleWarpCore_Warning( 8 );		//computer: Warp core temperature at critical levels.
+
+			//--- turn on steams 3 and 4
+			$steamWarpCore3.show();
+			$steamWarpCore4.show();
+		}
+
+		//--- warn that a meltdown is immenent
+		if( boolAlmostMeltdownWarningGiven == FALSE && fltPuzzleWarpCore_PercentDone >= WCORE_PUZZLE_ALMOST_MELTDOWN_WARNING_PERCENTAGE )
+		{
+			//--- set the flag that the warning
+			boolAlmostMeltdownWarningGiven = TRUE;
+
+			//print( "WARNING GIVEN: barclay gives warning that explosion imminent\n" );
+			thread puzzleWarpCore_Warning( 4 );		//barclay: Warp Core explosion imminent!
+		}
+	}
+	else  //--- MELTDOWN!!!  YOU'RE ABOUT TO LOSE!!!!
+	{
+		//--- set the warp core status to meltdown and blow it
+		enumPuzzleWarpCore_CoreStatus = MELTDOWN;
+	}
+}
+
+
+//---------------------
+// puzzleWarpCore_CalcUpdateInterval
+// fltCounter - float, the current value of the master counter
+// calculates the time to wait between updates
+//---------------------
+float puzzleWarpCore_CalcUpdateInterval( float fltPercentDone )
+{
+	float fltInterval;
+
+	//--- calculate the interval using a linear interpolation
+	fltInterval = WCORE_UPDATE_INTERVAL_START + (( WCORE_UPDATE_INTERVAL_END - WCORE_UPDATE_INTERVAL_START ) * fltPercentDone );
+
+	return( fltInterval );
+}
+
+
+//===============================================================================================================================
+//  DAMAGE OBJECTS
+//===============================================================================================================================
+
+
+float numberOfObjectsDestroyed = 0;
+void handleDestructivePlayer ()
+{
+	//print ( "ASDFASDFASDFasdf\n" );
+	numberOfObjectsDestroyed ++;
+
+	//give the player a warning the first time
+	if ( numberOfObjectsDestroyed == 1 )
+		$barclay.playdialog("localization/sound/dialog/m6l1/barc_watch.mp3", 1, 11111, 1); 		//Munro, watch where you're shooting!
+
+	if ( numberOfObjectsDestroyed > 6 )
+		thread puzzleWarpCore_BlowWarpCore ();
+
+}
+
+
+//---------------------
+// damageObjects_Brush
+// function to run when the object is destroyed
+//---------------------
+void damageObjects_Brush()
+{
+	entity entTrigger;
+	entity entSpawner;
+	entity entNonDamaged;
+	entity entDamaged;
+	entity entActivator;
+
+	//--- get the trigger that launched this thread
+	entTrigger = getcurrententity();
+
+	//--- get the activating entity
+	entActivator = entTrigger.getLastActivatingEntity();
+
+	//--- set the bomb status on this location
+	damageObjects_SetBombStatus( entTrigger );
+
+	//--- check to say a warning
+	//print( "DAMAGE OBJECT WARNING: a brush object was destroyed\n" );
+	damageObjects_BarclayWarning( entActivator );
+
+	//--- grab all the related entities
+	entSpawner = getentity( entTrigger.getstringvar( "strSpawner" ) );
+	entNonDamaged = getentity( entTrigger.getstringvar( "strNonDamaged" ) );
+	entDamaged = getentity( entTrigger.getstringvar( "strDamaged" ) );
+
+	//--- remove the non damaged
+	entNonDamaged.remove();
+
+	//--- show the damaged one
+	entDamaged.show();
+
+	//--- set the impact factor on the puzzle
+	damageObjects_ApplyImpactFactor( entTrigger );
+
+	//--- make sparks emit
+	damageObjects_RandomSparking( entSpawner );
+}
+
+
+//---------------------
+// damageObjects_Scriptmodel
+// function to run when the object is destroyed
+//---------------------
+void damageObjects_Scriptmodel()
+{
+	entity entTrigger;
+	entity entSpawner;
+	entity entModel;
+	entity entActivator;
+
+	//--- get the trigger that launched this thread
+	entTrigger = getcurrententity();
+
+	//--- get the activating entity
+	entActivator = entTrigger.getLastActivatingEntity();
+
+	//--- set the bomb status on this location
+	damageObjects_SetBombStatus( entTrigger );
+
+	//--- check to say a warning
+	//print( "DAMAGE OBJECT WARNING: a script model object was destroyed\n" );
+	damageObjects_BarclayWarning( entActivator );
+
+	//--- grab all the related entities
+	entSpawner = getentity( entTrigger.getstringvar( "strSpawner" ) );
+	entModel = getentity( entTrigger.getstringvar( "strModel" ) );
+
+	//--- show the damaged version
+	entModel.anim( "destroyed" );
+
+	//--- set the impact factor on the puzzle
+	damageObjects_ApplyImpactFactor( entTrigger );
+
+	//--- make sparks emit
+	thread damageObjects_RandomSparking( entSpawner );
+}
+
+
+//---------------------
+// damageObjects_Tube
+// function to run when the object is destroyed
+//---------------------
+void damageObjects_Tube()
+{
+	entity entTrigger;
+	entity entSpawner;
+	entity entModel;
+	entity entActivator;
+
+	string strPosition;
+
+	//--- get the trigger that launched this thread
+	entTrigger = getcurrententity();
+
+	//--- get the activating entity
+	entActivator = entTrigger.getLastActivatingEntity();
+
+	//--- set the bomb status on this location
+	damageObjects_SetBombStatus( entTrigger );
+
+	//--- check to say a warning
+	//print( "DAMAGE OBJECT WARNING: a tube object was destroyed\n" );
+	damageObjects_BarclayWarning( entActivator );
+
+	//--- grab all the related entities and variables
+	entSpawner = getentity( entTrigger.getstringvar( "strSpawner" ) );
+	entModel = getentity( entTrigger.getstringvar( "strModel" ) );
+	strPosition = entTrigger.getstringvar( "uservar1" );
+
+	//--- set the top or bottom flag on the model
+	if( strPosition == "top" )
+	{
+		entModel.setfloatvar( "top", 0 );
+	}
+	else
+	{
+		entModel.setfloatvar( "bottom", 0 );
+	}
+
+	//--- see which state to show the tube in
+	damageObjects_SetTube( entModel );
+
+	//--- set the impact factor on the puzzle
+	damageObjects_ApplyImpactFactor( entTrigger );
+
+	//--- make sparks emit
+	thread damageObjects_RandomSparking( entSpawner );
+}
+
+
+//---------------------
+// 	damageObjects_BarclayWarning
+//	entActivator - entity, passes in the entity that destroyed the object
+// 	barclay will give a shout out to the player if damage objects get destroyed
+//---------------------
+void damageObjects_BarclayWarning( entity entActivator )
+{
+	fltBarclayDamageWarningCounter++;
+
+	//print( "BARCLAY DAMAGE WARNING: object was destroyed, warning count: " + fltBarclayDamageWarningCounter + "\n" );
+
+	//handle the case of the player running around blowing stuff up before the sequence has started
+	if ( boolBombSequenceActivated == 0 )
+		handleDestructivePlayer ();
+
+	if( fltBarclayDamageWarningCounter >= 3 )
+	{
+		if( getStringEntitySubclass(entActivator) == "Player" )//hzm coop mod chrissstrahl - added support for warning dialog and warning hud in multiplayer
+		{
+    		//--- barclay issues a warning
+    		//$barclay.playdialog("localization/sound/dialog/m6l1/barc_watch.mp3", 1, 11111, 1); //Munro, watch where you're shooting!
+    		//print( "WARNING GIVEN: player shot object\n" );
+    		thread puzzleWarpCore_Warning( 5 );		//barclay: Munro, watch where you're shooting!
+			
+			//hzm coop mod chrissstrahl - added warning hud in multiplayer, so players realize they are messing the mission up
+			thread globalCoop_huds_AddTemporary(entActivator,"coop_m6Deck16Engineering",3);
+			//eof hzm
+    	}
+    	else
+    	{
+    		//--- the AI blew one up
+    		//print( "WARNING GIVEN: AI shot object\n" );
+			thread puzzleWarpCore_Warning( 9 );		//barclay: Munro! Stop them before the the Warp Core goes critical!
+		}
+
+		//--- reset the counter
+		fltBarclayDamageWarningCounter = 0;
+	}
+}
+
+
+//---------------------
+// damageObjects_SetTube
+// entModel - entity, the model of the tube to effect
+// sets up the tube according to what's been destroyed on it
+//---------------------
+void damageObjects_SetTube( entity entModel )
+{
+	//--- check the state of the top and bottom panels, set the anim accordingly
+	if( ( entModel.getfloatvar( "top" ) == 1 ) && ( entModel.getfloatvar( "bottom" ) == 1 ) )
+	{
+		//--- show the animation that both panels are fine
+		////print( "SET TUBE TOP 1 BOTTOM 1: " + entModel.getrawtargetname() + " : top status: " + entModel.getfloatvar( "top" ) + " : bottom status: " + entModel.getfloatvar( "bottom" ) + "\n" );
+		entModel.anim( "idle" );
+	}
+	else if( ( entModel.getfloatvar( "top" ) == 0 ) && ( entModel.getfloatvar( "bottom" ) == 1 ) )
+	{
+		//--- show the animation that the top is destroyed but the bottom is fine
+		////print( "SET TUBE TOP 0 BOTTOM 1: " + entModel.getrawtargetname() + " : top status: " + entModel.getfloatvar( "top" ) + " : bottom status: " + entModel.getfloatvar( "bottom" ) + "\n" );
+		entModel.anim( "des-top" );
+	}
+	else if( ( entModel.getfloatvar( "top" ) == 1 ) && ( entModel.getfloatvar( "bottom" ) == 0 ) )
+	{
+		//--- show the animation that the bottom is destroyed but the top is fine
+		////print( "SET TUBE TOP 1 BOTTOM 0: " + entModel.getrawtargetname() + " : top status: " + entModel.getfloatvar( "top" ) + " : bottom status: " + entModel.getfloatvar( "bottom" ) + "\n" );
+		entModel.anim( "des-bottom" );
+	}
+	else if( ( entModel.getfloatvar( "top" ) == 0 ) && ( entModel.getfloatvar( "bottom" ) == 0 ) )
+	{
+		//--- show the animation that the top is destroyed but the bottom is destroyed
+		////print( "SET TUBE TOP 0 BOTTOM 0: " + entModel.getrawtargetname() + " : top status: " + entModel.getfloatvar( "top" ) + " : bottom status: " + entModel.getfloatvar( "bottom" ) + "\n" );
+		entModel.anim( "desboth" );
+	}
+}
+
+//---------------------
+// damageObjects_SetBombStatus
+// entTrigger - entity, the trigger_once of the damage object
+// checks if this was a bomb position, and sets its status to un-available
+//---------------------
+void damageObjects_SetBombStatus( entity entTrigger )
+{
+	float fltPos;
+
+	fltPos = entTrigger.getFloatVar( "uservar4" );
+
+	//print( "SET BOMB STATUS: setting status for location: " + fltPos + " to FALSE\n" );
+
+	globalArray_FloatSet( "bombPosStatus", fltPos, FALSE );
+}
+
+
+//---------------------
+// damageObjects_SetSpawner
+// entSpawner - entity, the spawner to effect
+// sets up the proper explosion in the spawners for the damage objects
+//---------------------
+void damageObjects_SetSpawner( entity entSpawner )
+{
+	//--- set the explosion to play and trigger it
+	entSpawner.modelname ( WCORE_DAMAGE_OBJECT_EXPLOSION_FX );
+	wait( 0.05 );
+	triggerentity ( entSpawner );
+}
+
+
+//---------------------
+// damageObjects_RandomSparking
+// entSpawner - entity, the spawner to effect
+// emit random sparks from the destroyed panel
+//---------------------
+void damageObjects_RandomSparking( entity entSpawner )
+{
+	float fltRandomTime;
+	float i;
+
+	string strSparkTargetname;
+
+	entity entSpark;
+	entity activator;
+
+	activator = getlastactivatingentity();
+
+	//--- assemble the spark targetname
+	strSparkTargetname = entSpawner.getrawtargetname() + "_spark";
+
+	//--- set the model to use
+	entSpawner.modelname( "fx/fx-sparks-yellow-directional-small.tik" );
+	entSpawner.spawntargetname( strSparkTargetname );
+	triggerentity ( entSpawner );
+	wait( .1 );
+
+	//--- get the spark
+	entSpark = getentity( strSparkTargetname );
+
+	//--- remove the spawner
+	entSpawner.remove();
+
+	//--- loop through and emit the sparks for 20 cycles then remove the sparks
+	for( i = 1 ; i <= 10 ; i++ )
+	{
+
+		entSpark.show();
+		entSpark.loopsound ( "sound/environment/electric/fritz5.wav", .5, 62 );
+		fltRandomTime = randomfloat( .5 ) + .5;
+		wait( fltRandomTime );
+		entSpark.hide();
+        entSpark.stoploopsound ();
+		fltRandomTime = randomfloat( 1 ) + .3;
+		wait( fltRandomTime );
+	}
+
+	entSpark.remove();
+}
+
+
+//---------------------
+// damageObjects_ApplyImpactFactor
+// entTrigger - entity, the trigger that is passed
+// evaluate the impact factor and apply it to the accel factor
+//---------------------
+void damageObjects_ApplyImpactFactor( entity entTrigger )
+{
+	float enumImpactFactor;
+	float fltAccelerationModifier;
+
+	////print( "APPLY IMPACT FACTOR: GO!!\n" );
+
+	//--- grab the impact factor type off of the passed trigger
+	enumImpactFactor = entTrigger.getfloatvar( "enumImpactFactor" );
+
+	//--- calc the float impact factor value based on the type
+	fltAccelerationModifier = 1.0 + damageObjects_CalcImpactFactor( enumImpactFactor );
+
+	//--- apply modifier to fltWarpCorePuzzle_AccelFactor
+	fltPuzzleWarpCore_PercentPerSecond *= fltAccelerationModifier;
+
+	//print( "*********** " + fltPuzzleWarpCore_PercentPerSecond + "\n" );
+}
+
+
+//---------------------
+// damageObjects_CalcImpactFactor
+// enumImpactFactor - float, the enum impact factor (e.g. IMPACT_LOW)
+// calculate the amount of accel increase for the passed impact factor
+//---------------------
+float damageObjects_CalcImpactFactor( float enumImpactFactor )
+{
+	////print( "CALC IMPACT FACTOR: " + enumImpactFactor + "\n" );
+
+	if( enumImpactFactor == IMPACT_HIGH )
+	{
+		////print( "CALC IMPACT FACTOR: HIGH (" + WCORE_ACCEL_IMPACT_FACTOR_HIGH + ")\n" );
+		return( WCORE_ACCEL_IMPACT_FACTOR_HIGH );
+	}
+	else if( enumImpactFactor == IMPACT_MEDIUM )
+	{
+		////print( "CALC IMPACT FACTOR: MEDIUM (" + WCORE_ACCEL_IMPACT_FACTOR_MEDIUM + ")\n" );
+		return( WCORE_ACCEL_IMPACT_FACTOR_MEDIUM );
+	}
+	else  //has to equal IMPACT_LOW
+	{
+		////print( "CALC IMPACT FACTOR: LOW (" + WCORE_ACCEL_IMPACT_FACTOR_LOW + ")\n" );
+		return( WCORE_ACCEL_IMPACT_FACTOR_LOW );
+	}
+}
+
+
+
+
+//==========================================================================================
+//==========================================================================================
+// TURBOLIFT FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+void turboliftUse()
+{
+	entity thisEnt;
+	thisEnt = getcurrententity();
+
+	if( turboliftActive )
+	{
+		thisEnt = getcurrententity();
+		thisEnt.remove();
+		
+		//--- close and lock the door
+		$turboLift.lock();
+		$turboLift.close();
+		
+		//--- have munro call the deck to go to
+		$world.playsound( "localization/sound/dialog/ent_m1/munro_bridge.mp3", 1, 1, 1111111 );	//bridge
+		wait( 1 );
+		
+		//--- play the accept beep
+		$turboLift.playsound( "sound/environment/computer/lcars_yes.wav", 0, 1, 10000 );		//LCARS accept beeb
+		wait( 1 );
+		
+		//--- play the run sound
+		$turboLift.playsound( "sound/ships/enterprise/ent_turbolift_run.wav", 3, 1, 10000 );
+
+		//--- level transition
+		
+		//hzm coop mod chrissstrahl - load next map
+		thread coop_endLevel();
+		
+		
+		/*
+		spawn( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m6-deck1_bridge_redalert" );
+		wait( 2 );
+		triggerentity( $trigger_endlevel );
+		*/
+	}
+	else
+	{
+		thisEnt.notsolid();
+		thisEnt.playsound( "sound/environment/computer/lcars_error.wav", 1, 1, 200 );
+		wait( 2 );
+		thisEnt.solid();
+	}
+}
+
+
+//==========================================================================================
+//==========================================================================================
+// CINEMATIC FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+void testLoad()
+{
+	cam.load( "m6_Deck16_Bomb_Shot1" );
+	cam.load( "m6_Deck16_Bomb_Shot2" );
+}
+
+//---------------------
+// cinematicBombPlant
+// cinematic of Idryll planting a bomb
+//---------------------
+void cinematicBombPlant()
+{
+	//--- if the warp core is goin' down the pooper, no soup for player!!!
+	if( boolBlowingWarpCore == TRUE )
+	{
+		return;
+	}
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+
+	allowMusicDucking ( 0 );
+	music ( "aux1" );
+
+	wait( .6 );
+
+	letterbox( .1 );
+
+	//--- warp the engineers
+	$crewEngineer1.warpTo( "$nodeEngineerRetreat2" );
+	$crewEngineer2.warpTo( "$nodeEngineerRetreat4" );
+	$crewEngineer3.warpTo( "$nodeEngineerRetreat5" );
+
+	cam.load( "m6_Deck16_Bomb_Shot1" );
+	cam.load( "m6_Deck16_Bomb_Shot2" );
+	wait( .1 );
+
+	//------------------------------------------------
+	//--- shot1 - establishing shot coming up on the idryll
+
+	//--- set the camera on the path
+	$cam1.fov( 70 );
+	$cam1.follow( $m6_Deck16_Bomb_Shot1 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+
+	wait( .1 );
+
+	//--- set the skipthread
+	skipthread( "cinematicBombPlant_Skipthread" );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 4 );
+
+	//--- zoom the camera
+	thread globalCineFX_CameraFOVLerp( $cam1, 70, 50, 3, "rampupdown" );
+
+	//--- start the guys planting the bomb
+	thread cinematicBombPlant_Go();
+	wait( 8 );
+
+	//------------------------------------------------
+	//--- shot2 - the explosion
+
+	//--- set the camera on the path
+	$cam2.fov( 80 );
+	$cam2.follow( $m6_Deck16_Bomb_Shot2 );
+	$cam2.cut();
+
+	cuecamera( $cam2 );
+	wait( 3 );
+
+	thread cinematicBombPlant_Skipthread();
+}
+
+//---------------------
+// cinematicBombPlant_Skipthread
+// cinematic of Idryll planting a bomb
+//---------------------
+void cinematicBombPlant_Skipthread()
+{
+	//kill the cinematic
+	skipthread( "null" );
+	killthread( "cinematicBombPlant" );
+	killthread( "cinematicBombPlant_Go" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//--- clean up the cinematic
+	if( doesEntityExist( $idryllBomberA ) )
+	{
+		$idryllBomberA.remove();
+	}
+
+	if( doesEntityExist( $idryllBomberB ) )
+	{
+		$idryllBomberB.remove();
+	}
+
+	//--- hide the bomb
+	$bomb14.hide();
+
+	//--- trigger the damage object if it hasn't been already
+	if( doesEntityExist( $tubeCenter3Bottom ) )
+	{
+    	//--- trigger the damage object
+    	triggerEntity( $tubeCenter3Bottom );
+	}
+
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .2 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .75 );
+	allowMusicDucking ( 1 );
+	music ( "normal" );
+
+
+	//--- remove the camera paths
+	globalCineFX_CameraPathRemove( $m6_Deck16_Bomb_Shot1 );
+	globalCineFX_CameraPathRemove( $m6_Deck16_Bomb_Shot2 );
+
+	thread puzzleWarpCore_IdryllStart();
+}
+
+//---------------------
+// cinematicBombPlant_Skipthread
+// cinematic of Idryll planting a bomb
+//---------------------
+void cinematicBombPlant_Go()
+{
+	triggerEntity( $spawnBomberA_Zone4 );
+	triggerEntity( $spawnBomberB_Zone4 );
+	wait( .1 );
+
+	//--- setup run the bombers over
+	$idryllBomberA.ai_off();
+	$idryllBomberA.immortal ( 1 );	//prevent grenades shot before the cinematic starts from killing them
+	$idryllBomberA.removeActorWeapon( "IdryllM6RebelPistolShield" );
+
+	$idryllBomberB.ai_off();
+	$idryllBomberB.immortal ( 1 );
+	$idryllBomberB.removeActorWeapon( "IdryllM6RebelPistolShield" );
+
+	$idryllBomberA.walkTo( "$nodeBombA14", "run" );
+	$idryllBomberB.walkTo( "$nodeBombB14", "run" );
+	waitFor( $idryllBomberB );
+
+	//--- plant the bomb
+	$idryllBomberA.anim( "rebel_plant" );
+	waitForAnimation( $idryllBomberA, "rebel_plant" );
+
+	//--- show the bomb
+	$bomb14.show();
+
+	//--- arm the bomb
+	$idryllBomberA.anim( "rebel_set" );
+	$idryllBomberB.anim( "rebel_set" );
+	wait( 4 );
+
+	//--- beam out the bombers
+	thread bomberSpawnWave_BeamOutBomber( $idryllBomberA );
+	thread bomberSpawnWave_BeamOutBomber( $idryllBomberB );
+	wait( 1 );
+
+	$idryllBomberA.immortal ( 0 );
+	$idryllBomberB.immortal ( 0 );
+
+	//--- position the bomb explosion spawner
+	$spawnBombExplosion.origin( $bomb14.getOrigin() );
+	$spawnBombExplosion.angles( $bomb14.getAngles() );
+	wait( .1 );
+
+	//--- spawn the explosion
+	triggerEntity( $spawnBombExplosion );
+
+	//--- hide the bomb
+	$bomb14.hide();
+
+	//--- trigger the damage object
+	triggerEntity( $tubeCenter3Bottom );
+
+	//--- spawn an earthquake
+	$tubeCenter3Bottom.earthquake( 1, 1.5 );
+}
+
+//---------------------
+// cinematicWarpCoreEject
+// cinematic of the warp core ejecting
+//---------------------
+void cinematicWarpCoreEject()
+{
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	letterbox( .1 );
+
+	cam.load( "m6_Deck16_Shot1" );
+	wait( .2 );
+
+	//--- set the camera on the path
+	$cam1.fov( 60 );
+	$cam1.follow( $m6_Deck16_Shot1 );
+	$cam1.cut();
+	cuecamera( $cam1 );
+	wait( .25 );
+	//--- change the music
+	forcemusic( "aux3" );
+    allowMusicDucking( 0 );
+	//--- set the skipthread
+	skipthread( "cinematicWarpCoreEject_Skipthread" );
+
+	//--- fade in
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	wait( 2.5 );
+
+	//--- eject the core
+	thread cinematicWarpCoreEject_MoveCore();
+	wait( 7.5 );
+
+	//--- call the end routines
+	thread cinematicWarpCoreEject_Skipthread();
+}
+
+
+//---------------------
+// cinematicWarpCoreEject_Skipthread
+// cinematic of the warp core ejecting skipthread
+//---------------------
+void cinematicWarpCoreEject_Skipthread()
+{
+	//kill the cinematic
+	$rightWarpcoreSpeaker.stoploopsound ();
+	$leftWarpcoreSpeaker.stoploopsound ();
+	$centerWarpcoreSpeaker.stoploopsound ();
+
+	music ( "normal" );
+
+	skipthread( "null" );
+	killthread( "cinematicWarpCoreEject" );
+
+	//fade to black
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	noncinematic();
+	clearletterbox( .1 );
+	cueplayer();
+	releaseplayer();
+	wait( .2 );
+
+	//--- fade in
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( 1 );
+
+    //--- end the sequence
+    puzzleWarpCore_Done();
+}
+
+
+//---------------------
+// move the warp core
+void cinematicWarpCoreEject_MoveCore()
+{
+	$cinematicWarpCore.angles( '0 0 0' );
+	$cinematicWarpCore_Origin1.angles( '0 0 0' );
+	$cinematicWarpCore_Origin2.angles( '0 0 0' );
+	wait( .1 );
+
+	$cinematicWarpCore.bind( $cinematicWarpCore_Origin1 );
+	$cinematicWarpCore_Origin1.bind( $cinematicWarpCore_Origin2 );
+	wait( .1 );
+
+	$cinematicWarpCore_Origin2.origin( vecCinematicWarpCoreOrigin );
+
+	$cinematicWarpCore_Origin2.time( 10 );
+	$cinematicWarpCore_Origin2.moveDown( 486 );
+	$cinematicWarpCore_Origin2.moveNorth( 206 );
+	$cinematicWarpCore_Origin2.moveEast( 256 );
+
+	$cinematicWarpCore_Origin1.rotateX( 45 );
+	$cinematicWarpCore_Origin1.rotateY( 60 );
+	//$cinematicWarpCore_Origin1.rotateZ( 30 );
+	waitFor( $cinematicWarpCore_Origin2 );
+}
+
+void testSetup()
+{
+	cam.load( "m6_Deck16_Death_Shot1" );
+
+	$cinematicWarpCore.hide();
+}
+
+void testBlow()
+{
+	$enterprise.show();
+
+	wait( 1 );
+
+	triggerEntity( $spawnExplosionEnterprise );
+	wait( 1 );
+
+	$enterprise.hide();
+}
+
+
+//---------------------
+// cinematicDeath
+// death cinematic of the enterprise blowing up
+//---------------------
+void cinematicDeath()
+{
+	killthread  ( "cinematicBombPlant" );
+	killthread  ( "cinematicBombPlant_Go" );
+	killthread  ( "cinematicBombPlant_Skipthread" );
+
+	if( boolCinematicDeathStarted == TRUE )
+	{
+		return;
+	}
+
+	boolCinematicDeathStarted = TRUE;
+
+	//--- start cinematic commands
+	freezeplayer();
+	cinematic();
+
+	letterbox( .1 );
+
+	//--- load camera paths
+	cam.load( "m6_Deck16_Death_Shot1" );
+	wait( .1 );
+
+	//--- hide the cinematic warp core
+	$cinematicWarpCore.hide();
+
+	//--- set the camera on the path
+	$cam1.fov( 40 );
+	$cam1.follow( $m6_Deck16_Death_Shot1 );
+	$cam1.cut();
+
+	cuecamera( $cam1 );
+	wait( .1 );
+
+	//--- change the music
+	forcemusic( "aux2" );
+    allowMusicDucking( 0 );
+
+	//--- fade in
+	cam_fadein( 1, 1, 1, 1, 1, 0 );
+
+	//--- set the skipthread
+	skipthread( "cinematicDeath_Skipthread" );
+
+	thread globalCineFX_CameraFOVLerp( $cam1, 40, 80, 10, "rampupdown" );
+	wait( 4 );
+
+	//--- trigger the explosion
+	triggerEntity( $spawnExplosionEnterprise );
+	wait( .25 );
+
+	//--- screen shake
+	$enterprise.earthquake( .25, 1 );
+	$enterprise.forcealpha( 1 );
+	$enterpriseDamage.forcealpha( 1 );
+	$enterprise.fade( 1 );
+	$enterpriseDamage.fade( 1 );
+	wait( .5 );
+
+	$enterprise.hide();
+	wait( 3.25 );
+
+	//--- fail the mission
+	thread cinematicDeath_Skipthread();
+}
+
+
+//---------------------
+// cinematicDeath_Skipthread
+// skipthread for cinematic
+//---------------------
+void cinematicDeath_Skipthread()
+{
+	//hzm coop mod chrissstrahl, fail current mission
+	globalCoop_mission_fail();
+}
+
+
+//==========================================================================================
+//==========================================================================================
+// MISC FUNCTIONS
+//==========================================================================================
+//==========================================================================================
+
+
+//-----------------------------------
+void inaccessible_sound()
+{
+	entity e;
+	e = getcurrententity();
+	e.playsound( "sound/doors/door_locked.wav", 1, .7, 90 );
+}
+
+//-----------------------------------
+void cargobayattack_go()
+{
+	//$cargobayidryll1.ai_on();
+	//$cargobayidryll2.ai_on();
+	return;
+}
+
+//-----------------------------------
+float inaccessible_secret_count = 0;
+void inaccessible_secret()
+{
+	inaccessible_secret_count++;
+	if( inaccessible_secret_count > 200 )
+	{
+		$inaccessible_secrettrigger.remove();
+		$inaccessible_secretdoor.speed( 400 );
+		$inaccessible_secretdoor.rotatex( 90 );
+		$inaccessible_secretdoor.moveeast( 4000 );
+	}
+}
+
+//-----------------------------------
+//	controls the manual area portals around the engineering blast door
+//	when exiting main engineering
+//-----------------------------------
+void portalBlastDoor_Exiting()
+{
+	//hzm coop mod chrissstrahl - don't do this in coop, other players might wander arround and mess it up
+	return;
+	
+	//centerprint( "Exiting engineering!! interior closing, exterior opening" );
+	////print( "Exiting engineering!! interior closing, exterior opening\n" );
+
+	$portalBlastDoor_Interior.closePortal();
+	$portalBlastDoor_Exterior.openPortal();
+}
+
+//-----------------------------------
+//	controls the manual area portals around the engineering blast door
+//	when entering main engineering
+//-----------------------------------
+void portalBlastDoor_Entering()
+{
+	//hzm coop mod chrissstrahl - don't do this in coop, other players might wander arround and mess it up
+	return;
+	
+	//centerprint( "Entering engineering!! exterior closing, interior opening" );
+	////print( "Entering engineering!! exterior closing, interior opening\n" );
+
+	$portalBlastDoor_Interior.openPortal();
+	$portalBlastDoor_Exterior.closePortal();
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m6-deck1_bridge_redalert");
+}
+
+
+
+

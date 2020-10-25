@@ -1,0 +1,1492 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:	  Control "Tube" type doors
+//  Script By:    Shawn "CodeNinja" Ketcherside
+//  Created on:   6/24/2002
+//
+//	Dependancies:
+//	#include "maps/global_scripts/globalArray_FloatSetup"
+//-----------------------------------------------------------------
+
+//--- PUBLIC FUNCTIONS
+//
+// Interface Functions -- These are called from the main level script
+//
+void globalTubeDoor_Setup(string strDoorName, string strDoorType, float totalDistance, string doorMoveDirection , float locked );
+void globalTubeDoor_AddComponent( string strControlType , string strControlName , string strDoorName );
+
+void globalTubeDoor_Lock( string strDoorName );
+void globalTubeDoor_Unlock( string strDoorName );
+float globalTubeDoor_IsLocked( string strDoorName );
+
+
+
+
+//--- INTERNAL USE FUNCTIONS
+//
+// Component Additions -- Adds a component to the door DYNAMICALLY BABY!!!!
+//
+void addButtonComponent( entity entButton , entity entPrimaryDoor );
+void addSwitchDoorComponent( entity entSwitchDoor , entity entPrimaryDoor );
+void addSwitchComponent( entity entSwitch , entity entPrimaryDoor );
+void addLockedLightComponent( entity entLockedLight , entity entPrimaryDoor );
+void addUnLockedLightComponent( entity entUnLockedLight , entity entPrimaryDoor );
+
+//
+// On Use Threads -- Called from an "On Use" event on the script object
+//
+void button_OnUseThread();
+void switchDoor_OnUseThread();
+void switchLever_OnUseThread();
+
+//
+// Accessor Functions -- Returns the requested entity
+//
+entity getPrimaryDoor( string strDoorName	);
+entity getSecondaryDoor( entity entPrimaryDoor );
+entity getDefaultButton( entity entPrimaryDoor );
+entity getDefaultSwitchDoor( entity entPrimaryDoor );
+entity getDefaultSwitchLever( entity entPrimaryDoor );
+entity getDefaultLockedLight( entity entPrimaryDoor );
+entity getDefaultUnlockedLight( entity entPrimaryDoor );
+
+//
+// Set up Entity Functions -- Should NOT be called from the primary level script...
+//
+void setupPrimaryDoor ( entity entPrimaryDoor , entity entSecondaryDoor , string strDoorType, string doorMoveDirection , float totalDistance , float locked );
+void setupButton( entity entButton , entity entPrimaryDoor );
+void setupSwitchDoor( entity entSwitchDoor , entity entPrimaryDoor , float totalDistance );
+void setupSwitchLever( entity entSwitchLever , entity entPrimaryDoor );
+void setupLockedLight( entity entLockedLight, entity entPrimaryDoor );
+void setupUnLockedLight( entity entUnLockedLight , entity entPrimaryDoor );
+
+//
+// Reset Functions -- Resets our On Use threds
+//
+void resetSwitchLever( entity entSwitchLever );
+void resetAllButtons( entity entPrimaryDoor );
+void resetButton( entity entButton );
+
+//
+// Activate Functions -- Handle specific activations of doors, buttons, or levers
+//
+void doorNormal_Activate( entity entPrimaryDoor , entity entButton  );
+void doorManual_Activate( entity entPrimaryDoor , entity entButton  );
+void doorBarrier_Activate( entity entPrimaryDoor , entity entButton  );
+void switchDoor_Activate( entity entPrimaryDoor , entity entSwitchDoor  );	
+void switchLever_Activate(entity entPrimaryDoor , entity entSwitch  );
+
+//
+// Move Functions -- Actually moves script objects around
+// 
+void moveDoors( entity entPrimaryDoor , entity entSecondaryDoor , float moveDistance , string moveDirection );
+void moveSwitchDoor ( entity entSwitchDoor , float totalDistance , string moveDirection );
+void moveSwitch( entity entSwitchLevel , string moveDirection );
+
+
+//
+// Utility Functions -- Stuff to make my life easier, and keep stuff encapsulated
+//
+float checkLocked( entity entPrimaryDoor );
+void handleLocked ( entity entButton );
+void changeDoorLock( entity entPrimaryDoor , float locked );
+void closeDoors( entity entPrimaryDoor , entity entButton);
+
+
+//-------------------------------------------------------------------------------------------------
+// Interface Threads
+// These threads can safely be called from the primary level script
+//-------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------
+// Name:		globalTubeDoor_Setup()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Sets up a properly linked set of script objects to function as typed version of 
+//				a "tubeDoor".  To Function correctly, the script REQUIRES 4 objects ( PrimaryDoor,
+//				SecondaryDoor, SwitchDoor, and SwitchLever ).  Link them as described below
+//				
+//				PrimaryDoor --targets--> SecondaryDoor --targets--> SwitchDoor --targets --> SwitchLever
+//
+// Parameters:	string strDoorName			-- The targetname of the PRIMARY DOOR
+//				string strDoorType			-- The type of tube door ( valid values are: "normal" , "manual" , "barrier" )
+//				float totalDistance			-- The amount for the doors to move -- Primary and secondary doors MUST move the same distance
+//				string doorMoveDirection	-- The direction to move the doors ( valid values are : "up" , "down" , "north_south" , "east_west" )
+//				float locked				-- Whether or not the door is locked ( 1.0 = locked, 0.0 = unlocked )
+//
+// Returns:		None
+//--------------------------------------------------------------
+void globalTubeDoor_Setup( string strDoorName, string strDoorType, float totalDistance, string doorMoveDirection , float locked )
+{
+	entity entPrimaryDoor;
+	entity entSecondaryDoor;
+	entPrimaryDoor		= getPrimaryDoor( strDoorName );	
+	entSecondaryDoor    = getSecondaryDoor( entPrimaryDoor );
+	setupPrimaryDoor( entPrimaryDoor , entSecondaryDoor , strDoorType, doorMoveDirection , totalDistance , locked );
+		
+}
+
+//--------------------------------------------------------------
+// Name:		addButtonComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds a Button Control Component To the Door Object
+//
+// Parameters:	entity entButton -- The Button To Add
+//				entity entButton -- The Door to Add the Button To
+//
+// Returns:		None
+//--------------------------------------------------------------
+void addButtonComponent( entity entButton , entity entPrimaryDoor )
+{
+	float numberOfButtonComponents;
+	string varName;
+	
+	numberOfButtonComponents = entPrimaryDoor.getfloatvar( "numberOfButtonComponents" );
+	numberOfButtonComponents++;
+	entPrimaryDoor.setfloatvar( "numberOfButtonComponents" , numberOfButtonComponents );
+
+	//print( "ADDING BUTTON " + entButton.gettargetname() + " TO DOOR " + entPrimaryDoor.gettargetname() + "\n" );
+	//print( "numberOfButtonComponents = " + numberOfButtonComponents + "\n" );
+	
+	varName = "button" + numberOfButtonComponents;
+	entPrimaryDoor.setstringvar( varName , entButton.getrawtargetname() );
+
+
+	// We must call with the "thread" key word so that we don't hang forever on the pause();
+	thread setupButton( entButton , entPrimaryDoor );
+}
+
+//--------------------------------------------------------------
+// Name:		addSwitchDoorComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds a switch door component to the door
+//
+// Parameters:	entity entSwitchDoor -- The Door To Add
+//				entity entPrimaryDoor -- The Door to add it to
+//
+// Returns:		Non
+//--------------------------------------------------------------
+void addSwitchDoorComponent( entity entSwitchDoor , entity entPrimaryDoor )
+{
+	float numberOfSwitchDoorComponents;
+	string varName;
+
+	numberOfSwitchDoorComponents = entPrimaryDoor.getfloatvar( "numberOfSwitchDoorComponents" );
+	numberOfSwitchDoorComponents++;
+	entPrimaryDoor.setfloatvar( "numberOfSwitchDoorComponents" , numberOfSwitchDoorComponents );
+
+	varName = "switchdoor" + numberOfSwitchDoorComponents;
+	entPrimaryDoor.setstringvar( varName , entSwitchDoor.getrawtargetname() );
+
+
+	// We must call with the "thread" key word so that we don't hang forever on the pause();
+	thread setupSwitchDoor( entSwitchDoor , entPrimaryDoor , 10.0 );
+}
+
+//--------------------------------------------------------------
+// Name:		addSwitchComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds a switch to the door
+//
+// Parameters:	entity entSwitch -- The switch to add
+//				entity entPrimaryDoor -- The door to add it to
+//
+// Returns:		None
+//--------------------------------------------------------------
+void addSwitchComponent( entity entSwitch , entity entPrimaryDoor )
+{
+	float numberOfSwitchComponents;
+	string varName;
+
+	numberOfSwitchComponents = entPrimaryDoor.getfloatvar( "numberOfSwitchComponents" );
+	numberOfSwitchComponents++;
+	entPrimaryDoor.setfloatvar( "numberOfSwitchComponents" , numberOfSwitchComponents );
+
+	varName = "switch" + numberOfSwitchComponents;
+	entPrimaryDoor.setstringvar( varName , entSwitch.getrawtargetname() );
+
+	// We must call with the "thread" key word so that we don't hang forever on the pause();
+	thread setupSwitchLever( entSwitch , entPrimaryDoor );
+}
+
+//--------------------------------------------------------------
+// Name:		addLockedLightComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds a Locked Light Component to the door
+//
+// Parameters:	entity entLockedLight -- The Locked Light to Add
+//				entity entPrimaryDoor -- The Door to Add it too
+//
+// Returns:		None
+//--------------------------------------------------------------
+void addLockedLightComponent( entity entLockedLight , entity entPrimaryDoor )
+{
+	float numberOfLockedLightComponents;
+	string varName;
+
+	numberOfLockedLightComponents = entPrimaryDoor.getfloatvar( "numberOfLockedLightComponents" );
+	numberOfLockedLightComponents++;
+	entPrimaryDoor.setfloatvar( "numberOfLockedLightComponents" , numberOfLockedLightComponents );
+
+	varName = "lockedlight" + numberOfLockedLightComponents;
+	entPrimaryDoor.setstringvar( varName , entLockedLight.getrawtargetname() );
+
+	setupLockedLight( entLockedLight , entPrimaryDoor );
+	
+}
+
+//--------------------------------------------------------------
+// Name:		addUnLockedLightComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds an unlocked light component
+//
+// Parameters:	entity entUnLockedLight -- The Un Locked Light to Add
+//				entity entPrimaryDoor -- The Primary Door to add
+//
+// Returns:		None
+//--------------------------------------------------------------
+void addUnLockedLightComponent( entity entUnLockedLight , entity entPrimaryDoor )
+{
+	float numberOfUnLockedLightComponents;
+	string varName;
+
+	numberOfUnLockedLightComponents = entPrimaryDoor.getfloatvar( "numberOfUnLockedLightComponents" );
+	numberOfUnLockedLightComponents++;
+	entPrimaryDoor.setfloatvar( "numberOfUnLockedLightComponents" , numberOfUnLockedLightComponents );
+
+	varName = "unlockedlight" + numberOfUnLockedLightComponents;
+	entPrimaryDoor.setstringvar( varName , entUnLockedLight.getrawtargetname() );
+
+	setupUnLockedLight( entUnLockedLight , entPrimaryDoor );
+
+}
+
+//--------------------------------------------------------------
+// Name:		globalTubeDoor_AddComponent()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Adds a component to the door
+//
+// Parameters:	string strControlType -- The type of control to add
+//				string strControlName -- The target name of the control to add
+//				string strDoorName -- The target name of the door to add the control too
+//
+// Returns:		None
+//--------------------------------------------------------------
+void globalTubeDoor_AddComponent ( string strControlType , string strControlName , string strDoorName )
+{
+	entity entPrimaryDoor;
+	entity entNewControl;
+
+	entPrimaryDoor = getPrimaryDoor( strDoorName );
+	entNewControl = getEntity( strControlName );
+
+	if ( strControlType == "button" )
+		{
+		addButtonComponent( entNewControl , entPrimaryDoor );
+		}
+	
+	if ( strControlType == "switchdoor" )
+		{
+		addSwitchDoorComponent( entNewControl , entPrimaryDoor );
+		}
+
+	if ( strControlType == "switch" )
+		{
+		addSwitchComponent( entNewControl , entPrimaryDoor );
+		}
+
+	if ( strControlType == "lockedlight" )
+		{		
+		addLockedLightComponent( entNewControl, entPrimaryDoor );
+		}
+
+	if ( strControlType == "unlockedlight" )
+		{
+		addUnLockedLightComponent( entNewControl, entPrimaryDoor );
+		}	
+	
+}
+
+//--------------------------------------------------------------
+// Name:		globalTubeDoor_Lock()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Locks the Door
+//
+// Parameters:	string strDoorName -- The targetname of the PRIMARY DOOR to lock
+//
+// Returns:		None
+//--------------------------------------------------------------
+void globalTubeDoor_Lock( string strDoorName )
+{
+	entity entPrimaryDoor;	
+	entPrimaryDoor = getPrimaryDoor( strDoorName );
+
+	changeDoorLock( entPrimaryDoor , 1.0 );
+}
+
+//--------------------------------------------------------------
+// Name:		globalTubeDoor_Unlock()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Unlocks the Door
+//
+// Parameters:	string strDoorName -- The targetname of the PRIMARY DOOR to unlock
+//
+// Returns:		None
+//--------------------------------------------------------------
+void globalTubeDoor_Unlock( string strDoorName )
+{
+	entity entPrimaryDoor;		
+	entPrimaryDoor = getPrimaryDoor( strDoorName );
+	
+	changeDoorLock( entPrimaryDoor , 0.0 );
+}
+
+//--------------------------------------------------------------
+// Name:		globalTubeDoor_IsLocked()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the locked status of the door
+//
+// Parameters:	str strDoorName -- The targetname of the PRIMARY DOOR to check
+//
+// Returns:		1.0 if the door is locked
+//				0.0 if the door is unlocked
+//--------------------------------------------------------------
+float globalTubeDoor_IsLocked ( string strDoorName )
+{
+	entity entPrimaryDoor;
+	
+	// Grab our Entities
+	entPrimaryDoor = getPrimaryDoor( strDoorName );	
+	return checkLocked( entPrimaryDoor );
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------
+// OnUse Threads
+// These threads are called when various parts of the door mechanism are "used"
+//-------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------
+// Name:		button_OnUseThread()
+// Class:		global_tubeDoors.scr
+//
+// Description:	OnUseThread for the Door's "Open" Button
+//
+// Parameters:	None
+//
+// Returns:		None
+//--------------------------------------------------------------
+void button_OnUseThread()
+{
+	entity entButton;
+	entity entPrimaryDoor;
+	string strPrimaryDoorName;
+	string strDoorType;
+
+	// Grab the button
+	entButton = getcurrententity();	
+
+	// No Use the button for a bit
+	entButton.nouse();
+
+	// Get the Primary Door
+	strPrimaryDoorName		= entButton.getstringvar ( "strPrimaryDoor"		);
+	entPrimaryDoor			= getPrimaryDoor	( strPrimaryDoorName	);
+
+	// Check if we are locked
+	if ( checkLocked( entPrimaryDoor ) )
+		{
+		handleLocked( entPrimaryDoor );
+		return;
+		}
+
+	strDoorType = entPrimaryDoor.getstringvar ( "strDoorType" );
+	if( strDoorType == "normal" )
+		{				
+		//print( "OPEN: " + entPrimaryDoor.gettargetname() + "\n" );
+		doorNormal_Activate( entPrimaryDoor , entButton  );
+		}	
+	else if ( strDoorType == "manual" )
+		{		
+		doorManual_Activate( entPrimaryDoor , entButton );
+		}	
+	else if ( strDoorType == "barrier" )
+		{
+		doorBarrier_Activate( entPrimaryDoor , entButton );
+		}
+
+}
+
+//--------------------------------------------------------------
+// Name:		switchDoor_OnUseThread()
+// Class:		global_tubeDoors.scr
+//
+// Description:	OnUseThread for the SwitchDoorPanel 
+//
+// Parameters:	None
+//
+// Returns:		None
+//--------------------------------------------------------------
+void switchDoor_OnUseThread()
+{
+	entity entPrimaryDoor;
+	entity entSwitchDoor;
+	
+	string strPrimaryDoorName;
+	string strDoorType;
+		
+	// Grab the button
+	entSwitchDoor = getcurrententity();	
+
+	// No Use the button for a bit
+	entSwitchDoor.nouse();
+		
+	// Pull out the Primary Door Name , Door Type , totalDistance;
+	strPrimaryDoorName		= entSwitchDoor.getstringvar( "strPrimaryDoor"		);
+	entPrimaryDoor			= getPrimaryDoor( strPrimaryDoorName );
+
+	strDoorType				= entPrimaryDoor.getstringvar( "strDoorType"			);	
+	
+	//
+	// Right now, let's only worry about doing anything if we of the "manual" type
+	//
+	if ( strDoorType == "manual" )
+		{
+		switchDoor_Activate ( entPrimaryDoor , entSwitchDoor  );	
+		}	
+	
+}
+
+//--------------------------------------------------------------
+// Name:		switchLever_OnUseThread()
+// Class:		global_tubeDoors.scr
+//
+// Description:	OnUseThread for the Switch Lever
+//
+// Parameters:	None
+//
+// Returns:		None
+//--------------------------------------------------------------
+void switchLever_OnUseThread()
+{
+	
+	entity entPrimaryDoor;
+	entity entSwitch;
+	
+	string strPrimaryDoorName;
+	string strDoorType;
+	
+	float usable;
+
+	// Grab the button
+	entSwitch = getcurrententity();	
+	entSwitch.nouse();	
+	
+	usable = entSwitch.getfloatvar( "usable" );
+	
+	if ( !usable )
+		{
+		wait ( .5 );
+		thread resetSwitchLever( entSwitch );
+		return;
+		}
+
+	
+	// Pull out the Primary Door Name , Door Type , totalDistance;
+	strPrimaryDoorName		= entSwitch.getstringvar( "strPrimaryDoor"		);
+	entPrimaryDoor			= getPrimaryDoor( strPrimaryDoorName );
+
+	strDoorType				= entPrimaryDoor.getstringvar( "strDoorType"			);	
+	
+	//
+	// Right now, let's only worry about doing anything if we of the "manual" type
+	//
+	if ( strDoorType == "manual" )
+		{
+		switchLever_Activate ( entPrimaryDoor ,  entSwitch  );
+		}	
+	
+	
+}
+
+
+
+//-------------------------------------------------------------------------------------------------
+// Accessor Functions
+// These threads are called to retrieve various entity components of the door, based on the 
+// target name of the PRIMARY DOOR
+//-------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------
+// Name:		getPrimaryDoor
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the primary door entity
+//
+// Parameters:	string strDoorName -- The targetname of the PRIMARY DOOR
+//
+// Returns:		entity entPrimaryDoor
+//--------------------------------------------------------------
+entity getPrimaryDoor( string strDoorName )
+{
+	entity entPrimaryDoor;
+	entPrimaryDoor = getEntity( strDoorName );
+	return entPrimaryDoor;
+}
+
+//--------------------------------------------------------------
+// Name:		getSecondaryDoor
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the secondary door entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entSecondaryDoor
+//--------------------------------------------------------------
+entity getSecondaryDoor( entity entPrimaryDoor )
+{
+	entity entSecondaryDoor;
+	string strTempAssemble;	
+
+	//--- grab the second door part
+	strTempAssemble = entPrimaryDoor.gettarget();
+	entSecondaryDoor = getEntity( strTempAssemble );
+
+	return entSecondaryDoor;
+}
+
+//--------------------------------------------------------------
+// Name:		getDefaultButton
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the door button entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entButton
+//--------------------------------------------------------------
+entity getDefaultButton( entity entPrimaryDoor )
+{
+	entity entSecondaryDoor;
+	entity entButton;				
+	string strTempAssemble;		
+
+	//--- grab the second door part	
+	entSecondaryDoor = getSecondaryDoor( entPrimaryDoor );
+
+	//--- grab the button
+	strTempAssemble = entSecondaryDoor.gettarget();
+	entButton = getEntity( strTempAssemble );
+
+	return entButton;
+}
+
+//--------------------------------------------------------------
+// Name:		getDefaultSwitchDoor
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the switch door entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entSwitchDoor
+//--------------------------------------------------------------
+entity getDefaultSwitchDoor( entity entPrimaryDoor )
+{
+	entity entButton;			
+	entity entSwitchDoor;		
+	string strTempAssemble;		
+	
+	entButton = getDefaultButton( entPrimaryDoor );
+	
+	//--- grab the switchdoor
+	strTempAssemble = entButton.gettarget();
+	entSwitchDoor = getEntity( strTempAssemble );
+	
+	return entSwitchDoor;
+
+}
+
+//--------------------------------------------------------------
+// Name:		getDefaultSwitchLever
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the switch lever entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entSwitchLever
+//--------------------------------------------------------------
+entity getDefaultSwitchLever( entity entPrimaryDoor )
+{
+	entity entSwitchDoor;			
+	entity entSwitchLever;
+	string strTempAssemble;		
+	
+	entSwitchDoor = getDefaultSwitchDoor( entPrimaryDoor );
+	
+	strTempAssemble = entSwitchDoor.gettarget();
+
+	entSwitchLever = getEntity( strTempAssemble );	
+	
+	return entSwitchLever;
+}
+
+//--------------------------------------------------------------
+// Name:		getDefaultLockedLight
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the lockedLight entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entSwitchLever
+//--------------------------------------------------------------
+entity getDefaultLockedLight	( entity entPrimaryDoor )
+{
+	entity entSwitchLever;
+	entity entLockedLight;
+	string strTempAssemble;
+
+	entSwitchLever = getDefaultSwitchLever( entPrimaryDoor );
+	strTempAssemble = entSwitchLever.gettarget();
+	
+		entLockedLight = getEntity( strTempAssemble );
+
+	return entLockedLight;
+	
+}
+
+//--------------------------------------------------------------
+// Name:		getDefaultUnlockedLight
+// Class:		global_tubeDoors.scr
+//
+// Description:	Returns the unlockedLight entity
+//
+// Parameters:	entity entPrimaryDoor -- The primaryDoor Entity
+//
+// Returns:		entity entSwitchLever
+//--------------------------------------------------------------
+entity getDefaultUnlockedLight ( entity entPrimaryDoor )
+{
+	entity entLockedLight;
+	entity entUnlockedLight;
+	string strTempAssemble;
+
+	entLockedLight = getDefaultLockedLight( entPrimaryDoor );
+	strTempAssemble = entLockedLight.gettarget();
+
+	entLockedLight = getEntity( strTempAssemble );
+
+	return entLockedLight;
+
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------
+// Setup Entity Functions
+// These threads setup various entity components of the door -- DO NOT CALL THESE THREADS FROM THE
+// PRIMARY LEVEL SCRIPT
+//-------------------------------------------------------------------------------------------------
+
+void door_OnUseThread()
+{
+	entity currentEnt;
+	currentEnt = getcurrententity();
+	
+	currentEnt.nouse();
+	currentEnt.playsound( "sound/ships/forever/for_brokendoor.wav", 1, 1, 200 );
+}
+
+void resetManualDoor( entity entPrimaryDoor )
+{
+	entPrimaryDoor.onuse( "door_OnUseThread" );
+	pause();
+}
+
+void setupPrimaryDoor ( entity entPrimaryDoor , entity entSecondaryDoor , string strDoorType, string doorMoveDirection , float totalDistance , float locked )
+{
+	entPrimaryDoor.setstringvar( "doorMoveDirection" , doorMoveDirection );
+	entPrimaryDoor.setstringvar( "strDoorType" , strDoorType );
+	entPrimaryDoor.setstringvar( "strPrimaryDoor", entPrimaryDoor.getrawtargetname() );		
+	entPrimaryDoor.setstringvar( "strSecondaryDoor", entSecondaryDoor.getrawtargetname() );
+	entPrimaryDoor.setfloatvar( "totalDistance" , totalDistance );
+	entPrimaryDoor.setfloatvar( "timesSwitchPulled" , 0 );	
+	entPrimaryDoor.setfloatvar( "locked" , locked );	
+	entPrimaryDoor.setfloatvar( "numberOfLockedLightComponents" , 0 );
+	entPrimaryDoor.setfloatvar( "numberOfUnLockedLightComponents" , 0 );
+	entPrimaryDoor.setfloatvar( "numberOfButtonComponents" , 0 );
+	
+	if( strDoorType == "manual" )
+		thread resetManualDoor( entPrimaryDoor );
+}
+
+//--------------------------------------------------------------
+// Name:		setupButton()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Sets up the Door Button
+//
+// Parameters:	entity entButton -- The Button to Set up
+//				entity entPrimaryDoor -- The Primary Door
+//				entity entSecondaryDoor -- The Secondary Door
+//				string strDoorType -- The Type of Door ( "normal" , "manual" , "barrier" )
+//				string doorMoveDirection -- The direction of the door movement ( "up" , "down", "north_south" , etc... )
+//				float totalDistance -- How far to move the doors
+//				float locked -- Whether or not the door is locked
+//
+// Returns:		None
+//--------------------------------------------------------------
+void setupButton( entity entButton , entity entPrimaryDoor)
+{
+	entButton.onuse( "button_OnUseThread" );	
+	entButton.setstringvar( "strPrimaryDoor", entPrimaryDoor.getrawtargetname() );
+
+	// Pause is REQUIRED so that we don't lose the thread
+	pause();
+	
+}
+
+//--------------------------------------------------------------
+// Name:		setupSwitchDoor()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Sets up the Switch Door 
+//
+// Parameters:	entity entButton -- The Button to Set up
+//				entity entPrimaryDoor -- The Primary Door
+//				entity entSecondaryDoor -- The Secondary Door
+//				string strDoorType -- The Type of Door ( "normal" , "manual" , "barrier" )
+//				string doorMoveDirection -- The direction of the door movement ( "up" , "down", "north_south" , etc... )
+//				float totalDistance -- How far to move the doors
+//
+// Returns:		None
+//--------------------------------------------------------------
+void setupSwitchDoor( entity entSwitchDoor , entity entPrimaryDoor , float totalDistance )
+{
+	entSwitchDoor.onuse( "switchDoor_OnUseThread" );
+	entSwitchDoor.setstringvar( "strPrimaryDoor", entPrimaryDoor.getrawtargetname() );			
+	entSwitchDoor.setfloatvar( "totalDistance" , totalDistance );
+
+	// Pause is REQUIRED so that we don't lose the thread
+	pause();
+}
+
+//--------------------------------------------------------------
+// Name:		setupSwitchLever()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Sets up the Switch Door 
+//
+// Parameters:	entity entButton -- The Button to Set up
+//				entity entPrimaryDoor -- The Primary Door
+//				entity entSecondaryDoor -- The Secondary Door
+//				string strDoorType -- The Type of Door ( "normal" , "manual" , "barrier" )
+//				string doorMoveDirection -- The direction of the door movement ( "up" , "down", "north_south" , etc... )
+//
+// Returns:		None
+//--------------------------------------------------------------
+void setupSwitchLever( entity entSwitchLever , entity entPrimaryDoor )
+{
+	entSwitchLever.onuse( "switchLever_OnUseThread" );
+	entSwitchLever.setstringvar( "strPrimaryDoor", entPrimaryDoor.getrawtargetname() );			
+	entSwitchLever.setfloatvar( "usable" , 0 );
+	entSwitchLever.notsolid();
+
+	// Pause is REQUIRED so that we don't lose the thread
+	pause();
+}
+
+
+void setupLockedLight( entity entLockedLight, entity entPrimaryDoor )
+{
+	entLockedLight.setstringvar( "strPrimaryDoor" , entPrimaryDoor.getrawtargetname() );	
+	if ( !checkLocked ( entPrimaryDoor ) )
+		{
+		entLockedLight.hide();
+		}
+}
+
+void setupUnLockedLight( entity entUnLockedLight , entity entPrimaryDoor )
+{
+	entUnLockedLight.setstringvar( "strPrimaryDoor" , entPrimaryDoor.getrawtargetname() );	
+	if ( checkLocked ( entPrimaryDoor ) )
+		{
+		entUnLockedLight.hide();
+		}
+
+}
+
+//--------------------------------------------------------------
+// Name:		resetSwitchLever()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Resets the OnUseThread for the switch lever
+//
+// Parameters:	entity entSwitchLever -- The lever to reset
+//
+// Returns:		None
+//--------------------------------------------------------------
+void resetSwitchLever( entity entSwitchLever )
+{
+	entSwitchLever.onuse( "switchLever_OnUseThread" );
+	pause();
+}
+
+//--------------------------------------------------------------
+// Name:		resetButton()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Resets the OnUseThread for the door button
+//
+// Parameters:	entity entButton -- The button to reset
+//
+// Returns:		None
+//--------------------------------------------------------------
+void resetButton( entity entButton )
+{
+	entButton.onuse ( "button_OnUseThread" );
+	pause();
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------
+// Activate Functions
+// These threads Handle specific activations of doors, buttons, or levers -- DO NOT CALL THESE THREADS FROM THE
+// PRIMARY LEVEL SCRIPT
+//-------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------
+// Name:		doorNormal_Activate()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Activation Thread for a normal door 
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				entity entButton -- The Button Entity
+//				entity entSwitchDoor -- The SwitchDoor Entity
+//				entity entSwitch -- The Door Switch
+//
+// Returns:		None
+//--------------------------------------------------------------
+void doorNormal_Activate( entity entPrimaryDoor , entity entButton  )
+{	
+	entity entSecondaryDoor;
+	float moveDistance;
+	string moveDirection;
+	
+	// don't open again
+	if( 1 == entPrimaryDoor.getfloatvar( "isopen" ) )
+	{
+		//print( "Not available\n" );
+		return;
+	}
+	entPrimaryDoor.setfloatvar( "isopen", 1 );
+	
+	entSecondaryDoor = getSecondaryDoor( entPrimaryDoor );
+	moveDirection = entPrimaryDoor.getstringvar( "doorMoveDirection" );
+	moveDistance = entPrimaryDoor.getfloatvar( "totalDistance" );
+
+	entButton.playsound( "sound/ships/forever/for_doorbeep.wav", 1, 1, 10000 );
+	moveDoors( entPrimaryDoor , entSecondaryDoor , moveDistance , moveDirection );	
+	waitfor ( entPrimaryDoor );
+		
+	thread closeDoors( entPrimaryDoor , entButton );
+}
+
+//--------------------------------------------------------------
+// Name:		doorManual_Activate()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Activation Thread for a manual door 
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				entity entButton -- The Button Entity
+//				entity entSwitchDoor -- The SwitchDoor Entity
+//				entity entSwitch -- The Door Switch
+//
+// Returns:		None
+//--------------------------------------------------------------
+void doorManual_Activate( entity entPrimaryDoor , entity entButton  )
+{
+	entity entSecondaryDoor;
+	float moveDistance;
+	float totalDistance;
+	float timesPulled;
+	string moveDirection;
+
+
+	//centerprint ( "Beep" );
+	
+	timesPulled = entPrimaryDoor.getfloatvar( "timesSwitchPulled" );
+	
+	if ( timesPulled > 1 )
+		{
+		return;
+		}
+
+	entSecondaryDoor = getSecondaryDoor( entPrimaryDoor );
+	moveDirection = entPrimaryDoor.getstringvar( "doorMoveDirection" );
+	totalDistance = entPrimaryDoor.getfloatvar( "totalDistance" );
+	moveDistance = totalDistance * .10;
+
+	moveDoors( entPrimaryDoor , entSecondaryDoor , moveDistance , moveDirection );	
+
+	//Update The Door's total distance
+	totalDistance = totalDistance - moveDistance;
+	entPrimaryDoor.setfloatvar( "totalDistance" , totalDistance );	
+	waitfor ( entPrimaryDoor );	
+}
+
+//--------------------------------------------------------------
+// Name:		doorBarrier_Activate()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Activation Thread for a barrier door 
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				entity entButton -- The Button Entity
+//				entity entSwitchDoor -- The SwitchDoor Entity
+//				entity entSwitch -- The Door Switch
+//
+// Returns:		None
+//--------------------------------------------------------------
+void doorBarrier_Activate( entity entPrimaryDoor , entity entButton  )
+{	
+	centerprint ( "Barrier" );
+}
+
+//--------------------------------------------------------------
+// Name:		switchDoor_Activate()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Activation Thread for a switch door 
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				entity entButton -- The Button Entity
+//				entity entSwitchDoor -- The SwitchDoor Entity
+//				entity entSwitch -- The Door Switch
+//
+// Returns:		None
+//--------------------------------------------------------------
+void switchDoor_Activate( entity entPrimaryDoor , entity entSwitchDoor  )
+{
+	entity entSwitch;
+	float totalDistance;
+	string moveDirection;
+
+	totalDistance = entSwitchDoor.getfloatvar ( "totalDistance" );
+	moveDirection = entPrimaryDoor.getstringvar ( "doorMoveDirection" );
+	moveSwitchDoor( entSwitchDoor , totalDistance , moveDirection );
+
+	waitfor ( entSwitchDoor );
+	wait( 0.2 );
+
+	entSwitch = getDefaultSwitchLever( entPrimaryDoor );
+
+	moveSwitch( entSwitch , moveDirection );	
+	waitfor ( entSwitch );
+
+	entSwitch.setfloatvar( "usable" , 1 );
+
+}
+
+//--------------------------------------------------------------
+// Name:		switchLever_Activate()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Activation Thread for a switch lever 
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				entity entButton -- The Button Entity
+//				entity entSwitchDoor -- The SwitchDoor Entity
+//				entity entSwitch -- The Door Switch
+//
+// Returns:		None
+//--------------------------------------------------------------
+void switchLever_Activate(entity entPrimaryDoor , entity entSwitch  )
+{
+	float timesPulled;
+	float moveDistance;
+	float totalDistance;
+	string switchAngle;
+	string moveDirection;
+
+	entity entSecondaryDoor;
+	float moveDistance;
+	string moveDirection;
+	
+	entSecondaryDoor = getSecondaryDoor( entPrimaryDoor );
+	moveDirection = entPrimaryDoor.getstringvar( "doorMoveDirection" );
+	moveDistance = entPrimaryDoor.getfloatvar( "totalDistance" );
+
+	timesPulled = entPrimaryDoor.getfloatvar( "timesSwitchPulled" );
+	
+	if ( timesPulled > 3 )
+		{
+		return;
+		}
+
+	timesPulled++;
+	totalDistance = entPrimaryDoor.getfloatvar( "totalDistance" );
+	moveDistance = totalDistance * .33;
+		
+	entPrimaryDoor.setfloatvar( "timesSwitchPulled" ,timesPulled );
+	
+	wait ( .2 );
+	
+	switchAngle = entSwitch.getstringvar("uservar1");
+	entSwitch.playsound ( "sound/environment/metal/crank_switch.wav" , 30 , .35 , 100 );
+	entSwitch.time (.2);
+	if ( switchAngle == "90" )
+		{
+		entSwitch.rotateZup ( 90.0 );
+		}
+	else if ( switchAngle == "270" )
+		{
+		entSwitch.rotateZdown ( 90.0 );
+		}
+	else if ( switchAngle == "180" )
+		{
+		entSwitch.rotateXup( 90.0 );
+		}
+	else if ( switchAngle == "360" )
+		{
+		entSwitch.rotateXdown( 90.0 );
+		}
+	
+	waitfor ( entSwitch );
+	
+
+	if ( switchAngle == "90" )
+		{
+		entSwitch.rotateZdown ( 90.0 );
+		}
+	else if ( switchAngle == "270" )
+		{
+		entSwitch.rotateZup ( 90.0 );
+		}
+	else if ( switchAngle == "180" )
+		{
+		entSwitch.rotateXdown( 90.0 );
+		}
+	else if ( switchAngle == "360" )
+		{
+		entSwitch.rotateXup( 90.0 );
+		}
+	
+	waitfor ( entSwitch );
+
+	moveDirection = entPrimaryDoor.getstringvar( "doorMoveDirection" );		
+	moveDoors( entPrimaryDoor , entSecondaryDoor , moveDistance , moveDirection );	
+	
+	thread resetSwitchLever( entSwitch );
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------
+// Move Functions
+// These threads handle moving the actual script object doors, levers, etc... -- DO NOT CALL THESE THREADS FROM THE
+// PRIMARY LEVEL SCRIPT
+//-------------------------------------------------------------------------------------------------
+
+
+//--------------------------------------------------------------
+// Name:		moveDoors()
+// Class:		global_tubeDoors.scr
+//
+// Description:	move the doors appropriatly based on moveDirection and moveDistance
+//				later, we will need to add acceleration and such to this
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door Entity
+//				entity entSecondaryDoor -- The Secondary Door Entity
+//				float moveDistance -- The distance to move the doors
+//				string moveDirection -- The direction to move the doors
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveDoors( entity entPrimaryDoor , entity entSecondaryDoor , float moveDistance , string moveDirection )
+{
+	
+	entPrimaryDoor.playsound ( "sound/doors/enterprise_jefftube.wav", 31 , .35 , 200 );
+	wait (.2);
+	if ( moveDirection == "up" )
+		{
+			entPrimaryDoor.moveUp( moveDistance );
+			entSecondaryDoor.moveUp( moveDistance );
+		}
+		else if ( moveDirection == "down" )
+		{
+			entPrimaryDoor.moveDown( moveDistance );
+			entSecondaryDoor.moveDown( moveDistance );
+		}
+		else if ( moveDirection == "north_south" )
+		{
+			entPrimaryDoor.moveNorth( moveDistance );
+			entSecondaryDoor.moveSouth( moveDistance );
+		}
+		else if ( moveDirection == "east_west" )
+		{
+			entPrimaryDoor.moveEast( moveDistance );
+			entSecondaryDoor.moveWest( moveDistance );
+		}
+		else
+		{
+			centerprint( moveDirection );		
+		}	
+	
+}
+
+//--------------------------------------------------------------
+// Name:		moveSwitchDoor()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Move the switch door appropriatly based on moveDirection and moveDistance
+//				later, we will need to add acceleration and such to this
+//
+// Parameters:	entity entSwitchDoor -- The Switch Door Entity
+//				float moveDistance -- The distance to move the doors
+//				string moveDirection -- The direction to move the doors
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveSwitchDoor( entity entSwitchDoor , float moveDistance , string moveDirection )
+{
+	entity entPrimaryDoor;
+	entity entSwitch;
+
+	string strPrimaryDoorName;
+	string switchAngle;
+
+
+	strPrimaryDoorName = entSwitchDoor.getstringvar ( "strPrimaryDoor" );
+	entPrimaryDoor = getPrimaryDoor( strPrimaryDoorName );
+	entSwitch = getDefaultSwitchLever( entPrimaryDoor );
+	switchAngle = entSwitch.getstringvar("uservar1");
+
+	entSwitchDoor.time( 0.2 );
+	//	First Handle Up and Down
+	if ( moveDirection == "up" )
+		{
+			entSwitchDoor.moveUp( moveDistance );			
+			return;
+		}
+	else if ( moveDirection == "down" )
+		{
+			entSwitchDoor.moveDown( moveDistance );			
+			return;
+		}
+
+
+	if ( switchAngle == "90" )
+		{
+		entSwitchDoor.moveEast( moveDistance );
+		}
+	else if ( switchAngle == "180" )
+		{
+		entSwitchDoor.moveNorth( moveDistance );
+		}
+	else if ( switchAngle == "270" )
+		{
+		entSwitchDoor.moveWest( moveDistance );
+		}
+	else if ( switchAngle == "360" )
+		{
+		entSwitchDoor.moveSouth( moveDistance );
+		}
+
+}
+
+//--------------------------------------------------------------
+// Name:		moveSwitch()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Move the switch lever appropriatly based on moveDirection and
+//				angle provided by the "usevar1" key in radiant.  Note:
+//				legal values for the key are ( "90" , "180" , "270" , "360" )
+//				the value MUST be one of those
+//
+//
+// Parameters:	entity entSwitchLever -- The Switch Lever Entity
+//				string moveDirection -- The direction to move the doors
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveSwitch( entity entSwitchLever , string moveDirection )
+{
+	entSwitchLever.playsound ( "sound/environment/metal/crank_switch.wav" , 30 , .35 , 100 );
+	
+	string switchAngle;
+	switchAngle = entSwitchLever.getstringvar("uservar1");
+
+	entSwitchLever.time( 0.2 );
+	if ( switchAngle == "90" )
+		{
+		entSwitchLever.rotateZdown ( 90.0 );
+		}
+	else if ( switchAngle == "270" )
+		{
+		entSwitchLever.rotateZup ( 90.0 );
+		}
+	else if ( switchAngle == "180" )
+		{
+		entSwitchLever.rotateXdown( 90.0 );
+		}
+	else if ( switchAngle == "360" )
+		{
+		entSwitchLever.rotateXup( 90.0 );
+		}
+
+	waitfor ( entSwitchLever );	
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------
+// Utility Functions
+// These threads are here to make my life easier, and/or to promote encapsulation and good 
+// coding  -- DO NOT CALL THESE THREADS FROM THE PRIMARY LEVEL SCRIPT
+//-------------------------------------------------------------------------------------------------
+
+
+//--------------------------------------------------------------
+// Name:		checkLocked()
+// Class:		global_tubeDoors.scr
+//
+// Description:	returns the locked variable in the button
+//
+// Parameters:	entity entButton -- The button of the door to check
+//
+// Returns:		1.0 if locked
+//				0.0 if unlocked
+//--------------------------------------------------------------
+float checkLocked ( entity entPrimaryDoor )
+{
+	return entPrimaryDoor.getfloatvar ( "locked" );
+}
+
+
+//--------------------------------------------------------------
+// Name:		handleLocked()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Function Handler for dealing with a locked door.  This 
+//				is broken out into its own function to allow for easier
+//				expansion later
+//
+// Parameters:	entity entButton -- The button of the door to handle
+//
+// Returns:		None
+//--------------------------------------------------------------
+void handleLocked( entity entButton )
+{
+	//centerprint ( "locked" );
+	entButton.playsound( "sound/ships/forever/for_lockeddoor.wav", 1, 1, 10000 );
+	wait ( .5 );
+	thread resetButton( entButton );
+}
+
+
+//--------------------------------------------------------------
+// Name:		changeDoorLock()
+// Class:		global_tubeDoors.scr
+//
+// Description:	Changes the locked status of a door
+//
+// Parameters:	string strDoorName -- The target name of the PRIMARY DOOR
+//				float locked -- Whether or not the door is locked
+//
+// Returns:		None
+//-------------------------------------------------------------
+void changeDoorLock( entity entPrimaryDoor , float locked )
+{
+	entity entLockedLight;
+	entity entUnLockedLight;
+	entPrimaryDoor.setfloatvar( "locked" , locked );
+
+	float numberOfLockedLightComponents;
+	float numberOfUnLockedLightComponents;
+	float i;
+
+	string varName;
+	string strLockedLight;
+	string strUnLockedLight;
+
+	numberOfLockedLightComponents = entPrimaryDoor.getfloatvar( "numberOfLockedLightComponents" );
+	numberOfUnLockedLightComponents = entPrimaryDoor.getfloatvar( "numberOfUnLockedLightComponents" );
+
+	//entLockedLight = getDefaultLockedLight( entPrimaryDoor );
+	//entUnLockedLight = getDefaultUnlockedLight ( entPrimaryDoor );
+	
+	
+	
+
+	if ( locked )
+		{
+		for ( i = 1 ; i <= numberOfLockedLightComponents ; i++ )
+			{
+			varName = "lockedlight" + i;
+			strLockedLight = entPrimaryDoor.getstringvar( varName );
+			entLockedLight = getEntity( strLockedLight );
+			entLockedLight.show();
+			}
+
+		for ( i = 1 ; i <= numberOfUnLockedLightComponents ; i++ )
+			{			
+			varName = "unlockedlight" + i;
+			strUnLockedLight = entPrimaryDoor.getstringvar( varName );
+			entUnLockedLight = getEntity( strUnLockedLight );
+			entUnLockedLight.hide();
+			}
+
+		}
+	else
+		{
+		for ( i = 1 ; i <= numberOfLockedLightComponents ; i++ )
+			{
+			varName = "lockedlight" + i;
+			strLockedLight = entPrimaryDoor.getstringvar( varName );
+			entLockedLight = getEntity( strLockedLight );
+			entLockedLight.hide();
+			}
+
+		for ( i = 1 ; i <= numberOfUnLockedLightComponents ; i++ )
+			{			
+			varName = "unlockedlight" + i;
+			strUnLockedLight = entPrimaryDoor.getstringvar( varName );
+			entUnLockedLight = getEntity( strUnLockedLight );
+			entUnLockedLight.show();
+			}
+
+		}
+
+}
+
+//--------------------------------------------------------------
+// Name:		closeDoors()
+// Class:		global_tubeDoors.scr
+//	
+// Description:	Closes the tube doors
+//
+// Parameters:	entity entPrimaryDoor -- The Primary Door
+//				entity entButton -- The button that fired
+//		
+// Returns:		None
+//--------------------------------------------------------------
+void closeDoors( entity entPrimaryDoor , entity entButton)
+{
+	entity ePlayer;
+	entity entSecondaryDoor;	
+	vector vecDoorOrigin;
+	vector vecPlayerOrigin;
+	vector vecDistance;
+	float fltDistanceFromDoor;	
+	float moveDistance;
+	string moveDirection;
+
+	fltDistanceFromDoor = 0.0;
+
+	//--- wait for the player to get a good distance away and then close
+	while( fltDistanceFromDoor < 128 )
+	{
+		//hzm coop mod chrissstrahl - make sure the door closes without any troubles in multiplayer
+		ePlayer = globalCoop_return_playerClosestPreferActive(entPrimaryDoor);
+		vecDoorOrigin = entPrimaryDoor.getorigin();
+		vecPlayerOrigin = ePlayer.getorigin();
+		vecPlayerOrigin_z += 64;
+		vecDistance = vecDoorOrigin - vecPlayerOrigin;
+		fltDistanceFromDoor = vectorlength( vecDistance );		
+		
+		wait( .1 );
+	}
+	
+	moveDirection = entPrimaryDoor.getstringvar( "doorMoveDirection" );	
+	moveDistance = entPrimaryDoor.getfloatvar( "totalDistance" );
+
+	entPrimaryDoor.playsound ( "sound/doors/enterprise_jefftube.wav", 31 , .35 , 200 );
+	wait (.2);
+	entSecondaryDoor = getSecondaryDoor( entPrimaryDoor );
+	if ( moveDirection == "up" )
+		{
+			entPrimaryDoor.moveDown( moveDistance );
+			entSecondaryDoor.moveDown( moveDistance );
+		}
+		else if ( moveDirection == "down" )
+		{
+			entPrimaryDoor.moveUp( moveDistance );
+			entSecondaryDoor.moveUp( moveDistance );
+		}
+		else if ( moveDirection == "north_south" )
+		{
+			entPrimaryDoor.moveSouth( moveDistance );
+			entSecondaryDoor.moveNorth( moveDistance );
+		}
+		else if ( moveDirection == "east_west" )
+		{
+			entPrimaryDoor.moveWest( moveDistance );
+			entSecondaryDoor.moveEast( moveDistance );
+		}
+		else
+		{
+			centerprint( moveDirection );		
+		}	
+
+	wait( 1 );
+	entPrimaryDoor.setfloatvar( "isopen", 0 );
+	wait( 0.05 );
+	resetAllButtons( entPrimaryDoor );	
+}
+
+void resetAllButtons( entity entPrimaryDoor )
+{
+	float numberOfButtonComponents, i;
+	string nameVar, nameButton;
+	entity entButton;
+	
+	//print( "RESET ALL BUTTONS FOR " + entPrimaryDoor.gettargetname() + "\n" );
+	numberOfButtonComponents = entPrimaryDoor.getfloatvar( "numberOfButtonComponents" );
+	//print( "numberOfButtonComponents = " + numberOfButtonComponents + "\n" );
+	for( i = 1; i <= numberOfButtonComponents; i++ )
+	{
+		nameVar = "button" + i;
+		nameButton = entPrimaryDoor.getstringvar( nameVar );
+		entButton = getentity( nameButton );
+		//print( nameButton + ": ... " );
+		if( doesEntityExist( entButton ) )
+		{
+			//print( "reset" );
+			thread resetButton( entButton );
+		}
+		//print( "\n" );
+	}
+}
+
+
+
+

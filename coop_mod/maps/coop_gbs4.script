@@ -1,0 +1,494 @@
+// EF2 Level Script File
+//
+// Level:		map3b.bsp
+// Script By:	Cortex, Argyle, ltiefland
+// Geometry By:	Argyle, Cortex, Alpharaptor
+// Created on:	17/11/03
+// Last Edited on:  $Date: 2007-06-20 22:47:49 +0200 (Mi, 20 Jun 2007) $
+// Last Edited by:	$Author: avenger $
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/maps/coop_gbs/attackplayer.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_array.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_acceleratedMovement.scr"
+
+void jeff_door_open();
+void jeff_door_close();
+void ff1();
+void ff2();
+void ff3();
+void switch_open();
+void lever_move();
+void alexia_walk();
+void door_field_active();
+void spotted();
+//void spotted_action();
+void trap_activation();
+void north();
+void east();
+void south();
+void west();
+void neil_find();
+void sarah_find();
+void closed_door_sound();
+void closed_door_sound_2();
+
+
+
+void main()
+{
+	//hzm coop mod chrissstrahl - mission objective marker for radar
+	$latch.missionobjective(1);
+
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Go to Engineering.";
+	coop_string_objectiveItem2 = "Get to main computer control and plant a virus.";
+	coop_string_objectiveItem3 = "Reach a shuttle craft.";
+	
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Dringe in den Maschinenraum ein.";
+	coop_string_objectiveItem2_deu = "Gehe zur Hauptcomputerkontrolle und schleuse einen Virus ein.";
+	coop_string_objectiveItem3_deu = "Fliehe mit einem Shuttle.";
+	
+	//hzm coop mod chrissstrahl - spawn gathering area, make sure it is always there
+	thread globalCoop_level_gatheringArea("endLevelTrigger","coop_endLevel",50,'116 116 140','2265 -1239 -423');		
+	
+	$symbol_sickbay.hide();
+	//$hatch.solid(); //Chrissstrahl, does not exist (relict?)
+	//$cor_ff1.hide(); //Chrissstrahl, does not exist (relict?)
+	$cor_ff2.hide();
+	$cor_ff3.hide();
+	//$cor_ff1.notsolid(); //Chrissstrahl, does not exist (relict?)
+	$cor_ff2.notsolid();
+	$cor_ff3.notsolid();
+	$ff2_trig.nottriggerable();
+	//$office_door_field.notsolid();
+	//$office_field.notsolid();
+	//$office_field.hide();
+	$office_field2.hide();
+	$sick_door_field.notsolid();
+	$sick_door_field.hide();
+	//$office_door_field.hide();
+	//$office_field.hide();
+	$office_field2.hide();
+	$sick_door_field.hide();
+	$door_field.hide();
+	$door_field.hide();
+	$door_field.notsolid();
+	$lever.nottriggerable();
+	//--------------------------------------------------
+	$alexia.ai_off();
+	$alexia.killattach();
+	$alexia.useactorweapon( "none" );
+	$alexia.pushable( 0 );
+
+	$emma.ai_off();
+	$emma.removeactorweapon( "CompressionRifle" );
+	$emma.useactorweapon( "none" );
+	$emma.pushable( 0 );
+	$emma.useactorweapon( "EnterpriseDatapad" );
+	$emma.anim( "ent-datapad-use" );
+
+	//-------------------------------------------------
+//	$east_trigger.nottriggerable();
+//	$south_trigger.nottriggerable();
+	$west_trigger.nottriggerable();	
+
+	$north_field.hide();
+	$north_field.notsolid();
+
+	//hzm coop mod chrissstrahl - don't make them not solid
+	$east_field.hide();
+	$south_field.hide();
+	
+	$west_field.hide();
+	$west_field.notsolid();
+
+	//Archetypes
+	thread globalArchetype_Setup( $hint_lever, "hint_lever");
+
+	waitForPlayer();//Wait until the player is ready
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - set objectives
+	globalCoop_objectives_update("failed" , 1 , 0 );
+	globalCoop_objectives_update("complete" , 2 , 0 );
+	globalCoop_objectives_update("incomplete" , 3 , 1 );
+
+	//hzm coop mod chrissstrahl - give the correct weapon models
+	globalLoadout_GiveWeapon( "models/weapons/worldmodel-Tricorder-stx.tik" );
+}
+
+void jeff_door_open()
+{
+	//hzm coop mod chrissstrahl - mission objective marker for radar
+	$latch.missionobjective(0);
+	$door_field.missionobjective(1);
+	
+	$latch.time( 0.2 );
+	$latch.movedown(4);
+	$latch.playsound( "sound/environment/metal/panel_close1.wav" );
+	wait(1);
+	$latch.bind( $jeff_door_origin );
+	$jeff_door.bind( $jeff_door_origin );
+	$jeff_door_origin.time( 2.5 );
+	$jeff_door_origin.playsound( "sound/doors/drull_smldoor_01.wav" );
+	$jeff_door_origin.rotateto( '0 90 0' );
+	waitfor( $jeff_door_origin );
+	$jeff_door_origin.playsound( "sound/doors/drull_smldoor_stop_01.wav" );
+}
+
+void jeff_door_close()
+{
+	//hzm coop mod chrissstrahl - we don't want this door to close again, it would lock players in/out
+	return;
+	
+	$latch.bind( $jeff_door_origin );
+	$jeff_door.bind( $jeff_door_origin );
+	$jeff_door_origin.time( 2.5 );
+	$jeff_door_origin.playsound( "sound/doors/drull_smldoor_01.wav" );
+	$jeff_door_origin.rotateto( '0 0 0' );
+	waitfor( $jeff_door_origin );
+	$jeff_door_origin.playsound( "sound/doors/drull_smldoor_stop_01.wav" );
+	wait(1);
+	$latch.time( 0.2 );
+	$latch.moveup(4);
+	$latch.playsound( "sound/environment/metal/panel_close1.wav" );
+}
+
+
+void ff1()
+{
+	$cor_ff1.show();
+	$cor_ff1.solid();
+	$cor_ff1.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$cor_ff1.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$ff2_trig.triggerable();
+}
+
+void ff2()
+{
+	$cor_ff2.show();
+	$cor_ff2.solid();
+	$cor_ff2.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$cor_ff2.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+void ff3()
+{
+	$cor_ff3.show();
+	$cor_ff3.solid();
+	$cor_ff3.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$cor_ff3.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$ff2_trig.triggerable();
+}
+
+void switch_open()
+{
+	$lever_door.movewest(1);
+	wait(0.1);
+	$lever_door.movenorth(35);
+	$lever_door.time(2);
+	$lever_door.playsound( "sound/ships/forever/for_gravpanel.wav", 1, 1, 11111 );
+	waitfor( $lever_door );
+	$lever_door.playsound( "sound/ships/forever/for_gravpanelstop.wav", 1, 1, 11111 );
+	globalCommon_Autosave();
+	$lever.triggerable();
+}
+
+void lever_move()
+{
+	//hzm coop mod chrissstrahl - mission objective marker for radar marker for radar
+	$lever_one.missionobjective(0);
+	$escapePodsDoor1.missionobjective(1);
+
+	//hzm coop mod chrissstrahl - hide use symbol
+	$symbol_sickbay.remove();
+
+	$lever_one.time(0.2);
+	$lever_one.movedown(15);
+	$lever_one.playsound( "sound/environment/metal/panel_close1.wav",3,1,128);
+	wait(0.2);
+	$lever_one.playsound("sound/environment/computer/lcars_yes.wav",3,1,128);
+	$door_field.hide();
+	$door_field.notsolid();
+	$door_field.stoploopsound();
+}
+
+void alexia_walk()
+{
+	$alexia.walkto( "$alexia_nav1", "walk" );
+	waitfor( $alexia );
+	$alexia.walkto( "alexia_nav2", "walk" );
+	waitfor( $alexia );
+	$alexia.walkto( "$alexia_nav3", "walk" );
+	waitfor( $alexia );
+	
+	//hzm coop mod chrissstrahl - place alexia in the seat and watch the dallas logs
+	$alexia.origin('928.38 -2485.62 298.00');
+	$alexia.angle(290);
+	$alexia.anim("ent-table-gesture2");
+}
+
+void door_field_active()
+{
+	//hzm coop mod chrissstrahl - mission objective marker for radar marker for radar
+	$door_field.missionobjective(0);
+	$lever_one.missionobjective(1);
+	
+	$symbol_sickbay.show();
+	$door_field.show();
+	$door_field.solid();
+	$door_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$door_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+void spotted()
+{
+	//$office_field.solid();
+	//$spotted_trigger2.nottriggerable();
+	//$spotted_trigger3.nottriggerable();
+	//$spotted_trigger4.nottriggerable();
+	$emma.removeactorweapon( "EnterpriseDatapad" );
+	$emma.anim( "idle" );
+	$emma.turntowardsplayer();
+	$emma.headwatchtarget( "player" , 7 );
+	wait(0.1);
+	$emma.anim( "tap_comm" );
+	waitforanimation( $emma, "tap_comm" );
+	
+	$emma.playsound( "sound/misc/player/communicatorbeep.wav", 2, 2, 1111 );
+	$emma.anim( "idle" );
+	
+	//$office_field.show();
+	$office_field2.show();
+	$office_field2.solid();
+	$office_field2.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$office_field2.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	wait(0.3);
+	
+	//hzm coop mod chrissstrahl - adapt to alexia, we don't use two alexia models
+	$alexia.anim( "idle" );
+	$alexia.turntoangle( 60 );
+	$alexia.headwatchtarget( "player" , 7 );
+	
+	//$player.setobjectivefailed("gettocargobay", 1);
+	
+	$comp_screen.hide();
+	
+	//hzm coop mod chrissstrahl - do not lock the players!
+	//do not fail the mission, instead make it more dificult
+	/*$office_door.lock();
+	$sick_door.lock();
+	wait(0.3);
+	$sick_door_field.show();
+	$sick_door_field.solid();
+	$sick_door_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$sick_door_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	*/
+
+//required animations where included in teh models...
+//hzm coop mod chrissstrahl - spawn and make enemy, spawn out of sight
+	entity e1,e2;
+	e1 = spawn("actor","model","models/char/gbs_jenks.tik","origin","2421 -2493 299","ai_off","1","targetname","security1");
+	e2 = spawn("actor","model","models/char/gbs_jenksBlack.tik","origin","2421 -2493 299","ai_off","1","targetname","security2");
+	wait(0.05);
+	
+	e1.notsolid();
+	e1.hide();
+	e1.origin('1416.00 -2151.00 295.00');
+	e1.angle(180);
+	e1.setgroupid ( 668 );
+	e1.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	e1.useactorweapon( "CompressionRifle" );
+	e1.archetype("");
+	e1.pushable( 0 );
+	e1.setstringvar("uservar1","name a ^2Security Officer");
+	e1.setstringvar("uservar2","name_de einem ^2Sicherheitsoffizier");
+	
+	e2.notsolid();
+	e2.hide();
+	e2.origin('958.91 -2056.09 295.00');
+	e2.angle(315);
+	e2.setgroupid ( 668 );
+	e2.giveactorweapon( "actorweapons/fed-compressionrifle.tik", 1.0 );
+	e2.useactorweapon( "CompressionRifle" );
+	e2.archetype("");
+	e2.pushable( 0 );
+	e2.setstringvar("uservar1","name a ^2Security Officer");
+	e2.setstringvar("uservar2","name_de einem ^2Sicherheitsoffizier");
+	
+	AIShowGroup    ( 668, "Federation" );
+	
+	//hzm coop mod chrissstrahl - make sure the actor does not make any player get stuck
+	thread globalCoop_player_makeSolidASAP(e1);
+	thread globalCoop_player_makeSolidASAP(e2);
+	
+	CommandToGroup ( 668 , "groupactortype" , "enemy" , "");
+	CommandToGroup ( 668 , "visiondistance" , "400" , "" );
+	CommandToGroup ( 668 , "fov" , "360" , "" );
+	CommandToGroup ( 668 , "aggressive" , "1" , "" );
+	//CommandToGroup ( 668 , "attack" , "$player0" , "" );
+}
+
+
+void spotted_action()
+{
+	print("^5spotted_action\n");
+}
+
+void trap_activation()
+{
+	$west_trigger.triggerable();	
+}
+
+void north()
+{
+	$north_field.show();
+	$north_field.solid();
+	$north_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$north_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+
+//	$sarah_find_trig.nottriggerable();
+//$neil_find_trig.nottriggerable(); //hzm coop mod chrissstrahl - we don't want this to be disabled in coop
+//	$east_trigger.triggerable();
+//	$south_trigger.triggerable();
+}
+
+void east()
+{
+	$east_field.show();
+	$east_field.solid();
+	$east_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$east_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+void south()
+{
+	$south_field.show();
+	$south_field.solid();
+	$south_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$south_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+}
+
+void west()
+{
+	//hzm coop mod chrissstrahl - adapt to coop
+	//centerprint("west");
+	/*$west_field.show();
+	$west_field.solid();
+	$west_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+	$west_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+	$sarah_find_trig.nottriggerable();
+	$neil_find_trig.nottriggerable();
+	*/
+	
+	$east_trigger.triggerable();
+	$south_trigger.triggerable();
+}
+
+void neil_find()
+{
+	//hzm coop mod chrissstrahl - mission objective marker for radar marker for radar
+	$escapePodsDoor1.missionobjective(0);
+	$endLevelTrigger.missionobjective(1);
+	
+	entity e;
+	e = spawn("actor","model","models/char/gbs_neil.tik","origin","2774.00 -1760.00 296.00","targetname","neil","angle","270");
+	wait(0.05);
+	e.ai_off();
+	$neil.walkto( "$neil_nav2", "walk" );
+	waitfor( $neil );
+	
+	$neil.headwatchtarget( "player" , 7 );
+	$neil.anim( "tap_comm" );
+
+	waitforanimation( $neil, "tap_comm" );
+	$neil.playsound( "sound/misc/player/communicatorbeep.wav", 1, 1, 11111 );
+	$neil.anim( "idle" );
+	
+	//hzm coop mod chrissstrahl - activate force field now
+
+	thread east();	
+	
+	$neil.walkto( "$neil_nav3", "walk" );
+	waitfor( $neil );
+	
+//	$east_field.show();
+//	$east_field.solid();
+//	$east_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+//	$east_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+
+//	$sarah_find_trig.nottriggerable();
+//	$south_trigger.triggerable();
+}
+
+void sarah_find()
+{
+	entity e;
+	e = spawn("actor","model","models/char/gbs_sarah.tik","origin","2115.00 -2564.00 296.00","targetname","sarah","angle","180");
+	wait(0.05);
+	e.ai_off();
+	$sarah.walkto( "$sarah_nav1", "walk" );
+	waitfor($sarah);
+	$sarah.headwatchtarget( "player" , 7 );
+	$sarah.anim( "tap_comm" );
+	
+	waitforanimation( $sarah, "tap_comm" );
+	$sarah.playsound( "sound/misc/player/communicatorbeep.wav", 1, 1, 11111 );
+	$sarah.anim( "idle" );
+	
+	//hzm coop mod chrissstrahl - activate force field now
+	thread south();
+	
+	$sarah.walkto( "$sarah_nav2", "walk" );
+	waitfor($sarah);
+
+//	$south_field.show();
+//	$south_field.solid();
+//	$south_field.playsound( "sound/ships/borg/borg_forcefield_on.wav", 1, 1, 11111 );
+//	$south_field.loopsound( "sound/ships/enterprise/ent_forcefield.wav", .7, 30 );
+
+//	$neil_find_trig.nottriggerable();
+//	$east_trigger.triggerable();
+}
+
+void closed_door_sound()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/doors/door_locked.wav",3,1,128);
+}
+
+void closed_door_sound_2()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	eTrigger.playsound( "sound/environment/computer/lcars_no.wav",3,1,128);
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs5");
+}
+
+

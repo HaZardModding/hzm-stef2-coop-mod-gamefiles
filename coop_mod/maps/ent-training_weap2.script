@@ -1,0 +1,333 @@
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_math.scr"
+
+float NUM_ENEMIES = 6;
+
+void main();
+void justLoadedDeckThreadIGM4();
+void IGM4IsOver();
+
+void holoDeckSetup();
+void holoDeckFadeOut();
+void holoDeckFadeIn();
+void givePlayerAmmo();
+
+//------------------------
+// this sets up Holo Mission IGM4
+//------------------------
+void main()
+{
+	//hzm coop mod chrissstrahl, Set spawnangles for this level	
+	coop_float_spawnAngle0 				= 90;
+	coop_vector_spawnOrigin8			= '3720 -1339 320';
+	coop_vector_spawnOrigin7			= '3480 -1250 320';
+	coop_vector_spawnOrigin6			= '3540 -1250 320';
+	coop_vector_spawnOrigin5			= '3600 -1250 320';
+	coop_vector_spawnOrigin4			= '3660 -1250 320';
+	coop_vector_spawnOrigin3			= '3720 -1250 320';
+	coop_vector_spawnOrigin2			= '3480 -1170 320';
+	coop_vector_spawnOrigin1			= '3540 -1170 320';
+
+	//hzm coop mod chrissstrahl, set story
+	coop_string_story = "$$IGMLoadingText$$";
+	//hzm coop mod chrissstrahl, set starting weapon
+	coop_string_weapon1 = "models/weapons/worldmodel-GrenadeLauncher.tik";
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "training" );
+	
+	holoDeckSetup ();
+	$holoDeck.origin ( '3621 -1065 320' );
+	level_ai ( 0 );
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+	//centerprint( "Temp Level" );
+	wait( 2 );
+
+	entity e;
+	float i;
+
+	for( i = 1; i <= NUM_ENEMIES; i++ )
+	{
+		e = getentity( "enemy" + i );
+		if( doesEntityExist( e ) )
+		{
+			// group them together and set a groupdeaththread that transitions back to IGM after
+			// they are all killed
+			e.setgroupid( 123 );
+			e.groupdeaththread( "IGM4IsOver" );
+
+			// set their wander tendency to 0 so they don't move around
+			e.settendency( "wander", 0.0 );
+		}
+	}
+
+	waitforplayer();
+	
+	
+	//hzm coop mod Chrissstrahl, set the objective
+	globalCoop_objectives_set("$$IGM4GoToBridge$$","complete",1,0);
+	globalCoop_objectives_set("$$IGM4GoToArmory$$","complete",2,0);
+	globalCoop_objectives_set("$$IGM4HoloDeck$$","incomplete",3,1);
+	
+	justLoadedDeckThreadIGM4();
+	thread holoDeckFadeOut();
+}
+
+//---------------------
+// justLoadedDeckThreadIGM4
+// Triggered and check for mission objectives on IGM4
+//------------------------
+void justLoadedDeckThreadIGM4()
+{
+
+
+/*
+	$player.loadobjectives( "IGM4" );
+	wait( .05 );
+
+	if( getfloatvar( "game.IGM4GoToTelsia" ) >= 1 )
+	{
+		$player.loadobjectives("IGM4alt");
+
+		$player.setobjectiveshow( "IGM4GoToTelsia", 1 );
+	}
+	else
+	{
+		$player.loadobjectives("IGM4");
+	}
+	if( getfloatvar( "game.IGM4GoToTelsia" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM4GoToTelsia", 1 );
+	}
+
+	if( getfloatvar( "game.IGM4TalkWithKleeya" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM4TalkWithKleeya", 1 );
+	}
+	if( getfloatvar( "game.IGM4TalkWithKleeya" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM4TalkWithKleeya", 1 );
+	}
+
+	if( getfloatvar( "game.IGM4GoToBridge" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM4GoToBridge", 1 );
+	}
+	if( getfloatvar( "game.IGM4GoToBridge" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM4GoToBridge", 1 );
+	}
+
+	if( getfloatvar( "game.IGM4GoToArmory" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM4GoToArmory", 1 );
+	}
+	if( getfloatvar( "game.IGM4GoToArmory" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM4GoToArmory", 1 );
+	}
+	if( getfloatvar( "game.IGM4HoloDeck" ) >= 1 )
+	{
+		$player.setobjectiveshow( "IGM4HoloDeck", 1 );
+	}
+	if( getfloatvar( "game.IGM4HoloDeck" ) == 2 )
+	{
+		$player.setobjectivecomplete( "IGM4HoloDeck", 1 );
+	}
+*/
+
+}
+
+//------------------------
+// called when bug is Dead to end level
+//------------------------
+void IGM4IsOver()
+{
+	holoDeckFadeIn();
+
+	$teleportTrigger.remove();
+
+	wait( .5 );
+
+	$world.playsound( "sound/player/player_invdrop.wav", 3, 1, 10000 );
+	$player.take( "grenadelauncher" );
+	
+	
+	setfloatvar( "game.IGM4HoloDeck", 2 );
+
+	thread globalCommon_SpawnActor( "char/hazardteam_sf-kourban.tik", "korban", '0 0 0', 0 );
+	wait( .05 );
+
+	$korban.playdialog("localization/sound/dialog/ent_m7/korban_almost.mp3", 1, 100000, 1 ); //Almost as good as a Klingon!
+	waitForDialog( $korban );
+
+	//centerprint( "level is over" );
+	wait( 2 );
+
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait( .6 );
+
+	//hzm we don't use this
+	/*
+	spawn ( "trigger_changelevel", "targetname", "trigger_endTraining", "map", "ent-deck1_bridge" );
+	wait( .05 );
+	*/
+
+	// Setup Level Vars
+	//setfloatvar ("game.checkEntMission4RoomsVisited", 9 );
+
+	//setfloatvar ("game.checkEntMission4RoomsVisited", 10 );
+
+	//wait ( .55 );
+	//setfloatvar ( "game.globalMissionEnterprise", 5 );
+	
+	//hzm we don't use this
+	/*trigger ( "$trigger_endTraining" );*/
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+	
+}
+
+//------------------------
+// this thread sets up the Holo Deck And Player
+//------------------------
+void holoDeckSetup()
+{
+	cam_fadeout( .05, 0, 0, 0, 1, 0 );
+
+	soundtrack( "music/training_weapon.mus" );
+
+	//$player.immobilize( 1 );//hzm coop mod chrissstrahl - not needed in coop
+	
+	$holoDeck.notsolid();
+	$holoDeck.rendereffects( "+depthhack" );
+
+	$holoDeck.forcealpha( 1 );
+	$holoDeck.alpha( 1 );
+}
+
+//------------------------
+// this thread makes the Holo Deck Fade Out
+//------------------------
+void holoDeckFadeOut()
+{
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	$holoDeck.fade( 2, 0 );
+	wait( 2 );
+	$holoDeck.hide();
+	//$holoDeck.alpha( 0 );
+
+	//$player.immobilize( 0 );//hzm coop mod chrissstrahl - not needed in coop
+
+	thread givePlayerAmmo();
+
+	level_ai ( 1 );
+}
+
+//------------------------
+// this thread makes the Holo Deck Fade Out
+//------------------------
+void holoDeckFadeIn()
+{
+	$lift01.wait( -1 );
+	//$lift01.targetName( "0" );	//this will crash the engine...don't change targetnames on func_ objects :)
+	$lift01_Trigger.nottriggerable ();
+
+	wait( 3 );
+
+	/*
+	$player.gravity( 0 );
+	$player.immobilize( 1 );
+	$holoDeck.origin( $player.getorigin() );
+	$holoDeck.show();
+	$holoDeck.fadein( 2, 1 );
+	wait( 2 );
+	*/
+}
+
+void givePlayerAmmo()
+{
+	//hzm coop mod chrissstrahl - give ammo to all players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	while( 1 )
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 ){
+					ePlayer.ammo( "Plasma", 200 );
+					ePlayer.ammo( "Fed", 200 );
+				}
+			}
+		}
+		wait( 1 );
+	}
+}
+
+
+
+
+//------------------------------------------------------------------------------
+//HZM Coop Mod - levelend default coop function, loads next map on completion
+//------------------------------------------------------------------------------
+void coop_endLevel()
+{
+	//hzm coop mod chrissstrahl, set these because the server could be shoutdown between the missions
+	setFloatVar("game.globalTurboliftRide",0);//set play turbolift ride sound	
+	setFloatVar("game.igmHolodeckSpawn",0);//set spawn in holodeck
+	setFloatVar("game.igmTurboliftSpawn",0);//set spawn in turbolift
+	setFloatVar("game.igmRoomsVisited",10);//set rooms visited
+	//eof HZM
+	
+	setfloatvar("game.checkEntMission4RoomsVisited",10);
+	setfloatvar("game.globalMissionEnterprise",4);
+	
+	//hzm coop mod chrissstrahl - added for coop diagnose mode
+	if(getCvarInt("coop_dev") == 1){
+		if(getCvarInt("coop_diag") == 1){
+			thread globalCoop_mission_completed("ent-training_weap3");
+			return;
+		}
+	}
+	//eof hzm
+
+
+	thread globalCoop_mission_completed("ent-deck1_bridge");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,475 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2007.09.29
+// E-Mail:		chrissstrahl@yahoo.de
+// Organisation:	HaZardModding
+//
+// CONTAININS FUNCTIONS RETURNING ESSENTIAL OPERATING DATA FOR THE CO-OP MOD
+
+//HAZARDMODDING CO-OP SCRIPT MODIFICATION ©2006-2015 SOME RIGHTS RESERVED AND
+//(IP)INTELLECTUAL PROPERTY HELD BY CHRISTIAN SEBASTIAN STRAHL, ALIAS CHRISSSTRAHL.
+
+//YOU ARE EXPLICITE FORBIDDEN TO USE/MODIFIE/REDISTRIBUTE/REPLICATE/RELEASE/REBUILD/COPY
+//ANY MATERIALS OR INTELLECTUAL PROPERTY OF THIS FILE WITHOUT THE EXPLICIT
+//WRITTEN PERMISSION OF THE RESPECTIVE OWNERS!
+
+//
+//CONTACT: chrissstrahl@yahoo.de [Christian Sebastian Strahl, Germany]
+//-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+float globalCoop_return_integerPlayersQuantity(float fLivingOnly)
+//----------------------------------------------------------------------
+// return number of players on the server , 0=all,1=living,2=nospectators
+//----------------------------------------------------------------------
+{
+	if(getCvarInt("g_gametype") == 0)
+	{
+		return 1;
+	}
+	entity ePlayer;
+	float fExistingPlayers =0;
+	float fPlayerIdInUse;
+
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(fLivingOnly == 1){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 && globalCoop_check_existingLivingEntity(ePlayer) == 1){
+					fExistingPlayers++;
+				}
+			}
+			else if(fLivingOnly == 2){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0){
+					fExistingPlayers++;
+				}
+			}
+			else{
+				fExistingPlayers++;
+			}
+		}
+	}
+	return fExistingPlayers;
+}
+
+
+float globalCoop_return_integerPlayerId(entity ePlayer)
+//----------------------------------------------------------------------
+// return Idendificator Number of the given player entity
+//+updated rutime based on gsio his suggestion
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		
+		string sRawTargetname;
+		sRawTargetname = ePlayer.getRawTargetname();
+//SINGLEPLAYER
+		if(getCvarInt("g_gametype") == 0){
+			if(sRawTargetname == "player"){
+				return 0;
+			}
+		}
+//MULTIPLAYER
+		float fPlayerIdInUse;
+		fPlayerIdInUse=0;
+		//USE WHILE, SAVE 2 STATMENTS
+		while(fPlayerIdInUse<coop_integer_maxPlayers){
+			
+			if(sRawTargetname == "player"+fPlayerIdInUse){
+				if(doesEntityExist(ePlayer)){
+					return fPlayerIdInUse;
+				}
+			}
+			fPlayerIdInUse++;
+		}
+	}
+
+//RETURN ON DEFAULT
+	return -1;
+}
+
+
+float globalCoop_return_floatMultiplicatedPlayerQuantity(float fMultiplicateMe)
+//----------------------------------------------------------------------
+// return new float Multiplicate given float with the number of active players
+//----------------------------------------------------------------------
+{
+//MULTIPLAYER
+	if(getCvarInt("g_gametype") != 0){
+		float fCurrent;
+		fCurrent = fMultiplicateMe;
+		fMultiplicateMe	= (fMultiplicateMe * globalCoop_return_integerPlayersQuantity(0));
+		
+	//DO NOT RETURN LOWER VALUE AS THE GIVEN ONE
+		if(fCurrent > fMultiplicateMe){
+			fMultiplicateMe = fCurrent;
+		}
+	}
+	return fMultiplicateMe;
+}
+
+
+entity globalCoop_return_playerClosest(	entity eOrigin,			//The Origin Entity of the distance calculation
+										float fMinDist,		//The Minimum distance required to be between both entitys, 0=none
+										float fMaxDist,		//The Maximum distance allowed between both entitys, 0=none
+										float fWatchDir,		//Calculate based on the watch direction of the given entity (works only with players), 0=no
+										float fActive,			//Only Active Players
+										string sClassToExclude,	//name of the class to exclude
+										float fInvertExclusion,//do not exclude but include the given class
+										float fEqualizeZAxis)	//Check only two dimensional
+//----------------------------------------------------------------------
+// returns a player entity matching the given rules closest to the entity given
+//----------------------------------------------------------------------
+{
+//Return player in Singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		return $player;
+	}
+		
+//Chek if entity we have to check the distance to is missing...
+	if(!doesEntityExist(eOrigin)){
+		//globalCoop_main_devInfo("->Origin Entity Missing, returned WORLD");
+		return $world;
+	}
+	
+	float	fPlayerId,
+			fPlayerIdClosest,
+			fDistanceCurrent,
+			fDistancePreviouse,
+			fExistingNumOfPlayers,
+			fHandle;
+	entity	eCurrentPlayer;
+	vector	vOrigin,
+			vClosestOrigin;
+	string 	sOriginEntityRawTargetname;
+			sOriginEntityRawTargetname = eOrigin.getRawTargetname();
+			
+//GET ORIGIN NOW
+	if(fWatchDir == 1 && globalCoop_return_integerPlayerId(eOrigin) >= 0){
+		eOrigin = getEntity("globalCoop_player"+globalCoop_return_integerPlayerId(eOrigin)+"Watch");
+		
+		if(!doesEntityExist(eOrigin)){
+			//globalCoop_main_devInfo("->WATCH Entity Missing, returned WORLD");
+			return $world;
+		}
+		fEqualizeZAxis = 1;
+	}
+	vOrigin	= eOrigin.getOrigin();
+	
+	for(fPlayerId=0;fPlayerId<coop_integer_maxPlayers;fPlayerId++){
+//RESET HANDLE
+		fHandle=1;
+//GET A PLAYER
+		eCurrentPlayer = getentity("player"+fPlayerId);
+//HANDLE PLAYER IF EXIST
+		if(doesEntityExist(eCurrentPlayer)){
+//KEEP TRACK OF THE PLAYERS
+			fExistingNumOfPlayers++;
+			if("player"+fPlayerId == sOriginEntityRawTargetname)
+			{
+				fHandle=0;
+			}
+//DO NOT CHECK DISTANCE TO THIS PLAYER IF HE/SHE IS DEATH OR OUT
+			if(fHandle)
+			{
+				if(coop_bool_mp_warmupTimeOver)
+				{
+					if(fActive == 1)
+					{
+						if(	globalCoop_check_existingLivingEntity(eCurrentPlayer) != 1 || globalCoop_check_playerSpectator(eCurrentPlayer) == 1)
+						{
+							fHandle=0;
+						}
+					}
+				}
+			}
+//DO NOT CHECK DISTANCE TO THIS PLAYER IF HE/SHE DOES HAVE THE GIVEN CLASS
+			if(fHandle)
+			{
+				if(sClassToExclude != "")
+				{
+					string sClass;
+					sClass = eCurrentPlayer.getStringvar("globalCoop_className");
+					if(sClassToExclude == sClass && fInvertExclusion != 1){
+						fHandle=0;
+					}
+					else if(sClassToExclude != sClass && fInvertExclusion == 1){
+						fHandle=0;
+					}
+				}
+//CHECK DISTANCE FROM ORIGIN OBJECT TO THE CURRENT PLAYER
+				if(fHandle)
+				{
+					vClosestOrigin = eCurrentPlayer.getOrigin();
+//EQUALIZE THE Z AXIS
+					if(fEqualizeZAxis){
+						vOrigin_z = vClosestOrigin_z;
+					}
+//CALCULATE DISATANCE
+					fDistanceCurrent = vectorlength( (vOrigin - vClosestOrigin) );
+//CHECK MIN DISTANCE DOES MATCH
+					if(fMinDist != 0){
+						if(fMinDist > fDistanceCurrent){
+							fHandle=0;
+						}
+					}
+//CHECK IF MAX DISTANCE DOES MATCH
+					if(fMaxDist != 0){
+						if(fDistanceCurrent > fMaxDist){
+							fHandle=0;
+						}
+					}
+//CHECK IF PLAYER IS CLOSER AS ANY OTHER PLAYER IN RANGE
+					if(fHandle){
+						if(fDistanceCurrent < fDistancePreviouse || fDistancePreviouse == 0){
+							fDistancePreviouse	= fDistanceCurrent;
+							fPlayerIdClosest	= fPlayerId;
+						}
+					}
+				}
+			}
+		}
+	}
+//GET CLOSEST PLAYER
+	eCurrentPlayer = getentity("player"+fPlayerIdClosest);
+	if(doesEntityExist(eCurrentPlayer)){
+		return eCurrentPlayer;
+	}
+//FAILSAVE
+	return $world;
+}
+
+
+entity globalCoop_return_playerClosestActive(entity eOrigin)
+//----------------------------------------------------------------------
+// return closest Active player
+//----------------------------------------------------------------------
+{
+	return globalCoop_return_playerClosest(eOrigin,0,0,0,1,"",0,0);
+}
+
+
+entity globalCoop_return_playerClosestPreferActive(entity eOrigin)
+//----------------------------------------------------------------------
+// return closest player, prefer active players
+//----------------------------------------------------------------------
+{
+//Return player in Singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		return $player;
+	}
+//multiplayer
+	if(!doesEntityExist(eOrigin)){
+		globalCoop_main_print("ERROR: globalCoop_return_playerClosestPreferActive");
+		globalCoop_main_print("The entity in paramater 1 does not exist!");
+		return $world;
+	}
+	entity eReturn;
+	eReturn = globalCoop_return_playerClosestActive(eOrigin);
+	
+	if(eReturn.getRawTargetName() == "world"){
+		eReturn = globalCoop_return_playerClosest(eOrigin,0,0,0,0,"",0,0);
+	}
+	return eReturn;
+}
+
+float globalCoop_return_floatBSPspawnAngleForPlayerId(float fPlayerId)
+//------------------------------------------------------------------------------
+//return the viewangle for the given player ID, grab compiled BSP spawn origins (info_player_deathmatch)
+//------------------------------------------------------------------------------
+{
+	entity eSpawn;
+	float fAngle = -1;
+	
+	fPlayerId++;//+1 cuz player 0 gets spawn 1
+	
+	eSpawn = getEntity("ipd" + fPlayerId);
+	if(doesEntityExist(eSpawn)){
+		fAngle = vectorGetY(eSpawn.getAngles());
+	}
+	
+	return fAngle;	
+}
+
+
+float globalCoop_return_floatSpawnAngleForPlayerId(float fPlayerId)
+//------------------------------------------------------------------------------
+//return the viewangle for the given player ID, Don't use if else, saves statments!!!
+//------------------------------------------------------------------------------
+{
+	float fAngle;
+	
+	fAngle = globalCoop_return_floatBSPspawnAngleForPlayerId(fPlayerId);
+	if(fAngle != -1){
+		return fAngle;
+	}
+
+	fAngle = getFloatScriptVariable("coop_float_spawnAngle"+ (fPlayerId + 1));
+	
+//ANGLE IS 0, GRAB ANGLE FROM ZERO(MASTER)
+	if(fAngle == 0)
+	{
+		fAngle = coop_float_spawnAngle0;
+	}
+	return fAngle;
+}
+
+string globalCoop_return_string1IfString2IsEmpty(string s1,string s2)
+//----------------------------------------------------------------------
+// Returns string 1 if string 2 is empty
+//----------------------------------------------------------------------
+{
+	if(s2 == "")
+	{
+		return ""+s1;
+	}
+	return ""+s2;
+}
+
+
+string globalCoop_return_stringActiveWeaponName(entity ePlayer)
+//----------------------------------------------------------------------
+// return the active weapon of the given player
+//----------------------------------------------------------------------
+{
+	string sActiveWeaponName;
+	
+	if(doesEntityExist(ePlayer))
+	{
+		sActiveWeaponName = ePlayer.getActiveWeaponName();
+	}
+
+//Do not allow a empty string to be returned
+	if(sActiveWeaponName == ""){
+		sActiveWeaponName = "None";
+	}
+	return sActiveWeaponName+"";//bugfix, else it might return a empty string
+}
+
+//string globalCoop_return_stringEntityTargetname(entity eGetTargetName,float fRaw)
+//----------------------------------------------------------------------
+// return the active weapon of the given player
+//----------------------------------------------------------------------
+// {
+	// string sTargetname;
+	// if(doesEntityExist(eGetTargetName)){
+		// if(fRaw){
+			// sTargetname = eGetTargetName.getRawTargetname();
+		// }else{
+			// sTargetname = eGetTargetName.getTargetname();
+		// }
+	// }
+	// return sTargetname+"";
+// }
+
+
+entity globalCoop_return_entityE1OrE2(entity e1,entity e2)
+//----------------------------------------------------------------------
+// return entity1 in multiplayer and entity2 in singleplayer
+//----------------------------------------------------------------------
+{
+	if(getCvarInt("g_gametype") != 0){
+		if(!doesEntityExist(e1)){
+			e1 = globalCoop_return_playerClosestPreferActive($world);
+		}
+		return e1;
+	}
+	return e2;
+}
+
+
+
+float globalCoop_return_floatNotNegative(float fNotNegative)
+//----------------------------------------------------------------------
+// If negative value, convert to positive
+//----------------------------------------------------------------------
+{
+	if(fNotNegative < 0){
+		fNotNegative = (fNotNegative - (fNotNegative*2));
+	}
+	return fNotNegative;
+}
+
+vector globalCoop_return_vectorPlayerBSPspawnOrigin(float fPlayerId)
+//----------------------------------------------------------------------
+// RETURN SPAWN VECTOR FOR PLAYER ID, of the real bsp compiled spawn origin
+//----------------------------------------------------------------------
+{
+	entity eSpawn;
+	vector vOrigin = '0 0 0';
+	
+	fPlayerId++;
+	
+	eSpawn = getEntity("ipd" + fPlayerId);
+	if(doesEntityExist(eSpawn)){
+		vOrigin = eSpawn.getOrigin();
+	}
+	
+	return vOrigin;
+}
+
+vector globalCoop_return_vectorPlayerSpawnOrigin(float fPlayerId)
+//----------------------------------------------------------------------
+// RETURN SPAWN VECTOR FOR PLAYER ID
+//----------------------------------------------------------------------
+{
+//get BSP spawn first
+	vector vSpawnorigin = '0 0 0';
+	vSpawnorigin = globalCoop_return_vectorPlayerBSPspawnOrigin(fPlayerId);
+	if(vSpawnorigin != '0 0 0'){
+		return vSpawnorigin;
+	}
+//DO NOT USE IF-ELSE HERE, FLOAT-VARS GO PRETTY FAST, SAVE THE STATMENTS INSTEAD
+	vSpawnorigin = getVectorScriptVariable("coop_vector_spawnOrigin"+(fPlayerId + 1));
+	return vSpawnorigin;
+}
+
+
+vector globalCoop_return_vectorPlayerReSpawnOrigin(float fPlayerId)
+//----------------------------------------------------------------------
+// RETURN SPAWN VECTOR FOR PLAYER ID
+//----------------------------------------------------------------------
+{
+vector vSpawnorigin;
+	vSpawnorigin = getVectorScriptVariable("coop_vector_respawnOrigin"+ ( fPlayerId + 1) );
+//IF RESPAWN NOT YET SET, GRAB SPAWN ORIGIN
+	if(vSpawnorigin == '0 0 0')
+	{
+		vSpawnorigin = globalCoop_return_vectorPlayerSpawnOrigin(fPlayerId);
+	}
+	return vSpawnorigin;
+}
+
+float globalCoop_return_floatLengthFromVectorCalc(float fVec1, float fVec2)
+//----------------------------------------------------------------------
+// returns calculated vector length from floats that are converted to vectors
+//----------------------------------------------------------------------
+{
+	float fReturn;
+	vector vec1,vec2;
+	vec1_z = fVec1;
+	vec2_z = fVec2;
+	fReturn = vectorLength( vec1 - vec2 );
+	
+	
+	return fReturn;
+}
+float globalCoop_return_floatLengthFromCombinedBbox(float fBbox1, float fBbox2)
+//----------------------------------------------------------------------
+// returns calculated length of combined bounding boxes from floats
+//----------------------------------------------------------------------
+{
+	float fReturn;
+	fBbox1 = globalCoop_return_floatNotNegative(fBbox1);
+	fBbox2 = globalCoop_return_floatNotNegative(fBbox2);
+	fReturn = (fBbox1 + fBbox2);	
+	return fReturn;
+}
+
+
+
+
+
+
+
+
+

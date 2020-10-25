@@ -1,0 +1,70 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:
+//		Archetype objects are displayed to the user by drawing a 2d bounding box that surrounds
+//		the 3d bounding box of an object.  script_objects are the preferred way for level designers
+//		to define the bounding box and which archetype it will display when under the crosshairs, and
+//		when scanned with the tricorder, what archetype text will be used.  The problem is that
+//		script_objects suffer from client-side bounding box truncation because of network compression
+//		and will not correctly display a -z extent less than -16.  The bounding box cannot be
+//		adjusted to have it's -z extent set to zero because brush models are forced to have their
+//		origin at their centroid.  Normal entities are not.
+//
+//		This script solves that problem by replacing a script_object with a dummy tiki entity that has
+//		an equivalent bounding box with it's -z extent set to zero, and it's +z extent and origin offset
+//		to compensate.
+//
+//		The following data (and ONLY the following data) is copied from the script_object (which is
+//		removed from the world) over to the newly spawned fx-dummy.tik entity:
+//			- origin, mins, maxs
+//			- targetname
+//
+//  Script By:    Josh Martel
+//  Created on:   Monday, September 16, 2002
+//
+//  Last Edited: Jared Hefty	 9/20/2002
+//
+// REQUIRES: global_common.scr
+//
+//-----------------------------------------------------------------
+
+void globalArchetype_Setup( entity scriptObject, string theArchetype )
+{
+	vector saveOrigin, saveMins, saveMaxs;
+	string saveTargetname;
+	entity newEnt;
+
+	// make sure entity is valid
+	//globalCommon_AssertEntity( scriptObject , "globalArchetype_Setup: got null script_object" );
+	if( !doesEntityExist( scriptObject ) )
+	{
+		print( "globalArchetype_Setup: got null script_object\n" );
+		return;
+	}
+
+	// extract important information from entity
+	saveOrigin = scriptObject.getorigin();
+	saveMins = scriptObject.getmins();
+	saveMaxs = scriptObject.getmaxs();
+	saveTargetname = scriptObject.getrawtargetname();
+
+	// adjust mins/max and origin to make mins_z == 0
+	saveOrigin_z += saveMins_z;
+	saveMaxs_z -= saveMins_z;
+	saveMins_z = 0;
+
+	// remove the script object and spawn the empty tiki in it's place
+	scriptObject.remove();
+	newEnt = spawn( "fx/fx-dummy.tik" );
+	wait(0.05);
+	newEnt.origin( saveOrigin );
+	newEnt.setsize( saveMins, saveMaxs );
+	newEnt.notsolid();
+	newEnt.notouch();
+	newEnt.contents( "targetable" );
+	newEnt.archetype( theArchetype );
+	newEnt.targetname( saveTargetname );
+	newEnt.nodamage();
+}

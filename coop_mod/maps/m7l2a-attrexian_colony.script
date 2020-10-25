@@ -1,0 +1,840 @@
+//-------------------------------------------
+// EF2 Level Script File
+//
+// Level: m7l2a-attrexian_colony
+// Script by: Richard "Charon" H., Jerry K.
+// Geometry by: Jerry Keehan, Richard "Charon" H.
+// Created on: 28 Apr, 2002
+//
+// Last Edited: Richard "Charon" H.
+//--------------------------------------------
+
+void main();
+void init();
+
+//--- setup functions
+void setupArchetypes();
+void setupCrane();
+void setupLockedDoors();
+
+//--- function for accelerating and decelerating objects
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection );
+
+//--- junkyard functions
+void junkyardStart();
+void junkyardSpawnWave1();
+void junkyardSpawnWave2();
+void junkyardSpawnWave3();
+void junkyardSpawnWave5();
+void junkyardQuad_land();
+
+//--- door functions
+void factory_outerdoor1_switch1_wait();
+void factory_outerdoor1_switch1_check();
+void factory_outerdoor1_action();
+void factory_outerdoor1_piston_up();
+void factory_outerdoor1_piston_down();
+
+void factory_outerdoor1_areaportal_on();
+void factory_outerdoor1_areaportal_off();
+
+void randomLightningFlash();			
+void randomExplosionSound();
+
+void attrexianDoorBeepAccept();
+void attrexianDoorBeepReject();
+void attrexianAutoSave();
+
+float factory_outerdoor1_isopen = 0;
+float factory_innerdoor1_isopen = 0;
+
+
+//==========================================================================================
+// INCLUDES
+//==========================================================================================
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_waitForTeam();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+#include "coop_mod/matrix/global/global_flyin.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_archetype.scr"
+
+//==========================================================================================
+// Main Stuff 
+//==========================================================================================
+
+//---------------------
+// Function: main
+// Comments:
+// called when the level starts
+//---------------------
+void main()
+{
+	//hzm coop mod chrissstrahl - spawnorigins, Spawn Players on those locations, at map start
+	coop_float_spawnAngle0 				= 230;
+	coop_vector_spawnOrigin1 			= '-1050 350 180';
+	coop_vector_spawnOrigin2 			= '-1067 500 180';
+	coop_vector_spawnOrigin3 			= '-1070 440 180';
+	coop_vector_spawnOrigin4 			= '-986 420 180';
+	coop_vector_spawnOrigin5 			= '-937 370 180';
+	coop_vector_spawnOrigin6 			= '-850 472 180';
+	coop_vector_spawnOrigin7 			= '-920 555 180';
+	coop_vector_spawnOrigin8 			= '-994 621 180';
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$AColonyLoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+
+	soundtrack( "music/m7l1-attrexian_colony.mus" );
+	$sky.rendereffects( "+skyorigin" );
+	$world.entity_fade_dist( 10000 );
+	$world.farplane_cull( 1 );
+	$world.farplane_color ( '0.0875 0.1 0.145' );
+	$world.farplane ( 4000 );
+	
+	$world.weather( "rain", 400 );
+	
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons( "m7l2a_attrexian_colony" );
+
+	thread init(); // initialization thread
+	
+	waitForPlayer();
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$EnterFactory$$","incomplete",1,1);
+	globalCoop_objectives_set("$$FindElderlyIdryll$$","incomplete",2,1);
+	
+	//hzm coop mod Chrissstrahl - spawn a own trigger for coop, to allow gathering of the team
+	spawn("trigger_use","targetname","coop_endLevel","thread","coop_waitForTeam","origin","-346 -3532 154");
+	
+	//hzm coop mod Chrissstrahl - remove the default trigger_changelevel trigger
+	$t439.remove();
+}
+
+
+
+//==========================================================================================
+// SETUP FUNCTIONS 
+//==========================================================================================
+
+//---------------------
+// Function: init
+// Comments:
+// called by main to setup the world
+//---------------------
+void init()
+{
+	thread setupArchetypes();
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	thread setupCrane();
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	thread setupLockedDoors();
+	
+	//--- setup lightstyles
+	$world.light_lightstyle ( "lightAreaFlicker1", "aazzaazzjjaaazzaajaajzzzazazazajjzaazzkahjszwufkjaz", 0 );
+	$world.light_lightstyle ( "lightAreaFlicker2", "aaaaazzzzzaaaaazzzzzjjaaaaaazzzzaaaajaaaajzzzzzazazazajjzaaaaazzkahjszwufkjaz", 0 );
+	$world.light_lightstyle ( "lightLevel3Hallway1", "z", 0 );
+	$world.light_lightstyle ( "lightLevel3Hallway1_2", "z", 0 );
+
+	$factory_outerdoor1.solid();
+
+	$factory_outerdoor1.dmg( 16384 );	
+	//hzm coop mod chrissstrahl - set kill message
+	$factory_outerdoor1.setStringVar("uservar1","killmessage  $$MOD_CRUSH$$ a ^2Heavy Door");
+	$factory_outerdoor1.setStringVar("uservar1","killmessage_deu  $$MOD_CRUSH$$ einer ^2schweren T$$u$$r");
+
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	$factory_outerdoor1_areaportal.hide();
+	$factory_outerdoor1_areaportal.notsolid();
+
+	$quadCrateTrigger.nottriggerable();
+
+	thread factory_outerdoor1_switch1_wait();
+
+	thread junkyardStart();
+
+	thread randomExplosionSound();
+	thread randomLightningFlash();
+}
+
+
+//==========================================================================================
+// Setup Functions
+//==========================================================================================
+
+//---------------------
+// Function: setupArchetypes
+// Comments:
+// setups the archetypes in the level
+//---------------------
+void setupArchetypes()
+{
+	$arch_doorpanel1.contents( "targetable" );
+	$arch_doorpanel1.archetype( "AttrexianDoorPanel" );
+}
+
+//---------------------
+// Function: setupLockedDoors
+// Comments:
+// locks all the doors that need to be locked so they can make beepy noises
+//---------------------
+void setupLockedDoors()
+{
+	$junkyardLockedDoor1.lock();
+}
+
+
+//==========================================================================================
+// generic functions
+//==========================================================================================
+
+//------------------------------------------------------------------
+// Function: moveAxisAlignedEntity
+// Comments:
+// moves an entity with acceleration and deceleration.
+//
+// Parameters:
+//   entity name - targetname of entity .
+//
+//   totalTime - A floating point value that represents the 
+//   the total time it takes the door to move the specified distance.
+//
+//   totalDistance - The total distance the door will move.
+//
+//   moveDirection - The direction the door will move. Valid values are:
+//       up
+//       down
+//		 north
+//		 south
+//       east
+//       west
+//------------------------------------------------------------------
+void moveAxisAlignedEntity( string entityName, float totalTime, float totalDistance, string moveDirection )
+{
+	entity entityReference;
+	entityReference = getEntity( entityName );
+	
+	//
+	// IMPORTANT timeStep should be about .1 seconds.
+	// Otherwise, you may get jerks at low frame rates (fps < 20).
+	//
+	float iterations = 100;		// Number of iterations
+	float halfDistance;			// Distance at which transition occurs
+	float transitionStep;		// Step at which transition from acceleration to deceleration occurs
+	float timeStep;				// Time duration for a single step
+	timeStep = totalTime / iterations;
+	transitionStep = iterations / 2;
+	halfDistance = totalDistance / 2;
+	
+	float sum;
+	float distanceInc;
+	sum = (transitionStep * (transitionStep + 1)) / 2;
+	distanceInc = halfDistance / sum;
+	
+	float moveDir = 0;
+	if ( moveDirection == "up" )
+	{
+		moveDir = 0;
+	}
+	else if ( moveDirection == "down" )
+	{
+		moveDir = 1;	
+	}
+	else if ( moveDirection == "west" )
+	{
+		moveDir = 2;	
+	}
+	else if ( moveDirection == "east" )
+	{
+		moveDir = 3;
+	}
+	else
+	{
+		centerprint( "Invalid move direction" ); 	
+	}
+
+	float idx;
+	float moveInc = 0;
+	for ( idx = 0; idx < iterations; idx += 1)
+	{	
+	 	if ( idx < transitionStep )
+	 	{
+	 		moveInc += distanceInc;
+	 	}
+	 	else
+	 	{
+	 	    moveInc -= distanceInc;
+	 	}
+		entityReference.time( timeStep );
+		if ( moveDir == 0 )
+		{
+			entityReference.moveUp( moveInc );
+		}
+		else if ( moveDir == 1 )
+		{
+			entityReference.moveDown( moveInc );
+		}
+		else if ( moveDir == 2 )
+		{
+			entityReference.moveWest( moveInc );
+		}
+		else
+		{
+			entityReference.moveEast( moveInc );
+		}
+		waitfor ( entityReference );
+	}
+}
+
+
+//==========================================================================================
+// junkyard functions
+//==========================================================================================
+
+//---------------------
+// Function: junkyardStart
+// Comments:
+// Starts everything needed for the junkyard scene
+//---------------------
+void junkyardStart()
+{
+	//globalFlyin_SpawnLaunch( entity spawner, string spawnModelName, float spawnGroup, string spawnMasterState, string touchThread )
+	wait( 5 );
+	$junkyardAlienSpawn17.spawntargetname( "junkyardAlienSpawn17spawned" );
+	$junkyardAlienSpawn17.modelname( "char/alien-type1a-lurker.tik" );
+	trigger( "$junkyardAlienSpawn17" );
+
+	$junkyardAlienSpawn18.spawntargetname( "junkyardAlienSpawn18spawned" );
+	$junkyardAlienSpawn18.modelname( "char/alien-type1a-lurker.tik" );
+	trigger( "$junkyardAlienSpawn18" );
+
+	$junkyardAlienSpawn19.spawntargetname( "junkyardAlienSpawn19spawned" );
+	$junkyardAlienSpawn19.modelname( "char/alien-type1a-lurker.tik" );
+	trigger( "$junkyardAlienSpawn19" );
+
+	wait( .1 );
+
+	$junkyardAlienSpawn18spawned.fov( 120 );
+	$junkyardAlienSpawn18spawned.visiondistance( 512 );
+	$junkyardAlienSpawn18spawned.setgroupid( 11 );
+
+	$junkyardAlienSpawn19spawned.fov( 120 );
+	$junkyardAlienSpawn19spawned.visiondistance( 512 );
+	$junkyardAlienSpawn19spawned.setgroupid( 11 );
+}
+
+//---------------------
+// Function: junkyardSpawnWave1
+// Comments:
+// Spawns in the first wave of enemies in the junkyard
+//---------------------
+void junkyardSpawnWave1()
+{
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn1, "char/alien-type1a-lurker.tik", 0 , "", "", 0 );
+	wait( 1 );
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn2, "char/alien-type1a-lurker.tik", 0 , "", "", 0 );
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn4, "char/alien-type1b-chewer.tik", 0 , "", "", 0 );		
+	wait( 3 );
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn3, "char/alien-type1b-chewer.tik", 0 , "", "", 0 );
+}
+
+//---------------------
+// Function: junkyardSpawnWave2
+// Comments:
+// Spawns in the second wave of enemies in the junkyard
+//---------------------
+void junkyardSpawnWave2()
+{
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn6, "char/alien-type1b-chewer.tik", 0 , "", "", 0 );
+
+	$junkyardAlienSpawn14.spawntargetname( "junkyardAlienSpawn14spawned" );
+	$junkyardAlienSpawn14.modelname( "char/alien-type1a-lurker.tik" );
+	trigger( "$junkyardAlienSpawn14" );
+
+	$junkyardAlienSpawn16.spawntargetname( "junkyardAlienSpawn16spawned" );
+	$junkyardAlienSpawn16.modelname( "char/alien-type1a-lurker.tik" );
+	trigger( "$junkyardAlienSpawn16" );
+}
+
+//---------------------
+// Function: junkyardSpawnWave3
+// Comments:
+// Spawns in the third wave of enemies in the junkyard
+//---------------------
+void junkyardSpawnWave3()
+{
+	thread globalFlyin_SpawnLaunch( $junkyardAlienSpawn11, "char/alien-type1b-chewer.tik", 0 , "", "", 0 );
+}
+
+//---------------------
+// Function: junkyardSpawnWave5
+// Comments:
+// Spawns in the fifth wave of enemies in the junkyard
+//---------------------
+void junkyardSpawnWave5()
+{
+	$quadCrateTrigger.triggerable();
+	globalFlyin_SpawnLaunch( $junkyardAlienSpawn10, "char/alien-type3-quad.tik", 0 , "", "", 0 );
+}
+
+//---------------------
+// Function: junkyardQuad_land
+// Comments:
+// Quad hits the ground
+//---------------------
+void junkyardQuad_land()
+{
+	//hzm coop mod chrissstrahl - play earthquake for all players
+	thread globalCoop_player_earthquake( 1.25 , 1, 60 );
+	//hzm eof
+	$junkyardAlienSpawn10spawned_explosion.playsound ( "sound/impact/explosion/explo_wall1.wav", 0, 1.5, 2048 );
+
+	wait( .40 );
+	
+	trigger( "$junkyardAlienSpawn10spawned_explosion" );
+
+	$junkyardAlienSpawn10spawned.attackplayer();
+}
+
+
+//==========================================================================================
+// crane functions
+//==========================================================================================
+
+//---------------------
+// Function: setupCrane
+// Comments:
+// assembles and setups the crane
+//---------------------
+void setupCrane()
+{
+	$junkyardCraneSwing1.bind( $junkyardCraneSwing1_origin1 );
+	
+	wait( .1 );
+
+	$junkyardCraneSwing1_origin1.origin( $junkyardCraneArm1_origin2.getorigin() );
+
+	wait( .1 );
+
+	$junkyardCraneBase1.bind( $junkyardCraneBase1_origin1 );
+	$junkyardCraneCab1.bind( $junkyardCraneBase1_origin1 );
+	$junkyardCraneArm1_origin1.bind( $junkyardCraneBase1_origin1 );
+	$junkyardCraneArm1.bind( $junkyardCraneArm1_origin1 );
+	$junkyardCraneArm1_origin2.bind( $junkyardCraneArm1 );
+	$junkyardCraneSwing1_origin1.bind( $junkyardCraneArm1_origin2 );
+	
+	wait( 1 );
+	
+	$junkyardCraneArm1_origin1.rotateZdown( 40 );
+	$junkyardCraneArm1_origin2.rotateZup( 40 );
+	
+	while( 1 )
+	{
+		$junkyardCraneBase1_origin1.time( 5 );
+		$junkyardCraneBase1_origin1.rotateYup( 45 );
+		waitfor( $junkyardCraneBase1_origin1 );
+		
+		$junkyardCraneArm1_origin1.time( 3 );
+		$junkyardCraneArm1_origin2.time( 3 );
+		$junkyardCraneArm1_origin1.rotateZup( 25 );
+		$junkyardCraneArm1_origin2.rotateZdown( 25 );
+		waitfor( $junkyardCraneArm1_origin1 );
+		
+		wait( 3 );
+
+		$junkyardCraneArm1_origin1.time( 3 );
+		$junkyardCraneArm1_origin2.time( 3 );
+		$junkyardCraneArm1_origin1.rotateZdown( 25 );
+		$junkyardCraneArm1_origin2.rotateZup( 25 );
+		waitfor( $junkyardCraneArm1_origin1 );
+		
+		$junkyardCraneBase1_origin1.time( 5 );
+		$junkyardCraneBase1_origin1.rotateYdown( 45 );
+		waitfor( $junkyardCraneBase1_origin1 );
+		
+		wait( 3 );
+	}
+}
+
+
+//==========================================================================================
+// factorydoor functions
+//==========================================================================================
+
+//---------------------
+// Function: factory_outerdoor1_switch1_wait
+// Comments:
+// wait thread for the switch for the entrance door to the factory
+//---------------------
+void factory_outerdoor1_switch1_wait()
+{
+	$factory_outerdoor1_switch1.onuse ( "factory_outerdoor1_switch1_check" );
+	pause();
+}
+
+//---------------------
+// Function: factory_outerdoor1_switch1_check
+// Comments:
+// checks to see if the door is open or not each time the switch is pushed
+//---------------------
+void factory_outerdoor1_switch1_check()
+{
+	$factory_outerdoor1_switch1.nouse();
+	if ( factory_innerdoor1_isopen == 0 )
+	{
+		$factory_outerdoor1_switch1.playsound( "sound/ships/attrexian/att-beepconfirm.wav", 3, .7, 500 ); //TEMP Door switch open sound
+		thread factory_outerdoor1_action ();
+	}
+	else 
+	{
+		$factory_outerdoor1_switch1.playsound( "sound/ships/attrexian/att-beepreject.wav", 3, .7, 500 ); //TEMP Door switch failure sound
+		wait( .5 );
+		thread factory_outerdoor1_switch1_wait();
+	}
+}	
+
+//---------------------
+// Function: factory_outerdoor1_action
+// Comments:
+// opens the entrance door to the factory
+//---------------------
+void factory_outerdoor1_action()
+{
+	// move door up
+	float threadNum;
+	factory_outerdoor1_isopen = 1;
+	thread factory_outerdoor1_areaportal_off();
+	wait( .1 );
+	
+	wait( 1 );
+	
+	$factory_outerdoor1.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 3, .4, 500 );
+	$factory_outerdoor1.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	thread moveAxisAlignedEntity( "factory_outerdoor1" , 2, 160, "up" );
+	factory_outerdoor1_piston_up();
+	wait( 4 );
+	
+	// move door down
+	$factory_outerdoor1.playsound ( "sound/ships/attrexian/att-colonydoor1.wav", 4, 1, 500 );
+	threadNum = thread  moveAxisAlignedEntity( "factory_outerdoor1" , 2, 160, "down" );
+	thread factory_outerdoor1_piston_down();
+	waitforthread( threadNum );
+	wait( .1 );
+	
+	thread factory_outerdoor1_areaportal_on();
+	factory_outerdoor1_isopen = 0;
+	thread factory_outerdoor1_switch1_wait();
+	
+}
+
+//---------------------
+// Function: factory_outerdoor1_piston_up
+// Comments:
+// moves the pistons up on the entrance door to the factory
+//---------------------
+void factory_outerdoor1_piston_up()
+{
+	wait ( .5 );
+	float threadNum;
+	thread  moveAxisAlignedEntity( "factory_outerdoor1_piston1" , 1, 80, "up" );
+	threadNum = thread  moveAxisAlignedEntity( "factory_outerdoor1_piston2" , 1, 80, "up" );
+	waitforthread( threadNum );
+}	
+
+//---------------------
+// Function: factory_outerdoor1_piston_down
+// Comments:
+// moves the pistons down on the entrance door to the factory
+//---------------------
+void factory_outerdoor1_piston_down()
+{
+	wait ( .5 );
+	float threadNum;
+	thread  moveAxisAlignedEntity( "factory_outerdoor1_piston1" , 1, 80, "down" );
+	threadNum = thread  moveAxisAlignedEntity( "factory_outerdoor1_piston2" , 1, 80, "down" );
+	waitforthread( threadNum ); 
+}
+
+//---------------------
+// Function: factory_outerdoor1_areaportal_on
+// Comments:
+// closes the portal on the entrance door to the factory
+//---------------------
+void factory_outerdoor1_areaportal_on()
+{
+	$factory_outerdoor1_areaportal.closeportal(); 
+}
+
+//---------------------
+// Function: factory_outerdoor1_areaportal_off
+// Comments:
+// opens the portal on the entrance door to the factory
+//---------------------
+void factory_outerdoor1_areaportal_off()
+{
+	$factory_outerdoor1_areaportal.openportal(); 
+}
+
+
+//==========================================================================================
+// random functions
+//==========================================================================================
+
+//---------------------
+// Function: randomExplosionSound
+// Comments:
+// randomly picks an explosion sound to play and then randomly waits
+//---------------------
+void randomExplosionSound()
+{
+	float choice;
+
+	$explosionFlash1.hide();
+	$explosionFlash2.hide();
+	$explosionFlash3.hide();
+	$explosionFlash4.hide();
+	$explosionFlash5.hide();
+	$explosionFlash6.hide();
+	
+	while( 1 )
+	{
+		choice = randomint( 6 );
+		
+		
+		//hzm coop mod chrissstrahl - play earthquake for all players
+		thread globalCoop_player_earthquake( .15 , .75, 60 );
+		
+		if( choice == 0 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_lowfreq.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash1.show();
+			$explosionFlash1.fadein( .05 );
+			$explosionFlash1.alpha ( 1 );
+			$explosionFlash1.fade( 2 );
+		}
+		else if( choice == 1 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle1.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash2.show();
+			$explosionFlash2.fadein( .05 );
+			$explosionFlash2.alpha ( 1 );
+			$explosionFlash2.fade( 2 );
+		}
+		else if( choice == 2 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle2.wav" , 8 , 1.25 , 2000000 );
+			
+			$explosionFlash3.show();
+			$explosionFlash3.fadein( .05 );
+			$explosionFlash3.alpha ( 1 );
+			$explosionFlash3.fade( 2 );
+		}
+		else if( choice == 3 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle3.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash4.show();
+			$explosionFlash4.fadein( .05 );
+			$explosionFlash4.alpha( 1 );
+			$explosionFlash4.fade( 2 );
+		}		
+		else if( choice == 4 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_lowfreq.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash5.show();
+			$explosionFlash5.fadein( .05 );
+			$explosionFlash5.alpha ( 1 );
+			$explosionFlash5.fade( 2 );
+		}
+		else if( choice == 5 )
+		{
+			//hzm coop mod chrissstrahl - play sound on world instead of player
+			$world.playsound( "sound/impact/explosion/expl_muffle1.wav" , 8 , 1.25 , 2000000 );
+
+			$explosionFlash6.show();
+			$explosionFlash6.fadein( .05 );
+			$explosionFlash6.alpha ( 1 );
+			$explosionFlash6.fade( 2 );
+		}
+		wait( randomint (11) +10 );
+
+	}
+}
+
+//---------------------
+// Function: randomLightningFlash
+// Comments:
+// flashes lighting in the skybox every so often
+//---------------------
+void randomLightningFlash()			
+{
+	float LightningTime;
+	float LightningBrightness;
+	float LightningCountFlashes;
+	float LightningWait;
+	float LightningVisualIndex;
+	float MAX_lightningFlashObjects;
+	float i;
+	float LightningLastFlash;
+	string lightningFlashName;
+	entity lightningFlashObject;
+
+	LightningVisualIndex = 1;
+	MAX_lightningFlashObjects = 8;
+
+	for( i = MAX_lightningFlashObjects; i >= 0; i-- )
+		{
+			lightningFlashName = "lightning" + LightningVisualIndex;
+			lightningFlashObject = getentity( lightningFlashName );
+			lightningFlashObject.hide();
+			LightningVisualIndex += 1;
+		}
+
+	LightningVisualIndex = 1;
+
+	while( 1 )
+	{
+		LightningWait = randomint( 10 );
+		LightningWait += 5;
+		wait ( LightningWait );
+	
+		LightningCountFlashes = randomint( 5 );
+		LightningCountFlashes += 3;
+
+		while(( LightningCountFlashes >= 1 ))
+		{
+			LightningTime = randomfloat( 0.15 );
+			LightningTime += .05;
+			LightningBrightness = randomfloat( 0.3 );
+			LightningBrightness += .2;
+
+			lightningFlashName = "lightning" + LightningVisualIndex;
+
+			lightningFlashObject = getentity( lightningFlashName );
+
+			lightningFlashObject.show();
+			lightningFlashObject.fadein( .05 );
+			lightningFlashObject.alpha ( 1 );
+
+			if( LightningCountFlashes <= 1 )
+			{
+				if( LightningBrightness >= .4 )
+				{
+					//hzm coop mod chrissstrahl - play sound on world instead of player
+					$world.playsound( "sound/environment/nature/thunder3.wav", 0, 1.5, 10000000 );
+				}
+				else if( LightningBrightness == .3 )
+				{
+					//hzm coop mod chrissstrahl - play sound on world instead of player
+					$world.playsound( "sound/environment/nature/thunder2.wav", 0, 1.5, 10000000 );
+				}
+				else if( LightningBrightness <= .2 )
+				{
+					//hzm coop mod chrissstrahl - play sound on world instead of player
+					$world.playsound( "sound/environment/nature/thunder1.wav", 0, 1.5, 10000000 );
+				}
+			}
+			
+			lightningFlashObject.fade( LightningTime );
+			wait( LightningTime );
+			
+			lightningFlashObject.hide();
+			
+			LightningCountFlashes -= 1;
+			LightningLastFlash = LightningVisualIndex;
+			LightningVisualIndex = randomint( MAX_lightningFlashObjects );
+			LightningVisualIndex ++;
+
+			if( LightningLastFlash == LightningVisualIndex )
+			{
+				LightningVisualIndex ++;
+			}
+		}
+	}
+}
+
+
+//==========================================================================================
+// other functions
+//==========================================================================================
+
+//---------------------
+// Function: attrexianDoorBeepAccept
+// Comments:
+// plays a confirmation beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepAccept()
+{
+	//hzm coop mod chrissstrahl - play sound on world instead of player
+	$world.playsound ( "sound/ships/attrexian/att-beepconfirm.wav", 0, .7, 5000000 );
+}
+
+//---------------------
+// Function: attrexianDoorBeepReject
+// Comments:
+// plays a rejection beep when the player pushes a door button
+//---------------------
+void attrexianDoorBeepReject()
+{
+	//hzm coop mod chrissstrahl - play sound on world instead of player
+	$world.playsound ( "sound/ships/attrexian/att-beepreject.wav", 0, .7, 5000000 );
+}
+
+//---------------------
+// Function: attrexianAutoSave
+// Comments:
+// called to autosave the level
+//---------------------
+void attrexianAutoSave()
+{
+	globalCommon_Autosave();
+}
+
+
+void coop_waitForTeam()
+//------------------------------------------------------------------------------
+//waitForPlayers beeing close, end then the Level
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","coop_endLevel",100,'400 400 400','-154 -3625 149');
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m7l2b-attrexian_colony");
+}
+
+
+
+
+

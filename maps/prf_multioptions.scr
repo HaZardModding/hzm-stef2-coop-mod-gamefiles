@@ -1,0 +1,168 @@
+//This is a example script, use as you please///////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+//added targetname uservar3(string) uservar4(float) support for triggerrelay
+//codepannels use now uservar3 for the code as string and uservar4 to set the code length, as integer
+
+//Global Variables, can be accessed by all Functions/scriptfiles, if placed here
+////////////////////////////////////////////////////////////////////////////////
+/* None in this file */
+
+//declarations, so the scriptmaster knows where to grab what////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void main();
+void lampGoOnAndOff();
+void killlamp1();
+void equipWithWeapon();
+void codepanel_trigger_success();
+void codepanel_trigger_fail();
+
+//include other scripts/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//include firstMOM script!
+//So all other scripts can use the functions from this script
+#include "maps/prf_multioptions/multioptions.script"
+//other scripts
+#include "maps/prf_multioptions/transporter.script"
+#include "maps/prf_multioptions/replicator.script"
+#include "maps/prf_multioptions/codepannel.script"
+#include "maps/prf_multioptions/fontain.script"
+#include "maps/prf_multioptions/lift.script"
+
+
+//functions
+////////////////////////////////////////////////////////////////////////////////
+void main()
+//this thread gets started by the game as soon as the map is loaded
+{
+	//bind the lift parts together, make it act as one unit
+	$lift.bind($lift_origin);
+	$lift_symbol.bind($lift_origin);
+	$lift_trigger.bind($lift_origin);
+	
+	//make lamp flicker
+	thread lampGoOnAndOff()	;
+}
+
+void lampGoOnAndOff()
+//setup the dynamic light, make it flickering, so it anoys players
+{
+	$world.light_lightstyle("lamp1","zzzz",0);//0 means repat it(required for mp to work)
+	float fLampIsOn=1;
+	while(1)
+	{
+		if(fLampIsOn){
+			$world.light_lightstyle("lamp1","aaaa",0);//0 means repat it(required for mp to work)
+			$lamp1lampOff.show();
+			$lamp1lampOn.hide();
+			fLampIsOn=0;
+		}else{
+			$world.light_lightstyle("lamp1","zzzz",0);//0 means repat it(required for mp to work)
+			$lamp1lampOn.show();
+			$lamp1lampOff.hide();
+			fLampIsOn=1;
+		}
+		wait(2);
+	}
+}
+
+
+void killlamp1()
+//when the glas of the lamp gets hit
+//this thread is called by a trigger that has been destroyed, this turns now the lamp off
+{
+//end flickering
+	killthread("lampGoOnAndOff");
+
+//Spawn effect models
+	spawn("sfx","model","fx/fx-explosion-sparkshower-intense.tik","scale","1","origin",vectortostring($lamp1EffectOrigin.getOrigin()));
+	
+//turn off the dynamic light
+	$world.light_lightstyle("lamp1","ba",1);//light off, no repat required
+	
+//remove the lamp like textured script object
+	$lamp1lampOn.remove();
+	$lamp1lampOff.show();
+	wait(0.2);
+	$lamp1lampOff.remove();
+	
+//wait for the effect to end
+	wait(2.8);
+	
+//delete the effect origin mark
+	$lamp1EffectOrigin.remove();
+}
+
+void equipWithWeapon()
+//this thread is called by a trigger, as soon as the player
+//touches or enters this trigger
+{
+//create internal variables, used only inside this function
+	entity	eTrigger,ePlayer;
+
+//grab the trigger that started this function
+	eTrigger		= getCurrentEntity();
+	
+//check if the trigger even exists, if not script has been called from console
+	if(doesEntityExist(eTrigger))
+	{
+	//grab player who has activated that trigger
+		ePlayer = eTrigger.getLastActivatingEntity();	
+		
+	//when player does exist and is alive
+		if(mom_checkExistingLivingEntity(ePlayer))
+		{
+		//if the player does not have the sniper in his hands
+		//weapon names can be found in the weapon tik file
+			if(ePlayer.getActiveWeaponName() != "FederationSniperRifle")
+			{
+			//equip the player with a weapon
+				ePlayer.give("models/weapons/worldmodel-sniperrifle.tik");
+			//wait a moment	
+				wait(0.05);
+			
+			//make the player use(activate) that weapon
+				ePlayer.use("models/weapons/worldmodel-sniperrifle.tik");
+			//give ammo
+				ePlayer.ammo("Fed",400);				
+			}
+		//otherwise, player has the sniper in his hands
+			else
+			{
+			//give ammo
+				ePlayer.ammo("Fed",400);
+			}
+		}
+	}
+}
+
+void codepanel_trigger_success()
+//code has been entered correctly
+{
+//unlock the door
+	$door1.unlock();
+//open the door
+	$door1.open($world);
+}
+void codepanel_trigger_fail()
+//code has been entered incorrectly
+{
+//kill the light
+	thread killlamp1();
+}
+
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+//look at the other included scripts to see how this thing works////////////////
+

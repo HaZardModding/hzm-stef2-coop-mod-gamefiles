@@ -1,0 +1,578 @@
+//------------------------------------------------------------------
+// Includes
+//------------------------------------------------------------------
+
+// Use hard-coded values for search and alert light movement speed so
+// we maintain the ability to have slow-moving lights that aren't so
+// slow when they see you.  Otherwise the light would have to have
+// multiple speed values attached to it and that seems unnecessarily
+// messy.
+float LIGHT_ALERT_SPEED = 1024;
+float LIGHT_SEARCH_SPEED = 400;
+
+float LIGHT_SEARCH_TIME = 5;
+float LIGHT_NODEPAUSE_TIME = 2;			// how long to stop at each node in normal mode
+float LIGHT_ALERTDURATION_TIME = 5;		// how long to freeze after seeing the player
+
+float ALERT_RADIUS = 200;
+
+// SEARCHLIGHT_ALERT - controls the AI on/off state of any entities registered with toggleAIWithSearchlightAlert
+float SEARCHLIGHT_ALERT = 0;
+
+float LIGHT_SPEED_MULTIPLIER = 0.8;
+
+//
+// Interface Functions -- These are called from the main level script
+//
+// Public:
+void setupLight( entity entLight , float normalSpeed );
+
+void searchLight_AttackPlayer ( entity entLight );
+//
+// Internal Functionality
+//
+// Protected:
+void evaluateState( entity entLight );
+void timeSearchState( entity entLight , float waitTime );
+void runSearchPattern( entity entLight );
+
+void moveLight( entity entLight , entity entDestination , float moveTime );
+void moveSearchPattern_Normal( entity entLight );
+void moveSearchPattern_Alert( entity entLight );
+void moveSearchPattern_Search( entity entLight );
+
+float checkRange( entity entLight );
+
+// these hooks are for executing gameplay code during state switches
+void hookStateSwitch_any2Alert( entity entLight );
+void hookStateSwitch_alert2Search( entity entLight );
+void hookStateSwitch_search2Normal( entity entLight );
+
+
+//--------------------------------------------------------------
+// Name:		setupLight()
+// Class:		searchlight.scr
+//
+// Description:	sets up a search d-light
+//	entLight - entity of the spotlight script object
+//	entToggleAI - generally, the sniper that this light should alert when triggered
+//	normalSpeed - speed the light will move
+//
+// Returns:		None
+//--------------------------------------------------------------
+void setupLight( entity entLight, float normalSpeed )
+{
+	entity targetEnt;
+	string strDestination;
+
+	// Use "basespeed" to store the speed so as to avoid overloading the normal "speed" value.
+	entLight.setfloatvar( "basespeed", normalSpeed * LIGHT_SPEED_MULTIPLIER );
+
+	// initialize configuration variables
+	targetEnt = entLight.getTargetEntity();
+	strDestination = targetEnt.getRawTargetName();
+
+	entLight.setstringvar( "destination" , strDestination );
+	entLight.setstringvar( "state" , "normal" );
+	entLight.setfloatvar( "alertDone" , 0 );
+	entLight.setfloatvar( "searchDone" , 0 );
+
+	// setup dlight
+//	entLight.lightRadius( 320 );
+//	entLight.lightOn();
+//	entLight.viewmode ( "tripwire" );
+	//entLight.rendereffects( "+additivedynamiclight" );
+	//entLight.notsolid(); done in the map now
+
+	// get it going
+	thread evaluateState( entLight );
+	thread runSearchPattern( entLight );
+}
+
+//--------------------------------------------------------------
+// Name:		evaluateState()
+// Class:		searchlight.scr
+//
+// Description:	Evaluates the state of the light
+//
+// Parameters:	entity entLight
+//
+// Returns:		None
+//--------------------------------------------------------------
+void evaluateState( entity entLight )
+{
+	string currentState;
+	string lastState;
+	float i, x;
+
+	while ( doesEntityExist ( entLight) )
+		{
+		//print( entLight.getRawTargetName() + " is at " + entLight.getorigin() + "\n" );
+
+		currentState = entLight.getstringvar ( "state" );
+		lastState = currentState;
+
+		//
+		//Stuff to detect state change here
+		//
+		if ( checkRange( entLight ) && currentState != "alert" )
+			{
+			currentState = "alert";
+			thread hookStateSwitch_any2Alert( entLight );
+			}
+
+		else if ( currentState == "alert" && entLight.getfloatvar( "alertDone" ) == 1 )
+			{
+			currentState = "search";
+			thread timeSearchState( entLight , LIGHT_SEARCH_TIME );
+			entLight.setfloatvar( "alertDone" , 0 );
+			thread hookStateSwitch_alert2Search( entLight );
+			}
+
+		else if ( currentState == "search" && entLight.getfloatvar( "searchDone" ) == 1 )
+			{
+			currentState = "normal";
+			entLight.setfloatvar( "searchDone" , 0 );
+			thread hookStateSwitch_search2Normal( entLight );
+			}
+
+		if ( lastState != currentState )
+			{
+			// update the state - notifies search pattern thread that state has changed
+			entLight.setstringvar( "state" , currentState );
+
+			// wait for current search pattern to pick up on state change and abort
+			do
+			{
+				wait( 0.1 );
+
+			} while( entLight.getfloatvar( "searchPatternRunning" ) );
+
+			// start new search pattern thread
+			thread runSearchPattern( entLight );
+
+			}
+
+		wait ( 0.5 );
+
+		}
+}
+
+//--------------------------------------------------------------
+// Name:		timeSearchState()
+// Class:		searchlight.scr
+//
+// Description:	Functions as a timer for the search state
+//
+// Parameters:	entity entLight
+//				float time
+//
+// Returns:		None
+//--------------------------------------------------------------
+void timeSearchState( entity entLight , float waitTime )
+{
+	wait ( waitTime );
+	if ( doesEntityExist ( entLight) )
+		entLight.setfloatvar ( "searchDone" , 1.0 );
+}
+
+
+//--------------------------------------------------------------
+// Name:		runSearchPattern()
+// Class:		searchlight.scr
+//
+// Description:	Based on the state of the light, selects an
+//				appropriate search pattern
+//
+// Parameters:	entity entLight
+//
+// Returns:		None
+//--------------------------------------------------------------
+void runSearchPattern( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	string strState;
+	strState = entLight.getstringvar( "state" );
+
+	entLight.setfloatvar( "searchPatternRunning", 1.0 );
+
+	// moveSearchPattern_* does not return until finished
+	if ( strState == "normal" )
+		{
+		moveSearchPattern_Normal( entLight );
+		}
+	else if ( strState == "alert" )
+		{
+		moveSearchPattern_Alert( entLight );
+		}
+	else if ( strState == "search" )
+		{
+		moveSearchPattern_Search( entLight );
+		}
+
+	entLight.setfloatvar( "searchPatternRunning", 0.0 );
+}
+
+//--------------------------------------------------------------
+// Name:		moveLight()
+// Class:		searchlight.scr
+//
+// Description:	Issues the moveto command to the d-light
+//
+// Parameters:	entity entLight
+//				entity entDestination
+//				float moveTime
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveLight( entity entLight , entity entDestination , float moveTime )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	entLight.speed( moveTime );
+	entLight.moveto( entDestination );
+
+	// allow the state to be interrupted during movement
+	entLight.setfloatvar( "searchPatternRunning", 0.0 );
+	waitfor( entLight );
+	entLight.setfloatvar( "searchPatternRunning", 1.0 );
+}
+
+//--------------------------------------------------------------
+// Name:		moveSearchPattern_Normal()
+// Class:		searchlight.scr
+//
+// Description:	Moves the light in it's "normal" pattern
+//
+// Parameters:	entity entLight
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveSearchPattern_Normal( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	string strDestination;
+	string currentState;
+	entity entDestination;
+	float moveSpeed;
+	entity nextTargetEnt;
+
+	currentState = entLight.getstringvar( "state" );
+
+	while ( currentState == "normal" )
+		{
+		// Get our current destination
+		strDestination = entLight.getstringvar( "destination" );
+		if ( strDestination == "normal" )
+			{
+			globalDebug_Disconnect ( "destination is NULL" );
+			}
+
+		entDestination = getentity( strDestination );
+
+		if( LIGHT_NODEPAUSE_TIME > 0 )
+		{
+			wait( LIGHT_NODEPAUSE_TIME );
+		}
+
+		// Get our next destination
+		nextTargetEnt = entDestination.getTargetEntity();
+		strDestination = nextTargetEnt.getRawTargetName();
+		entLight.setstringvar( "destination" , strDestination );
+
+		// Move the light
+		moveSpeed = entLight.getfloatvar( "basespeed" );
+		moveLight( entLight , entDestination , moveSpeed );
+
+		currentState = entLight.getstringvar( "state" );
+		}
+}
+
+//--------------------------------------------------------------
+// Name:		moveSearchPattern_Alert()
+// Class:		searchlight.scr
+//
+// Description:	Moves the light in it's "alert" pattern
+//
+// Parameters:	entity entLight
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveSearchPattern_Alert( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	// scale the entity's speed
+	
+	//hzm coop mod chrissstrahl - move the the fool tripping the alert
+	moveLight( entLight , entityPlayerGlobalSearchLights , LIGHT_ALERT_SPEED );
+
+	// stay on them until they move
+	while( checkRange( entLight ) )
+	{
+		entLight.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 7, .6, 10000 );
+		searchLight_AttackPlayer ( entLight );
+		wait ( LIGHT_ALERTDURATION_TIME );
+		wait ( 1 );
+	}
+
+	entLight.setfloatvar ( "alertDone" , 1 );
+}
+
+//--------------------------------------------------------------
+// Name:		moveSearchPattern_Search()
+// Class:		searchlight.scr
+//
+// Description:	Moves the light in it's "search" pattern
+//
+// Parameters:	entity entLight
+//
+// Returns:		None
+//--------------------------------------------------------------
+void moveSearchPattern_Search( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	string strDestination;
+	string strNextDestination;
+	string currentState;
+	entity entDestination;
+	entity nextTargetEnt;
+
+	currentState = entLight.getstringvar( "state" );
+
+	while ( currentState == "search" )
+		{
+		// Get our current destination
+		strDestination = entLight.getstringvar( "destination" );
+		if ( strDestination == "normal" )
+			{
+			globalDebug_Disconnect ( "destination is NULL" );
+			}
+
+		entDestination = getentity( strDestination );
+
+		// Move the light
+		moveLight( entLight , entDestination , LIGHT_SEARCH_SPEED );
+
+		// Get our next destination
+		nextTargetEnt = entDestination.getTargetEntity();
+		strDestination = nextTargetEnt.getRawTargetName();
+		entLight.setstringvar( "destination" , strDestination );
+
+		currentState = entLight.getstringvar( "state" );
+		}
+}
+
+//--------------------------------------------------------------
+float checkRange( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return FALSE;
+
+	vector vecPlayerOrigin;
+	vector vecLightOrigin;
+	vector vecDistance;
+	float fltDistance;
+
+	vecLightOrigin = entLight.getorigin();
+	
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				if(ePlayer.getHealth() > 0){
+					vecPlayerOrigin = ePlayer.getorigin();
+					vecDistance = vecPlayerOrigin - vecLightOrigin;
+					fltDistance = vectorlength( vecDistance );
+
+					if ( fltDistance <= ALERT_RADIUS )
+					{
+						entityPlayerGlobalSearchLights = ePlayer;
+						return TRUE;
+					}
+				}					
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+//--------------------------------------------------------------
+// Name:		hookStateSwitch_any2Alert()
+// Class:		searchlight.scr
+//
+// Description:	A hook called directly after a searchlight
+// 	switches from the Search or Normal state into Alert state.
+//
+// Parameters:	none
+//
+// Returns:		None
+//--------------------------------------------------------------
+void hookStateSwitch_any2Alert( entity entLight )
+{
+	SEARCHLIGHT_ALERT = SEARCHLIGHT_ALERT + 1.0;
+}
+
+//--------------------------------------------------------------
+// Name:		hookStateSwitch_alert2Search()
+// Class:		searchlight.scr
+//
+// Description:	A hook called directly after a searchlight
+// 	switches from the Alert into Search state.
+//
+// Parameters:	none
+//
+// Returns:		None
+//--------------------------------------------------------------
+void hookStateSwitch_alert2Search( entity entLight )
+{
+	SEARCHLIGHT_ALERT = SEARCHLIGHT_ALERT - 1.0;
+}
+
+//--------------------------------------------------------------
+// Name:		hookStateSwitch_search2Normal()
+// Class:		searchlight.scr
+//
+// Description:	A hook called directly after a searchlight
+// 	switches from the Search state into Normal state.
+//
+// Parameters:	none
+//
+// Returns:		None
+//--------------------------------------------------------------
+void hookStateSwitch_search2Normal( entity entLight )
+{
+	//SEARCHLIGHT_ALERT = SEARCHLIGHT_ALERT - 1.0;
+}
+
+
+//--------------------------------------------------------------
+// Name:		toggleAIWithSearchlightAlert()
+// Class:		searchlight.scr
+//
+// Description:	Watches a global variable (SEARCHLIGHT_ALERT) and toggles AI on/off
+//	if the global is true or false.
+//
+// Parameters:	The entity that should watch the global.
+//
+// Returns:		None
+//--------------------------------------------------------------
+void toggleAIWithSearchlightAlert( entity entToToggle )
+{
+	float waitTime;
+
+	if ( !doesEntityExist ( entToToggle ))
+	{
+		print ( "null entity in toggleAIWithSearchlightAlert()\n" );
+		return;
+
+	}
+	// initialize to off
+	entToToggle.ai_off();
+
+	// just keep going
+	while( 1 )
+	{
+		// try not to eat up too much CPU
+		waitTime = 0.2 + randomfloat( 0.8 );
+		wait( waitTime );
+
+		// check
+		if( SEARCHLIGHT_ALERT > 0 )
+		{
+			//print( entToToggle.getRawTargetName() + " ON\n" );
+			entToToggle.ai_on();
+			entToToggle.attack ( entityPlayerGlobalSearchLights );
+			wait( 5 );
+//			$player.missionfailed ();
+		}
+		else
+		{
+			//print( entToToggle.getRawTargetName() + " OFF\n" );
+			entToToggle.ai_off();
+			wait( 1 );
+		}
+	}
+}
+
+void searchLight_AttackPlayer ( entity entLight )
+{
+	if ( !doesEntityExist ( entLight) )
+		return;
+
+	entity attackOrigin,theCone;
+	string thisAttackOrigin,thisCone;
+
+	thisAttackOrigin = entLight.getstringvar ( "attackOrigin" );
+	thisCone= entLight.getstringvar ( "cone" );
+	attackOrigin = getentity ( thisAttackOrigin );
+	theCone = getentity ( thisCone );
+
+	//hzm coop moc chrissstrahl - attack the fool
+	string sAttckPlayer;
+	sAttckPlayer = entityPlayerGlobalSearchLights.getTargetName();
+	
+
+	theCone.viewmode ( "normal" );
+	attackOrigin.projectileAttackEntity ( "models/projectile/projectile_searchlight-tower.tik", sAttckPlayer , -10 , 5 );
+	wait ( .25 );
+	theCone.viewmode ( "tripwire" );
+	wait ( .25 );
+
+	theCone.viewmode ( "normal" );
+	attackOrigin.projectileAttackEntity ( "models/projectile/projectile_searchlight-tower.tik", sAttckPlayer , -10 , 5 );
+	wait ( .25 );
+	theCone.viewmode ( "tripwire" );
+	wait ( .25 );
+
+	theCone.viewmode ( "normal" );
+	attackOrigin.projectileAttackEntity ( "models/projectile/projectile_searchlight-tower.tik", sAttckPlayer , -10 , 5 );
+	wait ( .25 );
+	theCone.viewmode ( "tripwire" );
+	wait ( .25 );
+
+	theCone.viewmode ( "normal" );
+	attackOrigin.projectileAttackEntity ( "models/projectile/projectile_searchlight-tower.tik", sAttckPlayer , -10 , 5 );
+	wait ( .25 );
+	theCone.viewmode ( "tripwire" );
+	wait ( .25 );
+
+	$gus2.ai_on ();
+	$gus2.actortype ( "enemy" );
+	$gus2.archetype ( "RomulanSnowGuardM10Rifle" );
+	$gus2.visiondistance ( 4000 );
+	$gus2.fov ( 360 );
+	
+	//hzm coop mod chrissstrahl - he shoudl actually attack the player that was responsible for tripping the scanner.....
+	$gus2.aggressive ( 1 );
+
+	wait ( 6 );
+	
+	//hzm coop mod chrissstrahl - reset
+	$gus2.ai_off();
+	$gus2.actortype ( "friend" );
+	$gus2.visiondistance ( 500 );
+	$gus2.fov ( 90 );
+	$gus2.forgetenemies();
+	$gus2.archetype ( "RomulanSnowGuardM10" );
+	
+	
+	//hzm coop mod chrissstrahl - don't fail mission in coop
+	return;
+	
+	if ( $player.gethealth () > 0 )
+	{
+		$player.missionfailed ();
+	}
+}

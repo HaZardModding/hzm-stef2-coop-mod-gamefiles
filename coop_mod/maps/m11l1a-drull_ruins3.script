@@ -1,0 +1,1335 @@
+//-----------------------------------------------------------------
+//  EF2 Level Script File
+//
+//  Level:	  m11l1a-drull_ruins3
+//  Script By:    Jared Hefty (last edit: Josh Martel on Tuesday, August 27, 2002)
+//  Geometry By:  Luke Whiteside, Richard Heath, Jared Hefty
+//  Created on:   06/12/2002
+//-----------------------------------------------------------------
+
+//=============================================================================
+// Includes
+//=============================================================================
+
+//hzm coop mod chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_spawnLocationSetArea2();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/matrix/global/global_playerLoadout.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+#include "maps/global_scripts/global_debugUtils.scr"
+#include "maps/global_scripts/global_math.scr"
+#include "maps/global_scripts/global_archetype.scr"
+#include "maps/m11/m11l1a_dialog.scr"
+#include "maps/m11/m11_groupSpawn.scr"
+#include "maps/m11/m11_beamInAmmo.scr"
+#include "maps/global_scripts/global_tricorderbase.scr"
+#include "maps/global_scripts/global_tricordermod.scr"
+
+
+float TOTAL_SPAWN_TRIGGERS = 12;
+
+//=============================================================================
+// Prototypes
+//=============================================================================
+void init();
+
+void introCinematic();
+void endIntroCinematic();
+void finalCinematic();
+void endFinalCinematic();
+void setupTower ( float tower );
+void displayTargettingIndicator ( float tower );
+void barricadeDoorDestroyed ();
+void pathRemove( entity entCamPath );
+
+//---------------------
+// main
+// do start up stuff
+//---------------------
+
+void main()
+{
+	cam_fadeout( .01, 0, 0, 0, 1, 0 );
+
+	level_ai(0);
+
+//hzm coop mod chrissstrahl - remove entity we don't use in coop
+	$caveBlocker.remove();
+//hzm coop mod chrissstrahl - set spawn loacations - 750 cuz korban makes players get stuck  
+	coop_float_spawnAngle0 				= 90;                           
+	coop_vector_spawnOrigin8 			= '-6569 -4312 750';//650
+	coop_vector_spawnOrigin7 			= '-6696 -4304 750';//650
+	coop_vector_spawnOrigin6 			= '-6696 -4230 750';//630
+	coop_vector_spawnOrigin5 			= '-6569 -4230 750';//630
+	coop_vector_spawnOrigin4 			= '-6696 -4150 750';//600
+	coop_vector_spawnOrigin3 			= '-6569 -4150 750';//600
+	coop_vector_spawnOrigin2 			= '-6696 -4080 750';//578
+	coop_vector_spawnOrigin1 			= '-6569 -4080 750';//575
+	
+	//spawn at level end location, for level ending test and debug
+	//if(getCvar("username") == "Chrissstrahl"){
+		//coop_vector_spawnOrigin1 			= '4964.00 268.00 78.00';
+		// coop_float_spawnAngle1 				= 0;
+	//}
+	
+	//hzm coop mod chrissstrahl -set background story - it is a local string, so no need for seperate _deu
+	coop_string_story = "$$Ruins3LoadingText$$";
+	
+	//hzm coop mod chrissstrahl - set tactical info
+	coop_string_objectiveTacticalInfo1 = "";
+	coop_string_objectiveTacticalInfo2 = "";
+	coop_string_objectiveTacticalInfo3 = "";
+	
+	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
+	thread globalLoadout_AssignWeapons ( "m11l1a_drull_ruins3" );
+	
+	cinematic ();
+	freezeplayer ();
+	letterbox ( .1 );
+
+	vector v;
+	v=$commanderHead.getorigin();
+	v_z+=192;
+	$commanderHead.origin ( v );
+	$precacheQuad.remove ();//this quad is here so that we have the ai state files cached ahead of time for the elite quad encounter later on in the map
+							//we don't need it once the map loading is done and the server has started, so we remove it now
+	$precacheBasher.remove ();
+	$commanderHead.bind ( $commanderPlat );
+	$commander.hide ();
+	$commander.notsolid ();
+	$korban.useactorweapon ( "CompressionRifleEnhanced" );
+
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	AIHideGroup	( 100 );
+	AIHideGroup	( 101 );
+	AIHideGroup ( 200 );
+	//hzm coop mod chrissstrahl - don't put to many tasks on the server at once
+	wait(0.05);
+	CommandToGroup ( 200 , "groupdeaththread" , "enableBarricadeDoor" , "" );
+	
+	//hzm coop mod chrissstrahl - don't put to many tasks on the server at once
+	wait(0.05);
+	
+	AIOffGroup 	( 400 );
+	AIOffGroup	( 401 );
+	AIOffGroup 	( 402 );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+	
+	AIOffGroup 	( 403 );
+	AIOffGroup  ( 404 );
+
+	//hzm coop mod chrissstrahl - don't put to many tasks on the server at once
+	wait(0.05);
+	
+	AIHideGroup ( 600 );
+	AIHideGroup ( 601 );
+	AIHideGroup ( 602 );
+	AIHideGroup	( 667 );	//second wave before commander battle
+
+	//hzm coop mod chrissstrahl - don't put to many tasks on the server at once
+	wait(0.05);
+	
+	//cinematic guys
+	AIHideGroup ( 777 );
+	AIHideGroup ( 888 );
+
+	soundtrack ( "music/m11l1a-drull_ruins3.mus" );
+
+	$korban.hide ();
+	wait ( .5 );
+
+	init();
+	waitforplayer();
+
+	setupTower ( 1 );
+	setupTower ( 2 );
+	//setupTower ( 3 );	//had to delete this one at the last minute to get rid of issues with a cinematic
+	setupTower ( 4 );
+	setupTower ( 5 );
+	setupTower ( 6 );
+	setupTower ( 7 );
+	
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.05);
+
+	//hacked in stuff for the doors
+	thread displayTargettingIndicator ( 8 );
+	thread displayTargettingIndicator ( 9 );
+
+	$korban.setactorflag( "usefollowrangefornodes" , 1 );
+	
+//hzm coop mod chrissstrahl - don't put to many tasks on the server at once
+	wait(0.05);
+
+	thread introCinematic ();
+}
+
+void bigRockMove ()
+{
+	while ( 1 )
+	{
+		$bigRock.time ( 15 );
+		$bigRock.moveDown ( 64 );
+		waitfor ( $bigRock );
+
+		$bigRock.time ( 20 );
+		$bigRock.moveUp ( 64 );
+		waitfor ( $bigRock );
+	}
+}
+
+//---------------------
+// init
+// do more start up stuff
+//---------------------
+void init()
+{
+	//Hide the busted doors behind the fake door
+	$quadDoorNorth.time ( .1 );
+	$quadDoorSouth.time ( .1 );
+	$quadDoorNorth.rotateYUp ( 20 );
+	$quadDoorSouth.rotateYDown ( 20 );
+
+	$quadDoorNorth.moveDown ( 768 );
+	$quadDoorSouth.moveDown ( 768 );
+
+	$quadSecurityDoor.moveDown ( 256 );
+
+	$quadDoor.solid ();	//for pathnodes	
+	$commander.ai_off ();
+	
+//hzm coop mod chrissstrahl - give the server a small pause
+	wait(0.05);
+	
+	//setup a wave battle
+	CommandToGroup ( 666 , "groupdeaththread" , "activateGroup667" , "");
+	CommandToGroup ( 667 , "groupdeaththread" , "commanderBattle" , "");
+
+	//setup barricade door puzzle
+	$barricadeDoorPuzzle.puzzleobject_itemToUse( "Tricorder" );
+	$barricadeDoorPuzzle.puzzleobject_solvedthread( "barricadeDoorSolved" );
+	$barricadeDoorPuzzle.puzzleobject_timeToUse ( 2 );
+	$barricadeDoorPuzzle.puzzleobject_itemusedthread( "barricadeDoorPuzzle" );
+	$barricadeDoorPuzzle.missionobjective ( 1 );
+
+	globalArchetype_Setup ( $barricadeDoorPuzzleArchetype , "RomulanTricorderDoor" );
+
+//hzm coop mod chrissstrahl - give the server a small pause
+	wait(0.05);	
+	
+	//setup cave door puzzle
+	$caveDoorPuzzle.puzzleobject_itemToUse( "Tricorder" );
+	$caveDoorPuzzle.puzzleobject_solvedthread( "caveDoorSolved" );
+	$caveDoorPuzzle.puzzleobject_timeToUse ( 2 );
+	$caveDoorPuzzle.puzzleobject_itemusedthread( "caveDoorPuzzle" );
+	$caveDoorPuzzle.missionobjective ( 1 );
+
+	globalArchetype_Setup ( $caveDoorPuzzleArchetype , "RomulanTricorderDoor" );
+
+	$commander.scale ( 1.5 );
+
+	$entranceDoor.lock ();
+	
+//hzm coop mod chrissstrahl - give the server a small pause
+	wait(0.05);
+		
+	//hzm coop mod chrissstrahl - spawn trigger that calls function to set new spawn locations
+	spawn("trigger_once","origin","-1810 562 197","targetname","area2Spawn","thread","coop_spawnLocationSetArea2");
+	wait(1);
+	$area2Spawn.setSize('-300 -300 -200','300 300 10000');
+	
+//hzm coop mod chrissstrahl - moved here to reduce stress on the server
+	globalCommon_SetupContextDialog ( $korban , "korban" );
+}
+
+entity chellCin;
+void endIntroCinematic ();
+void introCinematic()
+{
+	//threadname ( "introCinematic" );
+	wait (1 );
+
+	//align the saucer more precisely than we can in radiant
+	$entSaucer.origin ( $entBody.getorigin ());
+	$entNacelles.origin ( $entBody.getorigin ());
+
+	$entSaucer.bind   ( $entOrigin );
+	$entBody.bind     ( $entOrigin );
+	$entNacelles.bind ( $entOrigin );
+
+	spawn ( "Camera" , "targetname" , "entCamera" );
+	
+	cam.load ( "m11l1a_EntIntroCamera1" );
+	cam.load ( "m11l1a_EntPath" );
+
+	wait ( .1 );
+	$mainSkyOrigin.rendereffects ( "-skyorigin" );
+	$entSkyOrigin.rendereffects ( "+skyorigin" );
+	skipthread ( "" );
+
+	$entOrigin.followpath ( $m11l1a_EntPath , "normalangles" );
+	$entCamera.follow ( $m11l1a_EntIntroCamera1 );
+	$entCamera.fov ( 70 );
+	$entCamera.cut ();
+
+	cuecamera ( $entCamera );
+	allowmusicducking ( 0 );
+	forcemusic ("aux2");
+
+	wait ( 1.5 );
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	
+	skipthread ( "endIntroCinematic" );
+	
+	wait ( 1 );
+
+//hzm coop mod chrissstrahl - handle for multiplayer
+	globalCoop_player_transmittToAll( "locationprint 0 70 $$M11Stardate$$ 10.0\n" );
+
+	wait ( 13 );
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+
+	wait ( .5 );
+	$mainSkyOrigin.rendereffects ( "+skyorigin" );
+	$entSkyOrigin.rendereffects ( "-skyorigin" );
+	
+	wait(0.1);
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove($m11l1a_EntPath);
+	pathRemove($m11l1a_EntIntroCamera1);
+	
+	$entOrigin.remove();
+	$entSaucer.remove();
+	$entBody.remove();
+	$entNacelles.remove();
+	
+	chellCin = createcinematic ( "m11l1a_chell" );
+	
+	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
+	wait(0.1);
+	
+	chellCin.setendthread ( "endIntroCinematic" );
+	chellCin.beginCinematic( "m11l1a_chelldeath" );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	allowmusicducking ( 0 );
+	forcemusic ("aux3");
+}
+
+void endIntroCinematic ()
+{
+	cam_fadeout( .01, 0, 0, 0, 1, 0 );
+	killthread ( "introCinematic" );
+	chellCin.endcinematic ( 0 );
+	noncinematic();
+
+	wait ( 2 );
+	
+	//hzm coop mod chrissstrahl - make sure we show the right skybox
+	$entSkyOrigin.rendereffects ( "-skyorigin" );
+	$mainSkyOrigin.rendereffects ( "+skyorigin" );
+	
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	releaseplayer ();
+	cueplayer ();
+	clearletterbox ( 0 );
+
+	$korban.immortal( 1 );
+	$korban.show();
+
+	//hzm coop mod chrissstrahl - activate now the ai - it should be safe now
+	level_ai(1);
+	
+//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindEntrance$$","incomplete",1,1);
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove($m11l1a_EntPath);
+	pathRemove($m11l1a_EntIntroCamera1);
+}
+
+entity korbanCin;
+
+void endKorbanCinematic ();
+void triggerKorbanCinematic ()
+{
+	cinematic ();
+	freezeplayer ();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	$korban.remove ();
+    music ("aux2");
+
+	threadname ( "triggerKorbanCinematic" );
+	skipthread ( "endKorbanCinematic" );
+	letterbox ( .1 );
+	level_ai ( 0 );
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	allowmusicducking ( 0 );
+	forcemusic ("aux4");
+
+	korbanCin = createcinematic ( "m11l1a_korbandeath" );
+	korbanCin.setendthread ( "endKorbanCinematic" );
+	korbanCin.beginCinematic( "m11l1a_korbandeath" );
+
+
+}
+
+void endKorbanCinematic ()
+{
+	korbanCin.endcinematic ( 0 );
+	noncinematic ();
+	killthread ( "triggerKorbanCinematic" );
+	releaseplayer ();
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+
+	$towerProtector.remove ();		//keep the play from striking this tower
+
+	$korban.remove ();
+	clearletterbox ( .1 );
+	cueplayer ();
+
+	showBeaminEffects = 0;
+	AIShowGroup ( 600 );
+	AIShowGroup ( 601 );
+	AIShowGroup ( 602 );
+
+	CommandToGroup ( 600 , "attack" , "$player" ,"" );
+	AIOffGroup ( 601 );
+	AIOffGroup ( 602 );
+	showBeaminEffects = 1;
+
+	wait ( .5 );
+	cam_fadein( .5 , 0, 0, 0, 1, 0 );
+
+	level_ai ( 1 );
+}
+
+
+//-------------------------------------------------------------------------------
+//---------
+//Commander Battle Sequence
+//---------
+//-------------------------------------------------------------------------------
+void runCommanderBattle ();
+void commanderBattle ()
+{
+	wait ( 4 );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	cinematic ();
+
+	allowmusicducking ( 0 );
+	forcemusic ("aux5");
+
+	spawn ( "Camera" , "targetname" , "commanderCam" );
+	cam.load ( "m11l1_commandercam" );
+	
+	wait ( 3 );
+
+	freezeplayer ();
+	fakeplayer ();
+	letterbox ( .1 );
+	wait ( .1 );
+
+	$commander.show ();
+	$commander.solid ();
+
+	$commanderCam.follow ( $m11l1_commandercam );
+	$commanderCam.cut ();
+	cuecamera ( $commanderCam );
+
+	$fakeplayer.warpto ( "$fakeplayerSafeNode" );
+
+	skipthread ( "runCommanderBattle" );
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+
+	$commander.anim ( "idle_nodust" );
+	music ("aux3","aux4");
+	$commander.immortal ( 1 );
+	$commander.notsolid ();
+	$commander.headwatch ( $commanderCam );
+	$commanderPlat.time ( 3 );				//Raise the commander
+	$commanderPlat.moveup ( 384 );
+	waitfor ( $commanderPlat );
+
+	$commander.anim ( "command_charge_front" );
+	waitforanimation ( $commander , "command_charge_front" );
+	$commander.anim ( "idle_nodust" );
+
+
+	$commanderPlat.followpath ( $commanderPath );		//"fly" the commander down
+	waitfor ( $commanderPlat );
+	$commanderPlat.moveDown ( 384 );
+
+//	$commander.anim ( "command_charge_front" );
+	wait ( 4.5 );
+
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+
+	thread runCommanderBattle ();
+}
+
+void runCommanderBattle ()
+{
+	killthread ( "commanderBattle" );
+	$commanderPlat.endpath ();
+	$commanderPlat.remove ();
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	$commanderCam.remove();
+	pathRemove($commanderPath);
+	pathRemove($m11l1_commandercam);
+	
+
+	$commander.warpto ( "$commanderNode" );
+	cueplayer ();
+	removefakeplayer ();
+	noncinematic ();
+	releaseplayer ();
+	clearletterbox ( .1 );
+	$commander.headwatch ( $player );
+
+    	forcemusic ("suspense");
+
+	wait ( 1 );
+	cam_fadein( .1, 0, 0, 0, 1, 0 );
+	$commander.solid ();
+	$commander.immortal ( 0 );
+
+	$commander.updatebosshealth ( 1 );
+	$commander.maxbosshealth ( $commander.gethealth () );
+
+	$commander.ai_on ();
+	$commander.killthread ( "finalCinematic" );
+	$commander.aggressive ( 1 );
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$FindEntrance$$","complete",1,0);
+	globalCoop_objectives_set("$$DefeatAlienCommander$$","incomplete",2,1);
+}
+
+void finalCinematicBattle ();
+
+entity finalCin;
+void endFinalCinematic ()
+{
+	skipthread ( "" );
+	finalCin.endcinematic ( 0 );
+
+	killthread ( "finalCinematic" );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+	thread finalCinematicBattle ();
+}
+
+
+void finalCinematic ()
+{
+    forcemusic ("aux4");
+	
+	//hzm coop mod Chrissstrahl - set the objective
+	globalCoop_objectives_set("$$DefeatAlienCommander$$","complete",2,1);
+
+	wait ( 4 );		//give a little delay before the cinematic
+
+	cinematic();
+	skipthread ( "endFinalCinematic" );
+	freezeplayer ();
+	
+	
+	//fakeplayer (); //hzm coop mod chrissstrahl - this does not work right so far
+	spawn ( "Actor" , "model" , "models/char/hazardteam_munro.tik" , "targetname" , "fakeplayer", "ai_off","1");
+	
+	
+	cam_fadeout( .1, 0, 0, 0, 1, 0 );
+	letterbox ( .1 );
+    allowMusicDucking( 0 );
+    forcemusic ("aux5");
+	wait ( .1 );
+
+	$fakeplayer.warpto ( "$munroNode1" );
+
+	//line up the models more precisely than we can in radiant (at this scale we'd require a .25 grid)
+	$entSaucer2.origin ( $entNacelles2.getorigin ());
+	$entBody2.origin ( $entNacelles2.getorigin ());
+
+	$entSaucer2.bind   ( $entOrigin2 );
+	$entBody2.bind     ( $entOrigin2 );
+	$entNacelles2.bind ( $entOrigin2 );
+
+	$warbird.forcealpha ( 1 );
+	$warbird.alpha ( 0 );
+	$warbird.bind ( $warbirdOrigin );
+
+	$warbird1.forcealpha ( 1 );
+	$warbird1.alpha ( 0 );
+	$warbird1.bind ( $warbirdOrigin1 );
+
+	$mainSkyOrigin.rendereffects ( "-skyorigin" );
+	$entSkyOrigin.rendereffects ( "+skyorigin" );
+
+	spawn ( "Camera" , "targetname" , "romCam1" );
+	//spawn ( "Camera" , "targetname" , "romCam2" );
+	spawn ( "Camera" , "targetname" , "romCam3" );
+
+	cam.load ( "m11l1a_romShot1" );
+	cam.load ( "m11l1a_romShot2" );
+	cam.load ( "m11l1a_romShot3" );
+	cam.load ( "m11l1a_romPath1" );
+	cam.load ( "m11l1a_romPath2" );
+	wait ( .05 );
+
+	$romCam1.follow ( $m11l1a_romShot1 );
+	$romCam1.fov ( 70 );
+	$romCam1.cut ();
+
+	//$romCam2.follow ( $m11l1a_romShot2 );
+	//$romCam2.fov ( 70 );
+	//$romCam2.cut ();
+
+	$romCam3.follow ( $m11l1a_romShot3 );
+	$romCam3.fov ( 70 );
+	$romCam3.cut ();
+
+	$warbirdOrigin.followpath ( $m11l1a_romPath1 );
+	cuecamera ( $romCam1 );
+
+	allowmusicducking ( 0 );
+	forcemusic ("aux1");
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+	wait ( 1 );
+
+	$warbird.fadein ( 6 );
+
+	wait ( 3 );
+	$warbirdOrigin1.followpath ( $m11l1a_romPath2 );
+	wait ( 5 );
+	cuecamera ( $romCam3 );
+	$warbird1.fadein ( 4 );
+	wait ( 4.25 );
+	
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	wait ( .5 );
+
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	finalCin = createcinematic ( "m11l1_romgen" );
+	finalCin.setendthread ( "finalCinematicBattle" );
+	finalCin.beginCinematic( "m11l1_romgen" );
+	wait ( .25 );
+	$armRomulan.scale ( 6.5 );
+
+	vector v;
+	v = $armRomulan.getorigin ();
+	v_y-=90;
+	v_z-=460;
+	$armRomulan.origin ( v );
+
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove($m11l1a_romShot1);
+	//pathRemove($m11l1a_romShot2);
+	pathRemove($m11l1a_romShot3);
+	pathRemove($m11l1a_romPath1);
+	pathRemove($m11l1a_romPath2);
+}
+
+void endFinalCinematicBattle ()
+{
+	level_ai(0);//hzm coop chrissstrahl - disable ai, so that it won't fire on the players, when the cinematic ends
+	noncinematic();
+
+	killthread ( "finalCinematicBattle" );
+
+	clearletterbox ( .1 );
+
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	
+	//hzm coop mod chrissstrahl - load next map
+	thread coop_endLevel();
+
+	/* hzm coop mod chrissstrahl - we don't do this in coop
+	spawn ( "trigger_changelevel", "targetname", "trigger_endlevel", "map", "m11l2a-drull_ruins3" , "spawnflags" , "1" );
+	wait ( 1 );
+	trigger ( "$trigger_endlevel" );
+	*/
+}
+
+
+void finalCinematicBattle()
+{
+	$mainSkyOrigin.rendereffects ( "+skyorigin" );
+	$entSkyOrigin.rendereffects ( "-skyorigin" );
+
+	//$fakeplayer.model ( "models/char/hazardteam_munro.tik" ); //hzm coop mod chrissstrahl - no need for this, see func above
+	spawn ( "Actor" , "model" , "models/char/starfleet_picard.tik" , "targetname" , "picard" );
+	wait ( .1 );
+	$fakeplayer.useactorweapon ( "none" );
+	$fakeplayer.removeattachedmodel ( "tag_rhand" );
+	skipthread ( "endFinalCinematicBattle" );
+	$fakeplayer.turntoangle ( 90.0 );
+
+	//show good romulans beaming in (group 777)
+	//show the bad romulans (group 888)
+	
+	
+	spawn ( "Camera" , "targetname" , "cam1" );
+	spawn ( "Camera" , "targetname" , "cam2" );
+	spawn ( "Camera" , "targetname" , "cam3" );
+	spawn ( "Camera" , "targetname" , "cam4" );
+	spawn ( "Camera" , "targetname" , "cam5" );
+	cam.load ( "m11l1a_exposition1" );
+	cam.load ( "m11l1a_exposition2" );
+	cam.load ( "m11l1a_exposition3" );
+	wait ( .05 );
+
+	$romulanTeam.sendeventtogroup ( "settendency" , "wander" , "0" );
+	$romulanTeam.sendeventtogroup ( "health" , "200" );
+	$romulanTeam.sendeventtogroup ( "ai_off" );
+	$romulanTeam.sendeventtogroup ( "mass" , "999999" );
+
+	$cam3.follow ( $m11l1a_exposition1 );
+	$cam3.cut ();
+
+	$cam4.follow ( $m11l1a_exposition2 );
+	$cam4.cut ();
+
+	$cam5.follow ( $m11l1a_exposition3 );
+	$cam5.cut ();
+
+	wait ( .5 );
+	cuecamera ( $cam3 );
+
+	music ( "aux1" );
+
+	cam_fadein( 1, 0, 0, 0, 1, 0 );
+	$picard.playdialog ( "localization/sound/dialog/m11l1/picard_taskforce.mp3" , 1, 10000, 1);
+	waitfordialog ( $picard );
+	wait ( .5 );
+	AIShowGroup ( 777 );
+	$fakeplayer.playdialog ( "localization/sound/dialog/m11l1/munro_underforce.mp3" , 1 , 10000 , 0 );
+	wait ( 1 );
+	cuecamera ( $cam4 );
+	wait ( 2 );
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove(	$m11l1a_exposition1 );
+
+	$romulanTeam.playdialog ( "localization/sound/dialog/m11l1/rom_anslie.mp3" , 1 , 10000 , 0 );
+	
+	cam.load ( "m11l1a_goodrom" );
+	
+	wait ( 1 );
+
+	$romulanTeam.sendeventtogroup ( "walkto" , "$fakeplayer" , "run" );
+	waitfordialog ( $romulanTeam );
+
+	cuecamera ( $cam5 );
+	AIShowGroup ( 888 );
+	$romulanRebelTeam.sendeventtogroup ( "mass" , "99999" );
+
+	$cam1.follow ( $m11l1a_goodrom );
+	$cam1.cut ();
+
+	$romulanRebelTeam.playdialog ( "localization/sound/dialog/m11l1/romb_wrathemp.mp3" , 1 , 10000 , 0 );
+	waitfordialog ( $romulanRebelTeam );
+
+	$romulanTeam.playdialog ( "localization/sound/dialog/m11l1/rom_return.mp3" , 1 ,10000 , 0 );
+	$romulanTeam.sendeventtogroup ( "ai_on" );
+	wait ( .5 );
+	cuecamera ( $cam1 );
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove(	$m11l1a_exposition2 );
+	pathRemove(	$m11l1a_exposition3 );
+
+	//start the battle
+	$romulanTeam.sendeventtogroup ( "actortype" , "teammate" );
+	wait ( 14 );
+	
+	cam.load ( "m11l1a_munrocam3" );
+	wait ( 1 );
+
+	//show munro going to the door
+
+	$cam1.follow ( $m11l1a_munrocam3 );
+	$cam1.cut ();
+	cuecamera ( $cam1 );
+
+	$fakeplayer.anim ( "duck_getup" );
+	$fakeplayer.walkto ( "$munroNode2" , "run" );
+	waitfor ( $fakeplayer );
+	$fakeplayer.giveactorweapon ( "models/weapons/worldmodel-tricorder-stx.tik" );
+	$fakeplayer.useactorweapon ( "Tricorder-STX" );
+	$fakeplayer.anim ( "tricorder_draw" );
+	waitforanimation ( $fakeplayer , "tricorder_draw" );
+	$fakeplayer.anim ( "tricorder_fire" );
+	waitforanimation ( $fakeplayer , "tricorder_fire" );
+
+	$entranceDoor.unlock ();
+	trigger ( "$entranceDoor" );
+
+	$fakeplayer.anim ( "tricorder_calm_idle1" );
+
+	wait ( .75 );
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove(	$m11l1a_goodrom );
+
+	$fakeplayer.turntoangle ( 90.0 );
+	$fakeplayer.headwatch ( $romulanTeam );
+
+	wait ( 9 );
+
+	$fakeplayer.turntoangle ( 270 );
+	wait ( 1 );
+
+	cam_fadeout( .5, 0, 0, 0, 1, 0 );
+	$fakeplayer.headwatch ( $nullEntity );
+	
+	cam.load ( "m11l1a_munrocam2" );
+	cam.load ( "m11l1a_goodrom2" );
+	
+	wait ( 1 );
+	$cam1.follow ( $m11l1a_munrocam2 );
+	$cam1.cut ();
+
+	$entranceDoor.close ();
+
+	//show munro running to the interior
+	$fakeplayer.useactorweapon ( "none" );
+	$fakeplayer.warpto ( "$munroNode3" );
+	cam_fadein( .5, 0, 0, 0, 1, 0 );
+
+	cuecamera ( $cam1 );
+	$fakeplayer.walkto ( "$munroNode4" , "run" );
+	wait ( 1.75 );	
+	
+	$cam2.follow ( $m11l1a_goodrom2 );
+	$cam2.cut ();
+	cuecamera ( $cam2 );
+
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove(	$m11l1a_munrocam2 );
+	
+	wait ( 6 );
+
+	cam_fadeout( 1, 0, 0, 0, 1, 0 );
+
+	thread endFinalCinematicBattle ();
+	
+//hzm coop mod chrissstrahl - clean up, this map requires it
+	pathRemove(	$m11l1a_goodrom2 );
+}
+
+void ActivateGroup100 ()
+{
+	showBeaminEffects = 0;
+	AIShowGroup ( 100 );
+	CommandToGroup ( 100 , "attack" , "$player" , "" );
+	CommandToGroup ( 100 , "groupdeaththread" , "ActivateGroup101" , "" );
+	showBeaminEffects = 1;
+}
+
+void ActivateGroup101 ()
+{
+	wait ( 1 );
+	AIShowGroup ( 101 );
+	CommandToGroup ( 101 , "attack" , "$player" , "" );
+}
+
+void ActivateArea1Group200 ()
+{
+	showBeaminEffects = 0;	//save on tempmodels
+	AIShowGroup ( 200 );
+	showBeaminEffects = 1;
+}
+
+void ActivateGroup300 ()
+{
+	AIOnGroup ( 300 );
+	CommandToGroup ( 300 , "attack" , "$player" , "" );
+	CommandToGroup ( 300 , "groupdeaththread" , "ActivateQuad" , "" );
+}
+
+void ActivateGroup400 ()
+{
+	AIOnGroup ( 400 );
+}
+
+
+void ActivateGroup401 ()
+{
+	AIOnGroup ( 401 );
+}
+
+void ActivateGroup402 ()
+{
+	AIOnGroup ( 402 );
+}
+
+void ActivateGroup403 ()
+{
+	AIOnGroup ( 403 );
+}
+
+void ActivateGroup404 ()
+{
+	AIOnGroup ( 404 );
+}
+
+void ActivateQuad ()
+{
+ 	$quadDebris.scale ( 2 );
+ 	$quadDebris.modelname ( "fx/fx-explosion-door-m11-quadraped.tik" );
+ 	$quadDebris.playsound( "sound/ships/drull/drull_doorpound.wav", 8, 1 , 700 );
+ 	$quadDebris.playsound( "sound/impact/explosion/expl_muffle2.wav", 9, 1 , 700 );
+
+        forcemusic ("mystery");
+
+	wait ( 2 );
+
+	$quadDoor.earthQuake ( 1 , 2 );
+ 	$quadDoor.playsound( "sound/impact/explosion/expl_rockdebr1.wav", 810, 1 , 700 );
+
+	wait ( 2 );
+ 	$quadDoor.playsound( "sound/impact/explosion/expl_muffle2.wav", 8, 1 , 700 );
+	$quadDoor.earthQuake ( 1 , 2 );
+	wait ( 1 );
+
+	$quadDoor.remove();
+ 	$quadDoorNorth.playsound( "sound/ships/drull/drull_doorexplode.wav", 9, 1.3 , 700 );
+ 	$quadDoorNorth.playsound( "sound/impact/explosion/explo_wall1.wav", 10, 1 , 700 );
+
+	$quadDoorNorth.time ( 0.30 );
+	$quadDoorSouth.time ( 0.20 );
+
+	$quadDoorNorth.rotateYDown ( 20 );
+	$quadDoorSouth.rotateYUp ( 15 );
+
+	wait ( 1 );
+	$quadDoor.earthQuake ( 1 , 2 );
+
+	$quadDoorNorth.time ( 0.50 );
+	$quadDoorSouth.time ( 0.40 );
+
+	$quadDoorNorth.rotateYDown ( 90 );
+	$quadDoorSouth.rotateYUp ( 90 );
+
+	$quadSecurityDoor.time ( 2 );
+	$quadSecurityDoor.moveUp ( 256 );
+
+ 	$quadPusher.playsound( "sound/chars/quad/quad_alert.wav", 12, 1.5 , 1000 );
+
+	$quadPusher.speed ( 500 );
+	trigger ( "$quadEarthquake" );
+	trigger ( "$quadDebris" );
+	trigger ( "$quadSpawner" );
+	
+	wait(0.5);
+	vector v;
+	v = $quad.getOrigin();
+	v_z -= 50;
+	$quad.origin(v);
+	
+	wait ( 1.0 );
+	$quad.ai_on ();
+	$quad.attack ( $player );
+	$quadPusher.remove ();
+
+	$quadDoorNorth.time ( 0.50 );
+	$quadDoorSouth.time ( 0.40 );
+
+	$quadDoorNorth.rotateYUp ( 80 );
+	$quadDoorSouth.rotateYDown ( 85 );
+
+        forcemusic ("action");
+}
+
+void lockBridgeRoomDoor ()
+{
+	$bridgeRoomDoor.lock ();
+}
+
+void toggleAllEntities ( string tname , float doShow )
+{
+	entity e;
+	e = getentity ( tname );
+
+	while ( doesEntityExist ( e ) )
+	{
+		if ( doShow )
+			e.show ();
+		else
+			e.hide ();
+
+		e =  getnextentity( e );
+	}
+}
+
+void removeAllEntities ( string tname )
+{
+	entity e;
+	e = getentity ( tname );
+
+	while ( doesEntityExist ( e ) )
+	{
+		e.remove();
+		e =  getnextentity( e );
+	}
+}
+
+void collapseTower ()
+{
+	entity brushTower,modelTower,targetingIndicator,activator;
+	entity sniper;
+	float tower;
+
+	activator = getCurrentEntity ();
+	tower = activator.getfloatvar ( "uservar1" );
+
+	brushTower= getentity ( "brushTower" + tower ) ;
+	modelTower= getentity ( "modelTower" + tower ) ;
+	removeAllEntities ( "targetingTower" + tower );
+
+	sniper = getentity ( "tower" + tower + "RemoveActor" );
+
+	while ( doesEntityExist ( sniper ))
+	{
+		sniper.setenemytargeted( 0 );
+		wait ( .1 );
+		sniper.kill ();
+		sniper = getNextEntity ( sniper );
+	}
+
+
+    forcemusic ("surprise","action");
+
+	brushTower.hide ();
+	while ( doesEntityExist ( modelTower ))
+	{
+		modelTower.show ();
+		modelTower.anim ( "collapse" );
+		modelTower = getNextEntity ( modelTower );
+	}
+
+	modelTower= getentity ( "modelTower" + tower ) ;
+	waitforanimation ( modelTower , "collapse" );
+
+	if ( tower == 2 )
+	{
+		barricadeDoorDestroyed (); //take out the door too
+	}
+
+	while ( doesEntityExist ( modelTower ))
+	{
+		modelTower.anim ( "dead" );
+		modelTower = getNextEntity ( modelTower );
+	}
+	wait ( 2 );
+
+	modelTower= getentity ( "modelTower" + tower ) ;
+	while ( doesEntityExist ( modelTower ))
+	{
+		modelTower.forcealpha ( 1 );
+		modelTower.fadeout ( 2 );
+		modelTower = getNextEntity ( modelTower );
+	}
+}
+
+float TARGETING_RETICLE_DISTANCE = 2000;
+
+void displayTargettingIndicator ( float tower )
+{
+	entity targetingIndicatorOrigin;	//have to use the script model, since brushmodels don't have a nice origin to use
+	vector v;
+	string tname;
+	float hidden = 0;
+	float dist;
+
+	tname = "targetingTower" + tower;
+	targetingIndicatorOrigin = getentity ( "modelTower" + tower );
+	v = targetingIndicatorOrigin.getorigin ();
+
+	entity ePlayer;
+
+	while ( doesEntityExist ( targetingIndicatorOrigin ))
+	{
+		ePlayer = $player;
+		if(!doesEntityExist(ePlayer)){ePlayer = $player0;}
+		if(!doesEntityExist(ePlayer)){ePlayer = $player1;}
+		if(!doesEntityExist(ePlayer)){ePlayer = $player2;}
+		if(!doesEntityExist(ePlayer)){ePlayer = $world;}
+	
+	
+		dist = globalMath_GetXYDistance ( v , ePlayer.getorigin());
+		if ((hidden==1) && ( dist <= TARGETING_RETICLE_DISTANCE ))
+		{
+//			print ( "showing" + tower + "\n" );
+			toggleAllEntities( tname  , 1 );
+			hidden = 0;
+		}
+		else if ( (hidden==0) && ( dist > TARGETING_RETICLE_DISTANCE ) )
+		{
+//			print ( "hiding" + tower + "\n" );
+			toggleAllEntities(tname , 0 );
+			hidden = 1;
+		}
+		wait ( .25 );
+	}
+}
+
+
+void setupTower ( float tower )
+{
+	
+	entity brushTower,modelTower;
+	brushTower= getentity ( "brushTower" + tower ) ;
+	modelTower= getentity ( "modelTower" + tower ) ;
+	
+	
+	//hzm coop mod chrissstrahl - make the tower weaker so that it goes down after one orbital strike
+	entity eDamagetrigger;
+	eDamagetrigger= getentity ( "tower" + tower +"Remove") ;
+	eDamagetrigger.health(900);
+	
+
+	brushTower.show ();
+
+	//setup for all parts
+	while ( doesEntityExist ( modelTower ))
+	{
+		modelTower.notsolid ();
+		modelTower.hide ();
+		modelTower.anim ( "idle" );
+		modelTower = getNextEntity ( modelTower );
+	}
+
+	thread displayTargettingIndicator ( tower );
+}
+
+void activateGroup601 ()
+{
+	AIOnGroup ( 601 );
+	CommandToGroup ( 601 , "attack" , "$player" ,"" );
+}
+
+void activateGroup602 ()
+{
+	AIOnGroup ( 602 );
+	CommandToGroup ( 602 , "attack" , "$player" ,"" );
+}
+
+void activateGroup667 ()
+{
+	wait ( 2 );
+	AIShowGroup ( 667 );
+	CommandToGroup ( 667 , "attack" , "$player" ,"" );
+}
+
+void blockCave ()
+{
+ 	//$caveBlocker.playsound( "sound/impact/explosion/explo_wall1.wav", 10, 1 , 700 );
+	//$caveBlocker.time ( .3 );
+	//$caveBlocker.moveDown ( 512 );
+	//waitfor ( $caveBlocker );
+
+	//trigger ( "$caveCrater" );		//Trap the player in the arena by blocking the cave exit
+	//$caveCraterClip.remove ();
+	//CommandToGroup ( 666 , "attack" , "$player" , "" );
+	
+	AIOnGroup ( 666 );
+	coop_float_spawnAngle0 				= 180;
+	coop_vector_spawnOrigin8 			= '6893 0 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin7 			= '6800 0 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin6 			= '6730 0 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin5 			= '6893 -75 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin4 			= '6800 -75 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin3 			= '6730 -75 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin2 			= '6893 -150 200';//do not allow telefrag on this boss
+	coop_vector_spawnOrigin1 			= '6800 -150 200';//do not allow telefrag on this boss
+//Update respawns
+	globalCoop_applaySpawnOriginOnReSpwanOrigin();
+//activate AI
+	CommandToGroup( 666 , "aggressive" , "1" , "" );
+}
+
+void attackThePlayer ()
+{
+	entity caller, activator;
+	caller = getcurrententity();
+	activator = getlastactivatingentity ();
+
+	activator.aggressive ( 1 );
+}
+
+void spawnBarricadeWaveTrigger ()
+{
+	triggerentity ( $romulanSpawner6 );
+	wait ( .5 );
+	triggerentity ( $romulanSpawner4 );
+	wait ( .5 );
+	triggerentity ( $romulanSpawner3 );
+}
+
+//if the player decides to blow the door, clean up a bit
+void caveDoorDestroyed ()
+{
+	trigger ( "$caveDoorClip" );
+        $caveDoorBlasted.playsound( "sound/impact/explosion/explo_wall1.wav", 10, 1 , 700 );
+	$caveDoorBlasted.show();	//show the wreckage
+	$caveDoorBlasted.solid();
+
+	$caveDoorPuzzle.remove ();	//get rid of the puzzleobject
+	$caveDoorPuzzleArchetype.remove ();//...and archetype
+	$caveDoors.remove ();		//get rid of the real doors
+
+	$targetingTower9.remove();
+	$modelTower9.remove();
+}
+
+void caveDoorSolved ()
+{
+	$caveDoorPuzzle.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 7, .3, 10000 );
+	$caveDoorTrigger.remove ();
+	$caveDoorClip.remove ();
+	$caveDoors.playsound( "sound/doors/drull_smldoor_01.wav", 11, 1 , 700 );
+	trigger ( "$caveDoors" );
+	$caveDoorPuzzle.missionobjective ( 0 );
+	$caveDoorPuzzleArchetype.remove ();//...and archetype
+	$targetingTower9.remove();
+	$modelTower9.remove();
+}
+
+//barricade puzzle
+void barricadeDoorDestroyed ()
+{
+	trigger ( "$barricadeDoorExploder" );
+    $barricadeDoorExploder.playsound( "sound/impact/explosion/explo_wall1.wav", 10, 1 , 700 );
+
+	$barricadeDoors.remove ();
+	$barricadeDoorClip.remove ();
+	$barricadeDoorExploder.remove ();
+	$barricadeDoorPuzzleArchetype.remove ();
+	$barricadeDoorPuzzle.missionobjective ( 0 );
+
+	$targetingTower8.remove();
+	$modelTower8.remove();
+	wait ( .5 );
+	if ( doesEntityExist ( $barricadeDoorTrigger ))
+		$barricadeDoorTrigger.remove ();
+}
+
+void barricadeDoorSolved ()
+{
+	$barricadeDoorPuzzle.playsound ( "sound/ships/romulan/rom_beep_yes.wav" , 7, .3, 10000 );
+
+	$barricadeDoorTrigger.remove ();
+	$barricadeDoorClip.remove ();
+	$barricadeDoorExploder.remove ();
+	$barricadeDoorPuzzleArchetype.remove ();
+	$barricadeDoorPuzzle.missionobjective ( 0 );
+
+	$barricadeDoors.show ();
+	trigger ( "$barricadeDoors" );
+
+	$targetingTower8.remove();
+	$modelTower8.remove();
+}
+
+void secretWeaponFound ()
+{
+	//hzm coop mod chrissstrahl - register weapon into server side managed coop_status.ini file
+	//so that the weapon will be there even after a server reboot
+	globalCoop_server_itemUnlockedSet("models/weapons/worldmodel-rom-radgun.tik");
+
+	globalCoop_armory_weaponRegister("models/weapons/worldmodel-rom-radgun.tik");
+	$secretWeapon.remove ();
+	setfloatvar( "game.secretWeapon_RomulanExperimental", TRUE );
+}
+
+//--------------------------------
+//	globalCineFX_CameraPathRemove
+//	entCamPath - entity, the camera path to remove
+//	will delete the passed in camera path
+//--------------------------------
+void pathRemove( entity entCamPath )
+{
+	entity entCurrentNode;
+	entity entNextNode;
+	string strNextNodeTargetname;
+	
+	entCurrentNode = entCamPath;
+
+	//--- loop through the chain and delete the nodes
+	while( doesEntityExist( entCurrentNode ) )
+	{
+		//--- get the string of the targetname
+		strNextNodeTargetname = entCurrentNode.getTarget();
+
+		//--- set the current node to the next node
+		entNextNode = getentity( strNextNodeTargetname );
+		
+		//--- remove the current node
+		entCurrentNode.remove();
+		
+		entCurrentNode = entNextNode;
+	}
+}
+
+void coop_spawnLocationSetArea2()
+//------------------------------------------------------------------------------
+//make Players spawn at area2
+//------------------------------------------------------------------------------
+{
+	if(cvar_bool_multiplayer){
+		coop_float_spawnAngle1 				= 270;
+		coop_float_spawnAngle2 				= 270;
+		coop_float_spawnAngle3 				= 270;
+		coop_float_spawnAngle4 				= 270;
+		coop_float_spawnAngle5 				= 270;
+		coop_float_spawnAngle6 				= 270;
+		coop_float_spawnAngle7 				= 270;
+		coop_float_spawnAngle8 				= 270;
+		coop_vector_spawnOrigin8 			= '-210 494 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin7 			= '-280 494 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin6 			= '-280 410 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin5 			= '-210 410 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin4 			= '-280 340 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin3 			= '-210 340 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin2 			= '-280 270 150';//do not allow telefrag on this boss
+		coop_vector_spawnOrigin1 			= '-210 270 150';//do not allow telefrag on this boss
+	//update respawnloactaions
+		globalCoop_applaySpawnOriginOnReSpwanOrigin();
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("m11l2a-drull_ruins3");
+}
+
