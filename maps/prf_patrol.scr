@@ -1,0 +1,193 @@
+////////////////////////////////////////////////////
+// LEAD AND FOLLOW TEST MAP FOR TEAM AI
+////////////////////////////////////////////////////
+//Chrissstrahl - 2020.11.05
+
+void main();
+
+//executed on mapload
+//--------------------------------------------------
+void main()
+//--------------------------------------------------
+{
+	//turn ai on only after a player has spawned and is ready
+	$htaqc.ai_off();
+	waitForPlayer();
+	wait(1);
+	$htaqc.ai_on();
+	
+	
+	//allow ai to fall (makes using stairs easier)
+	$htaqc.allowFall(1);
+	
+	//make ai use pathnodes path with nodeID 1
+	$htaqc.setnodeID(1);
+	
+	//set variable on world for later use
+	$world.setFloatVar("test_aiNodeId",1);
+	$world.setFloatVar("test_aiSpawned",0);
+	$world.setVectorVar("test_aiSpawnLocation1",'170 37 4');
+	$world.setVectorVar("test_aiSpawnLocation2",'270 271 4');
+	$world.setVectorVar("test_aiSpawnLocation3",'619 604 4');
+	$world.setVectorVar("test_aiSpawnLocation4",'960 529 4'); //bushes
+	$world.setVectorVar("test_aiSpawnLocation5",'784 619 -244');
+	$world.setVectorVar("test_aiSpawnLocation6",'43 769 4');
+	$world.setVectorVar("test_aiSpawnLocation7",'81 934 4');
+	$world.setVectorVar("test_aiSpawnLocation8",'905 37 4');
+}
+
+//executed if a player enters the trigger
+//--------------------------------------------------
+void stopFollowLead()
+//--------------------------------------------------
+{
+	//grab trigger that called this function and activator of trigger
+	entity eTrigger;
+	entity eActivator;
+	eTrigger = getCurrententity();
+	
+	if(!doesentityExist(eTrigger)){ return; }
+	
+	eActivator = eTrigger.getLastActivatingentity();
+	
+	if(!doesentityExist(eActivator)){ return; }
+	
+	//do stuff to the test ai
+	if(!doesentityExist($htaqc)){ return; }
+	
+	$htaqc.setTendency("follow",0);
+	$htaqc.setTendency("lead",0);
+}
+
+//executed if a player enters the trigger
+//--------------------------------------------------
+void makeLead()
+//--------------------------------------------------
+{
+	//grab trigger that called this function and activator of trigger
+	entity eTrigger;
+	entity eActivator;
+	eTrigger = getCurrententity();
+	
+	if(!doesentityExist(eTrigger)){ return; }
+	
+	eActivator = eTrigger.getLastActivatingentity();
+	
+	if(!doesentityExist(eActivator)){ return; }
+	
+	//do stuff to the test ai
+	if(!doesentityExist($htaqc)){ return; }
+	
+	$htaqc.setTendency("lead",1);
+}
+
+//executed if a player enters the trigger
+//--------------------------------------------------
+void makeFollow()
+//--------------------------------------------------
+{
+	//grab trigger that called this function and activator of trigger
+	entity eTrigger;
+	entity eActivator;
+	eTrigger = getCurrententity();
+	
+	if(!doesentityExist(eTrigger)){ return; }
+	
+	eActivator = eTrigger.getLastActivatingentity();
+	
+	if(!doesentityExist(eActivator)){ return; }
+	
+	//do stuff to the test ai
+	if(!doesentityExist($htaqc)){ return; }
+	
+	$htaqc.setTendency("follow",1);
+}
+
+//executed if a player enters the trigger
+//--------------------------------------------------
+void alternatePath()
+//--------------------------------------------------
+{
+	//grab trigger that called this function and activator of trigger
+	entity eTrigger;
+	entity eActivator;
+	eTrigger = getCurrententity();
+	
+	if(!doesentityExist(eTrigger)){ return; }
+	
+	eActivator = eTrigger.getLastActivatingentity();
+	
+	if(!doesentityExist(eActivator)){ return; }
+	
+	//do stuff to the test ai
+	if(!doesentityExist($htaqc)){ return; }
+	
+	//alternate between patrol paths
+	if($world.getFloatVar("test_aiNodeId") == 1){
+		$htaqc.setnodeID(2);
+		$world.setFloatVar("test_aiNodeId",2);
+	}else{
+		$htaqc.setnodeID(1);
+		$world.setFloatVar("test_aiNodeId",1);
+	}
+}
+
+//executed if a player enters the trigger
+//--------------------------------------------------
+void spawnEnemies()
+//--------------------------------------------------
+{
+	//spawn only if all previouse are dead
+	if( $world.getFloatVar("test_aiSpawned") > 0){
+		return;
+	}
+
+	//reset vars
+	float i;
+	for(i=1;i<9;i++){ //8 spawn locations
+		$world.setFloatVar("test_aiSpawnLocation"+i+"_inuse",0);
+	}
+	
+	//spawn some enemies
+	float fEnemies = 0;
+	fEnemies = $world.getFloatVar("test_aiSpawned");
+	
+	float fType=0;
+	fType = randomint(50);
+	string sEnemy = ""; //"models/char/romulan-m10-soldier-pistol-m.tik"; //dono why the fuck they are not working
+	//if(fType > 40){
+		sEnemy = "models/char/alien-type1a-lurker.tik";
+	//}
+	
+	for(i=0;i<4;i++){ //4 enemies
+		float fInuse=1;
+		float fFailsafe=0;
+		float fSpawnSpot=0;
+		while(fInuse && fFailsafe < 100){
+			fSpawnSpot = ( 1 + randomint(7) );
+			fInuse = $world.getFloatVar("test_aiSpawnLocation"+fSpawnSpot+"_inuse");
+			fFailsafe++;
+			if(fFailsafe==100){
+				print("### FAILSAFE: spawnEnemies could not find a free spawnspot\n");
+				print("### FAILSAFE: spawnEnemies tried 100 had atempts\n");
+				return;
+			}
+		}
+	
+		spawn("actor","model",sEnemy,"killthread","enemyKilled","origin",""+$world.getVectorVar("test_aiSpawnLocation"+fSpawnSpot));
+		fEnemies++;
+		$world.setFloatVar("test_aiSpawnLocation"+fSpawnSpot+"_inuse",1);
+		$world.setFloatVar("test_aiSpawned",fEnemies);
+	}
+}
+
+//executed if a previously spawned enemy gets killed
+//--------------------------------------------------
+void enemyKilled()
+//--------------------------------------------------
+{
+	float fEnemies = 0;
+	fEnemies = $world.getFloatVar("test_aiSpawned");
+	fEnemies--;
+	$world.setFloatVar("test_aiSpawned",fEnemies);
+}
