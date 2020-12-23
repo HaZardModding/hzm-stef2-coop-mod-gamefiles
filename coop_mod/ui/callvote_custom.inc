@@ -18,28 +18,28 @@ Label
 	hovercommand "globalwidgetcommand tooltip_callvote title \"\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
-/* //[b608] chrissstrahl - this map is still unfinished and should not be in here
-resource
-Button
-{
-	cvarvisibility coop_ui_vt 13 ==
-	title "Coop Alien"
-	name 	"communitymap_coop_alien"
-	rect	275 114 328 20
-	font serpentinemedium-10
-	fgcolor 		1.000 1.000 1.000 0.800
-	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+//[b608] chrissstrahl - this map is still unfinished and should not be in here
+// resource
+// Button
+// {
+	// cvarvisibility coop_ui_vt 13 ==
+	// title "Coop Alien"
+	// name 	"communitymap_coop_alien"
+	// rect	275 114 328 20
+	// font serpentinemedium-10
+	// fgcolor 		1.000 1.000 1.000 0.800
+	// bgcolor 		0.12 0.15 0.25 0.7
+	// hoverbgcolor 	0.22 0.25 0.35 1.0
 	
-	horizontaljustify left
-	verticaljustify top
+	// horizontaljustify left
+	// verticaljustify top
 
-	clicksound sound/misc/menu/click.wav
+	// clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map coop_alien;popmenu 1;popmenu 0\n"
-	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_alien.tga;globalwidgetcommand coopName title Chrissstrahl"
-    hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
-}*/
+	// stuffcommand "callvote map coop_alien;popmenu 1;popmenu 0\n"
+	// hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_alien.tga;globalwidgetcommand coopName title Chrissstrahl"
+    // hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+// }
 
 resource
 Button
