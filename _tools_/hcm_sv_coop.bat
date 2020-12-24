@@ -512,6 +512,7 @@ echo 1  = coop_aftermath1		(START - E1 The City pt1)
 echo 2  = coop_aftermath2		(E1 The City pt2)
 echo 3  = coop_aftermath3		(E1 The City pt3)
 echo 4  = coop_aftermath4		(E1 The City pt4)
+echo 5  = coop_aftermath5		(E1 The City pt5)
 echo 0  = Back, select a different Map
 set /p selectMap=
 if %selectMap% == 0 goto selectLevel
@@ -519,6 +520,7 @@ if %selectMap% == 1 set startmap=coop_aftermath1
 if %selectMap% == 2 set startmap=coop_aftermath2
 if %selectMap% == 3 set startmap=coop_aftermath3
 if %selectMap% == 4 set startmap=coop_aftermath4
+if %selectMap% == 5 set startmap=coop_aftermath5
 goto setPassword
 
 :enterLevelName
