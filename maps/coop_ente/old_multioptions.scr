@@ -1,0 +1,538 @@
+//MOM - Multi Options Menu
+//Christian Sebastian Strahl 2011.02.26
+//
+//This Script and Menu Combination detects what button the player pressed in the menu,
+//and runs teh appropirate script/function
+//
+//Distributed under the Creative Common License BY-NC
+//Means Keep these Comment Lines and do not use it for comercial purpose,
+//other than that, edit/alter/upgrade/rerealse or do what you want with it.
+
+//------------------------------------------------------------------------------
+// THIS IS HOW IT WORKS
+//------------------------------------------------------------------------------
+//	You need to set thread mom_basic on the trigger_use entity you want to use.
+//
+//	If a player uses your trigger_use the function mom_basic will start and grab 2 sets of data from the trigger
+//	The data will be in uservar1 and uservar2, which can be set in the radiant (Key=uservar1, Value=Menuname)
+//	Then the mom_basic function will check if the player is in range and alive and execute the thread set in uservar2
+//	and display the Menu that was named in uservar1 to the player
+//
+//	uservar1 - sets Name of Menu to show to player (if non set mom_default is used)
+//	uservar2 - sets Name of Basisthread, Basisthread is started once the Menu is shown to player
+//			 - Basisthread name is used to start other threads, depending on what has been clicked
+//			 - If Button 1 is clicked then a thread named Basisthread + _One will be started.
+//			 - If Basisthread is called banana then this would be: banana_One
+//			 - The same applies with all other number, they are added spelled out with a _ prefixed
+//			 - banana_Two, banana_Three,... Function names are casesensitive!
+
+
+//Global Variables, can be accessed by all Functions/scriptfiles
+//if definied outside a function, just like this
+////////////////////////////////////////////////////////////////////////////////
+float	float_mom_frameTime;
+
+
+//declaration
+////////////////////////////////////////////////////////////////////////////////
+void	mom_grabFrameTime();
+void	mom_waitOneFrame();
+float	mom_checkExistingLivingEntity(entity ePlayer);
+void	mom_waitForWeaponUse(entity ePlayer,string sWeapon,float fLimit);
+void	mom_waitForWeaponChange(entity ePlayer);
+void	mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon);
+void	mom_exitMenu(string sFunctionName);
+void	mom_showMessage(string sFunctionName,string sMessage);
+void	mom_triggerThread(string sThread);
+void	mom_basic();
+
+
+//functions
+//functions
+//functions
+//functions
+void mom_grabFrameTime()
+{
+//when the variable is "Empty"
+	if(float_mom_frameTime == 0)
+	{
+	//calculate the frame time
+	//1 secound, devided by the sv_fps
+	//makes a single frame time
+		float_mom_frameTime = (1 / (getCvarInt("sv_fps")));
+	//if the frame time is to lower than
+		if(float_mom_frameTime < .016){
+		//correct the value
+			float_mom_frameTime = .016;
+		}
+	}
+}
+
+void mom_waitOneFrame()
+//wait one server fame time
+{
+	wait(float_mom_frameTime);
+}
+
+float mom_checkExistingLivingEntity(entity ePlayer)
+//check if the given entity exists and is alive
+{
+//exists
+	if(doesEntityExist(ePlayer))
+	{
+	//has health greather than Zero
+		if(ePlayer.getHealth() > 0)
+		{
+		//all conditions are meet, return 1
+			return 1;	
+		}
+	}
+//not all conditions are fulfilled, return 0
+	return 0;
+}
+
+void mom_waitForWeaponUse(entity ePlayer,string sWeapon,float fLimit)
+//waits for the player to change the weapon->player,weaponname
+{
+//repeat this as long as the player does exist and is alive
+	while(mom_checkExistingLivingEntity(ePlayer))
+	{
+	//check if he ueses THIS weapon
+		if(ePlayer.getActiveWeaponName() == sWeapon)
+		{
+		//exit this function now
+			return;
+		}
+	//wait a server frame time
+		mom_waitOneFrame();
+	}
+}
+
+void mom_waitForWeaponChange(entity ePlayer)
+//waits for the player to change the weapon
+{
+//create internal variable, can only be accessed inside this function
+	string sWeapon;
+//Check if the player does exist
+	if(doesEntityExist(ePlayer))
+	{
+	//grab the name of the weapon the player is currently holding
+		sWeapon=ePlayer.getActiveWeaponName();
+	//repeat this as long as the player does exist and is alive
+		while(mom_checkExistingLivingEntity(ePlayer))
+		{
+		//wait a server frame time
+			mom_waitOneFrame();
+		//check if he ueses a different weapon
+			if(ePlayer.getActiveWeaponName() != sWeapon)
+			{
+			//exit this function now
+				return;
+			}
+		}
+	}
+}
+
+void mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon)
+//waits for delay the weapon needs to be drawn after USE command->player,weaponname
+{
+//create internal variable, can only be accessed inside this function
+	float fLimit;
+	
+//repeat this as long as the player does exist and is alive
+	while(mom_checkExistingLivingEntity(ePlayer))
+	{
+	//count each time this variable plus one up
+		fLimit++;
+	//for test/debug purposes
+		// stuffcmd("echo fLimit: "+fLimit+"\n");
+	//when the limit is hit or the player has used the requested weapon
+		if(fLimit > 43 || ePlayer.getActiveWeaponName() == sWeapon)
+		{
+		//exit this function now
+			return;
+		}
+	//wait a server frame time
+		mom_waitOneFrame();
+	}
+}
+
+void mom_exitMenu(string sFunctionName)
+{
+//create internal variables, used only inside thie function
+	entity	e;
+	float	fEntity;
+	string	sMenuName;
+
+//retrive the memorized entity number
+	fEntity	= $world.getFloatVar("player_"+sFunctionName);
+	
+//retrive the memorized menu name
+	sMenuName = $world.getStringVar("menu_"+sFunctionName);
+	
+//make sure the entity number is not negative
+	if(fEntity > -1)
+	{
+	//grab that entity
+		e=getEntity("*"+fEntity);
+	//verify that this entity dos exist
+		if(doesEntityExist(e))
+		{
+		//make player use the knife, sets the exit signal
+			e.use("Knife");
+		//remove the Menu off the Hud from the player
+			e.removeHud(sMenuName);
+		}
+	}
+}
+
+void mom_showMessage(string sFunctionName,string sMessage)
+{
+//create internal variables, used only inside thie function
+	entity	e;
+	float	fEntity;
+
+//retrive the memorized entity number
+	fEntity	= $world.getFloatVar("player_"+sFunctionName);
+	
+//make sure the entity number is not negative
+	if(fEntity > -1)
+	{
+	//grab that entity
+		e=getEntity("*"+fEntity);
+	//verify that this entity dos exist
+		if(doesEntityExist(e))
+		{
+		//if in multiplayer
+			if(getCvarInt("g_gametype") == 1)
+			{
+			//print message to player hud
+				e.hudprint(sMessage+"\n");
+			}
+		//otherwise this is a singleplayer game
+			else
+			{
+				centerprint(sMessage+"\n");
+			}
+		}
+	}
+}
+
+void mom_triggerThread(string sThread, float fClient)
+//this is uesed to call the threads without crashing
+//in case the threads do not exist, there will be no harm this way
+{
+//check if teh trigger exist and activate it
+//if it does not exist, it will crash on activation
+	entity eTrigger;
+	
+//spawn the trigger and put it into the entity variable
+//set the thread that this trigger shall run on activation/triggering
+	eTrigger = spawn("trigger_once","thread",sThread,"origin","0 0 -999999");
+//wait for the trigger to become avialabe in the game	
+	wait(.02);
+//if the spawing was sucessful, the trigger exists
+	if(doesEntityExist(eTrigger))
+	{
+	//trigger/activate it now
+		triggerEntity(eTrigger);
+	}
+}
+
+void mom_basic()
+//this tingy does all the stuff
+{
+//create internal variables, used only inside this function
+	entity	eTrigger,ePlayer,eSymbol;
+	vector	vTriggerOrigin,vPlayerOrigin;
+	string	sWeapon,sTriggerName,sThreadName,sMenuName,sWeaponName;
+
+//grab the trigger that started this function
+	eTrigger		= getCurrentEntity();
+//get trigger cooarinates once, this trigger must be stationary for this to work
+	vTriggerOrigin	= eTrigger.getOrigin();
+
+//grab once the server frame time (20 to 40)	
+	thread mom_grabFrameTime();
+	
+//check if the trigger even exists, if not script has been called from console
+	if(doesEntityExist(eTrigger))
+	{
+	//grab player who has activated that trigger
+		ePlayer = eTrigger.getLastActivatingEntity();	
+		
+	//exit when player does not exist or is dead
+		if(!mom_checkExistingLivingEntity(ePlayer))
+		{
+		//exit this function now
+			return;
+		}
+	
+	//get the current weapon name
+		sWeaponName = ePlayer.getActiveWeaponName();
+		
+	//disable the trigger now, so no one else can use it
+		eTrigger.nottriggerable();
+		
+	//grab triggertargetname
+		sTriggerName = eTrigger.getRawTargetname();
+		
+	//grab the menu name, if none given use default
+		sMenuName = eTrigger.getStringVar("uservar1");
+		if(sMenuName == "")
+		{
+			sMenuName = "mom_default";
+		}
+	//grab the thread basis name from the trigger
+		sThreadName = eTrigger.getStringVar("uservar2");
+
+	//give weapons which we use to determin what button the player used, this is the whole magic trick here 
+		ePlayer.give("models/weapons/worldmodel-Knife.tik");//you do never ever spawn with this, as it has no use at all in game
+		string sModel = "";
+		float iNum;
+		for(iNum=0;iNum<16;iNum++){
+			ePlayer.give("models/weapons/"+iNum+".tik");
+		}
+	//remove the hud, just to be perfectly safe
+		ePlayer.removehud(sMenuName);
+		
+	//wait a moment for the server to give teh player all of the above weapons
+		mom_waitOneFrame();
+		
+	//exit when player does not exist or is dead
+		if(!mom_checkExistingLivingEntity(ePlayer))
+		{		
+		//enable the trigger again!
+			eTrigger.triggerable();
+			
+		//exit this function now
+			return;
+		}
+		
+	//add menu, it is modified to act as menu even when added as hud
+		ePlayer.addhud(sMenuName);
+		
+	//check for weapon change,
+	//if the menu is added it makes the player use the knife...
+		mom_waitForWeaponDrawDelay(ePlayer,"Knife");
+		
+	//exit when player does not exist or is dead
+		if(!mom_checkExistingLivingEntity(ePlayer))
+		{
+		//kill the basis thread
+			killthread(sThreadName);
+		
+		//enable the trigger again!
+			eTrigger.triggerable();
+			
+		//exit this function now
+			return;
+		}
+		
+	//if the player does not use the knife after the given delay above
+	//then it is safe to assum the player does not have the menu!
+	//this would be the place for a alternative script.
+	//If you plan on upgrading existing maps with new menus
+	//then you will need the alternative to keep compatibility
+		if(ePlayer.getActiveWeaponName() != "Knife")
+		{
+		//add menu, it is modified to act as menu even when added as hud
+			ePlayer.removehud(sMenuName);
+		
+		//for now just print a message
+			ePlayer.hudprint("It seems that you do not have the required Menu!\n");
+			
+		//make player use his previouse weapon again
+			ePlayer.use(sWeaponName);
+			
+		//enable the trigger again!
+			eTrigger.triggerable();
+			
+		//exit this function now
+			return;
+		}
+		
+	//reset the last entity Number
+		$world.setFloatVar(sThreadName,-1);
+		
+	//register the player Entity Number, so we can refer later to him
+	//---
+	//create internal variables
+		entity	e;
+		vector	vPlayerOrigin;
+		float	fEntity,fMaxclients;
+		
+	//get the player coordinates
+	//remember if you have moving objects, you might wana move that inside the for function
+		vPlayerOrigin = ePlayer.getOrigin();
+	
+	//find out how many entities we have to check
+		fMaxclients = getCvarInt("sv_maxclients");
+		
+	//start with entity Zero wand work upwards
+	//players are using low entity numbers, starting with Zero
+		for(fEntity=0;fEntity<fMaxclients;fEntity++){
+		//get entity with that NUMBER - this has nothing to do with targetnames
+			e=getEntity("*"+fEntity);
+			if(doesEntityExist(e)){
+				if(e == ePlayer){
+					eTrigger.setFloatVar("mom_clientId",fEntity);
+				//remember the player entity number
+					$world.setFloatVar("player_"+sThreadName,fEntity);
+				//remember the menu to remove
+					$world.setStringVar("menu_"+sThreadName,sMenuName);
+				}
+			}
+		}	
+	//Start the basis thread once, as own instance
+		thread mom_triggerThread(sThreadName);
+		
+	//if the player does have that menu, he holds now the Knife
+	//in his hands, put away that Knife now
+		ePlayer.putawayweapon("dual");
+	
+	//wait until the player has put away the Knife and is empty handed
+		mom_waitForWeaponDrawDelay(ePlayer,"None");
+		
+	//grab symbol entity
+		eSymbol=getEntity(sThreadName+"_symbol");
+		
+	//check if teh symbol exists
+		if(doesEntityExist(eSymbol))
+		{
+		//hide symbol
+			eSymbol.hide();
+		}
+	
+	//now repeat this procedure and check each time
+	//if the player does exist and is alive
+		while(mom_checkExistingLivingEntity(ePlayer))
+		{
+		//get the current weapon
+			sWeapon				= ePlayer.getActiveWeaponName();//grab active weapon data
+		
+		//get the current location of the player
+			vPlayerOrigin		= ePlayer.getOrigin();
+			
+		//set player Z axis to zaxis of the trigger
+		//this way we only check the X/Y distance
+			vPlayerOrigin_z = vTriggerOrigin_z;
+			
+		//distance between player and trigger is more than 64 units
+		//- switched to spectator
+		//- changed the team
+		//- died
+			if(vectorLength(vTriggerOrigin - vPlayerOrigin) > 64)
+			{
+			//kill the basis thread
+				killthread(sThreadName);
+			
+			//print a status message, so the player knows whats going on
+				ePlayer.hudprint("You are out of range - EXITING!\n");
+				
+			//Take the Exit Weapon
+				ePlayer.take("models/weapons/worldmodel-Knife.tik");
+				
+			//remove the Menu
+				ePlayer.removehud(sMenuName);
+				
+			//make player use his previouse weapon again
+				ePlayer.use(sWeaponName);
+			
+			//reactivate the trigger so it can be used again
+				eTrigger.triggerable();
+				
+			//show symbol
+				if(doesEntityExist(eSymbol))
+				{
+					eSymbol.show();
+				}
+				
+			//Exit this function now
+				return;
+			}
+		//else the player is still within range
+		//check what weapon he is holding in his hand
+		//each option in the menu picks a different weapon
+		//this way we see what option he used the last time
+			else
+			{
+			//if the weaon has changed
+				if(sWeapon != "None")
+				{
+				//this is the EXIT signal weapon
+					if(sWeapon == "Knife"){
+					//kill the basis thread
+						killthread(sThreadName);
+					
+					//remove the menu
+						ePlayer.removehud(sMenuName);
+						
+					//wait for the menu to go away
+						wait(.25);//was .75
+						
+					//wait for the weapon to show
+						mom_waitForWeaponDrawDelay(ePlayer,"Knife");
+						
+					//take the knife, so player do not manually use it
+						ePlayer.take("models/weapons/worldmodel-Knife.tik");
+					
+					//wait for the weapon to go away
+						mom_waitForWeaponDrawDelay(ePlayer,"None");
+						
+					//make player use his previouse weapon again
+						ePlayer.use(sWeaponName);
+						
+					//wait for the weapon to show
+						mom_waitForWeaponDrawDelay(ePlayer,sWeaponName);
+					
+					//reactivate the trigger
+						eTrigger.triggerable();
+						
+					//show symbol
+						if(doesEntityExist(eSymbol))
+						{
+							eSymbol.show();
+						}
+						
+					//exit this function
+						return;
+					}
+				//crate the selection thread name
+				//example: test_one,test_two,test_three...
+				//Start the selection thread now
+					thread mom_triggerThread(sThreadName+"_"+sWeapon);
+				//putaway current weapon
+					ePlayer.putawayweapon("dual");
+				
+				//wait for the weapon to go away
+					mom_waitForWeaponDrawDelay(ePlayer,"None");
+				}
+			}
+		//wait a server frame time
+			mom_waitOneFrame();
+		}
+	
+		if(doesEntityExist(ePlayer))
+		{		
+		//remove the hud from the player
+			ePlayer.removehud(sMenuName);
+			
+		//Take the "Eenter" and "Exit" Weapon away from the player
+			ePlayer.take("models/weapons/worldmodel-Knife.tik");
+		}
+	//kill the basis thread
+		killthread(sThreadName);
+		
+	//reactivate the trigger
+		eTrigger.triggerable();
+		
+	//check if the symbol exists
+		if(doesEntityExist(eSymbol))
+		{
+		//show symbol
+			eSymbol.show();
+		}
+	}
+}
+

@@ -1,0 +1,161 @@
+//turbolift_level0
+//This script contains the code for the lift, use as you please
+//This script contains the code for the lift, use as you please
+//This script contains the code for the lift, use as you please
+
+
+//Global Variables, can be accessed by all Functions/scriptfiles
+//if definied outside a function, just like this
+////////////////////////////////////////////////////////////////////////////////
+
+
+//declaration
+////////////////////////////////////////////////////////////////////////////////
+void	turbolift_playerSetOriginAndAngle(float fClient,vector vCurrentOrigin,vector vTargetOrigin,vector vCurrentAngle,vector vTargetAngle);
+void	turbolift_travelFromTo(float fCurrentDeck,float fTargetDeck);
+
+//functions
+////////////////////////////////////////////////////////////////////////////////
+
+
+void turbolift_playerSetOriginAndAngle(float fClient,vector vCurrentOrigin,vector vTargetOrigin,vector vCurrentAngle,vector vTargetAngle)
+{
+//create variables
+	float fTurnAmount,fOffsetAngle,fTmp1,fTmp2;
+	vector vPlayer,vPlayerNew,vOffset;
+	entity ePlayer;
+	
+	ePlayer=getEntity("*"+fClient);
+	
+	if(!mom_checkExistingLivingEntity(ePlayer))
+	{
+		return;
+	}
+
+//get player origin
+	vPlayer = ePlayer.getOrigin();
+	
+//get angle to turn player/vector
+	fTurnAmount = globalMath_GetCircularDistanceInDegrees(vCurrentAngle_y,vTargetAngle_y);
+	
+//calculate vector offset
+	vOffset	= (vPlayer-vCurrentOrigin);
+
+//calculate angular offset to new lift - perhaps
+	fOffsetAngle = (arctandegrees(vOffset_y, vOffset_x) + fTurnAmount);
+	
+//calculate the offset
+	fTmp1			= vectorlength(vOffset);
+	fTmp2			= fTmp1 * cosdegrees(fOffsetAngle);
+	vPlayerNew_x	= vTargetOrigin_x + fTmp2;
+	fTmp2			= fTmp1 * sindegrees(fOffsetAngle);
+	vPlayerNew_y	= vTargetOrigin_y + fTmp2;
+	vPlayerNew_z = vTargetOrigin_z + vOffset_z;	
+	
+//move player to the new location and update viewangels
+	ePlayer.notsolid();
+	ePlayer.warp(vPlayerNew);
+	ePlayer.turn(fTurnAmount,0);
+	thread basic_playerMakeSolidASAP(fClient);
+	
+	// stuffCMD("echo fOffsetAngle: "+fOffsetAngle+"\n");
+	// stuffCMD("echo fTurnAmount: "+fTurnAmount+"\n\n");
+	// stuffCMD("echo vCurrentOrigin: "+vCurrentOrigin+"\n");
+	// stuffCMD("echo vTargetOrigin: "+vTargetOrigin+"\n");
+	// stuffCMD("echo vPlayer: "+vPlayer+"\n");
+	// stuffCMD("echo vOffset: "+vOffset+"\n");
+	// stuffCMD("echo vPlayerNew: "+vPlayerNew+"\n");
+	// stuffCMD("echo cosdegrees(fOffsetAngle): "+cosdegrees(fOffsetAngle)+"\n");
+	// stuffCMD("echo sindegrees(fOffsetAngle)): "+sindegrees(fOffsetAngle)+"\n");
+}
+
+void turbolift_travelFromTo(float fCurrentDeck,float fTargetDeck)
+//lock the target lift location
+{
+	if(fCurrentDeck == fTargetDeck)
+	{
+		thread mom_showMessage("turbolift_deck"+fCurrentDeck,"You are already on this Deck");
+		return;
+	}
+//remove the Menu from the player again
+	thread mom_exitMenu("turbolift_deck"+fCurrentDeck);
+//lock target lift, so noone can enter it
+	entity	eTargetLiftDoors,
+			eTargetLift,
+			eCurrentLiftDoors,
+			eCurrentLift;
+	eCurrentLift		= getEntity("turbolift_deck"+fCurrentDeck);
+	eCurrentLiftDoors	= getEntity("turbolift_deck"+fCurrentDeck+"_door");
+	eTargetLift			= getEntity("turbolift_deck"+fTargetDeck);
+	eTargetLiftDoors	= getEntity("turbolift_deck"+fTargetDeck+"_door");
+	if(doesEntityExist(eTargetLiftDoors))
+	{
+		eTargetLiftDoors.lock();
+		eTargetLiftDoors.close();
+	}
+//
+	if(!doesEntityExist(eCurrentLift))
+	{
+		thread mom_showMessage("turbolift_deck"+fCurrentDeck,"CurrentLift Does not exist");
+		return;
+	}
+//lock current lift doors, then close them
+	if(doesEntityExist(eCurrentLiftDoors))
+	{
+		eCurrentLiftDoors.lock();
+		eCurrentLiftDoors.close();
+	}
+//play travel sound on the current lift
+	eCurrentLift.playsound("sound/ships/enterprise/ent_turbolift_run.wav",0,2,84);
+	wait(3.9);
+vector	vCurrentOrigin,
+		vCurrentAngles,
+		vTargetOrigin,
+		vTargetAngles,
+		vPlayerAngles,
+		vPlayerLiftOffset,
+		vPlayerOrigin;
+float	fDifferenceLift,
+		fDifferencePlayer;
+	
+	vCurrentOrigin	= eCurrentLift.getOrigin();
+	vCurrentAngles	= eCurrentLift.getAngles();
+	vTargetOrigin	= eTargetLift.getOrigin();
+	vTargetAngles	= eTargetLift.getAngles();
+
+	//purify data ^^
+	vCurrentAngles_x	= (vCurrentAngles_z = 0);
+	vTargetAngles_x		= (vTargetAngles_z = 0);
+
+//warp players	
+	float fClient,fMaxClients;
+	fMaxClients = getCvarInt("sv_maxclients");
+	for(fClient=0;fClient<fMaxClients;fClient++)
+	{
+		entity ePlayer;
+		ePlayer = getEntity("*"+fClient);
+		if(mom_checkExistingLivingEntity(ePlayer))
+		{
+			if(ePlayer.isWithinDistanceOf(eCurrentLift,90))
+			{
+				thread turbolift_playerSetOriginAndAngle(fClient,vCurrentOrigin,vTargetOrigin,vCurrentAngles,vTargetAngles);
+			}
+		}
+	}
+	
+	eTargetLift.playsound("sound/ships/enterprise/ent_turbolift_stop.wav",0,2,84);
+	eCurrentLift.stopsound(0);
+	wait(3);
+//unlock target lift doors
+	if(doesEntityExist(eTargetLiftDoors))
+	{
+		eTargetLiftDoors.unlock();
+	}
+//unlock "current" lift doors
+	if(doesEntityExist(eCurrentLiftDoors))
+	{
+		eCurrentLiftDoors.unlock();
+	}
+}
+
+

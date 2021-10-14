@@ -1,0 +1,676 @@
+//This script contains the code for the transporter, use as you please
+//This script contains the code for the transporter, use as you please
+//This script contains the code for the transporter, use as you please
+
+
+//Global Variables, can be accessed by all Functions/scriptfiles
+//if definied outside a function, just like this
+////////////////////////////////////////////////////////////////////////////////
+float fTransporterMenuLevel;
+float fTransporterMenuSelection;
+float fAwaymissionSelected;
+string sTargetDestination;
+string sTransporterMenuOption;
+entity eTransporterMenuPlayer;
+entity eTransporterMenuPlayerSelected;
+float fTest;
+
+//declaration
+////////////////////////////////////////////////////////////////////////////////
+void transporter();
+void transporter_reset();
+void transporter_setPlayerNames();
+void transporter_menuManager(entity ePlayer,float fSelectedOption);
+void transporter_menuManagerSuboptionBeamto2();
+void transporter_menuManagerSuboptionBeamto3();
+void transporter_menuManagerSuboptionBeamfrom2();
+void transporter_menuManagerSuboptionBeamfrom3();
+void transporter_menuManagerSuboptionDecktodeck2();
+void transporter_menuManagerSuboptionDecktodeck3();
+void transporter_menuManagerSuboptionDecktodeck4();
+
+void transporter_setDestinationAwayMissionToEnterprise(string sLocation);
+void transporter_setDestinationDeck8Transporterpad(string sLocation);
+void transporter_transportFromTransporterRoom();
+void transporter_transportFromAwaymission(float fMission);
+void transporter_transportPlayerTo(entity ePlayer,vector vLocation);
+
+void transporter_transportInhibitor();
+
+void transporter_deck8TransporterPad();
+void transporter_awaymissionTransporterPad();
+
+
+void transporter()
+//trigger is used by a player, then redirected by mom
+////////////////////////////////////////////////////////////////////////////////
+{
+	if(!doesEntityExist($transporter_transportInhibitor)){
+		spawn("trigger_use","targetname","transporter_transportInhibitor","thread","transporter_transportInhibitor","nottriggerable","1");
+		//spawn("script_model","model","enviro/academy_desk_cup1.tik","targetname","xxxxx","notsolid","1");
+	}
+	eTransporterMenuPlayer = mom_returnPlayerForTrigger( getCurrentEntity() );
+	transporter_reset();
+}
+
+void transporter_reset()
+//resets the related Variables
+////////////////////////////////////////////////////////////////////////////////
+{	
+	//UI related
+	transporter_setPlayerNames();
+	fTransporterMenuLevel = 0;
+	fTransporterMenuSelection = 0;
+	sTransporterMenuOption = "";
+	//trigger related
+	sTargetDestination = "";
+}
+
+void transporter_setPlayerNames()
+//set player names in the transporter menu for deck to deck
+////////////////////////////////////////////////////////////////////////////////
+{
+	//this is singleplayer specific
+	if(!cvar_bool_multiplayer){
+		stuffcmd("globalwidgetcommand trans_deckToDeckPlayer1 title "+getCvar("name")+"\n");
+		float i;
+		for(i=1;i<coop_integer_maxPlayers;i++){
+			stuffcmd("globalwidgetcommand trans_deckToDeckPlayer"+(i+1)+" title ^0\n");
+		}
+		return;
+	}
+	
+	//multiplayer
+	entity ePlayer;
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		string sPlayerName;
+		sPlayerName = "^0";
+		if(doesEntityExist(ePlayer)){
+			sPlayerName = getStringPlayerName(ePlayer, "_");
+		}
+		globalCoop_player_transmitter(eTransporterMenuPlayer,"globalwidgetcommand trans_deckToDeckPlayer"+(fPlayerIdInUse+1)+" title "+sPlayerName+"\n");
+	}
+}
+
+void transporter_menuManager(entity ePlayer,float fSelectedOption)
+//Handels the Primary Options (page 1)
+//and the suboptions (page 2 and so on)
+//by calling the specific threads, reducing if/else conditions
+////////////////////////////////////////////////////////////////////////////////
+{
+	//if abort is selected - reset menu (not exit)
+	if(fSelectedOption == 9){
+		transporter_reset();
+		return;
+	}
+
+	//this sets the level or layer or page or depth of the current menu
+	//each time this is used it will go up a number, so each page in the menu
+	//has its own set of functions, except the primary one, as this just sets
+	//which Option was chosen
+	fTransporterMenuLevel++;
+	
+	fTransporterMenuSelection = fSelectedOption;
+	
+//no primary option used yet
+	if(sTransporterMenuOption == ""){
+		//selected beamto
+		if(fSelectedOption==1){
+			sTransporterMenuOption = "Beamto";
+		}
+		//selected beamfrom
+		else if(fSelectedOption==2){
+			sTransporterMenuOption = "Beamfrom";
+		}
+		//selected decktodeck
+		else if(fSelectedOption==3){
+			sTransporterMenuOption = "Decktodeck";
+		}	
+	}
+//primary option was used, lets handle the suboptions
+	else{
+	//depencies
+	//- fTransporterMenuSelection
+	//- eTransporterMenuPlayer
+		thread globalCoop_level_callReliably
+		("transporter_menuManagerSuboption" + sTransporterMenuOption + fTransporterMenuLevel);
+	}	
+}
+
+void transporter_menuManagerSuboptionBeamto2()
+//Suboption Beamto Page 1 - player selects a transporter destination
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Option: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	transporter_setDestinationDeck8Transporterpad("awaymission"+fTransporterMenuSelection+"TransporterPad");
+}
+
+void transporter_menuManagerSuboptionBeamto3()
+//Suboption Beamto Page 2 - player selects a transporter execution type (instant or delayed)
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	
+	//Last page for this optiontree, exit menu now
+	thread mom_exitMenuPlayer(ePlayer);
+	
+	//beam delayed was selected, add delay and count down
+	if(fSelectedOption!=1){
+		//ePlayer.hudprint("Transport Delayed\n");
+		float i;
+		for(i=5;i>0;i--){
+			if(doesEntityExist(ePlayer)){
+				ePlayer.hudprint("Transport in: "+i+"\n");
+			}
+			wait(1);
+		}				
+	}
+	
+	ePlayer.hudprint("Transport Now\n");
+	transporter_transportFromTransporterRoom();
+}
+
+//Suboption Beamfrom Page 1 - player selects a transporter destination
+////////////////////////////////////////////////////////////////////////////////
+void transporter_menuManagerSuboptionBeamfrom2()
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	
+	//set the awaymission-location that has been selected
+	fAwaymissionSelected = fTransporterMenuSelection;
+	transporter_setDestinationAwayMissionToEnterprise("awaymission"+fTransporterMenuSelection+"TransporterPad");
+}
+
+void transporter_menuManagerSuboptionBeamfrom3()
+//Suboption Beamfrom Page 2 - player selects a transporter execution type (instant or delayed)
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	
+	//Last page for this optiontree, exit menu now
+	thread mom_exitMenuPlayer(ePlayer);
+	float fMission;
+	fMission = fAwaymissionSelected;
+	
+	//beam delayed was selected, add delay and count down
+	if(fSelectedOption!=1){
+		//ePlayer.hudprint("Transport Delayed\n");
+		float i;
+		for(i=5;i>0;i--){
+			if(doesEntityExist(ePlayer)){
+				ePlayer.hudprint("Transport in: "+i+"\n");
+			}
+			wait(1);
+		}
+	}
+	
+	ePlayer.hudprint("Transport Now\n");
+	transporter_transportFromAwaymission(fMission);
+}
+
+//Suboption Decktodeck Page 1 - player selects a transporter destination
+////////////////////////////////////////////////////////////////////////////////
+void transporter_menuManagerSuboptionDecktodeck2()
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	sTargetDestination = "decktodeck"+(fSelectedOption - 1);
+	
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+}
+
+void transporter_menuManagerSuboptionDecktodeck3()
+//Suboption Decktodeck Page 2 - player selects a player
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity ePlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	eTransporterMenuPlayerSelected = getEntity("*"+(fSelectedOption - 1));
+	if(!doesEntityExist(eTransporterMenuPlayerSelected)){
+		ePlayer.hudprint("Selected Player Does not exist\n");
+	}
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	//ePlayer.hudprint("Selected Player: "+(fSelectedOption - 1));
+}
+
+void transporter_menuManagerSuboptionDecktodeck4()
+//Suboption Decktodeck Page 3 - player selects a transporter execution type (instant or delayed)
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity ePlayer,eTransportPlayer;
+	float fSelectedOption;
+	fSelectedOption = fTransporterMenuSelection;
+	ePlayer = eTransporterMenuPlayer;
+	eTransportPlayer = eTransporterMenuPlayerSelected;
+	//ePlayer.hudprint("Page: "+fTransporterMenuLevel+" Suboption: "+sTransporterMenuOption+" "+fSelectedOption+"\n");
+	
+	//Last page for this optiontree, exit menu now
+	thread mom_exitMenuPlayer(ePlayer);
+	
+	//beam delayed was selected, add delay and count down
+	if(fSelectedOption!=1){
+		//ePlayer.hudprint("Transport Delayed\n");
+		float i;
+		for(i=5;i>0;i--){
+			if(doesEntityExist(eTransportPlayer) == 1 && eTransportPlayer != ePlayer){
+				eTransportPlayer.hudprint("Transport in: "+i+"\n");
+			}
+			if(doesEntityExist(ePlayer)){
+				ePlayer.hudprint("Transport in: "+i+"\n");
+			}
+			wait(1);
+		}
+	}
+	ePlayer.hudprint("Transport Now\n");
+	
+	if(globalCoop_check_existingLivingEntity(eTransportPlayer)){
+		entity eTarget;
+		eTarget = getEntity(sTargetDestination);
+		if(!doesEntityExist(eTarget)){
+			ePlayer.hudprint("Error Targetlocation does not exist\n");
+		}
+		
+		//allow player to abbort transportatin		
+		$transporter_transportInhibitor.setSize('-40 -40 0','40 40 40');
+		$transporter_transportInhibitor.origin((eTransportPlayer.getOrigin() + '0 0 60') );
+		$transporter_transportInhibitor.triggerable();
+		$transporter_transportInhibitor.bind(eTransportPlayer);
+		eTransportPlayer.hudprint("Press use to prevent Transport\n");
+		
+		transporter_transportPlayerTo(eTransportPlayer,eTarget.getOrigin());
+		
+		//trigger might have been removed if player left game
+		if(doesEntityExist($transporter_transportInhibitor)){
+			$transporter_transportInhibitor.unbind();
+		}
+		if(doesEntityExist(eTransportPlayer)){
+			eTransportPlayer.setFloatVar("transporter_transportInhibitorActivated",0);	
+		}
+	}
+}
+
+void transporter_setDestinationDeck8Transporterpad(string sLocation)
+//set destination on the Enterprise Transporter Room trigger
+////////////////////////////////////////////////////////////////////////////////
+{
+	float i;
+	entity eTrigger;
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity("deck8TransporterPad"+i);
+		if(doesEntityExist(eTrigger)){
+			//$player0.hudprint("trigger: "+i+" set to "+sLocation+"\n");
+			eTrigger.setstringvar("transportlocation",sLocation);
+		}
+	}
+}
+
+void transporter_setDestinationAwayMissionToEnterprise(string sLocation)
+//set destination on the awaymission transporter trigger
+////////////////////////////////////////////////////////////////////////////////
+{
+	float i;
+	entity eTrigger;
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity(sLocation+""+i);
+		if(!doesEntityExist(eTrigger)){
+			print("transporter_setDestinationAwayMissionToEnterprise():\n"+sLocation+""+i+" does not exist!\n");
+		}
+		else{
+			eTrigger.setstringvar("transportlocation","deck8TransporterPad"+i);
+		}
+	}
+}
+
+void transporter_deck8TransporterPad()
+//This is activated if a player is touching the trigger on the transporter pad
+//on deck 8 of the Enterprise E
+//the triggers are controled else where, search for: deck8TransporterPad
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			//grab location specific for this trigger
+			entity eLocation;
+			string sTargetname;
+			sTargetname = eTrigger.getstringvar("transportlocation");
+			if(cvar_bool_multiplayer){
+				sTargetname = sTargetname + globalCoop_return_integerPlayerId(ePlayer);
+			}
+			eLocation = getEntity(sTargetname);
+			
+			//if location does not exist, grab without id suffix
+			if(!doesEntityExist(eLocation)){
+				sTargetname = eTrigger.getstringvar("transportlocation");
+				eLocation = getEntity(sTargetname);
+				//if that failed grab the one meant for client 0
+				if(!doesEntityExist(eLocation)){
+					sTargetname = eTrigger.getstringvar("transportlocation");
+					sTargetname = sTargetname + "0";
+					eLocation = getEntity(sTargetname);
+					//if all atempts failed let us know
+					if(!doesEntityExist(eLocation)){
+						ePlayer.hudprint("transporter_deck8TransporterPad missing: $"+eTrigger.getstringvar("transportlocation")+"\n");
+						return;
+					}					
+				}
+			}
+			eTrigger.nottriggerable();
+			transporter_transportPlayerTo(ePlayer,eLocation.getOrigin());
+		}
+	}
+}
+
+void transporter_awaymissionTransporterPad()
+//Activate Awaymission Transporterpad and beam to selected destination
+////////////////////////////////////////////////////////////////////////////////
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity ePlayer;
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			//grab location specific for this trigger
+			entity eLocation;
+			string sTargetname;
+			sTargetname = eTrigger.getstringvar("transportlocation");
+			if(cvar_bool_multiplayer){
+				sTargetname = sTargetname + globalCoop_return_integerPlayerId(ePlayer);
+			}
+			eLocation = getEntity(sTargetname);
+			
+			//if location does not exist, grab without id suffix
+			if(!doesEntityExist(eLocation)){
+				sTargetname = eTrigger.getstringvar("transportlocation");
+				eLocation = getEntity(sTargetname);
+				//if that failed grab the one meant for client 0
+				if(!doesEntityExist(eLocation)){
+					sTargetname = eTrigger.getstringvar("transportlocation");
+					sTargetname = sTargetname + "0";
+					eLocation = getEntity(sTargetname);
+					//if all atempts failed let us know
+					if(!doesEntityExist(eLocation)){
+						ePlayer.hudprint("transporter.scr entity missing: "+eTrigger.getstringvar("transportlocation")+"\n");
+						return;
+					}					
+				}
+			}
+			eTrigger.nottriggerable();
+			transporter_transportPlayerTo(ePlayer,eLocation.getOrigin());
+		}
+	}
+}
+
+void transporter_transportPlayerTo(entity ePlayer,vector vLocation)
+//This transports the given player to the given location
+////////////////////////////////////////////////////////////////////////////////
+{
+	if(!globalCoop_check_existingLivingEntity(ePlayer)){ return; }
+	if(globalCoop_check_playerSpectator(ePlayer) != 0){ return; }
+	
+	ePlayer.nodamage();
+	ePlayer.displayEffect("TransportOut","Federation");
+	
+	float fWait;
+	fWait = 25;
+	while(globalCoop_check_existingLivingEntity(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0 && fWait > 0){
+		//transport inhibitor activated
+		if(ePlayer.getFloatVar("transporter_transportInhibitorActivated") == 1){
+			ePlayer.displayEffect("TransportIn","Federation");
+			ePlayer.immobilize(0);
+			ePlayer.takedamage();
+			ePlayer.resetState();
+			fWait = 0;
+			ePlayer.hudprint("Transportinhibitor activated\n");	
+			return;
+		}	
+		wait(0.1);
+		fWait -= 1;
+		//ePlayer.hudprint("time: "+fWait+"\n");
+	}
+	$transporter_transportInhibitor.nottriggerable();
+	
+	//check
+	entity eChecker;
+	eChecker = spawn("trigger_relay","targetname","beamToChecker"+ePlayer.getRawTargetname());
+	wait(0.1);
+	vLocation_z	+= 50;
+	eChecker.origin(vLocation);
+	eChecker.droptofloor();
+	wait(0.1);
+	vLocation = eChecker.getOrigin();
+	if(globalCoop_check_existingLivingEntity(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0){
+		thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vLocation);
+	}
+	eChecker.remove();
+	
+	ePlayer.immobilize(0);
+	ePlayer.dropToFloor(50);
+	globalCoop_main_waitAFrame();
+	if(globalCoop_check_existingLivingEntity(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0)
+	{
+		ePlayer.displayEffect("TransportIn","Federation");
+		wait(2);
+		if(globalCoop_check_existingLivingEntity(ePlayer))
+		{
+			ePlayer.takedamage();
+			ePlayer.resetState();
+		}
+	}
+}
+
+void transporter_transportFromAwaymission(float fMission)
+{
+//debug
+float fPlayerPlaced;
+fPlayerPlaced = 0;
+	
+	//activate triggers to detect if a player is standing on it
+	float i;
+	entity eTrigger;
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity("awaymission"+fMission+"TransporterPad"+i);
+		if(doesEntityExist(eTrigger)){
+			
+//debug
+if(!fPlayerPlaced){
+	if(getCvar("username") == "Chrissstrahl"){
+		$player.origin(eTrigger.getOrigin());
+		$player0.origin(eTrigger.getOrigin());
+	}
+	fPlayerPlaced=1;
+}
+		
+			eTrigger.triggerable();
+			eTrigger.thread("transporter_awaymissionTransporterPad");
+		}
+	}
+	
+	//handle the transporting is managed by each thread called from each trigger
+	
+	//wait a moment then deactivate the triggers again
+	wait(1);
+	
+	//deactivate triggers
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity("awaymission"+fMission+"TransporterPad"+i);
+		if(doesEntityExist(eTrigger)){
+			eTrigger.nottriggerable();
+		}
+	}
+}
+
+void transporter_transportFromTransporterRoom()
+{
+//$deck8TransporterPad0 - 7
+//$0, $awaymission2TransporterPad0, ...
+
+	//activate triggers to detect if a player is standing on a pad
+	float i;
+	entity eTrigger;
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity("deck8TransporterPad"+i);
+		if(doesEntityExist(eTrigger)){
+			eTrigger.triggerable();
+			eTrigger.thread("transporter_deck8TransporterPad");
+		}
+	}
+	
+	//handle the transporting
+	//--- Each Transporterpad Trigger handels the transportation
+	
+	//wait a moment then deactivate the triggers again
+	wait(1);
+	
+	//deactivate pad triggers
+	for(i=0;i<=7;i++){
+		eTrigger = getEntity("deck8TransporterPad"+i);
+		if(doesEntityExist(eTrigger)){
+			eTrigger.nottriggerable();
+		}
+	}
+}
+
+//Allow player to prevent direct transport
+////////////////////////////////////////////////////////////////////////////////
+void transporter_transportInhibitor()
+{
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			eTrigger.nottriggerable();
+			ePlayer.setFloatVar("transporter_transportInhibitorActivated",1);		
+		}
+	}
+}
+
+//INPUT
+////////////////////////////////////////////////////////////////////////////////
+void transporter_Zero()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,1);
+}
+
+void transporter_One()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,2);
+}
+
+void transporter_Two()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,3);
+}
+void transporter_Three()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,4);
+}
+void transporter_Four()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,5);
+}
+void transporter_Five()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,6);
+}
+void transporter_Six()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,7);
+}
+void transporter_Seven()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,8);
+}
+void transporter_Eight()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,9);
+}
+void transporter_Nine()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,10);
+}
+void transporter_Teen()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,11);
+}
+void transporter_Eleven()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,12);
+}
+void transporter_Twelve()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,13);
+}
+void transporter_Thirteen()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,14);
+}
+void transporter_Fourteen()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,15);
+}
+void transporter_Fifteen()
+{
+	entity	ePlayer;
+	ePlayer = mom_returnPlayerForTrigger(getCurrentEntity());
+	transporter_menuManager(ePlayer,16);
+}
+
