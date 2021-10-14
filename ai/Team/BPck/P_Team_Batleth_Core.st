@@ -367,7 +367,9 @@ state HANDLE_CALL_VOLUME
 		{
 		CORE_MAIN				: !PLAYER_IN_CALL_VOLUME
 		CORE_MAIN				: BEHAVIOR_SUCCESS
-		CALL_VOLUME_FAILED		: BEHAVIOR_FAILED	 
+		//[b609] chrissstrahl - changed to prevent possible AI infinity loop error
+		//CALL_VOLUME_FAILED		: BEHAVIOR_FAILED	 
+		HOLD		: BEHAVIOR_FAILED	 
 		}
 	}
 	
