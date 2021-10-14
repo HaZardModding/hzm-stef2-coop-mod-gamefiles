@@ -1,0 +1,496 @@
+//Chrissstrahl - 26.09-2021
+//Geometry by Gsio, Chrissstrahl and unknown
+
+//I have no clue how many years this map was sitting there waiting to be finised
+//per our agreement of 6 months stagnation or project cancellation I release
+//this map to be used with the coop mod.
+
+void main();
+void setupMap();
+void offAlcove(entity eDrone, float fPatrol, float fWork);
+void barclayEntersEngeneering();
+void missionSuccsessful();
+void spawnFinalDrones();
+void givePlayerAmmo();
+void ffOnTouch();
+void ffOnTouch1Blue1();
+void ffOnTouch2Blue1();
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void coop_endLevel();
+entity	entityPlayerGlobal;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+void main()
+{
+	$picard.notarget();
+	$picard.nodamage();
+//allow the test subject to die
+	$barclay.immortal(0);
+	$barclay.killthread("missionHasFailed");
+	globalCommon_SetupContextDialog  ( $barclay , "barclay" );
+	
+//set puzzle stuff
+	$puzzle.puzzleobject_timeToUse(30); //30
+	$puzzleDoor.puzzleobject_timeToUse(6);	//8
+	$puzzleff1.puzzleobject_timeToUse(15);	//15
+	
+	thread setupMap();
+	thread ffOnTouch();
+	thread ffOnTouch1Blue1();
+	thread ffOnTouch2Blue1();
+}
+
+void setupMap()
+{
+	//--set the soundtrack
+	soundtrack( "music/m1l1-borg_sphere.mus" );
+	
+	//set weapons
+	coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-Phaser-stx.tik";
+	
+	//stacked drones in warpcore room
+	$drone5.allowfall(1);
+	$drone12.allowfall(1);
+	$drone13.allowfall(1);
+	
+	$drone12.noshadow();
+	$drone13.noshadow();
+	
+	//drones nodeid
+	$drone0.setnodeid(1);
+	$drone1.setnodeid(2);
+	$drone2.setnodeid(4);
+	$drone4.setnodeid(5);
+	$drone5.setnodeid(3);
+	$drone7.setnodeid(6);
+	$drone14.setnodeid(99);
+	
+	
+	//make forcefield solid, needed to be botsolid for pathnodes to connect
+	$blueForceField.solid();
+	$ffBlue1.solid();
+	$ffGreen1.solid();
+	
+	//make mission priority on radar
+	$modulateSymbolWarpcoreRoomDoor.missionobjective(1);
+	
+	//set objectives
+	coop_string_objectiveItem1="$$EngageNoBorg$$";
+	coop_string_objectiveItem2="$$BarclayEngeneering$$";
+	//coop_string_objectiveItem3="$$StopBorgOvertake$$";
+	coop_string_objectiveItem3="$$UploadAntiBorg$$";
+	coop_string_objectiveItem4="$$ProtectBarclay$$";
+	
+	//hzm coop mod chrissstrahl, Set Tactical information, to be added at the Objectives hud
+	coop_string_objectiveTacticalInfo1	= "$$YellowFieldInformation$$";
+	coop_string_objectiveTacticalInfo2	= "$$GreenFieldInformation$$";
+	coop_string_objectiveTacticalInfo3	= "$$BlueFieldInformation$$";
+	
+	waitforPlayer();
+	
+	if(getCvarInt("g_gametype") == 0){
+		$player.addrosterteammate1( $barclay );
+		$player.giveweapon( coop_string_weapon1 );
+		$player.giveweapon( coop_string_weapon2 );
+		wait(0.1);
+		$player.use( coop_string_weapon2 );
+	}
+	
+	//setup drones
+	entity eDrone;
+	float fDroneNum;
+	fDroneNum=0;
+	eDrone = getEntity("drone"+fDroneNum);
+	while(doesEntityExist(eDrone)){
+		eDrone.settendency("hibernate",1);
+		eDrone.setactorflag ( "inalcove" , 1 );
+		eDrone.settendency("patrol",0);
+		eDrone.settendency( "work" , 0 );
+		fDroneNum++;
+		eDrone = getEntity("drone"+fDroneNum);
+	}
+	
+	//hzm coop mod chrissstrahl - Wait until the Game Starts in Multiplayer
+	globalCoop_main_waitForWarmupTime();
+	
+	//hzm coop mod chrissstrahl - update objective
+    globalCoop_objectives_set("Do not engage borg","incomplete",1,0);
+	globalCoop_objectives_set("Barclay saftely","incomplete",2,0);
+}
+
+void ffOnTouch1Blue1()
+{
+	$ffBlue1.onTouch("ffOnTouch1Blue2");
+	$ffBlue1.onDamage("ffOnTouch1Blue2");
+	pause();
+}
+void ffOnTouch1Blue2()
+{
+	$ffBlue1.noTouch();
+	$ffBlue1.noDamage();
+	$ffBlue1.playsound("sound/ships/borg/borg_forcefield_on.wav",0,1,128);
+	float fAlive;
+	fAlive=3;
+	while(doesEntityExist($ffBlue1) == 1 && fAlive > 0){
+		wait(0.05);
+		fAlive--;
+		$ffBlue1.hide();
+		wait(0.05);
+		if(doesEntityExist($ffBlue1)){
+			$ffBlue1.show();
+		}
+	}
+	wait(0.1);
+	thread ffOnTouch1Blue1();
+}
+
+void ffOnTouch2Blue1()
+{
+	$blueForceField.onTouch("ffOnTouch2Blue2");
+	$blueForceField.onDamage("ffOnTouch2Blue2");
+	pause();
+}
+void ffOnTouch2Blue2()
+{
+	$blueForceField.noTouch();
+	$blueForceField.noDamage();
+	$blueForceField.playsound("sound/ships/borg/borg_forcefield_on.wav",0,1,128);
+	float fAlive;
+	fAlive=3;
+	while(doesEntityExist($blueForceField) == 1 && fAlive > 0){
+		wait(0.05);
+		fAlive--;
+		$blueForceField.hide();
+		wait(0.05);
+		if(doesEntityExist($blueForceField)){
+			$blueForceField.show();
+		}
+	}
+	wait(0.1);
+	thread ffOnTouch2Blue1();
+}
+
+
+void ffOnTouch()
+{
+	$ffGreen1.onDamage("ffOnTouch2");
+	$ffGreen1.onTouch("ffOnTouch2");
+	pause();
+
+}
+void ffOnTouch2()
+{
+	//entity e1,e2;
+	//e1=getCurrentEntity();
+	//e2=e1.getLastActivatingEntity();
+	//e2.hurt(1);
+	$ffGreen1.noTouch();
+	$ffGreen1.noDamage();
+	$ffGreen1.playsound("sound/ships/borg/borg_forcefield_on.wav",0,1,128);
+	float fAlive;
+	fAlive=3;
+	while(doesEntityExist($ffGreen1) == 1 && fAlive > 0){
+		wait(0.05);
+		fAlive--;
+		$ffGreen1.hide();
+		wait(0.05);
+		if(doesEntityExist($ffGreen1)){
+			$ffGreen1.show();
+		}
+	}
+	wait(0.1);
+	thread ffOnTouch();
+}
+
+void puzzleSolvedFf1()
+{
+	//ff is now yellow instead of green
+	$ffGreen1.remove();
+	
+	$modulateSymbolFfGreen.hide();
+	$modulateSymbolFfGreen.playsound("sound/ships/borg/borg_forcefield3_down.wav",0,1,128);
+	wait(2);
+	$modulateSymbolFfGreen.remove();
+}
+
+void puzzleSolved()
+{
+	globalCoop_objectives_set("Upload Anti Borg","complete",3,1);
+	$modulateSymbolWarpcoreRoom.remove();
+	wait(1);
+	$codeDisplayBorg.remove();
+	$codeDisplayFed.show();
+	wait(1);
+	$blueForceField.remove();
+	
+	
+	wait(1);
+	
+	entity eDrone;
+	float fDroneNum;
+	
+	for(fDroneNum=0;fDroneNum<15;fDroneNum++){
+		eDrone = getEntity("drone"+fDroneNum);
+		
+		if(doesEntityExist(eDrone)){
+			eDrone.disable(1); // used to make neutral NPC to enemies
+		}
+	}
+	
+	wait(1);
+	$barclay.ai_off();
+	$barclay.walkto("$barclayDoSomething","run",1);
+	waitfor($barclay);
+	$barclay.killattach(); //remove weapon
+	$barclay.origin('7387 -11767 48');
+	thread globalCoop_player_makeSolidASAP($barclay);
+	$barclay.angle(345);
+	$barclay.anim("ent-compstation-gesture1");
+	$barclay.pushable(0);
+	$barclay.mass(9999);
+	wait(5);
+	$barclay.playdialog( "localization/sound/dialog/m6l1/barclay_finish.mp3", 1, 20000, 0 );
+	
+	thread globalCoop_objectives_set("Protect Barclay","incomplete",4,1);
+	wait(3);
+	$barclay.resethead();
+	
+	globalCoop_player_giveAll("models/weapons/worldmodel-imod.tik",1);
+	
+	if(getcvarint("g_gametype") == 0){
+		$player.giveAmmoOverTime("Plasma", 5000, 90 );
+	}
+	
+	spawnFinalDrones();
+	
+	thread missionSuccsessful();
+}
+void puzzleCanceld()
+{
+	
+}
+
+void puzzleSolvedDoor()
+{
+	$engineering_door1.unlock();
+	$engineering_door1.open($world);
+	
+	$modulateSymbolWarpcoreRoomDoor.remove();
+	
+	$barclay.settendency("follow",1); //start following again
+	
+	$modulateSymbolWarpcoreRoomDoor.missionobjective(0);
+	$modulateSymbolWarpcoreRoom.missionobjective(1);
+	
+	//hzm coop mod chrissstrahl - update objective
+    globalCoop_objectives_set("Barclay saftely","complete",2,0);
+    globalCoop_objectives_set("Upload Anti Borg","incomplete",3,1);
+	
+	wait(3);
+	thread barclayEntersEngeneering();
+}
+
+void barclayEntersEngeneering()
+{
+	while(!globalCoop_check_playerInRange($barclay,256)){
+		wait(0.1);
+	}
+	if(doesEntityExist($barclay) == 1 || $barclay.gethealth() > 0){
+		$barclay.playdialog( "localization/sound/dialog/ent_m6/barc_tookso.mp3", 1, 20000, 0 );
+	}
+}
+
+void turboliftDroneActivate()
+{
+	if(doesEntityExist($drone7)){
+	//turbolift drone
+		$drone7.settendency( "hibernate",0 );
+		$drone7.setactorflag( "inalcove" ,0 );
+		$drone7.settendency( "work" , 1 );
+	}
+}
+
+void sleepyDroneActivate()
+{
+	if(doesEntityExist($drone0)){
+		offAlcove($drone1, 1, 0);
+	}
+}
+
+
+void firstDarkAreaDroneActivate()
+{
+	offAlcove($drone0, 1, 1);
+}
+
+void consoleDroneActivate()
+{
+	if(doesEntityExist($darksidedronetrigger)){
+		triggerEntity($darksidedronetrigger);
+	}
+	offAlcove($drone2, 1, 1);
+}
+
+void catwalkconsoleDroneActivate()
+{
+	offAlcove($drone5, 1, 1);
+}
+
+void jeffreyDroneActivate()
+{
+	offAlcove($drone4, 1, 1);
+}
+
+void distributionnode0()
+{
+	$t387.loopsound ( "sound/environment/electric/fritz5.wav", .5, 52 );
+}
+
+void offAlcove(entity eDrone, float fPatrol, float fWork)
+{
+	if(doesEntityExist(eDrone) == 1 && eDrone.gethealth() > 0){
+		eDrone.settendency("hibernate",0);
+		eDrone.setactorflag ( "inalcove" , 0 );
+		eDrone.settendency("patrol",fPatrol);
+		eDrone.settendency( "work" , fWork );
+	}
+}
+
+void theBorgOnlyWantToPlayDoNotBeShy()
+{
+	entity eDrone;
+	float fDroneNum;
+	
+	for(fDroneNum=0;fDroneNum<15;fDroneNum++){
+		eDrone = getEntity("drone"+fDroneNum);
+		
+		if(doesEntityExist(eDrone)){
+			eDrone.aggressive(1); // used to make neutral NPC to enemies
+		}
+	}
+	$drone12.ai_off();
+	$drone13.ai_off();
+	$drone12.anim("walk");
+	$drone12.shadow();
+	wait(3);
+	$drone12.ai_on();
+	wait(2);
+	$drone13.shadow();
+	$drone13.anim("walk");
+	wait(2);
+	$drone13.ai_on();
+}
+
+void forcefieldStareDroneActivate()
+{
+	offAlcove($drone14,1,1);
+}
+
+void missionHasFailed()
+{
+	missionFailed("FailedBarclay");
+}
+
+void  missionSuccsessful()
+{
+	globalCoop_objectives_set("Protect Barclay","complete",4,1);
+	wait(5);
+	$picard.playdialog( "localization/sound/dialog/combat/picard_well.mp3", 1, 20000, 1 );
+	waitforDialog($picard);
+	wait(1);
+	$picard.playdialog( "localization/sound/dialog/m11l3/picard_course.mp3", 1, 20000, 1 );
+	
+	wait(10);
+	coop_endLevel();
+}
+
+void spawnFinalDrones()
+{
+	//[b610] chrissstrahl - give ammo
+	thread givePlayerAmmo();
+
+	float fWaves,fRounds;
+	fWaves = globalCoop_return_integerPlayersQuantity(2);
+	fWaves = fWaves * 2;
+	if(fWaves>8){ fWaves=8; }
+	for(fRounds=0;fRounds<fWaves;fRounds++){
+		float fDrone;
+		entity eSpawn;
+		entity eDrone;
+		for(fDrone=0;fDrone<5;fDrone++){
+			eSpawn = getEntity("droneSpawn"+fDrone);
+			if(doesEntityExist(eSpawn)){
+				triggerEntity(eSpawn);
+				wait(0.01);
+				eDrone = getEntity("spawnedDrone"+fDrone);
+				if(doesEntityExist(eDrone)){
+					thread globalCoop_player_makeSolidASAP(eDrone); //[b610] chrissstrahl - fixed drones geting players stuck
+					eDrone.ai_off();
+					eDrone.displayeffect("TransportIn","Borg");
+					wait(1.2);
+					eDrone.ai_on();
+					eDrone.aggressive(1);
+				}
+			}
+			wait(3);
+		}
+		float fWait=1;
+		while(fWait){
+			fWait=0;
+			float fAlive;
+			for(fAlive=0;fAlive<5;fAlive++){
+				eDrone = getEntity("spawnedDrone"+fAlive);
+				if(doesEntityExist(eDrone)){
+					fWait++;
+				}
+			}
+			wait(2);
+		}
+	}
+}
+
+void barclayStopFollowing()
+{
+	if($world.getFloatVar("BarclayFollowingStop") != 1){
+		$world.setFloatVar("BarclayFollowingStop",1);
+		$barclay.settendency("follow",0); //stop following
+	}
+}
+
+//[b610] chrissstrahl - added ammo for players
+void givePlayerAmmo()
+{
+	//hzm coop mod chrissstrahl - give ammo to all players
+	entity ePlayer;
+	float fPlayerIdInUse;
+	while( 1 )
+	{
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 ){
+					ePlayer.ammo( "Plasma", 200 );
+				}
+			}
+		}
+		wait( 1 );
+	}
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end - End the current level, SUCESSFULLY
+//And load the map specified on the mission complete trigger with->uservar1
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_completed("coop_gbs1");
+}
+
