@@ -6,6 +6,8 @@
 //
 //THIS FILE ALLOWS MAPPERS TO CREATE CO-OP MAPS WITHOUT SCRIPTING
 
+//updated 2021.09.25
+
 //CALL THEM BY A TRIGGER OR CONSOLE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //CALL THEM BY A TRIGGER OR CONSOLE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //CALL THEM BY A TRIGGER OR CONSOLE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -52,6 +54,8 @@ void	coop_setuplevel();
 void	coop_selectionmovereset(entity e);
 vector	coop_returnOrigin(entity eGetMyOrigin);
 void	coop_printMessageToPlayer(entity ePlayer, string sMessage);
+void	coop_setBorgDroneToInAlcove(entity eActor,float fAngle);
+void	coop_setBorgDroneToOffAlcove(entity eActor,float fWork);
 //added for forcefield stuff [b607]
 void coop_forcefieldEnable( entity eFF );
 void coop_forcefieldMakeInteractive( entity eMakeInteractiveFF );
@@ -775,7 +779,7 @@ void coop_addhud()
 	if( sIndividually != "all" && sIndividually != "team" ){
 		thread globalCoop_huds_Add(ePlayer,sHudname);
 	}else{
-		if(!cvar_bool_multiplayer){
+		if(!cvar_bool_multiplayer){		
 			thread globalCoop_huds_Add($player,sHudname);
 		}else{
 			float fPlayerIdInUse; 
@@ -789,12 +793,12 @@ void coop_addhud()
 
 
 
-
+//[b609] chrissstrahl - fixed, now using uservar1,2,3
 void coop_removehud()
 //removes hud from player activating the trigger
 //uservar1 = hudname
-//uservar2 =
-//uservar3 =
+//uservar2 = hudname
+//uservar3 = hudname
 //uservar4 = all/team/activatior
 {
 	entity eTrigger,ePlayer;
@@ -806,28 +810,38 @@ void coop_removehud()
 	
 	ePlayer = eTrigger.getLastActivatingEntity();
 	
-	string sHudname;
-	sHudname = getStringVar("uservar1");
+	string sHudname1,sHudname2,sHudname3;
+	sHudname1 = eTrigger.getStringVar("uservar1");
+	sHudname2 = eTrigger.getStringVar("uservar2");
+	sHudname3 = eTrigger.getStringVar("uservar3");
 	
-	if(sHudname == ""){
+	if(sHudname1 == ""){
 		globalCoop_main_print("coop_removehud()->ERROR: No hudname specified in uservar1!");
 		return;
 	}
 	
 	string sIndividually;
-	sIndividually = getStringVar("uservar4");
+	sIndividually = eTrigger.getStringVar("uservar4");	
 	
 	if( sIndividually != "all" && sIndividually != "team" ){
-		if(doesEntityExist(ePlayer)){ePlayer.removehud(sHudname);}
+		if(doesEntityExist(ePlayer)){
+			globalCoop_huds_Remove(ePlayer,sHudname1);
+			if(sHudname2 != ""){globalCoop_huds_Remove(ePlayer,sHudname2);}
+			if(sHudname3 != ""){thread globalCoop_huds_Remove(ePlayer,sHudname3);}
+		}
 	}else{
 		if(!cvar_bool_multiplayer){
-			$player.removehud(sHudname);
+			globalCoop_huds_Remove($player,sHudname1);
+			if(sHudname2 != ""){globalCoop_huds_Remove($player,sHudname2);}
+			if(sHudname3 != ""){thread globalCoop_huds_Remove($player,sHudname3);}
 		}else{
 			float fPlayerIdInUse; 
 			for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
 				ePlayer = getentity("player"+fPlayerIdInUse);
 				if(doesEntityExist(ePlayer)){
-					if(doesEntityExist(ePlayer)){ePlayer.removehud(sHudname);}
+					globalCoop_huds_Remove(ePlayer,sHudname1);
+					if(sHudname2 != ""){globalCoop_huds_Remove(ePlayer,sHudname2);}
+					if(sHudname3 != ""){thread globalCoop_huds_Remove(ePlayer,sHudname3);}
 				}
 			}
 		}
@@ -3657,4 +3671,305 @@ void coop_deaththreadExample(float fGroup){
 void coop_deaththreadExample1(){coop_deaththreadExample(1);}
 void coop_deaththreadExample2(){coop_deaththreadExample(2);}
 void coop_deaththreadExample3(){coop_deaththreadExample(3);}
+
+
+//[b609] chrissstrahl - added for borg level
+void coop_setactorflag()
+//Sets a flag telling the Actor AI what to do or how to behave
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = flag Name
+//uservar4 = flag Value
+{
+	string sFlagName;
+	float fFlagValue;
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	sFlagName = eTrigger.getStringVar("uservar3");	
+	fFlagValue = eTrigger.getFloatVar("uservar4");
+	
+	if(sFlagName == ""){
+		globalCoop_main_print("coop_setactorflag()->uservar3 or 4 empty, was expecting flag name and flag value!");
+		return;
+	}
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<3;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				eActor.setactorflag(sFlagName,fFlagValue);
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_setactorflag()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
+//[b609] chrissstrahl - added for borg level
+void coop_settendency()
+//Sets a Tendency telling the Actor AI what to do or how to behave
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = Tendency Name
+//uservar4 = Tendency Value
+{
+	string sTendencyName;
+	float fTendencyValue;
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	sTendencyName = eTrigger.getStringVar("uservar3");	
+	fTendencyValue = eTrigger.getFloatVar("uservar4");
+	
+	if(sTendencyName == ""){
+		globalCoop_main_print("coop_settendency()->uservar3 or 4 empty, was expecting Tendency name and Tendency value!");
+		return;
+	}
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<3;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				eActor.settendency(sTendencyName,fTendencyValue);
+			}else{
+				globalCoop_main_print("coop_settendency()->Actor with target name "+sActor+" was not found!");
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_settendency()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
+
+//[b609] chrissstrahl - added for borg level
+void coop_inalcove()
+//Sets a Brorg Drone up to Hibernate in a Alcove
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = actorTargetName3
+//uservar4 = angle fo face actor towards
+{
+	entity eTrigger;
+	float fAngle;
+	eTrigger = getCurrentEntity();
+	
+	fAngle = eTrigger.getFloatVar("uservar4");
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<4;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				thread coop_setBorgDroneToInAlcove(eActor,fAngle); //needs to be thread or game crashes (TriggerOnce)
+			}else{
+				thread globalCoop_main_print("coop_inalcove()->Actor with target name "+sActor+" was not found!");
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_inalcove()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
+
+void coop_setBorgDroneToInAlcove(entity eActor2,float fAngle)
+{
+	if(doesEntityExist(eActor2) == 1 && eActor2.getHealth() > 0){
+		eActor2.settendency("patrol",0);
+		eActor2.settendency( "work" , 0 );
+		if(fAngle != 0){ eActor2.angle ( fAngle ); }
+		eActor2.anim ( "alcove_deactivate" );
+		waitForAnimation(eActor2,"alcove_deactivate" );		
+		if(doesEntityExist(eActor2) == 1 && eActor2.getHealth() > 0){
+			eActor2.anim ( "alcove_idle" );
+			eActor2.setactorflag ( "inalcove" , 1 );
+			eActor2.settendency( "hibernate" , 1 );
+		}
+	}
+}
+
+
+//[b609] chrissstrahl - added for borg level
+void coop_offalcove()
+//Sets a Brorg Drone up to leave the Alcove and activate it
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = actorTargetName3
+//uservar4 = should do work 1 or 0
+{
+	entity eTrigger;
+	float fWork;
+	eTrigger = getCurrentEntity();
+	
+	fWork = eTrigger.getFloatVar("uservar4");
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<4;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				thread coop_setBorgDroneToOffAlcove(eActor,fWork); //needs to be thread or game crashes (TriggerOnce)
+			}else{
+				thread globalCoop_main_print("coop_offalcove()->Actor with target name "+sActor+" was not found!");
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_offalcove()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
+
+void coop_setBorgDroneToOffAlcove(entity eActor,float fWork)
+{
+	if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+		//eActor.anim ( "alcove_activate" );
+		//waitForAnimation(eActor,"alcove_activate" );
+		eActor.settendency("hibernate",0);
+		eActor.setactorflag ( "inalcove" , 0 );
+		eActor.settendency("patrol",1);
+		eActor.settendency( "work" , fWork );
+		thread globalCoop_main_print("coop_offalcove()->"+eActor.getRawTargetName()+" set to patrol and work!");
+	}
+}
+
+//[b609] chrissstrahl - added for ai to patrol
+void coop_setnodeid()
+//Sets a node ID a Actor should use to patrol along a path
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+//each actor showuld use a uniqe ID
+
+//uservar1 = actorTargetName1
+//uservar2 = nodeid
+{
+	entity eTrigger;
+	float fNodeId;
+	string sActor;
+	entity eActor;
+	
+	eTrigger = getCurrentEntity();
+	sActor=eTrigger.getStringVar("uservar1");
+	fNodeId = eTrigger.getFloatVar("uservar2");
+	if(sActor != "" && fNodeId != 0){
+		eActor = getEntity(sActor);
+		if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+			thread globalCoop_main_print("coop_setnodeid()->"+sActor+" set to node ID to "+fNodeId);
+			eActor.setnodeid(fNodeId);
+		}else{
+			thread globalCoop_main_print("coop_setnodeid()->Actor with target name "+sActor+" was not found!");
+		}
+	}
+	else{
+		globalCoop_main_print("coop_setnodeid()->uservar1 or uservar2 was empty, was expecting targetname of actor or nodeID!");
+		return;
+	}
+}
+
+//[b609] chrissstrahl - added for borg level
+void coop_aggressive()
+//Sets a Actor up become aggressive or not
+//this needs to be supported by the Actor ai,
+//so not all commands are supportet by all actors
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = actorTargetName3
+//uservar4 = make aggressive or not
+{
+	entity eTrigger;
+	float fWork;
+	eTrigger = getCurrentEntity();
+	
+	fWork = eTrigger.getFloatVar("uservar4");
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<4;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				eActor.aggressive(fWork);
+			}else{
+				thread globalCoop_main_print("coop_aggressive()->Actor with target name "+sActor+" was not found!");
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_aggressive()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
+
+//[b609] chrissstrahl - added for borg level
+void coop_immortal()
+//Sets a Actor 
+
+//uservar1 = actorTargetName1
+//uservar2 = actorTargetName2
+//uservar3 = actorTargetName3
+//uservar4 = make immortal or not
+{
+thread globalCoop_main_print("coop_immortal()->");
+	entity eTrigger;
+	float fWork;
+	eTrigger = getCurrentEntity();
+	
+	fWork = eTrigger.getFloatVar("uservar4");
+	
+	float fActor;
+	string sActor;
+	entity eActor;
+	for(fActor=1;fActor<4;fActor++){
+		sActor=eTrigger.getStringVar("uservar"+fActor);
+
+		if(sActor != ""){
+			eActor = getEntity(sActor);
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				thread globalCoop_main_print("coop_immortal()->Actor with target name "+sActor+" was not found!");
+				eActor.immortal(fWork);
+			}else{
+				thread globalCoop_main_print("coop_immortal()->Actor with target name "+sActor+" was not found!");
+			}
+		}
+		else if(fActor == 1){
+			globalCoop_main_print("coop_immortal()->uservar1 was empty, was expecting targetname of actor!");
+			return;
+		}
+	}
+}
 
