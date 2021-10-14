@@ -42,6 +42,12 @@ void mom_playerUsePreviouseWeapon(entity ePlayer)
 void mom_giveOrTakeWeapons(entity ePlayer,float fGive)
 //gives or takes all the menu weapons
 {
+	//[b609] this optional limit variable was introduced to reduce
+	//the ammount of new entities added to the map (used on Coop Enterprise E)
+	float fNumber;
+	fNumber = $world.getFloatVar("mom_maxWeapons");
+	if(fNumber>16 || fNumber < 1){ fNumber = 16; }
+	
 	if(doesEntityExist(ePlayer))
 	{
 		float fNum;
@@ -77,7 +83,9 @@ void mom_exitMenuPlayer(entity ePlayer)
 	if(doesEntityExist(ePlayer)){
 		//ePlayer.give("models/weapons/worldmodel-Knife.tik");
 		//globalCoop_main_waitAFrame(); //[b607] not needed
-		ePlayer.setFloatVar("mom_validationStamp",0);//[b607] security tooken destruction
+		ePlayer.setFloatVar("mom_validationStamp",0);//[b607] security tooken destruction		
+		ePlayer.setStringVar("mom_entityBasename","");//[b608] reset value
+		ePlayer.setstringvar("mom_exitWidgetcommand","");//[b608] reset value
 		ePlayer.use("Knife");
 		thread mom_removeMenuPlayer(ePlayer);	
 	}
@@ -87,23 +95,26 @@ void mom_removeMenuPlayer(entity ePlayer)
 {
 	if(doesEntityExist(ePlayer))
 	{
-		float fMenu;
 		string 		sMenuName;
-		
 		sMenuName	= ePlayer.getStringVar("mom_menuName");
 		ePlayer.removeHud(sMenuName);
+		globalCoop_main_waitAFrame();
 		
-		for(fMenu=0;fMenu<10;fMenu++)
-		{
+		//[b608] chrissstrahl - not sure where this is even used, so I disabled it
+		/*
+		float fMenu;
+		for(fMenu=0;fMenu<10;fMenu++){
 			sMenuName = ePlayer.getStringVar("mom_menuName"+fMenu);
-			ePlayer.removeHud(sMenuName);
-			globalCoop_main_waitAFrame();
-		}
+			
+			if(sMenuName != ""){
+				ePlayer.removeHud(sMenuName);
+				globalCoop_main_waitAFrame();
+			}
+		}*/
+
 	//game focus
-		if(doesEntityExist(ePlayer))
-		{
-			if(!ePlayer.getFloatVar("mom_noGameFocus") != 1 && sMenuName != "coop_menu")
-			{
+		if(doesEntityExist(ePlayer)){
+			if(!ePlayer.getFloatVar("mom_noGameFocus") != 1 && sMenuName != "coop_menu"){
 				ePlayer.addhud("mom_gameFocus");
 			}
 		}
@@ -316,6 +327,15 @@ void mom_basic()
 	eRelay.thread(sThreadName);
 	eRelay.setFloatVar("mom_validationStamp",getLevelTime());//[b607] security tooken upgrade
 	ePlayer.setFloatVar("mom_validationStamp",getLevelTime());//[b607] security tooken upgrade
+	
+//[b608] get targetname of trigger, if there is none set on purpose (AntiCheat), get uservar4 instead
+	string sBasename = "";
+	sBasename = eTrigger.getRawTargetname();
+	if(sBasename == ""){
+		sBasename = eTrigger.getStringVar("uservar4");
+	}
+	ePlayer.setStringVar("mom_entityBasename",sBasename);
+
 	mom_doActivate(eRelay,ePlayer);
 //WAIT FOR THE PLAYER TO PUT THE WEAPON AWAY
 	mom_waitForWeaponDrawDelay(ePlayer,"None");
