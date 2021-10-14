@@ -1,0 +1,195 @@
+//----------------------------------------------------------------------
+// HZM TEST MAP
+//----------------------------------------------------------------------
+//
+//  EF2 Map Script File
+//
+//  Map:	  	    triggerish
+//  Script By:      Christian Strahl
+//  Geometry By:    Christian Strahl
+//  Created on:     7/23/2006
+//
+//----------------------------------------------------------------------
+// NOTE:
+// trigger_camerause -> SKIPED
+// trigger_changelevel -> SKIPED
+// trigger_damagetargets -> Coudn't find out what it shoud be used for (UNTESTED)
+// trigger_givepowerup -> I coudn't find out the names for the powerups :(
+// trigger_groupevent -> Coudn't find out what it shoud be used for (UNTESTED)
+// trigger_hitchingpost -> Coudn't find out what it shoud be used for (UNTESTED)
+// trigger_levelinteraction -> SKIPED
+// trigger_music -> SKIPED
+// trigger_once -> SKIPED
+// trigger_pushobject -> SKIPED
+// trigger_relay -> SKIPED
+// trigger_reverb -> Coudn't find out what it shoud be used for (UNTESTED)
+// trigger_secret -> SKIPED
+// trigger_setvariable -> SKIPED (very usefull trigger!)
+// trigger_useonce -> SKIPED
+// trigger_volume -> SKIPED
+// trigger_volume -> SKIPED
+// trigger_volume_callvolume -> SKIPED (very usefull trigger!)
+// trigger_worktrigger -> SKIPED (very usefull trigger!)
+//----------------------------------------------------------------------
+
+
+// Definie Start Vars
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+float fTRIGGER_MULTIPLE_HEALTH; //trigger_multiple -> No value in ef2 is like integer 0(zero) on floats
+entity e;
+
+//Includes, you can include other scripts that esaly
+//----------------------------------------------------------------------
+//----------------------------------------------------------------------
+/* EMPTY*/
+
+//Declare the script functions
+//----------------------------------------------------------------------
+// So you can call each function from each position in the script
+// If you do so, you can save you a lot time by simplier scripting
+//----------------------------------------------------------------------
+void main();
+//trigger_use
+void trigger_use();
+//trigger_EntryAndExit
+void trigger_EntryAndExit();
+void trigger_EntryAndExit_entry();
+void trigger_EntryAndExit_exit();
+
+// main()
+//----------------------------------------------------------------------
+// Here you can put stuff in wich shoud start on map loading
+// If you wana have a thread keep running you shoud better
+// Start a new Thread and not use this one!!!
+//----------------------------------------------------------------------
+void main()
+{
+//Give the Trigger Multiple health.
+/*
+	$trigger_multiple.destructible(1); 		//Allready set via Radiant
+	$trigger_multiple.triggerondamage(1); 	//Allready set via Radiant
+	$trigger_multiple.triggerondeath(1); 	//Allready set via Radiant
+*/
+	$trigger_multiple.health(1000);
+//Hide the damaged wall
+	$destructiblewall_damaged.hide();
+	$trigger_EntryAndExit_grav.nottriggerable();
+}
+
+
+
+// trigger_use
+//----------------------------------------------------------------------
+// This is the Thread wich gets called from the trigger_use on the map
+//----------------------------------------------------------------------
+void trigger_use()
+{
+	$trigger_use.nottriggerable();
+	$trigger_use.playsound( "sound/trigger_use/misc/how_to_use.wav" );
+	wait( 5 );
+	$trigger_use.triggerable();	
+}
+
+
+
+// trigger_EntryAndExit
+//----------------------------------------------------------------------
+// This are the Threads wich get called from the trigger_EntryAndExit on the map
+// I had to add the triggerable/nottriggerable to make it work the way
+// i want it to work. Triggerable/Nottriggerable turns the trigger on/off
+//----------------------------------------------------------------------
+// trigger_EntryAndExit() -> If someone is inside
+void trigger_EntryAndExit()
+{
+	centerprint("^2trigger_EntryAndExit\n Some thing/one is INSIDE the trigger field");
+}
+
+// trigger_EntryAndExit_entred() -> If someone entred the trigger field
+void trigger_EntryAndExit_entry()
+{
+	centerprint("^2trigger_EntryAndExit\n Some thing/one ENTRED the trigger field");
+
+	$trigger_EntryAndExit.nottriggerable(); //Turn this trigger off
+	wait(1);//Wait XXX secs before the trigger is turned on again
+	$trigger_EntryAndExit.triggerable();  //Turn this trigger on
+}
+
+// trigger_EntryAndExit() -> If someone left the trigger field
+void trigger_EntryAndExit_exit()
+{
+	centerprint("^2trigger_EntryAndExit\n Some thing/one LEFT the trigger field");
+	//added for testing
+	entity e;
+	string printstring;
+	e = $trigger_EntryAndExit.getLastActivatingEntity();
+	printstring = e.getTargetName();
+	print ( "^2trigger_EntryAndExit, getLastActivatingEntity: " + printstring );
+}
+
+
+
+
+void trigger_multiple()
+{
+	fTRIGGER_MULTIPLE_HEALTH = $trigger_multiple.gethealth(); //Set float to the current entity($trigger_multiple) health
+
+	if(fTRIGGER_MULTIPLE_HEALTH > 0)//If healt is above ZERO
+	{
+		centerprint("^2trigger_multiple\n Is firing, health:" + fTRIGGER_MULTIPLE_HEALTH);
+	}
+	else //Else healt is ZERO or below
+	{
+		centerprint("^2trigger_multiple\n Killed, current health:" + fTRIGGER_MULTIPLE_HEALTH);
+		$destructiblewall_notdamaged.hide();
+		$destructiblewall_damaged.show();
+		$trigger_multiple.nottriggerable(); //Turn this trigger off
+		$trigger_multiple.selfdetonate();
+		wait(5);//Wait XXX secs before the trigger is turned on again
+		$trigger_multiple.triggerable();  //Turn this trigger on
+		$destructiblewall_damaged.hide();
+		$destructiblewall_notdamaged.show();
+		$trigger_multiple.health(200);
+		centerprint("^2trigger_multiple\n Reborn, current health:" + $trigger_multiple.gethealth() );
+	}
+}
+
+
+
+//Gravity stuff
+//---------------------------------------------------------------------------
+//This is a simple Example how to realize a Area Lowgravity
+//The TriggerEntry and Exit does not work correct, so it is
+//maybe a good advice to try a different methode...
+//---------------------------------------------------------------------------
+void tMultiple_grav()
+{
+	e = $tMultiple_grav.getLastActivatingEntity();
+	e.gravity( 0.2 );
+	$tMultiple_grav.nottriggerable();
+	$trigger_EntryAndExit_grav.triggerable();
+	$tMultiple_grav.nottriggerable();
+}
+
+void tMultiple_gravChek()
+{
+	e = $tMultiple_grav.getLastActivatingEntity();
+	e.gravity( 0.2 );
+}
+
+void entryThread_grav()
+{
+	e = $trigger_EntryAndExit_grav.getLastActivatingEntity();
+	if( doesEntityExist( e ) )
+	{
+		e.setFloatVar( "gravity", 1 );
+		e.gravity( 0.2 );
+	}
+}
+
+void exitThread_grav()
+{
+	e = $trigger_EntryAndExit_grav.getLastActivatingEntity();
+	e.setFloatVar( "gravity", 0 );
+	e.gravity( 1 );
+}
