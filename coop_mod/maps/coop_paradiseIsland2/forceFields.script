@@ -33,15 +33,30 @@ void forceFields_touched()
 	e = getCurrentEntity();
 	if(doesEntityExist(e)){
 		e.noTouch();
-		e.hide();
-		e.playSound("sound/ships/drull/drull_forcetrapstop.wav",0,1,128);
-		wait(.05);
-		e.show();
+		
 		entity ePlayer;
 		ePlayer = e.getLastActivatingEntity();
 		if(doesEntityExist(ePlayer)){
-			ePlayer.hurt(5);
+			//[b610] chrissstrahl - update, this makes the forcefield kill the player on low health and show a correct message
+			float fDamage,fHealth;
+			fDamage = 10;
+			fHealth = ePlayer.getHealth();
+			
+			if(fHealth > 0){
+				e.noDamage(); //[b610]
+				if((fHealth - fDamage) <= 0){
+					ePlayer.killed( e, fDamage, e, 12 ); //12=electric means of death, taken vom ef2 game source code
+				}else{
+					ePlayer.hurt(fDamage);
+				}
+				e.hide();
+				e.playSound("sound/ships/drull/drull_forcetrapstop.wav",0,1,128);
+				wait(.05);
+				e.show();
+				thread setOnDamageThread(e,"forceFields_damaged");
+			}
 		}
+		
 		wait(.2);
 		thread setOnTouchThread(e,"forceFields_touched");
 	}
@@ -53,10 +68,12 @@ void forceFields_damaged()
 	e = getCurrentEntity();
 	if(doesEntityExist(e)){
 		e.noDamage();
+		e.noTouch(); //[b610]
 		e.hide();
 		e.playSound("sound/ships/drull/drull_forcetrapstop.wav",0,1,128);
 		wait(.05);
 		e.show();
+		thread setOnTouchThread(e,"forceFields_touched"); //[b610]
 		thread setOnDamageThread(e,"forceFields_damaged");
 	}
 }
