@@ -89,11 +89,12 @@ void globalTricorder_Base_failsafe(entity entPuzzleObject)
 	}
 	
 	float fTimer = 900;	//over all time the player can use the puzzle 3 minutes is quite much
-	float fLastClick = 10;	//last time clicked a button timout (in sec)
+	float fLastClick = 20;	//last time clicked a button timout (in sec) //[b610] chrissstrahl - changed from 10 sec to 20
 	
 	//oh, seven of nine would look at this code change and say "Your improvemnts are efficent..." right eh ?
 	if(	_tricorderBase_puzzleType == TRICORDER_PUZZLE_KEYPAD )	//_tricorderBase_puzzleType == TRICORDER_PUZZLE_MOD || _tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING
 	{
+		fLastClick = 10; //[b610] chrissstrahl - make sure it kicks player faster at the numberpad
 		fTimer = 200;	//over all time the player can use the puzzle 40 sec, a keypad that should be more than enugfh time, really
 	}
 	else if(_tricorderBase_puzzleType == TRICORDER_PUZZLE_ROUTING)
@@ -142,6 +143,8 @@ void globalTricorder_Base_failsafe(entity entPuzzleObject)
 void globalTricorder_BaseSetEntity( entity e )
 {
 	_tricorderBase_entity = e;
+	//[b610] chrissstrahl - reset the last cmd send info on puzzle start
+	_tricorderBase_entity.setStringVar("_lastSendCMD","*reset*");
 }
 
 //---------------------
@@ -439,8 +442,8 @@ void globalTricorder_doClientCommand( string command )
 				fWait = 0;
 			}
 			else{
-				ePlayer.cprint("globalTricorder_doClientCommand waiting\n");
-				wait( 0.05 );
+				//ePlayer.cprint("globalTricorder_doClientCommand waiting\n");
+				wait( 0.025 ); //[b610] chrissstrahl - changed from 0.05
 			}
 		}else{
 			return;
@@ -449,6 +452,18 @@ void globalTricorder_doClientCommand( string command )
 
 	//hzm gameupdate chrissstrahl - the players will never know what length we go trugh to bring them this coop mod :-/
 	if(doesEntityExist(ePlayer)){
+		
+		//[b610] chrissstrahl - do not send the exact same command twice
+		//Usually this is to reset tooltip tile when player is just moving the curser over inactive tiles,
+		//this creates a lot of Nettraffic for no reason, a huge deal in Coop, no deal in SP
+		if(_tricorderBase_entity.getStringVar("_lastSendCMD") == command){
+			print ( "PZL-DROP: " + command + "\n" );
+			return;
+		}
+		_tricorderBase_entity.setStringVar("_lastSendCMD",command);
+//print ( "PZL-SEND: " + command + "\n" ); //debug - chrissstrahl
+		
+		
 		SendClientCommand( ePlayer , command + "\n" );
 	}
 }

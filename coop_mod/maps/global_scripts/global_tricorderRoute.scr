@@ -908,8 +908,12 @@ void _tricorderRoute_updateGameBoardWidget( float col, float row )
 	pieceValue = _tricorderRoute_getGameBoardValue( col, row );
 	theModelName = _tricorderRoute_getModelForPiece( pieceValue );
 	theModelAngle = _tricorderRoute_getAngleForPiece( pieceValue );
-	globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName );
-	globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll " + theModelAngle );
+	//[b610] chrissstrahl - this was combined into 1 command for network effiecency
+	//this needs to be tested if it is reliable
+//globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName );
+//globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll " + theModelAngle );
+	//print("DEBUG: _tricorderRoute_updateGameBoardWidget");
+	globalTricorder_doClientCommand( "globalwidgetcommand trirte" + col + "_" + row + " rendermodel " + theModelName + ";" + "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll " + theModelAngle);
 }
 
 
@@ -1242,6 +1246,11 @@ void _tricorderRoute_initializeUI()
 	// update entire gameboard for the first time
 	for( row = 0; row < TRI_ROUTE_NUMROWS; row++ )
 	{
+		//[b610] chrissstrahl - I noticed that trirtesrc and trirtedst (null) often get updated together
+		//so I put them in a string to combine them so they get send as a single databurst
+		//if one or the other is set, this is checked by the string not being empty
+		string sNullRandermodelSingleBurst;
+	
 		// show or hide source widgets for this row
 		if( row == _tricorderRoute_source1Row )
 		{
@@ -1257,7 +1266,9 @@ void _tricorderRoute_initializeUI()
 		}
 		else
 		{
-			globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel null" );
+			//[b610] chrissstrahl
+			//globalTricorder_doClientCommand( "globalwidgetcommand trirtesrc" + row + " rendermodel null" );
+			sNullRandermodelSingleBurst = "globalwidgetcommand trirtesrc" + row + " rendermodel null";
 		}
 
 		// de-energize dest pieces
@@ -1287,7 +1298,14 @@ void _tricorderRoute_initializeUI()
 		}
 		else
 		{
-			globalTricorder_doClientCommand( "globalwidgetcommand trirtedst" + row + " rendermodel null" );
+			//[b610] chrissstrahl
+			//globalTricorder_doClientCommand( "globalwidgetcommand trirtedst" + row + " rendermodel null" );
+			sNullRandermodelSingleBurst = sNullRandermodelSingleBurst + ";globalwidgetcommand trirtedst" + row + " rendermodel null";
+		}
+		
+		//[b610] chrissstrahl - if data to send send it as a combined package
+		if(sNullRandermodelSingleBurst != ""){
+			globalTricorder_doClientCommand(sNullRandermodelSingleBurst);
 		}
 
 		// update this gameboard row
@@ -1322,11 +1340,16 @@ void _tricorderRoute_rotatePiece( float col, float row, float dir )
 	startang = _tricorderRoute_getAngleForPiece( currentvalue );
 	endang = startang + 90;
 	thecommand = "globalwidgetcommand trirte" + col + "_" + row + " rendermodelroll ";
-	for( ang = startang; ang <= endang; ang = ang + 30 )
-	{
-		globalTricorder_doClientCommand( thecommand + ang );
-		wait( 0.05 );
-	}
+	
+	//[b610] chrissstrahl - do not send this command 3 times, send it only once
+	//still have some delay, so players do not click to fast and get confused
+	//for( ang = startang; ang <= endang; ang = ang + 30 )
+	//{
+		//globalTricorder_doClientCommand( thecommand + ang );
+		//wait( 0.05 );
+	//}
+	wait( 0.1 );
+	globalTricorder_doClientCommand( thecommand + endang );
 }
 
 //-------------------------------------------------------------------------------------------------
