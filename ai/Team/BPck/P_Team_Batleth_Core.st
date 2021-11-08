@@ -15,7 +15,7 @@ $define	RANGE_PATROL 256
 $define	STAGE_TURN 8
 $define	TIME_PLAYER_ATTACK .75
 $define MIN_WAIT_FOR_PLAYER_RANGE 256
-$define PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE 130
+$define PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE 96 //[b610] chrissstrahl - changed for better ai behaviour
 $define MAX_WAIT_FOR_PLAYER_RANGE 512
 
 //cleartorsoanim
@@ -59,7 +59,7 @@ state CORE_MAIN
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
-		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $MIN_WAIT_FOR_PLAYER_RANGE$ )
+		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ ) //[b610] chrissstrahl - changed so the ai does not go back and forth because of bad distance checks
 		WANDER				: SHOULD_DO_ACTION ( "wander" ) 
 		//end chrissstrahl
 		HOLD				: default
