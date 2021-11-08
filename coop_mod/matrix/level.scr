@@ -647,11 +647,21 @@ void globalCoop_level_testSpawn()
 	if(doesEntityExist(ePlayer) != 1 || getStringEntitySubclass(ePlayer) != "Player"){
 		ePlayer = $player0;
 	}
+	
+	//[b610] chrissstrahl - abbort if player dies or goes spec or cancels
+	if(ePlayer.getFloatVar("globalCoopLevelTestingSpawns") == 1){
+		ePlayer.hudprint("^3Spawnpoint check ^2abborted^3...\n");
+		ePlayer.setFloatVar("globalCoopLevelTestingSpawns",0);
+		return;
+	}
+	ePlayer.setFloatVar("globalCoopLevelTestingSpawns",1);
+	
 	//if(getCvarInt("coop_dev")){ //[b607]
 		vector vAngle;
 		vector vSpawn;
 		float fSpawnpointsChecked = 1;
-		while(doesEntityExist(ePlayer)){
+		//[b610] chrissstrahl - abbort if player dies or goes spec or cancels
+		while(doesEntityExist(ePlayer) = 1 && ePlayer.gethealth() > 0 && globalCoop_check_playerSpectator(ePlayer) == 0 && ePlayer.getFloatVar("globalCoopLevelTestingSpawns") == 1){
 		
 			//player further away as X units
 			if(vectorlength( ePlayer.getOrigin() - vSpawn ) > 110){
@@ -678,14 +688,20 @@ void globalCoop_level_testSpawn()
 				ePlayer.playerviewangles(vAngle);
 				fSpawnpointsChecked++;
 				wait(0.5);
-				thread globalCoop_player_makeSolidASAP(ePlayer);//[b607] prevent player getting stuck in a player
-				ePlayer.immobilize(0);
-				ePlayer.playerviewangles(vAngle);
-				
-				if(fSpawnpointsChecked == 9){
-					ePlayer.hudprint("Checks COMPLETED!\n");
-					return;
+				//[b610] chrissstrahl - make sure player is valid
+				if(doesEntityExist(ePlayer)){
+					if(globalCoop_check_playerSpectator(ePlayer) == 0){
+						thread globalCoop_player_makeSolidASAP(ePlayer);//[b607] prevent player getting stuck in a player
+						ePlayer.playerviewangles(vAngle);
+					}
+					ePlayer.immobilize(0);
 				}
+			}
+			//[b610] chrissstrahl - moved here to show test completed after the player has really completed the test
+			if(fSpawnpointsChecked == 9){
+				ePlayer.setFloatVar("globalCoopLevelTestingSpawns",0);
+				ePlayer.hudprint("Checks COMPLETED!\n");
+				return;
 			}
 			wait(0.25);
 		}
@@ -696,6 +712,26 @@ void globalCoop_level_showSpawn()
 // shows where the current spawnpoints are located
 //----------------------------------------------------------------------
 {
+	//[b610] handle call from c++ code via !showspawn, get player0 on default (if called via console script)
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	if(doesEntityExist(ePlayer) != 1 || getStringEntitySubclass(ePlayer) != "Player"){
+		ePlayer = $player0;
+	}
+
+	//[b610] chrissstrahl - allow cancellation
+	if($world.getFloatVar("globalCoopLevelShowSpawn") == 1){
+		$world.setFloatVar("globalCoopLevelShowSpawn",0);
+		
+		thread globalCoop_level_hideSpawn();
+		ePlayer.hudprint("^5!showspawn ^2abborted^5...\n");
+		return;
+	}
+	
+	$world.setFloatVar("globalCoopLevelShowSpawn",1);
+	ePlayer.hudprint("^5!showspawn started...\n");
+
+
 	//if(getCvarInt("coop_dev")){ //[b607] disabled so they can be used without developer cvar set
 		vector v;
 		float f;
@@ -709,7 +745,7 @@ void globalCoop_level_showSpawn()
 		
 		fSpawns=8;
 		fIntervalMax=10;
-		while(1){
+		while($world.getFloatVar("globalCoopLevelShowSpawn") == 1){
 			if((fIntervalLast+fIntervalMax) < getLeveltime()){
 				fIntervalLast = ceil(getLevelTime());
 				sAnim = "run";
