@@ -64,6 +64,8 @@ void restoreTeamPositions();
 
 void enterTurbolift();
 
+void coop_safeRestoreNpcPos(string sName);
+
 //float counterPanelEngineeringUsed = 0;
 float counterTeamUnderAttackAliensKilled = 0;
 
@@ -187,7 +189,7 @@ void main()
 	//hzm coop mod chrissstrahl - get locations from game, from previouse level
 	float fPlayerIdInUse;
 	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		coop_setVectorIfNotZero(fPlayerIdInUse);
+		thread coop_setVectorIfNotZero(fPlayerIdInUse);
 	}
 	
 	restoreTeamPositions();
@@ -264,14 +266,21 @@ void coop_setVectorIfNotZero(float fIdSpawn)
 	vector vOrigin,vAngle;
 	vOrigin	= getvectorvar( "game.savePlayerOrigin"+fIdSpawn );
 	vAngle	= getvectorvar( "game.savePlayerAngles"+fIdSpawn );
+	
+	//[b610] chrissstrahl - remove the vars after
+	removevar( "game.savePlayerOrigin"+fIdSpawn );
+	removevar( "game.savePlayerAngles"+fIdSpawn );
 
 	if( fIdSpawn > -1 && fIdSpawn < 8 && vOrigin != '0 0 0'){
 		//make sure we do not accept spawnpoints outside of the new map
-		if(vOrigin_y < 814 || vOrigin_y < 1385 || vOrigin_x > -134 || vOrigin_x < -601 || vOrigin_z > 15 || vOrigin_z < 0 ){
+		//[b610] chrissstrahl - fixed bug vOrigin_y > 1385 was vOrigin_y < 1385 which is wrong, also changed it to 1400
+		if(vOrigin_y < 814 || vOrigin_y > 1400 || vOrigin_x > -134 || vOrigin_x < -601 || vOrigin_z > 15 || vOrigin_z < 0 ){
+			print("m3l1b-forever $player"+fIdSpawn+" was outside of spawn area "+vOrigin+".\n");
 			return;
 		}
 	
 		setVectorScriptVariable("coop_vector_spawnOrigin"+(fIdSpawn + 1)	,vOrigin);
+		print("m3l1b-forever $player"+fIdSpawn+" placed at previouse location "+vOrigin+".\n"); //[b610] chrissstrahl
 		
 		if(vAngle_y == 0){
 			vAngle_y = getFloatScriptVariable("coop_float_spawnAngle0");
@@ -406,33 +415,45 @@ void init()
 	$coop_ent3.rendereffects("minlight");
 }
 
+//[b610] chrissstrahl - do not restore saved position if npc is outside of the level
+//this can happen if a NPC was left outside when the level was changed
+void coop_safeRestoreNpcPos(string sName)
+{
+	entity eNpc;
+	eNpc = getEntity(sName);
+
+	vector v;
+	v = getvectorvar( "game.save"+sName+"Origin" );	
+	
+	//make sure we do not accept spawnpoints outside of the new map
+	if(v == '0 0 0'){
+		print("m3l1b-forever, NPC "+sName+" no location data saved, not warping.\n");
+	}
+	else if(v_y < 814 || v_y > 1390 || v_x > -134 || v_x < -601 ){
+		print("m3l1b-forever, NPC "+sName+" was previously outside "+v+" of the spawn area, not warping.\n");
+	}else{
+		if(doesEntityExist(eNpc)){
+			print("m3l1b-forever, NPC "+sName+" warped to previouse location "+v+".\n");
+			$eNpc.warp( v );
+			$eNpc.angle( getfloatvar( "game.save"+sName+"Angle" ) );
+		}
+	}
+	removevar( "game.save"+sName+"Origin" );
+	removevar( "game.save"+sName+"Angle" );
+}
+
 void restoreTeamPositions()
 {
-	vector v;
-	
 	// restore position/angle of everybody
 	if( ! getfloatvar( "game.savedTeamPos" ) )
 		return;
-		
+	
 	removevar( "game.savedTeamPos" );
 	
-	v = getvectorvar( "game.saveChellOrigin" );	
-	$Chell.warp( v );
-	$Chell.angle( getfloatvar( "game.saveChellAngle" ) );
-	removevar( "game.saveChellOrigin" );
-	removevar( "game.saveChellAngle" );
-	
-	v = getvectorvar( "game.saveJurotOrigin" );	
-	$Jurot.warp( v );
-	$Jurot.angle( getfloatvar( "game.saveJurotAngle" ) );
-	removevar( "game.saveJurotOrigin" );
-	removevar( "game.saveJurotAngle" );
-
-	v = getvectorvar( "game.saveFranklinOrigin" );	
-	$Franklin.warp( v );
-	$Franklin.angle( getfloatvar( "game.saveFranklinAngle" ) );
-	removevar( "game.saveFranklinOrigin" );
-	removevar( "game.saveFranklinAngle" );
+	//[b610]
+	coop_safeRestoreNpcPos("Chell");
+	coop_safeRestoreNpcPos("Jurot");
+	coop_safeRestoreNpcPos("Franklin");
 }
 
 //===================================================================================================================
