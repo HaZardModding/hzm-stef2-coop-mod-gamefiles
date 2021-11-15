@@ -249,7 +249,7 @@ PulldownMenuContainer
 	addpopup "MENU" "1.25 - 125%"	command "callvote coop_ff 1.25\n"
 	addpopup "MENU" "1.50 - 150%"	command "callvote coop_ff 1.50\n"
 	
-	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c027$$\""
+	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#027$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 	
 	popup_width "MENU" 310
@@ -425,7 +425,7 @@ PulldownMenuContainer
 	addpopup "MENU" "0 - Off"	command "callvote coop_teamIcon 0\n"
 	addpopup "MENU" "1 - On"	command "callvote coop_teamIcon 1\n"
 	
-	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#033$\""
+	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#033$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 	
 	popup_width "MENU" 310
