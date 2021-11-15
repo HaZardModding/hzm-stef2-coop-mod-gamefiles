@@ -37,16 +37,15 @@ coop_destroy
 		alphaGen global
    }
 }
+//[610] chrissstrahl - better icon
 coop_bomb
 {
-   nomipmaps
-   nopicmip
-   cull none
-   {
-		map textures/coop_mod/bomb.tga
-		blendfunc blend
-		alphaFunc GT0
+	cull none
+	nopicmip
+	{
+		map sysimg/icons/mp/diffusion_bombTaken.tga
+		blendfunc add
 		alphaGen global
-   }
+	}
 }
 
