@@ -1,0 +1,1310 @@
+//declare all the functions, so that they work properly
+//declare all the functions, so that they work properly
+void main();	
+void intro();
+void setupAi();
+void vaporizeActivator();
+void puzzleCode0();
+void puzzleCode0failed();
+void puzzleCode0solved();
+void emptyChellGrate();
+void grate();
+void stealth();
+void walkToVector(entity eActor, vector vOrigin,string sAnimName);
+void solved_codepanel_trigger0();
+void securitydoorunlock();
+void player_detected();
+void klingonstay();
+void storeroomunlock();
+void storeroomattack();
+void door_open();
+void bioscannerSetup();
+void bioscannerConsolePrint(string sText);
+void bioscannerDisable();
+void bioscannerToggleDoor();
+void bioscannerDetected(entity ePlayer);
+void bioscannerStartChecking ( entity beamModel);
+void bioscannerRotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir , vector endRotation);
+void ffconduit();
+void exploders();
+void sneakuponguard();
+void phaser();
+void phaser_pickup();
+void railbreak();
+void givethecode();
+void destroyrocks();
+void levelcomplete();
+void exiting();
+void toolbox_take();
+void toolbox_place();
+void reactivateKlingon();
+
+float boolPlayerGotCode = 0;
+float integer_actorWalktoVectorIndex = 0;
+float level_autoSavedCart=0;
+float level_autoSavedToolbox=0;
+float level_runOnce_endLift=0;
+
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	levelEnd();
+float	float_barCurrentGlasNum=0;
+float	float_barLookingAtTheStars=7;
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+#include "maps/global_scripts/global_common.scr" 
+#include "maps/global_scripts/global_debugUtils.scr" 
+#include "maps/global_scripts/global_tricorderBase.scr" 
+#include "maps/global_scripts/global_tricorderRoute.scr" 
+#include "maps/global_scripts/global_tricorderMod.scr" 
+#include "maps/global_scripts/global_tricorderKeypad.scr"
+
+void main()
+{
+	//set empty archetype, hence removing the current archetype that won't work for this level
+	$pektraq_standExplodeDieCrate.archetype("");
+
+	//bind trigger to lift, it will now follow every move
+	$pektraqlift_triggerUse.bind($pektraqlift);
+	
+	//bind tram script objects to script_origin for script control
+	$tram_clip.bind($tram_origin);
+	
+	//make sure that the player can not pickup the items that easily
+	//change the boundingbox size, so the area they can be used by is smaller
+	$tricorder_item.setsize('-1 -1 -1','1 1 1');
+	$phaser_item.setsize('-1 -1 -1','1 1 1');
+
+	//dead phaser dude
+	$deadbody_sfPhaserDude.gravity(0);
+	$deadbody_sfPhaserDude.mass(0);
+	$deadbody_sfPhaserDude.nodamage();
+	$deadbody_sfPhaserDude.origin('2604.00 -348.00 -198.00');
+	$deadbody_sfPhaserDude.anim("cin-m9l2_munro_lurok");
+
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	soundtrack( "music/dm_kw.mus" );
+	
+	thread setupAi();
+//fade screen black, this level starts with a cinematic
+	cam_fadeout(0.1,0,0,0,1);
+	$munroChellGrateOpen.solid();
+	$munroChellGrateClosed.notsolid();
+	$munroChellGrateClosed.hide();
+//3. start function bioscannerSetup, and run it as "independant instance" also called: thread
+	thread bioscannerSetup();
+	
+//make object appear on radar
+	$datapad.missionobjective(1);
+	
+//make em weak so they die fast by the blade
+	$rommy2.health(10);
+	$storeroomguard.health(10);
+
+	$rommy2.mass(9999);
+	$storeroomguard.mass(9999);
+	
+	$worker.health(10);
+	$worker2.health(10);	
+	$worker3.health(10);	
+	$worker4.health(10);	
+	$worker.mass(9999);
+	$worker2.mass(9999);
+	$worker3.mass(9999);
+	$worker4.mass(9999);
+	
+//make sure the phaser can't be picked up - this phaser is used for a scripted sequence
+	$phaser.gravity(0);
+	$phaser.hide();
+	$phaser_symbol2.hide();
+	$phaser_symbol2.scale(0.01);
+}
+	
+void intro()
+{
+	//for testing move player to spot
+	if( 0 ){ //getCvar("username") == "Chrissstrahl"
+		//lift Testing /////////////////////////
+		//$player.origin('3578 -548 -216');
+		//$pektraq.origin('3640 -488 -200');
+		//$ff.remove();
+		////////////////////////////////////////
+		
+		//tram testing /////////////////////////
+		$player.origin('3230 -1110 -224');
+		$pektraq.origin('3103 -1104 -224');
+		thread givethecode();
+		////////////////////////////////////////
+		
+		spawn("camera","targetname","cam1");
+		$pektraq.ai_on();
+		$pektraq.setTendency("lead",0);
+		$pektraq.setTendency("follow",1);
+		cam_fadeIn(0.25,0,0,0,1);
+		return;
+	}
+
+	$cellUseSymbol.scale(0.001); //hide
+	
+	cam_fadeIn(0.25,0,0,0,1);//dissable cinematic during development
+	//return;//dissable cinematic during development
+
+//Wait for the player to be ready (the script contimues as soon as the computer has finished loading all materials)
+	waitForPlayer();
+	
+//make door solid - was nonsolid to allow paths to connect
+	$blowupdoor.solid();
+	
+//load objectives, then inizial
+	if(getCvarInt("g_gametype") == 0)
+	{
+		$player.health(100);
+		$player.loadobjectives( "city5b" );
+		wait( .1 );
+		$player.setobjectiveshow( "c5bescape", 1 );
+		$player.setobjectiveshow( "c5bequip", 1 );
+		$player.setobjectiveshow( "c5bstealth", 1 );
+		$player.setobjectiveshow( "c5bcontact", 1 );
+		$player.setobjectiveshow( "c5bgetout", 1 );
+	}
+//warp munro to area
+	$munro.anim( "conv-yes" );
+	
+//spawn camera entity, this level starts with a cinematic
+	spawn("camera","targetname","cam1");
+	
+//wait for the camera entity to spawn and the cam to fade black 
+	wait(0.1);
+
+//do not do that in multiplayer, only singleplayer and solomatch
+//get the current game type from the config variables of game
+//0=sp,1=mp,2=solomatch
+	if( getCvarInt("g_gametype") == 0)
+	{
+		$player.hide();
+		$player.notsolid();
+	}
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+//make cam follow the given path entity
+	$cam1.follow($t1);
+//transition to camera: cut, no transition
+	$cam1.cut();
+//wait for the camera to get started moving along the path
+	wait(0.1);
+//switch from player to given camera entity now
+	cuecamera($cam1);
+	$pektraq.headwatch($targetnamedSoKlingonCanLookAtItForCinematic);
+	
+	if(getCvar("username") != "Chrissstrahl"){
+	//fade screen from black back in again to normal
+		cam_fadeIn(0.25,0,0,0,1);
+	//wait for the camera to get in position
+		wait(2);
+		$pektraq.headwatch($murno);
+		wait(6);
+	//fade screen black, this level starts with a cinematic
+		cam_fadeout(0.9,0,0,0,1);
+	//wait until the camera has blacked out
+		wait(1);
+	}
+//do cinematic commands only in singleplayer
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	$player.show();
+	$player.solid();
+//remove the cinematic actor
+	$munro.remove();
+	$munro2.hide();
+	$pektraq.headwatch($player);
+	$munro2.pushable(0);
+	
+//wait until the players sees from his own location again
+	wait(0.05);
+//fade screen from black back in again to normal
+	cam_fadeIn(0.25,0,0,0,1);
+	
+	$cellUseSymbol.scale(1); //show symbol again
+	
+//chrissstrahl - test tricorder puzzle - remove this code again!
+//$player.origin('322 563 8');
+}
+
+void setupAi()
+//setup all NPCs that require us to do so
+{
+	$munro.killattach();
+	//$pektraq.anim("bar_sitting_sleep");
+	$pektraq.useActorWeapon( "none" );
+	wait(0.05);
+	$pektraq.anim("crouch_idle");
+	$pektraq.mass(99999);
+	$pektraq.pushable(0);
+	$pektraq.actortype("teammate");
+	$pektraq.settendency("lead",1);
+	$pektraq.setTendency("follow",0);
+	//$pektraq.setTendency("leadslow",1); //walk intead of running when leading
+	$pektraq.setnodeID(666);
+	addrosterteammate1($pektraq);
+//make vison ideal for the player to sneak by the romulan
+	$guard1.fov(10);
+	$guard1.health(10);
+	$guard1.visiondistance(128);
+//give slightly more health
+//$guard.health(90);
+}
+
+void vaporizeActivator()
+//vaporizes the actor or player which enters the trigger
+{
+	entity eTrigger;
+	entity ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	ePlayer.displayEffect("FadeOut","Disruptor");
+	if(getCvarInt("g_gametype") == 0){
+		ePlayer.pointofview();
+	}
+	ePlayer.immortal(0);
+	ePlayer.setFloatVar("coop_noBeamout",1);
+	
+	//hzm coop mod chrissstrahl - make player respawn at his spawn point
+	ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+}
+
+//tricorder Puzzle for the chell, player lets his klingon out
+//tricorder Puzzle for the chell, player lets his klingon out
+//tricorder Puzzle for the chell, player lets his klingon out
+void puzzleCode0()
+//puzzle used by player, show hud and start scripts
+{
+	$cellUseSymbol.scale(0.001);
+	globalTricorderKeypad_SetType( "romulan" );
+	globalTricorderKeypad_SetSecretCode( 1 , 2 , 4 , 0 , 0 , 0 , 0 , 0 , 0 );
+	globalTricorderKeypad_SetScannedCodeFlag ( boolPlayerGotCode );
+	//globalTricorderKeypad_Run( $puzzleCode0 , 10 , 1 );
+	globalTricorderKeypad_Run( $puzzleCode0 , 30 , 5 ); //puzzleentity, timeLimit, float numTries
+}
+void puzzleCode0failed()
+//player failed or cancled, reset puzzle to be ready for next time use
+{
+	$cellUseSymbol.scale(1);
+	$puzzleCode0.puzzleobject_reset();
+}
+void puzzleCode0solved()
+//player solved puzzle, open chell, let klingon out
+{
+	$cellUseSymbol.remove();
+	thread solved_codepanel_trigger0();
+}
+
+void datapadCodeFound()
+{
+	boolPlayerGotCode = 1;
+}
+void datapadPickup()
+{
+	$datapad.missionobjective(0);
+	$emptyChellGrate.missionobjective(1);
+	$datapad.remove();
+	
+//register weapon in the script inventory (players respawn with this)
+	if( getCvarInt("g_gametype") == 0){
+		$player.give("models/weapons/worldmodel-rom-datapad.tik");
+		wait(0.1);
+		$player.use("models/weapons/worldmodel-rom-datapad.tik");
+	}
+}
+
+void emptyChellGrate()
+//player is under the empty chell, and atempts to enter it from down under
+{
+	$emptyChellGrate.missionobjective(0);
+	$puzzleCode0.missionobjective(1);
+	
+	$emptyChellGrate.bind($emptyChellGrate_origin);
+	$emptyChellGrate.notsolid();
+	$emptyChellGrate_origin.rotateZDown(90);
+	$emptyChellGrate_origin.time(1);
+	$emptyChellGrate_origin.nodamage();
+}
+
+void guard1_walkToEmptyChell()
+{
+//walk to node, scare player
+	$player.hudprint("");
+	$guard1.show();
+	$guard1.walkto("$guard1_emptyChellWalkto","run");
+	waitFor($guard1);
+	
+	$guard1.settendency("wander",0);
+	$guard1.settendency("patrol",0);
+	$guard1.ai_on();
+	
+	wait(2);
+	$guard1.ai_off();
+	
+//start patrol if patrol path is near
+	$guard1.settendency("patrol",1);
+	$guard1.setnodeID(2);
+	$guard1.ai_on();
+	
+	//if player is deteced, open the door completley so player can be terminated by the guard
+	//$t96.lip(4);
+	//$t96.open($world);
+}
+
+void grate()
+{
+//unlock grate
+	$grate.unlock();
+}
+
+void stealth()
+{
+//do patrol if patrol path is near
+	$guard2.settendency("patrol",1);
+//make vison ideal for the player to sneak by the romulan
+	$guard2.fov(10);
+	$guard2.visiondistance(128);
+//give slightly more health
+	$guard2.health(90);
+}
+
+
+void walkToVector(entity eActor, vector vOrigin,string sAnimName)
+//----------------------------------------------------------------------
+// let the ai walk to a sepecified origin
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		string sNodeName,sTargetname;
+		entity eNode;
+		vector vOldPosition;
+		vOldPosition = eActor.getOrigin();
+		sTargetname = eActor.getRawTargetname();
+		integer_actorWalktoVectorIndex++;
+		vOrigin_z += 2;
+		sNodeName	= "walkToNode"+sTargetname+integer_actorWalktoVectorIndex;
+		eNode		= spawn("info_notnull","targetname",sNodeName,"origin",vectorToString(vOrigin));
+		wait(0.05);
+		eNode.dropToFloor();
+		wait(0.05);
+		vOrigin = eNode.getOrigin();
+		eNode.setFloatVar("deleteMe",1);
+		eActor.walkto("$"+sNodeName,sAnimName);
+		waitfor(eActor);
+	}
+}
+
+
+void solved_codepanel_trigger0()
+//puzzle solved, chell will open, klingon will react to it
+{
+//remove from radar
+	$datapad.missionobjective(0);
+	$emptyChellGrate.missionobjective(0);
+	$puzzleCode0.missionobjective(0);
+
+//make klingon ready for combat
+	$pektraq.useActorWeapon( "Batleth", "left" );
+	$pektraq.immortal(1);
+	$pektraq.anim("idle");
+	$pektraq.angle(90);
+	$pektraq.mass(999);
+	
+//ready chell
+	$munroChellGrateClosed.show();
+	$munroChellGrateClosed.solid();
+	$munroChellGrateOpen.remove();
+	
+//open chell door
+	$munroChellDoor.unlock();
+	$munroChellDoor.open($world);
+	
+
+//make klingon cheer
+	$pektraq.anim("cheer");
+	wait( 1 );
+	$pektraq.ai_on();
+	
+	//unlock the exit door, player may now leave this area
+	$firstExitDoor.unlock();
+}
+
+void securitydoorunlock()
+//make the door unlock after using nearby console
+{
+	$udoor.unlock();
+//remove symbol model
+	$securitydoorunlock_symbol2.remove();
+}
+
+void player_detected()
+{
+	$player.setobjectivefailed( "c5bstealth", 1 );
+	wait(0.1);
+}
+
+void klingonstay()
+{
+	//munro says -> stay behind and secure the area, while I do a chicken dance
+	$player.simplePlayDialog("localization/sound/dialog/dallas01/munro_waitduct.mp3",1,128);
+	$pektraq.setTendency("follow",0);
+}
+
+void storeroomunlock()
+//make the door unlock after using nearby console
+{
+	$storeroomdoor.unlock();
+//open door
+	$storeroomdoor.open($world);
+	
+//remove use symbol
+	$storeroomdoor_use.remove();
+	
+	wait(0.15);
+	if(doesEntityExist($storeroomguard)){
+		$storeroomguard.hurt(1);
+	}
+	
+//make klingon friend follow player again
+	$pektraq.setTendency("follow",1);
+	
+//leave the door open for a while
+	$storeroomdoor.wait(-1);
+	wait(15);
+//reset to normal open wait time
+	//$storeroomdoor.wait(3);
+}
+
+void storeroomattack()
+//make rom attack player
+{
+	if(doesEntityExist($storeroomguard)){
+		$storeroomguard.turntowardsplayer();
+		$storeroomguard.aggressive(1);
+		$storeroomguard.hurt(1);
+		$storeroomguard.attackPlayer();
+	}
+}
+
+void door_open()
+//make the door unlock after using nearby console
+{
+	$door.unlock();
+//open door
+	$door.open($world);
+	
+//unlock heavy door
+	$heavydoorXy.unlock();
+	$heavydoorXy.open($world);
+	$heavydoorXy.wait(-1);
+	
+//make sure the romulan knows the player is there if he didn't know before
+	thread storeroomattack();
+}
+
+void bioscannerSetup()
+{
+//copied instructions so i know what to do
+//1.0 start the bioscanner beam moving - targetname, speed-move-up , speed-modedown , start-angels, degree-to-rotate
+//start-angels: 		you only need to change the secound value, example: '0 X 0' X is the number you change
+//degree-to-rotate:		this depends on your start-angles secound value
+//degree-to-rotate:		'0 270 0' uses '0 0 60'
+//degree-to-rotate:		'0 90 0' uses '0 0 -60'
+//degree-to-rotate:		'0 180 0' uses '-60 0 0'
+//degree-to-rotate:		'0 0 0' uses '60 0 0'
+//get your starts-angels from the level-editor
+//level-editor: 		angels 0 90 0 is equal to angle 90
+	thread bioscannerRotateTripWire( "bioscannerBeam0" , 0.2   , 5 , '0 270 0' , '0 0 60' );
+//1.1 start the bioscanner beam moving - secound instance, for secound beam
+	thread bioscannerRotateTripWire( "bioscannerBeam1" , 0.2   , 5 , '0 90 0' , '0 0 -60' );
+
+//2.0 start a new function, that handels the checking. Give the model entities to that function
+	thread bioscannerStartChecking( $bioscannerBeam0 );
+//2.1 start a new function, that handels the checking. Give the model entities to that function
+	thread bioscannerStartChecking( $bioscannerBeam1 );
+}
+
+void bioscannerConsolePrint(string sText)
+//definition of the level-script function: bioscannerConsolePrint
+//===========================================
+//handels text, so that it is allways printed into the game console 
+//===========================================
+// 1. adds the new line marker, so that the next text in the console starts in a new line
+// 2.0a checks if the server is a linux server, if it is the code inside will be executed
+// 2.0b uses print to print text to the server console, this is for linux servers
+// 2.1a starts when the server is NOT a linus server - windows or mac, executes code inside
+// 2.1b starts if server is windows or mac, prints message to server console
+{
+	//1.0 construct string
+	sText = sText + "\n";
+	
+	//2.0a check if this is a linux server
+	if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003" || getCvarInt("dedicated") == 1){
+		//2.1a use print command to make the text show up in the server console
+		print(sText);
+	}
+	//2.0b this is no linux server - windows or mac
+	else{
+		//2.1b use the echo command and relay directly to the server console
+		stuffCMD("echo " + sText);
+	}
+}
+
+void bioscannerDisable()
+{
+	//1.0 read the variable attached to the entity, and check if the sound is ON
+	if( $bioscannerAlarmSound0.getFloatVar("alarmSoundIsOn") == 1){
+	//1.1 activate that sound_speaker entity AGAIN, it STOPS the alarm sound
+		triggerEntity($bioscannerAlarmSound0);
+	//1.2 set variable on the entity, that tells us that the alarm is OFF
+		$bioscannerAlarmSound0.setFloatVar("alarmSoundIsOn",0);
+	}
+	
+	//2.0 checks if door is closed, and executes code inside if so
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") == 1){
+		//2.1 open door now
+		$bioscannerDoor.open($world);
+		//2.2 save variable on the door, that tells us the door is now open
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",0);
+	}
+}
+
+void bioscannerToggleDoor()
+{
+	//1.0a checks if door is NOT closed
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") != 1){
+		//1.1a close the door now
+		$bioscannerDoor.close();
+		
+		//1.2a save variable on the door, that tells us the door is now closed
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",1);
+		
+		//1.3a locks the door, so that the ai does not try to walk trough a closed door
+		$bioscannerDoor.lock();
+	}else{
+		//1.1b unlocks the door, so that it can be opened again
+		$bioscannerDoor.unlock();
+		//1.2b open door now
+		$bioscannerDoor.open($world);
+		//1.3b save variable on the door, that tells us the door is now open
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",0);
+	}
+}
+
+
+
+void bioscannerDetected(entity ePlayer)
+{
+	//1.0 read the variable attached to the entity, and check if the sound is NOT on
+	if( $bioscannerAlarmSound0.getFloatVar("alarmSoundIsOn") != 1){
+	//1.1 activate that entity, it plays a alarm sound
+		triggerEntity($bioscannerAlarmSound0);
+	//1.2 set variable on the entity, that tells us that the alarm is on
+		$bioscannerAlarmSound0.setFloatVar("alarmSoundIsOn",1);
+	}
+	
+	// 2.0 - check if there is not allerady a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor0)){
+		//2.1 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn0);
+	}
+	
+	// 2.2 - check if there is not allerady a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor1)){
+		//2.3 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn1);
+	}
+	
+	// 2.4 - check if there is not allerady a spawned ACTOR
+	if(!doesEntityExist($bioscannerSpawnedActor2)){
+		//2.5 activate that entity, it spawns a enemy
+		triggerEntity($bioscannerSpawn2);
+	}
+	
+	//3.0 checks if door is NOT closed, cloeses the door if it is open
+	if($bioscannerDoor.getFloatVar("thisDoorIsClosed") != 1){
+		//3.1 close the door now
+		$bioscannerDoor.close();
+		//3.2 save variable on the door, that tells us the door is now closed
+		$bioscannerDoor.setFloatVar("thisDoorIsClosed",1);
+	}
+	
+	//4.0 check for player
+	if(doesEntityExist(ePlayer)){
+		//4.1a check for singleplayer
+		if(getCvarInt("g_gametype") == 0){
+			//4.2a print text to the center of the screen
+			centerPrint("Petraq: Turn that alarm off now!\n");
+		}
+		//4.1b if not singleplayer - then it is multiplayer
+		else{
+			//4.2b print text to chat hud of the player who was detected
+			ePlayer.hudPrint("^3WARNING^8: Petraq: Turn that alarm off now!\n");
+		}
+	}
+//5. wait a moment befor the script constinues
+	wait( 2 );
+}
+
+void bioscannerStartChecking ( entity beamModel)
+{
+//1. check if the entity exists
+	if ( doesEntityExist ( beamModel )){
+		//2. get the maximum number of player that can be on the server
+		float fMaxClients;
+		fMaxClients = getCvarInt( "sv_maxclients" );
+		
+		//3. used to store client number
+		float fCurrentClient = 0;
+		
+		//4. used to store the player entity
+		entity ePlayer;
+		
+		//5. do this over and over again
+		while ( 1 )
+		{
+			//6.0 check for every player
+			for(fCurrentClient = 0; fCurrentClient < fMaxClients; fCurrentClient++){
+				//6.1 get the player by his client id, starting with 0
+				ePlayer = getEntity("*" + fCurrentClient );
+				
+				//6.2 check if that player is on the server
+				if(doesEntityExist(ePlayer)){
+					//6.3 check if player is alive
+					if(ePlayer.getHealth() > 0){
+						//6.4 check if it really is a player, it really should be, but let us be sure
+						if(	ePlayer.getRawTargetname() == "player" ||
+							ePlayer.getRawTargetname() == "player" + fCurrentClient ||
+							ePlayer.getRawTargetname() == "player" + (fCurrentClient + 1) )
+						{
+							//6.5 check if the model points directly on the current entity (makes it seam as if he was hit by the beam)
+							if(beamModel.traceHitsEntity ( "tag_horizontal" , 300 , ePlayer )){
+								//6.6 starts a function that handels the detected event,
+								//In the same instance. Meaning this code here continues after bioscannerDetected has ended
+								bioscannerDetected(ePlayer);	
+							}
+						}
+					}
+				}				
+			}
+		//6.7 wait a moment, before we run the check again
+			wait ( .25 );
+		}
+	}
+}
+
+void bioscannerRotateTripWire ( string basename , float rotateSpeedUp , float rotateSpeedDown , vector startDir , vector endRotation)
+{
+	//1. create entity variables
+	entity wire,beamOrigin;
+	
+	//2. create variables to store integers or floats in
+	float flipX,flipY,flipZ;
+	
+	//3. rename this instance of this function
+	threadname ( basename + "_thread" );
+	
+	//4.0 get the model by its targetname
+	wire = getentity ( basename );
+	
+	//4.1 get the master by its targetname, we use to control the model,
+	//NOTE:	the master has the same targetname as the model, BUT it has the extension _model to it
+	//		If the model targetname is $beam1 then the master would be $beam1_origin
+	//		the targetnames will show in the level-editor without the leading $
+	//		the leading $ signals the level-script that this is a level-object
+	//		level-objects are entities, everything that can move or be deleted
+	//		is a entity in the game, every door,player,weapon,ammo,item,enemy,trigger... and so forth
+	beamOrigin = getentity ( basename + "_origin" );
+	
+	//5. aligen the model
+	wire.angles ( startDir );
+
+	//6. start loop sound
+	beamOrigin.loopsound ( "sound/ships/romulan/rom_search_hi.wav", .45, 75);
+
+	//7.0 check if the master of that beam does NOT exists
+	if ( ! doesEntityExist( beamOrigin ) ){
+		//7.1 the master does not exist, print a error message and end this function
+		bioscannerConsolePrint( "ERROR: could not find entity: $" + basename + " - bioscannerRotateTripWire" );
+
+		//7.2 exit/end this function
+		return;
+	}	
+	
+	//8.0 check if the master of that beam does NOT exists
+	if ( ! doesEntityExist( beamOrigin ) ){
+		//8.1 the master does not exist, print a error message and end this function
+		bioscannerConsolePrint( "ERROR: could not find entity: $" + basename + " - bioscannerRotateTripWire" );
+
+		//8.2 exit/end this function
+		return;
+	}
+	
+	//9. bind model(script_model) to master (script_origin) 
+		wire.bind( beamOrigin );
+
+	//10. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_x < 0 ){
+		flipX = 1;
+		endRotation_x *= -1;
+	}
+	
+	//11. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_y < 0 ){
+		flipY = 1;
+		endRotation_y *= -1;
+	}
+	
+	//12. adapts the rotation variables, if they shall go up or down
+	if ( endRotation_z < 0 ){
+		flipZ = 1;
+		endRotation_z *= -1;
+	}
+
+	//13. runs the code inside as long as the condition inside the while head is true or 1
+	while ( 1 ) //1 means true, running infinity
+	{
+		//14. sets the duration of the move 
+		beamOrigin.time ( rotateSpeedUp );
+
+		//15.  - rotates the X axis of the script_origin entity UP
+		if ( flipX == 1 ){
+			beamOrigin.rotateXup ( endRotation_x );
+		}
+		//15. - rotates the X axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateXdown ( endRotation_x );
+		}
+		
+		//16.  - rotates the Y axis of the script_origin entity UP
+		if ( flipY == 1 ){
+			beamOrigin.rotateYup ( endRotation_y );
+		}
+		//16.  - rotates the Y axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateYdown ( endRotation_y );
+		}
+		
+		//17.  - rotates the Z axis of the script_origin entity UP
+		if ( flipZ == 1 ){
+			beamOrigin.rotateZup ( endRotation_z );
+		}
+		//17.  - rotates the Z axis of the script_origin entity DOWN
+		else{
+			beamOrigin.rotateZdown ( endRotation_z );
+		}
+
+		//18. waits for the script_origin entity to finsih the current movement
+		waitfor ( beamOrigin );
+		
+		
+		//19. sets the duration of the move 
+		beamOrigin.time ( rotateSpeedDown );
+
+		//20.  - rotates the X axis of the script_origin entity DOWN
+		if ( flipX == 1 ){
+			beamOrigin.rotateXdown ( endRotation_x );
+		}
+		//20. - rotates the X axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateXup ( endRotation_x );
+		}
+
+		//21. - rotates the Y axis of the script_origin entity DOWN
+		if ( flipY == 1 ){
+			beamOrigin.rotateYdown ( endRotation_y );
+		}
+		//21. - rotates the Y axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateYup ( endRotation_y );
+		}
+
+		//22. - rotates the Z axis of the script_origin entity DOWN
+		if ( flipZ == 1 ){
+			beamOrigin.rotateZdown ( endRotation_z );
+		}
+		//22. - rotates the Z axis of the script_origin entity UP
+		else{
+			beamOrigin.rotateZup ( endRotation_z );
+		}
+
+		//23. waits for the script_origin entity to finsih the current movement
+		waitfor ( beamOrigin );
+	}
+}
+
+void ffconduit()
+{
+//fade out cam
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.3);
+	//do cinematic commands only in singleplayer
+	if(getFloatVar("game.isCoopServer") == 1 || getCvarInt("g_gametype") != 1)
+	{
+		cinematic();
+		freezeplayer();
+		letterbox(0.1);
+		cam_fadeIn (0.25,0,0,0,1);	
+		$cam1.follow($f1);
+		$cam1.cut();
+		wait(0.1);
+		cuecamera($cam1);
+	}
+	wait(0.2); //give player time to realize where the cam is
+	$exploders.selfdetonate();
+	$ffconduit.remove();
+	$conduitblowup.selfdetonate();
+	wait(0.15);
+	$ff.remove();
+	//wait for the effect to end
+	wait(2.7);
+	//cinematics only for SP
+	if(getFloatVar("game.isCoopServer") == 1 || getCvarInt("g_gametype") != 1)
+	{
+		noncinematic();
+		clearletterbox(0.1);
+		cueplayer();
+		releaseplayer();
+	}
+	cam_fadeIn (0.25,0,0,0,1);
+}
+
+void exploders()
+//the lift at the first part of the level crashes and there is explosion
+{
+//open door
+	$crashinglift.open($world);
+	wait(4);
+	$exploders.selfdetonate();
+	$accesspanel.unlock();
+	$player.simplePlayDialog("localization/sound/dialog/m8l2/munro_cancloak.mp3",1,2048);
+}
+
+void sneakuponguard()
+{
+	//make sure guard has not been killed
+	if(doesEntityExist($rommy2)){
+		if($rommy2.getHealth() > 1){
+			//make sure guard is actually still in position
+			if(vectorlength(($rommy2.getOrigin() - '228.00 -388.00 -200.00')) < 10 ){
+				$rommy2.kill();
+			}
+		}
+	}
+}
+
+void phaser_pickup()
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	ePlayer.give("models/weapons/worldmodel-Phaser-stx.tik");
+	wait(0.05);
+	ePlayer.use("models/weapons/worldmodel-Phaser-stx.tik");
+	
+	//move useable symbol
+	//$phaser_symbol.origin('2746.00 -410.00 -177.0');
+	$phaser_symbol.remove();
+	
+	$phaser_placeTrigger.triggerable();
+	
+	$phaser.forcealpha(1);
+	$phaser.fade( 0.1, 0.6 );
+	
+	$phaser_symbol2.show();
+	$phaser_symbol2.scale(1);
+	
+	//place and show phaser
+	$phaser.show();
+	$phaser.setcustomshader("textures/common/fracture_small");
+}
+
+void phaser()
+//phaser overload.  It didnt destroy the crates so I removed them.
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");
+
+	$phaser.fade(0.25, 1);
+	$phaser.clearcustomshader("textures/common/fracture_small");
+	
+	//$phaser.angels('25.000000 0.000000 0.000000');
+	//$phaser.origin('2748.50 -408.00 -197.24');
+
+//open door
+	float fTimer = 5;
+	while(fTimer > 0){
+		centerPrint("^3WARNING: ^1Explosion in:^5 "+fTimer+"\n");
+		wait(1);
+		fTimer--;
+	}
+	
+	$phaseroverload.selfdetonate();
+	$crates.remove();
+	$phaser.remove();
+}
+
+void railbreak()
+{
+	$tram_origin.setvelocity('10 0 0');
+//wait for cart to reach the floor
+	wait(5);
+	$railbreak.remove();
+	$t90.selfdetonate();
+	$tram_origin.setvelocity('0 0 0');
+}
+
+//Unlock the door
+void givethecode()
+{
+	$givethecodeSymbol.remove();
+	
+	
+	//don't blame me these doors having the same names
+	//the game handles targetnames case sensitive
+	//so for the game this are two different doors
+	//which they actually are
+	
+	//open door to allow getting weapons back and health
+	$blastDoor.unlock();
+	$blastDoor.open($world);
+	$blastDoor.wait(-1);
+	
+	//open door to allow exit of cave to the outside
+	$blastdoor.unlock();
+	$blastdoor.open($world);
+	$blastdoor.wait(-1);
+	
+	
+	
+	//open door to cart that player can use
+	$cartdoor.unlock();
+	$cartdoor.open($world);
+}
+
+void destroyrocks()
+{
+	float f;
+	entity e;
+	for(f=0;f<4;f++){
+		e=getEntity("rocks"+f);
+		e.selfdetonate();
+		wait(0.02);
+		e.remove();
+	}
+	$tram_clip2.remove();
+}
+
+void levelcomplete()
+{
+	$exitdoor.open($world);
+}
+
+void exiting()
+{
+	$needpektraq.remove();
+}
+
+//take toolbox outr of rack
+//move symbol
+//move toolbox
+//enable place trigger
+//remove toolbox rack clip
+//show toolbox at new location, faded
+void toolbox_take()
+{
+	$toolbox_stairRackClip.remove();
+	$toolbox_stair.hide();
+	$toolbox_stair.forcealpha(1);
+	$toolbox_stair.fade( 0.1, 0.6 );
+	$toolbox_stair.setcustomshader("textures/common/fracture_small");
+	$toolbox_stair.origin('-720.00 -292.00 -144.00');
+	$toolbox_stair.angle(360);
+	$toolbox_symbol.origin('-722.00 -295.00 -134.00');
+	wait(0.1);
+	$toolbox_stair.show();
+	$toolbox_placeTrigger.triggerable();
+}
+//show toolbox
+//make toolbox clip solid
+//remove no enter clip on vent, so that players now may enter the vent
+void toolbox_place()
+{
+	if(!level_autoSavedToolbox){
+		level_autoSavedToolbox=1;
+		if(getCvarInt("g_gametype") == 0){
+			if($player.getHealth() > 0){
+				stuffCMD("ui_savegamewithname \"Aftermath - Prison Toolbox\"");
+			}
+		}
+	}
+	$toolbox_stair.fade(0.25, 1);
+	$toolbox_stairClip.solid();
+	$vent_noEnterClip.remove();
+	$toolbox_symbol.origin('-736.00 -264.00 -62.00');
+	$toolbox_stair.clearcustomshader("textures/common/fracture_small");
+}
+
+
+//trigger inside lift was used, make lift move
+void pektraqlift()
+{
+	//$pektraq.ai_on();
+	//$pektraq.setTendency("follow",1);
+	//$pektraq.setTendency("lead",1);
+	//$pektraq.setnodeID(999);
+	$pektraq.ai_off();
+	$pektraq.walkto("$pektraqliftPos","walk");
+
+	float fWait;
+	fWait = 1;
+	while(doesEntityExist($pektraq) && fWait){	
+		if(vectorLength($pektraq.getOrigin() - '3898 -680 -208') < 50){
+			fWait=0;
+		}
+		wait(0.2);
+	}
+	$pektraq.ai_off();
+	$pektraq.turntowardsentity($pektraqliftDoors1);
+
+	$pektraqliftDoors1.lock();
+	$pektraqliftDoors1.close();
+	wait(1.2);
+	$pektraq.ai_on();
+	
+	triggerEntity($pektraqlift);
+	wait(3);
+	
+	$pektraqliftDoors2.open($world);
+	$pektraqliftDoors2.wait(-1);
+	
+	$pektraq.ai_off();
+	$pektraq.walkto("$pektraqliftPosExitPre","walk");
+	waitFor($pektraq);
+	$pektraq.walkto("$pektraqliftPosExit","walk");
+	waitFor($pektraq);
+	
+	// $pektraq.ai_on();
+	// $pektraq.setTendency("follow",1);
+	// $pektraq.setTendency("lead",1);
+	// $pektraq.setTendency("leadslow",1);
+	// $pektraq.setnodeID(888);
+	
+	fWait = 1;
+	while(doesEntityExist($pektraq) && fWait){	
+		if(vectorLength($pektraq.getOrigin() - '3561 -725 -12') < 60){
+			fWait=0;
+		}
+		wait(0.2);
+	}
+	$pektraq.ai_on();
+	
+	$pektraqliftDoors2.wait(2);
+	$liftPathnodeClipNextLevel.remove();
+	$pektraq.setTendency("follow",1);
+	$pektraq.setTendency("lead",0);
+	$pektraq.setTendency("leadslow",0);
+}
+
+//pickup tricorder and phaser
+void recovertricorderdone()
+{
+	$tricorder_item.remove();
+	$phaser_item.remove();
+	
+	//register to the armory, equips players on spawn
+	if(getCvarInt("g_gametype") == 0){
+		$player.give("models/weapons/worldmodel-Tricorder-stx.tik");
+		$player.give("models/weapons/worldmodel-Phaser-stx.tik");
+		wait(0.1);
+		$player.use("models/weapons/worldmodel-Tricorder-stx.tik");
+	}
+}
+
+
+//unlock door
+void udoorUnlock()
+{
+	return;
+	$udoor.unlock();
+	$udoor.open($world);
+}
+
+void endLift()
+//------------------------------------------------------------------------------
+//make sure this does not block player if he tries to get back up
+//------------------------------------------------------------------------------
+{
+	if(level_runOnce_endLift){
+		return;
+	}
+	level_runOnce_endLift=1;
+	
+	//$pektraq.setTendency("lead",1);
+	//$pektraq.setTendency("follow",1);
+	//$pektraq.setTendency("leadslow",1);
+	//$pektraq.setnodeID(69);
+	
+	//wait for lift to get in position
+	while(vectorlength(($endLift.getOrigin() - '2685 -4746 -267')) > 50){
+		wait(0.01);
+	}
+	
+	$endLiftClip.remove();
+	
+	//wait for klingon to position on lift
+	while(doesEntityExist($pektraq) == 1 && vectorlength(($pektraq.getOrigin() - '2645 -4769 -229')) > 30){
+		wait(0.01);
+	}
+	
+	//$pektraq.ai_off();
+	//$pektraq.turntowardsplayer();
+	
+	//wait for player to position on lift
+	while(vectorlength(($player.getOrigin() - '2645 -4769 -229')) > 100){
+		wait(0.01);
+	}
+	
+	triggerEntity($endLift);
+	wait(1.5);
+	
+	//$pektraq.ai_on();
+}
+
+void reactivateKlingon()
+{
+	if(doesEntityExist($pektraq)){
+		if($pektraq.isWithinDistanceOf($tram_clip2,120)){
+			wait(0.01);
+		}
+		wait(1);
+		$pektraq.ai_on();
+		//make him able to die again
+		$pektraq.immortal(0);
+		$pektraq.health(20);
+	}
+}
+
+void startTramCart()
+//------------------------------------------------------------------------------
+//make sure this does not block player if he tries to get back up
+//------------------------------------------------------------------------------
+{
+	if(!level_autoSavedCart){
+		if(getCvarInt("g_gametype") == 0){
+			if($player.getHealth() > 0){
+				stuffCMD("ui_savegamewithname \"Aftermath - Prison Cart\"");
+			}
+		}
+	}
+
+	if(doesEntityExist($pektraq)){
+		$pektraq.ai_off();
+		$pektraq.walkto("$stepAway","run");
+		thread reactivateKlingon();
+	}
+	
+	if(!level_autoSavedCart){
+		level_autoSavedCart=1;
+		//wait for tram to reach rocks
+		while(!$tram_clip2.isWithinDistanceOf($rocks2,120)){
+			wait(0.01);
+		}
+		thread destroyrocks();
+	}
+}
+
+void unlockDoorForKlingon()
+//------------------------------------------------------------------------------
+//make sure this does not block player if he tries to get back up
+//------------------------------------------------------------------------------
+{
+	$lockedDoorToCave.unlock();
+	$lockedDoorToCave.open($world);
+	$lockedDoorToCave.wait(-1);
+}
+
+void liftSecretFound()
+//------------------------------------------------------------------------------
+//make sure this does not block player if he tries to get back up
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist($liftExplodingObject)){
+		$liftExplodingObject.remove();
+	}
+}
+
+void knockoutGuard()
+//------------------------------------------------------------------------------
+//if guard has not been alerted give player option to knockout guard
+//------------------------------------------------------------------------------
+{
+	//make sure guard has not been killed
+	if(doesEntityExist($rommy2)){
+		if($rommy2.getHealth() > 1){
+			//make sure guard is actually still in position
+			if(vectorlength(($rommy2.getOrigin() - '228.00 -388.00 -200.00')) < 20 ){
+				centerprint("Press Use To Knock Out The Guard");
+			}
+		}
+	}
+}
+
+void noleadButFollow()
+//------------------------------------------------------------------------------
+//if player has reached the location - klingon will not lead then but follow the player
+//------------------------------------------------------------------------------
+{
+	$pektraq.setTendency("lead",0);
+	$pektraq.setTendency("follow",1);
+}
+
+void makeRomiesAggressive()
+//------------------------------------------------------------------------------
+//makes romulans aggressive
+//------------------------------------------------------------------------------
+{
+	//setup ai patroling (long hallway with crates)
+	entity eAI;
+	float i = 0;
+	eAI = getEntity("usedtobeawomanguard"+i);
+	while(doesEntityExist(eAI)){
+		eAI.health(5);
+		i++;
+		eAI = getEntity("usedtobeawomanguard"+i);
+		eAI.setvar( "manual_state" , "combat" );
+		eAI.mass(9999);		
+		//eAI.ai_on();
+	}
+	$usedtobeawomanguard0.setnodeID(3);
+	$usedtobeawomanguard0.settendency("patrol",1);
+	$usedtobeawomanguard4.hurt(1);
+	$usedtobeawomanguard2.kill();
+}
+
+void levelEnd()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//load next map
+	wait(3);
+	stuffcmd("disconnect");
+}
+
+
+
