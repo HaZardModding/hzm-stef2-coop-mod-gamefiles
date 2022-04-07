@@ -351,4 +351,18 @@ coop_empty
 	}		
 }
 
+//--------------------------------------------------------------------
+coop_pulse
+//--------------------------------------------------------------------
+{
+   cull none
+	{
+		clampmap sysimg/hud/radar/ground-plane-pulse.tga
+		blendFunc ADD
+		alphaFunc GT0
+		rgbGen wave sin 0.0 1.0 1.0 0.5
+		tcMod stretch sin 1.0 2.75 0.0 0.5
+	}
+}
+
 
