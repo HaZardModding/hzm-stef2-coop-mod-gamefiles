@@ -182,9 +182,15 @@ model						 <model name>	- the tiki model to use for the puzzle object
 puzzleobject_opendistance	 <distance>		- the amount of distance the player should be before the puzzle opens.
 puzzleobject_itemtouse		 <item name>	- the name of the item the player must use to execute the puzzle
 puzzleobject_itemusedthread	 <thread name>	- the name of the thread called when the item is used.
+puzzleobject_usedstartthread <thread name>	- [coop mod] thread called when puzzle is started to be used
 puzzleobject_failedthread	 <thread name>	- the name of the thread called when the puzzle fails
 puzzleobject_canceledthread	 <thread name>  - the name of the thread called when the puzzle is canceled
 puzzleobject_solvedthread	 <thread name>	- the name of the thread called when the puzzle is solved.
+puzzleobject_deactivate		<noparameter>	- Makes the object unresponsive to input and the player. DOES NOT affect any change in animation.
+puzzleobject_activate		<noparameter>	- Lets the object think and respond to the player again. DOES NOT affect any change in animation. 
+puzzleobject_timeToUse		<float>			- Makes the puzzle object solved after the user has used it for long enough. 
+puzzleobject_timerHudName	<hud name>		- Sets the hud name to use for the timer hud. 
+becomeModBarInSkill			<int>			- mTells a puzzleobject to just display a timed modulation bar in any skill less than or equal to the specified one.
 
 ******************************************************************************/
 CLASS_DECLARATION( Entity, PuzzleObject, "puzzle_object" )
