@@ -129,7 +129,6 @@ models/vehicle/type8/noreg
 	}
 }
 
-
 //--------------------------------------------------------------------
 //Made/Edited by Explorer
 //explorer-studios@mail.com
@@ -364,5 +363,47 @@ coop_pulse
 		tcMod stretch sin 1.0 2.75 0.0 0.5
 	}
 }
+
+//textures/coop_bugs/s0
+coop_peBlinking
+{
+   nomipmaps
+   nopicmip
+   cull none
+   {
+		map sysimg/hud/coop_11.tga
+		blendfunc blend
+		alphaFunc GT0
+		alphaGen global
+		//-,-,mentode,base,amplitude,phase,frequency
+		rgbGen wave square 1 1 0.5 0.25
+   }
+}
+
+coop_bugs-data-btn-bg
+{
+   nomipmaps
+   nopicmip
+   cull none
+   {
+		map textures/coop_bugs/2.tga
+		blendfunc blend
+		alphaFunc GT0
+		alphaGen global
+   }
+}
+
+pattern-enhancer-laser
+{
+cull none
+  {
+  clampmap textures/coop_bugs/14.tga
+  blendFunc GL_ONE GL_ONE
+  tcMod scroll -0.5 0
+  tcMod scale 4 1
+  rgbGen wave Sin 1 0.2 10 2.5
+  }
+}
+
 
 
