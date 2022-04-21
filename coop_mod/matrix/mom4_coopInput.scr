@@ -1,0 +1,131 @@
+//chrissstrahl - 2022.04.18 - this is MOM 4.0
+//using a n ew command coopInput with the hzm coop mod
+//player can send text input to server
+//server does recognize command coopInput
+//starts thread (playerInput) on player (with new runthread)
+//and set entityStringVar(coopInputData) with player input text on executing player
+
+//every input is constructed to a thread name like this:
+// parameter0 + "_" + parameter1
+//usually parameter0 is the name of the menu
+//usually parameter1 is the action/task/button pressed or wanted
+void playerInput()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	if(doesEntityExist(ePlayer)){
+		string sInput;
+		sInput = ePlayer.getStringVar("coopInputData");
+		//ePlayer.hudprint("DATA SEND TO SERVER("+sInput+")\n");
+		thread coop_momInputProcess(ePlayer,sInput);
+	}
+}
+
+void coop_momMenuExit(entity ePlayer,string sMenu)
+{
+	//stop if player is missing
+	if(doesEntityExist(ePlayer) != 1){ return; }
+	
+	//can't use removehud as this will only remove huds, not menus
+	//removehuds should not be changed, so this is the better alternative
+	if(sMenu != ""){
+		sendClientCommand(ePlayer,"ui_removehud "+sMenu+"\n");
+	}
+	
+	//terminate manager thread
+	float fThreadNum;
+	fThreadNum = ePlayer.getFloatVar("coopMenuManagerThread");
+	if(fThreadNum != 0){
+		ePlayer.setFloatVar("coopMenuManagerThread",0);
+		terminate(fThreadNum);
+	}
+	
+	ePlayer.setFloatVar("coopMenuIsActive",0);
+	ePlayer.setStringvar("coopMomMenu","");
+}
+
+void coop_momMenuMaster(entity ePlayer, string sMenu)
+{
+	while(doesEntityExist(ePlayer)){
+		//exit current menu if player is dead or spectator
+		if(ePlayer.getHealth() <= 0 || getIntPlayerSpectator(ePlayer) == 1){
+			thread coop_momMenuExit(ePlayer,sMenu);
+			return;
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_momInputProcess(entity ePlayer, string sInput)
+{
+	float fParameterIndex;
+	float fLength;
+	float fCurrent;
+	string sCombined;
+	string sCurrentChar;
+	
+	string sParameter0;
+	string sParameter1;
+	string sParameter2;
+	
+	fLength = getIntStringLength(sInput);
+	
+	for(fCurrent=0;fCurrent<fLength;fCurrent++){
+		sCurrentChar = getStringFromStringWithLengt(sInput,fCurrent,1);
+
+		if(sCurrentChar != " "){
+			sCombined = (sCombined+""+sCurrentChar);
+		}
+
+		if( sCurrentChar == " " || fCurrent==(fLength - 1) ){
+			if(fParameterIndex == 0){  sParameter0 = sCombined; }
+			if(fParameterIndex == 1){  sParameter1 = sCombined; }
+			if(fParameterIndex == 2){  sParameter2 = sCombined; }
+			
+			//ePlayer.hudprint("curr:"+fCurrent+"---fullL:"+fLength+"-("+sCombined+")\n");
+			fParameterIndex++;
+			sCombined = "";
+		}
+	}
+	
+	//this part manages showing and removing menus
+	string sMenu;
+	float fThreadNum;
+	float fMenuActive;
+	fMenuActive	= ePlayer.getFloatVar("coopMenuIsActive");
+	sMenu		= ePlayer.getStringVar("coopMomMenu");
+	
+	//different menu - EXTERMINATE previouse menu
+	if(sMenu != "" && sMenu != sParameter0 || sParameter1 == "hide"){
+		ePlayer.hudprint(sParameter0+"-"+sMenu+" -close-\n");
+		coop_momMenuExit(ePlayer,sMenu);
+		//wait after closing the previouse menu, before we start the new manager
+		globalCoop_main_waitAFrame();
+	}
+	
+	ePlayer.setStringVar("coopMomParam0",sParameter1);
+	ePlayer.setStringVar("coopMomParam1",sParameter2);
+		
+	//run manager on open command
+	if(sParameter1 == "open"){
+		if((ePlayer.getFloatVar("coopMomMenuOpenTime") + 0.6) > getLevelTime()){
+			return;
+		}
+		
+		//do not open same menu twice
+		if(sParameter0 == sMenu){
+			coop_momMenuExit(ePlayer,sMenu);
+			globalCoop_main_waitAFrame();
+			return;
+		}
+		
+		ePlayer.setFloatVar("coopMomMenuOpenTime",getLevelTime());
+		fThreadNum = thread coop_momMenuMaster(ePlayer,sParameter0);
+		ePlayer.setStringvar("coopMomMenu",sParameter0);
+		ePlayer.setFloatVar("coopMenuIsActive",1);
+		ePlayer.setFloatVar("coopMenuManagerThread",fThreadNum);
+	}
+	
+	//run thread
+	ePlayer.runthread(sParameter0+"_"+sParameter1);
+}
