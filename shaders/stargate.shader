@@ -1,6 +1,6 @@
-textures/coop_mod/gate/gatefront
+textures/stargate/gate/gatefront
 {
-	qer_editorimage textures/coop_mod/gate/gatefront.tga
+	qer_editorimage textures/stargate/gate/gatefront.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -9,7 +9,7 @@ textures/coop_mod/gate/gatefront
 		//detail
 	}	
 	{
-		map textures/coop_mod/gate/gatefront.tga
+		map textures/stargate/gate/gatefront.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA	
 		rgbGen identity
 	}
@@ -20,9 +20,9 @@ textures/coop_mod/gate/gatefront
 	}
 }
 
-textures/coop_mod/gate/gateback
+textures/stargate/gate/gateback
 {
-	qer_editorimage textures/coop_mod/gate/gateback.tga
+	qer_editorimage textures/stargate/gate/gateback.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -31,7 +31,7 @@ textures/coop_mod/gate/gateback
 		//detail
 	}	
 	{
-		map textures/coop_mod/gate/gateback.tga
+		map textures/stargate/gate/gateback.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -42,9 +42,9 @@ textures/coop_mod/gate/gateback
 	}
 }
 
-textures/coop_mod/gate/nedge
+textures/stargate/gate/nedge
 {
-	qer_editorimage textures/coop_mod/gate/nedge.tga
+	qer_editorimage textures/stargate/gate/nedge.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -53,7 +53,7 @@ textures/coop_mod/gate/nedge
 		//detail
 	}	
 	{
-		map textures/coop_mod/gate/nedge.tga
+		map textures/stargate/gate/nedge.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -64,9 +64,9 @@ textures/coop_mod/gate/nedge
 	}
 }
 
-textures/coop_mod/gate/nchevsdarker
+textures/stargate/gate/nchevsdarker
 {
-	qer_editorimage textures/coop_mod/gate/nchevsdarker.tga
+	qer_editorimage textures/stargate/gate/nchevsdarker.tga
 		{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -75,7 +75,7 @@ textures/coop_mod/gate/nchevsdarker
 		//detail
 	}
 	{
-		map textures/coop_mod/gate/nchevsdarker.tga
+		map textures/stargate/gate/nchevsdarker.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -86,9 +86,9 @@ textures/coop_mod/gate/nchevsdarker
 	}
 }
 
-textures/coop_mod/gate/splits
+textures/stargate/gate/splits
 {
-	qer_editorimage textures/coop_mod/gate/splits.tga
+	qer_editorimage textures/stargate/gate/splits.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -97,7 +97,7 @@ textures/coop_mod/gate/splits
 		//detail
 	}
 	{
-		map textures/coop_mod/gate/splits.tga
+		map textures/stargate/gate/splits.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -108,11 +108,11 @@ textures/coop_mod/gate/splits
 	}
 }
 
-textures/coop_mod/gate/noff
+textures/stargate/gate/noff
 {
-	qer_editorimage textures/coop_mod/gate/noff.tga
+	qer_editorimage textures/stargate/gate/noff.tga
 	{
-		map textures/coop_mod/gate/noff.tga
+		map textures/stargate/gate/noff.tga
 		rgbGen identity
 	}
 	{
@@ -122,29 +122,29 @@ textures/coop_mod/gate/noff
 	}
 }
 
-textures/coop_mod/gate/anon
+textures/stargate/gate/anon
 {
-	qer_editorimage textures/coop_mod/gate/anon.tga
+	qer_editorimage textures/stargate/gate/anon.tga
 	surfaceparm nolightmap
 	{
-		map textures/coop_mod/gate/noff.tga
+		map textures/stargate/gate/noff.tga
 		rgbGen identity
 	}
 	{
-		map textures/coop_mod/gate/anon.tga
+		map textures/stargate/gate/anon.tga
 		blendfunc add
 		rgbGen identity
 	}
 	{
-		map textures/coop_mod/gate/anon.tga
+		map textures/stargate/gate/anon.tga
 		blendfunc add
 		rgbGen identity
 	}
 }
 
-textures/coop_mod/rings/rings
+textures/stargate/rings/rings
 {
-	qer_editorimage textures/coop_mod/rings/rings.tga
+	qer_editorimage textures/stargate/rings/rings.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -153,7 +153,7 @@ textures/coop_mod/rings/rings
 		//detail
 	}
 	{
-		map textures/coop_mod/rings/rings.tga
+		map textures/stargate/rings/rings.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -164,9 +164,9 @@ textures/coop_mod/rings/rings
 	}
 }
 
-textures/coop_mod/dhd/center_light
+textures/stargate/dhd/center_light
 {
-	qer_editorimage textures/coop_mod/dhd/center_light.tga
+	qer_editorimage textures/stargate/dhd/center_light.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -175,7 +175,7 @@ textures/coop_mod/dhd/center_light
 		//detail
 	}	
 	{
-		map textures/coop_mod/dhd/center_light.tga
+		map textures/stargate/dhd/center_light.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -186,9 +186,9 @@ textures/coop_mod/dhd/center_light
 	}
 }
 
-textures/coop_mod/dhd/center_light_on
+textures/stargate/dhd/center_light_on
 {
-	qer_editorimage textures/coop_mod/dhd/center_light_on.tga
+	qer_editorimage textures/stargate/dhd/center_light_on.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -198,19 +198,19 @@ textures/coop_mod/dhd/center_light_on
 	}	
 	surfaceparm nolightmap
 	{
-		map textures/coop_mod/dhd/center_light.tga
+		map textures/stargate/dhd/center_light.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
 	{
-		map textures/coop_mod/dhd/center_light_on.tga
+		map textures/stargate/dhd/center_light_on.tga
 		blendfunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 	}
 }
 
-textures/coop_mod/dhd/dhd_pattern
+textures/stargate/dhd/dhd_pattern
 {
-	qer_editorimage textures/coop_mod/dhd/dhd_pattern.tga
+	qer_editorimage textures/stargate/dhd/dhd_pattern.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -219,7 +219,7 @@ textures/coop_mod/dhd/dhd_pattern
 		//detail
 	}	
 	{
-		map textures/coop_mod/dhd/dhd_pattern.tga
+		map textures/stargate/dhd/dhd_pattern.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -230,9 +230,9 @@ textures/coop_mod/dhd/dhd_pattern
 	}
 }
 
-textures/coop_mod/dhd/dhdbase
+textures/stargate/dhd/dhdbase
 {
-	qer_editorimage textures/coop_mod/dhd/dhdbase.tga
+	qer_editorimage textures/stargate/dhd/dhdbase.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -241,7 +241,7 @@ textures/coop_mod/dhd/dhdbase
 		//detail
 	}	
 	{
-		map textures/coop_mod/dhd/dhdbase.tga
+		map textures/stargate/dhd/dhdbase.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -252,9 +252,9 @@ textures/coop_mod/dhd/dhdbase
 	}
 }
 
-textures/coop_mod/dhd/glyph
+textures/stargate/dhd/glyph
 {
-	qer_editorimage textures/coop_mod/dhd/glyph.tga
+	qer_editorimage textures/stargate/dhd/glyph.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -263,7 +263,7 @@ textures/coop_mod/dhd/glyph
 		//detail
 	}	
 	{
-		map textures/coop_mod/dhd/glyph.tga
+		map textures/stargate/dhd/glyph.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -274,9 +274,9 @@ textures/coop_mod/dhd/glyph
 	}
 }
 
-textures/coop_mod/dhd/glyph_base
+textures/stargate/dhd/glyph_base
 {
-	qer_editorimage textures/coop_mod/dhd/glyph_base.tga
+	qer_editorimage textures/stargate/dhd/glyph_base.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -285,7 +285,7 @@ textures/coop_mod/dhd/glyph_base
 		//detail
 	}	
 	{
-		map textures/coop_mod/dhd/glyph_base.tga
+		map textures/stargate/dhd/glyph_base.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -296,9 +296,9 @@ textures/coop_mod/dhd/glyph_base
 	}
 }
 
-textures/coop_mod/dhd/glyph_base_on
+textures/stargate/dhd/glyph_base_on
 {
-	qer_editorimage textures/coop_mod/dhd/glyph_base_on.tga
+	qer_editorimage textures/stargate/dhd/glyph_base_on.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -307,7 +307,7 @@ textures/coop_mod/dhd/glyph_base_on
 		//detail
 	}
 	{
-		map textures/coop_mod/dhd/glyph_base_on.tga
+		map textures/stargate/dhd/glyph_base_on.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -318,9 +318,9 @@ textures/coop_mod/dhd/glyph_base_on
 	}
 }
 
-textures/coop_mod/dhd/glyph_on
+textures/stargate/dhd/glyph_on
 {
-	qer_editorimage textures/coop_mod/dhd/glyph_on.tga
+	qer_editorimage textures/stargate/dhd/glyph_on.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -329,12 +329,12 @@ textures/coop_mod/dhd/glyph_on
 		//detail
 	}
 	{
-		map textures/coop_mod/dhd/glyph.tga
+		map textures/stargate/dhd/glyph.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
 	{
-		map textures/coop_mod/dhd/glyph_on.tga
+		map textures/stargate/dhd/glyph_on.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
@@ -345,9 +345,9 @@ textures/coop_mod/dhd/glyph_on
 	}
 }
 
-textures/coop_mod/gate/iris
+textures/stargate/gate/iris
 {
-	qer_editorimage textures/coop_mod/gate/iris.tga
+	qer_editorimage textures/stargate/gate/iris.tga
 	{
 		map textures/env/env_metal2.tga
 		rgbGen identity
@@ -356,7 +356,7 @@ textures/coop_mod/gate/iris
 		//detail
 	}	
 	{
-		map textures/coop_mod/gate/iris.tga
+		map textures/stargate/gate/iris.tga
 		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
 		rgbGen identity
 	}
