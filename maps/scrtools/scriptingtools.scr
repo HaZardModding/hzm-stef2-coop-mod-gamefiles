@@ -1,0 +1,713 @@
+//Chrissstrahl 2021.12.06 GERMANY ULM - updated 2022.06.06
+//THIS IS USED TO STANDARIZE AND PROVIDE FEATURES ACCROSS SEVERAL MAPS
+
+//THIS FILE IS MEANT TO BE INCLUDED IN YOUR LEVEL SCRIPT
+
+//Virtually everything is ripped from the HZM Coop Mod
+
+//FUNCTIONS ENDING WITH _internal ARE NOT MEANT TO BE USED BY THE MAPPER
+
+//LEVEL VARS
+/////////////////////////////////////////////
+//used for easier accsess to certain data and settings
+float bool_serverIsLinux = 0;
+float bool_serverIsDedicated = 0;
+float integer_serverGametype = 0;
+float integer_serverMpGametype = 0;
+float float_oneFrameTime;
+float integer_maxClients;
+string string_mapname;
+string string_localLanguage;
+
+//DECLARATIONS
+/////////////////////////////////////////////
+//required so the compiler knows what exists to reliably compile
+void scritingToolsMain();
+void setupVariables_internal();
+void waitFrameTime();
+void printConsole(string sMessage);
+void consoleSound();
+void waitForWarmupTime();
+void callReliably(string sTreadName);
+void npcSetup(entity eActor);
+void npcMakeMortal(entity eActor);
+void npcMakeEnemy(entity eActor);
+void npcGiveWeapon(entity eActor,string sWeapon);
+void npcWalkTo(entity eActor,entity eLocation, string sAnimation);
+void npcAnimate(entity eActor, string sAnimation);
+void entityBeamIn(entity eEntity,string sEffect);
+void entityBeamOut(entity eEntity,string sEffect);
+void entityBeam(entity eActor,string sEffectType,string sEffectname);
+float entityIsInsideOfEntity(entity e1,entity e2,float fPadding);
+float calcFloatReturnPositive(float fNotNegative);
+float calcIsBoundingBoxInsideBoundingBox_internal(
+vector vOrigin1,vector vBBoxMins1,vector vBBoxMaxs1,
+vector vOrigin2,vector vBBoxMins2,vector vBBoxMaxs2,float fPadding);
+entity playerReturnClosest(entity eOrigin);
+entity playerReturnClosest_internal(entity eOrigin,float fEqualizeZAxis);
+float playerIsCrouching(entity ePlayer);
+float playerWeaponInUse(entity ePlayer, string sWeaponType);
+string playerReturnWeaponName(entity ePlayer);
+float playerIsInsideOf(entity e1,float fPadding);
+void dynamicLight_setup(string sLightName,string sLigthStyle);
+string dynamicLight_adjustForMultiplayer(string sLigthStyle);
+void transportFromTo(entity ePlayer, entity eDest);
+
+void scritingToolsMain()
+//----------------------------------------------------------------------
+//this is supposed to be started in main() by the master/main level script file
+//----------------------------------------------------------------------
+{
+	setupVariables_internal();
+}
+
+void setupVariables_internal()
+//----------------------------------------------------------------------
+//sets up variouse variables and collects data we need for scripts
+//----------------------------------------------------------------------
+{
+	//these vars don't change until maprestart, so we don't bother updating em
+	integer_serverGametype		= getCvarInt("g_gametype");			//0=sp,1=mp,2=solomatch
+	integer_serverMpGametype	= getCvarInt("mp_gametype");	//0=dm,1=tdm,2=ctf,3=bomb
+	bool_serverIsDedicated		= getCvarInt("dedicated");
+	integer_maxClients			= getCvarInt("sv_maxClients");
+	
+	string_mapname				= getCvar("mapname");
+	string_localLanguage		= getCvar("local_language");
+	
+	if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003"){ bool_serverIsLinux = 1; }
+	
+	if(bool_serverIsLinux || integer_serverGametype > 0 && bool_serverIsDedicated > 0){
+		bool_serverIsDedicated = 1;
+	}else{
+		bool_serverIsDedicated = 0;
+	}
+
+	float_oneFrameTime		= ((1 / (getCvarInt("sv_fps"))));
+	if(float_oneFrameTime < .016){
+		float_oneFrameTime = .016;
+	}
+}
+
+void waitFrameTime()
+//----------------------------------------------------------------------
+//used to wait a single server frame time, to give the server time to update
+//the levelobjects before using a new spawned object or doing another check
+//----------------------------------------------------------------------
+{
+	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	wait(float_oneFrameTime);
+}
+
+void printConsole(string sMessage)
+//----------------------------------------------------------------------
+//prints a message to the console - yes even a simple thing like this can have issues
+//----------------------------------------------------------------------
+{
+	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	sMessage = sMessage+"\n";
+	if(bool_serverIsLinux || bool_serverIsDedicated){
+		print(sMessage);
+	}else{
+		stuffCMD("echo "+sMessage);
+	}
+}
+
+void consoleSound()
+//----------------------------------------------------------------------
+////PLAY A SOUND ON THE TRIGGER THAT HAS JUST BEEN ACTIVATED
+//----------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	
+	string sSoundFile;
+	string sUservarName;
+	float fUservar;
+	
+	if(doesEntityExist(eTrigger)){
+		printConsole("consoleSound FAILED - could not retrive current entity");
+		printConsole("consoleSound - called from console command ?");
+		return;
+	}
+	
+	fUservar = eTrigger.getFloatVar("useVarNo");
+	sSoundFile = eTrigger.getStringVar("uservar1");
+	
+	if(fUservar != 0.0){
+		if(fUservar > 4.0 || fUservar < 1.0){
+			centerprint("Uservar is out of range "+sUservarName+" - valid: 1 to 4");
+			return;
+		}
+		sUservarName = "uservar"+fUservar;
+	}else{
+		sUservarName = "uservar1";
+	}
+	
+	if(sSoundFile != ""){		
+		eTrigger.playsound(sSoundFile);
+	}else{
+		centerprint("Please set a soundfile in the "+sUservarName+" value");
+	}
+}
+
+void waitForWarmupTime()
+//----------------------------------------------------------------------
+//Wait until the warmuptime is over
+//does not update if mp_warmUpTime changes
+//----------------------------------------------------------------------
+{
+	if(integer_serverGametype){//Multiplayer
+		float fWaitTime;
+		fWaitTime = getCvarInt("mp_warmUpTime");
+		fWaitTime -= getLevelTime();
+		wait(fWaitTime);
+	}
+}
+
+void callReliably(string sTreadName)
+//----------------------------------------------------------------------
+//Calls a thread from a trigger...
+//This does not crash the game if that thread does not exist
+//----------------------------------------------------------------------
+{
+	if(sTreadName == ""){
+		printConsole("callReliably no thread name given");
+		return;
+	}
+	
+	entity eTrigger;
+	eTrigger = spawn("trigger_relay","thread",sTreadName);
+	waitFrameTime();
+	if(doesEntityExist(eTrigger)){
+		triggerEntity(eTrigger);
+	}else{
+		printConsole("callReliably FAILED - could not spawn trigger");
+	}
+}
+
+void npcSetup(entity eActor)
+//----------------------------------------------------------------------
+//do default setup with that crewman
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcSetup was given a Entity that did not exist");
+		return;
+	}	
+	eActor.pushable(0);		//player can not push this char
+	eActor.mass(999999);	//can't be pushed by weapon explosion
+	eActor.immortal(1);		//can't be killed
+	eActor.ai_off();		//disable thinking, required for animations to work		
+}
+
+void npcMakeMortal(entity eActor)
+//----------------------------------------------------------------------
+//makes this npc mortal so it can die
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcMakeMortal was given a Entity that did not exist");
+		return;
+	}
+	eActor.immortal(0);
+}
+
+void npcMakeEnemy(entity eActor)
+//----------------------------------------------------------------------
+//makes actor to enemy
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcMakeEnemy was given a Entity that did not exist");
+		return;
+	}
+	eActor.aggressive(1);
+	eActor.actortype("enemy");
+	eActor.immortal(0);
+}
+
+
+void npcGiveWeapon(entity eActor,string sWeapon)
+//----------------------------------------------------------------------
+//makes actor to enemy, gives weapon if specified, makes use weapon, sets new health, makes mortal, actor can now be killed
+//
+//.useActorWeapon( "CompressionRifle" );
+//.useActorWeapon( "Batleth", "left" );
+//EXAMPLE: npcGiveWeapon($telsia, "actorweapons/fed-compressionrifle.tik");
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcGiveWeapon was given a Entity that did not exist");
+		return;
+	}
+	if(sWeapon == ""){
+		printConsole("npcGiveWeapon no weapon modelname was given");
+	}
+	eActor.giveactorweapon(sWeapon,9999);
+	wait(0.05);
+	eActor.useactorweapon(sWeapon);	
+}
+
+void npcWalkTo(entity eActor,entity eLocation, string sAnimation)
+//----------------------------------------------------------------------
+//makes actor go to location using the given animation - waits for actor reaching location
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcWalkTo was given a Actor Entity that did not exist");
+		return;
+	}
+	if(!doesEntityExist(eLocation)){
+		printConsole("npcWalkTo was given a Location Entity that did not exist");
+		return;
+	}
+	if(sAnimation = ""){
+		printConsole("npcWalkTo was given no animation name, usual options: walk or run");
+		sAnimation = "walk";
+	}
+	eActor.walkto(eLocation.getTargetname(),sAnimation);
+	waitFor(eActor);
+}
+
+void npcAnimate(entity eActor, string sAnimation)
+//----------------------------------------------------------------------
+//makes actor play the given animation - waits for animation to end
+//WARNING this turns the ai off, if you want to reactivate it use: $actortargetname.ai_on();
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcAnimate was given a Actor Entity that did not exist");
+		return;
+	}
+	if(sAnimation == ""){
+		printConsole("npcAnimate was given no animation name");
+		return;
+	}
+	eActor.ai_off();
+	eActor.animateOnce(sAnimation);
+	waitForAnimation( eActor, sAnimation );
+	wait(float_oneFrameTime);
+}
+
+//globalCoop_player_makeSolidASAP
+//allow different effects
+//player handler based on client id ? getEntity"* < maxplayers
+ 
+void entityBeamIn(entity eEntity,string sEffect)
+//----------------------------------------------------------------------
+//beams in a entity using the given effect - waits until finsihed
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eEntity)){
+		printConsole("entityBeamIn was given a Entity that did not exist");
+		return;
+	}
+	if(!doesEntityExist(eEntity)){
+		printConsole("entityBeamIn effectname was empty");
+		return;
+	}
+	entityBeam(eEntity,"TransportIn",sEffect);
+}
+
+void entityBeamOut(entity eEntity,string sEffect)
+//----------------------------------------------------------------------
+//beams out a entity using the given effect - waits until finsihed
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eEntity)){
+		printConsole("entityBeamOut was given a Entity that did not exist");
+		return;
+	}
+	if(!doesEntityExist(eEntity)){
+		printConsole("entityBeamOut effectname was empty");
+		return;
+	}
+	entityBeam(eEntity,"TransportOut",sEffect);
+}
+
+void entityBeam(entity eActor,string sEffectType,string sEffectname)
+//----------------------------------------------------------------------
+//shows a beam effect on entity
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("entityBeam was given a Entity that did not exist");
+		return;
+	}
+	if(sEffectType == "" || sEffectname == ""){
+		printConsole("entityBeam was effecttype or effectname is empty");
+		return;
+	}
+	
+	//CHECK IF PLAYER IS TO CLOSE
+	float fPlayerToClose=1;
+	while(fPlayerToClose){
+		wait(float_oneFrameTime);
+		if(doesEntityExist(eActor) == 0 || eActor.getHealth() <= 0){
+			printConsole("entityBeam FAILED - actor died or does no longer exist");
+			return;
+		}
+		if(playerIsInsideOf(eActor,8)){
+			fPlayerToClose=0;
+		}
+	}
+	//turn solid imidatly, have no wait or delay between the check and turning the actor solid
+	//or you will get the player stuck inside the actor
+	eActor.solid();
+	
+	//start the transport effect and wait for it to finish
+	//details: pak0.pk3\global\gameplay.gdb
+	//sEffectType: "TransportIn" or "TransportOut"
+	//sEffectname: "Federation" or "Romulan" or "Idryll" or "Borg" or "FederationNoAnim" or "FederationWeapons" or "BorgNoAnim" or "Multiplayer"
+	eActor.displayEffect(sEffectType,sEffectname);
+	wait(float_oneFrameTime);
+	eActor.show();
+	wait(2.25);
+}
+
+entity playerReturnClosest(entity eOrigin)
+{
+//----------------------------------------------------------------------
+// return closest player, prefer active players
+//----------------------------------------------------------------------
+	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	if(integer_serverGametype == 0){
+		return $player;
+	}
+//multiplayer
+	if(!doesEntityExist(eOrigin)){
+		printConsole("ERROR: playerReturnClosest given origin entity does not exist! RETURNED: $world");
+		return $world;
+	}
+	entity eReturn;
+	eReturn = playerReturnClosest_internal(eOrigin,0);
+	return eReturn;
+}
+
+entity playerReturnClosest_internal(
+		entity eOrigin,			//The Origin Entity of the distance calculation
+		float fEqualizeZAxis)	//Check only two dimensional
+//----------------------------------------------------------------------
+// returns a player entity matching the given rules closest to the entity given
+//----------------------------------------------------------------------
+{
+	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+//Return player in Singleplayer
+	if(integer_serverGametype == 0){
+		return $player;
+	}
+		
+//Chek if entity we have to check the distance to is missing...
+	if(!doesEntityExist(eOrigin)){
+		//globalCoop_main_devInfo("->Origin Entity Missing, returned WORLD");
+		return $world;
+	}
+	
+	float	fPlayerId,
+			fPlayerIdClosest,
+			fDistanceCurrent,
+			fDistancePreviouse;	
+	entity	ePlayer,
+			eClosest;
+	vector	vOrigin,
+			vClosestOrigin;
+	
+	vClosestOrigin = eOrigin.getOrigin();
+	
+	//check each player
+	for(fPlayerId=0;fPlayerId<integer_maxClients;fPlayerId++){
+		if(eOrigin != ePlayer){
+			ePlayer = getEntity("*"+fPlayerId);
+			if(doesEntityExist(ePlayer) && ePlayer.getHealth() > 0){
+				vOrigin = ePlayer.getOrigin();
+				if(fEqualizeZAxis){
+					vOrigin_z = vClosestOrigin_z;
+				}
+				fDistanceCurrent = vectorlength( (vOrigin - vClosestOrigin) );
+				if(fDistanceCurrent < fDistancePreviouse || fDistancePreviouse == 0){
+					fDistancePreviouse	= fDistanceCurrent;
+					eClosest			= ePlayer;
+				}
+			}
+		}
+	}
+	if(!doesEntityExist(eClosest)){
+		printConsole("ERROR: playerReturnClosest_internal no player found! RETURNED: $world");
+		return $world;
+	}
+	return eClosest;
+}
+
+float playerIsCrouching(entity ePlayer)
+//----------------------------------------------------------------------
+//is player crouching - return -1/0/1
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		printConsole("playerIsCrouching was given a Entity that did not exist");
+		return -1;
+	}
+	vector vMaxs;
+	vMaxs = ePlayer.getMaxs();
+	if(vMaxs_z == 49){
+		return 1;
+	}
+	return 0;
+}
+
+float playerWeaponInUse(entity ePlayer, string sWeaponType)
+//----------------------------------------------------------------------
+// Cheks if the player uses the given weapon type - returns -1/0/1
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		printConsole("playerWeaponInUse was given a Entity that did not exist");
+		return -1;
+	}
+	if(ePlayer.getHealth() <= 0){
+		printConsole("playerWeaponInUse player dead, returning: 0");
+		return 0;
+	}
+	
+	string sPlayerWeapon;
+	sPlayerWeapon	=	playerReturnWeaponName(ePlayer);
+		
+//check quickly if the given string is equal to the weapon the dude is using
+	if(sPlayerWeapon == sWeaponType){
+		return 1;
+	}
+//If tricorder
+	if(sWeaponType == "tricorder" || sWeaponType == "Tricorder"){
+		if(	sPlayerWeapon == "Tricorder" || sPlayerWeapon == "Tricorder-stx"|| sPlayerWeapon == "Tricorder-rom"){
+			return 1;
+		}
+	}
+//If Phaser
+	if(sWeaponType == "phaser" || sWeaponType == "Phaser"){
+		if(	sPlayerWeapon == "Phaser" || sPlayerWeapon == "Phaser-stx"){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+string playerReturnWeaponName(entity ePlayer)
+//----------------------------------------------------------------------
+// return the active weapon of the given player
+//----------------------------------------------------------------------
+{
+	string sActiveWeaponName;
+	
+	if(!doesEntityExist(ePlayer)){
+		printConsole("playerReturnWeaponName was given a Entity that did not exist - RETURNED: None");
+	}else{
+		sActiveWeaponName = ePlayer.getActiveWeaponName();
+	}
+//Do not allow a empty string to be returned
+	if(sActiveWeaponName == ""){
+		sActiveWeaponName = "None";
+	}
+	return sActiveWeaponName+"";//bugfix (gamebug), else it might return a empty string
+}
+
+float calcFloatReturnPositive(float fNotNegative)
+//----------------------------------------------------------------------
+// If negative value, convert to positive
+//----------------------------------------------------------------------
+{
+	if(fNotNegative < 0){
+		fNotNegative = (fNotNegative - (fNotNegative*2));
+	}
+	return fNotNegative;
+}
+
+float entityIsInsideOfEntity(entity e1,entity e2,float fPadding)
+//----------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ENTITY2 OR OTHERWISE
+//----------------------------------------------------------------------
+{
+//USE PADDING FOR MOVING ENTITYS, DEPENDING ON VELOCITY THEY CAN HAVE MOVED AWAY FROM THE LAST ORIGIN
+	if(!doesEntityExist(e1)){
+		printConsole("entityIsInsideOfEntity was given a Entity1 that did not exist - RETURNED: -1");
+		return -1;
+	}
+	if(!doesEntityExist(e2)){
+		printConsole("entityIsInsideOfEntity was given a Entity2 that did not exist - RETURNED: -1");
+		return -1;
+	}
+//CREATE VARS
+	vector	vOrigin1,
+			vBBoxMins1,
+			vBBoxMaxs1,
+			vOrigin2,
+			vBBoxMins2,
+			vBBoxMaxs2;
+//GRAB DATA FROM BBOX, SAVES US TWO "else" statments
+	vBBoxMins1 = e1.getMins();
+	vBBoxMaxs1 = e1.getMaxs();
+	vBBoxMins2 = e2.getMins();
+	vBBoxMaxs2 = e2.getMaxs();
+	
+//Not sure why this player correction is here, probably to prevent changed values when crouched or dead
+	if(e1.getRawtargetname() == "player"){
+		vBBoxMins1 = '-22 -22 0';
+		vBBoxMaxs1 = '22 22 96';
+	}		
+	if(e2.getRawtargetname() == "player"){
+		vBBoxMins2 = '-22 -22 0';
+		vBBoxMaxs2 = '22 22 96';
+	}
+	
+//GET ORIGINS
+	vOrigin1 = e1.getOrigin();
+	vOrigin2 = e2.getOrigin();
+//DO THE BBOX CHECK, CHECK BOTHCONSTELLATIONS TO AVOID MISSCALCULATION, UPDATE calcIsBoundingBoxInsideBoundingBox_internal TO SOLVE ERROR
+	float fInside = 0;
+	if(	calcIsBoundingBoxInsideBoundingBox_internal(vOrigin1,vBBoxMins1,vBBoxMaxs1,vOrigin2,vBBoxMins2,vBBoxMaxs2,fPadding) == 1 &&
+		calcIsBoundingBoxInsideBoundingBox_internal(vOrigin2,vBBoxMins2,vBBoxMaxs2,vOrigin1,vBBoxMins1,vBBoxMaxs1,fPadding) == 1)
+	{
+		fInside = 1;
+	}
+	return fInside;
+}
+
+float calcIsBoundingBoxInsideBoundingBox_internal(	vector vOrigin1,//ORIGIN BBOX1
+											vector vBBoxMins1,//e.getMins()
+											vector vBBoxMaxs1,//e.getMaxs()
+											vector vOrigin2,//ORIGIN BBOX2
+											vector vBBoxMins2,//e.getMins()
+											vector vBBoxMaxs2,//e.getMaxs()
+											float fPadding)//ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+//----------------------------------------------------------------------
+//CHECK IF THE GIVEN BOUNDINGBOXES ARE TOUCHING OR INSIDE OF EACH OTHER BOUNDINGBOX
+//----------------------------------------------------------------------
+{
+//VECTOR LENGTH
+	float fCalcDist;
+//TEMP-VECTORS FOR CALCULATIONS
+ 	vector vCalc1,vCalc2;
+//IF ORIGIN IS NOT EXACTLY THE SAME
+	if(vOrigin1 != vOrigin2){
+//X-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_x = vOrigin1_x;//GET ONLY X
+		vCalc2_x = vOrigin2_x;//GET ONLY X
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_x >= vCalc2_x){
+			if(	fCalcDist > (calcFloatReturnPositive(vBBoxMins1_x) + vBBoxMaxs2_x)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_x + calcFloatReturnPositive(vBBoxMins2_x))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Y-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_y = vOrigin1_y;//GET ONLY Y
+		vCalc2_y = vOrigin2_y;//GET ONLY Y
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_y >= vCalc2_y){
+			if(	fCalcDist > (calcFloatReturnPositive(vBBoxMins1_y) + vBBoxMaxs2_y)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_y + calcFloatReturnPositive(vBBoxMins2_y))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Z-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_z = vOrigin1_z;//GET ONLY Z
+		vCalc2_z = vOrigin2_z;//GET ONLY Z
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_z <= vCalc2_z){
+			if(	fCalcDist > (vBBoxMaxs1_z + calcFloatReturnPositive(vBBoxMins2_z))){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (calcFloatReturnPositive(vBBoxMins1_z) + vBBoxMaxs2_z)){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+	}
+//IS INSIDE EACH OTHER
+	return 1;
+}
+
+float playerIsInsideOf(entity e1,float fPadding)
+//----------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ANY PLAYER
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(e1)){
+		printConsole("playerIsInsideOf was given a Entity that did not exist - RETURNED: -1");
+		return -1;
+	}
+	
+	float fPlayerIdInUse;
+	entity ePlayer;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<integer_maxClients;fPlayerIdInUse++){
+		ePlayer = getentity("*"+fPlayerIdInUse);
+		if(ePlayer != e1 && ePlayer.getHealth() > 0){
+			if(entityIsInsideOfEntity(e1,ePlayer,fPadding) == 1 || entityIsInsideOfEntity(ePlayer,e1,fPadding) == 1){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+void dynamicLight_setup(string sLightName,string sLigthStyle)
+//----------------------------------------------------------------------
+//Set the dynamic light with the given name and style if the name is not empty
+//----------------------------------------------------------------------
+{
+	if(sLightName != ""){
+		$world.light_lightstyle(sLightName,dynamicLight_adjustForMultiplayer(sLigthStyle),0);
+	}
+}
+
+string dynamicLight_adjustForMultiplayer(string sLigthStyle)
+//----------------------------------------------------------------------
+//Set the dynamic lights to nonmonoton so they work in multiplayer as well
+//----------------------------------------------------------------------
+{
+	if(sLigthStyle == "z"){
+		return	"yzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
+	}
+	if(sLigthStyle == "a"){
+		return	"baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+	}
+	return sLigthStyle;
+}
+
+void transportFromTo(entity ePlayer, entity eDest)
+//----------------------------------------------------------------------
+//transports entity from to a location - location must be a trigger
+//----------------------------------------------------------------------
+{	
+	if(doesEntityExist(eDest) != 1 || doesEntityExist(ePlayer) != 1 || ePlayer.getHealth() <= 0 ){
+		centerprint("transportFromTo Destination Missing ? Or Dead ?");
+		return;
+	}
+	ePlayer.nodamage();
+	ePlayer.immobilize(1);
+	ePlayer.displayEffect("TransportOut","Federation");
+	wait(1.4);
+	
+	if(doesEntityExist(ePlayer) != 1 || ePlayer.getHealth() <= 0 ){ return; }
+	
+	vector vLoc;
+	vLoc = eDest.getOrigin();
+	vLoc_z -= calcFloatReturnPositive(vectorGetZ(eDest.getMins()));
+	ePlayer.warp(vLoc);
+	ePlayer.displayEffect("TransportIn","Federation");
+	wait(1.2);
+	
+	if(doesEntityExist(ePlayer) != 1 || ePlayer.getHealth() <= 0 ){ return; }
+	
+	ePlayer.immobilize(0);
+	ePlayer.takedamage();
+}
