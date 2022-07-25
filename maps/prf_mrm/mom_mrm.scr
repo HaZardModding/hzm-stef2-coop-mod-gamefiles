@@ -26,11 +26,13 @@ vector	vItemBuy7Cost;
 vector	vItemBuy8Cost;
 string	sChallanges;
 vector  vRequired3Items;
+vector	vRequired3ItemsOnce;
 vector	vStartCredits;
 float	bLockPlayerClass;
 
 void	mrm_uiPopulateMenu(entity ePlayer);
 void	mrn_uiUpdateClass(entity ePlayer);
+void	mrn_uiUpdateCredits(entity ePlayer);
 void	mrm_uiSelectBuyItem(entity ePlayer,float fItem);
 void	mrm_uiSelectSellItem(entity ePlayer,float fItem);
 void	mrm_uiEnableBuyButton(entity ePlayer,float fEnable);
@@ -45,7 +47,7 @@ void	mrm_sellSelectedItem(entity ePlayer);
 void	mrm_buySelectedItem(entity ePlayer);
 void	mrm_playerTakeAllItems(entity ePlayer);
 void	mrm_setResourceData(entity ePlayer);
-float	mrm_canBuySelectedItem(entity ePlayer,float fItem);
+float	mrm_canBuyItem(entity ePlayer,float fItem);
 float	mrm_isInventoryFull(entity ePlayer);
 float	mrm_hasRequiredInventory(entity ePlayer);
 
@@ -54,14 +56,21 @@ string	mrm_returnLanguageString(entity ePlayer, string sEnglishVarName);
 void	mrm_returnItemFromInventory(entity ePlayer,float fInventoryItemNumer);
 void	mrm_addItemToInventory(entity ePlayer,float fItemNumer);
 
+float	mrm_requiredInventoryOnceCheck(entity ePlayer,float fRequiredSlotNumber);
 float	mrm_getValidPaymentMethod(entity ePlayer,vector vItemCost);
 float	mrm_getFreeInventorySlot(entity ePlayer);
 vector	mrm_addToPlayerBalance(entity ePlayer,vector vBallance);
 vector	mrm_removeFromPlayerBalance(entity ePlayer,vector vBallance);
 void	mrm_accept(entity ePlayer);
 void	mrm_giveItems(entity ePlayer);
+void	mrm_checkItemUsed(entity ePlayer, entity eItem,float fInvAssociation);
+void	mrm_autoUseItemHealth(entity ePlayer,float fInv);
 float	mrm_isEquiped(entity ePlayer);
 void	mrm_printMessageNoSpam(entity ePlayer, string sMessage);
+vector	mrm_returnNoNegativeCredit(vector vCred);
+vector	mrm_returnVectorFromString(string sVec);
+void	mrm_giveCreditsEnergy(entity ePlayer,float fCredits);
+void	mrm_giveCreditsRequisition(entity ePlayer,float fCredits);
 
 //declaration
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,6 +332,23 @@ float mrm_getItemInventorySlot(entity ePlayer,float fItem)
 	return 0;
 }
 
+float mrm_requiredInventoryOnceCheck(entity ePlayer,float fRequiredSlotNumber)
+//===================================
+// check if player need required inventory or if player allready had it
+//===================================
+{
+	if(!doesEntityExist(ePlayer)){ return 0; }
+	
+	//player has at least once sucsessfully been equiped by mrm
+	float bRequiredOnce = 0;
+	if(ePlayer.getFloatVar("mrmLoadOutSucceeded") > 0){
+		if(fRequiredSlotNumber == 1		)	{ bRequiredOnce = vRequired3ItemsOnce_x; }
+		else if(fRequiredSlotNumber == 2)	{ bRequiredOnce = vRequired3ItemsOnce_y; }
+		else if(fRequiredSlotNumber == 3)	{ bRequiredOnce = vRequired3ItemsOnce_z; }
+	}
+	//print("\nITEM: "+fRequiredSlotNumber+" is required once:"+bRequiredOnce+"\n");
+	return bRequiredOnce;
+}
 
 float mrm_hasRequiredInventory(entity ePlayer)
 //===================================
@@ -339,16 +365,13 @@ float mrm_hasRequiredInventory(entity ePlayer)
 
 	//check if we have all required items if there are any
 	float fAllOkay=1;
-	if(fRequired1 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired1) == 0){
-		//thread mrm_uiFlashWidget(ePlayer,"mrmRequiredItem1","1 0 0 0.6","0 0 0 0",3);
+	if(mrm_requiredInventoryOnceCheck(ePlayer,1) != 1 && fRequired1 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired1) == 0){
 		fAllOkay=0;
 	}
-	if(fRequired2 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired2) == 0){
-		//thread mrm_uiFlashWidget(ePlayer,"mrmRequiredItem2","1 0 0 0.6","0 0 0 0",3);
+	if(mrm_requiredInventoryOnceCheck(ePlayer,2) != 1 && fRequired2 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired2) == 0){
 		fAllOkay=0;
 	}
-	if(fRequired3 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired3) == 0){
-		//thread mrm_uiFlashWidget(ePlayer,"mrmRequiredItem3","1 0 0 0.6","0 0 0 0",3);
+	if(mrm_requiredInventoryOnceCheck(ePlayer,3) != 1 && fRequired3 != 0 && mrm_getItemInventorySlot(ePlayer,fRequired3) == 0){
 		fAllOkay=0;
 	}
 	
@@ -397,7 +420,7 @@ void mrm_buySelectedItem(entity ePlayer)
 //transfers a item into player inventory
 //===================================
 {
-	if(mrm_canBuySelectedItem(ePlayer,ePlayer.getFloatVar("mrmItemBuyLastSelected"))){
+	if(mrm_canBuyItem(ePlayer,ePlayer.getFloatVar("mrmItemBuyLastSelected"))){
 		mrm_uiTransferItem(ePlayer,1);
 	}
 }
@@ -415,8 +438,18 @@ void mrm_setResourceData(entity ePlayer)
 //OR GET LEVEL OBJECTS FOR EACH PLAYER ?
 //OR GET LEVEL OBJECTS MAKE EM INTO A LIST AND REMOVE/ADD THEM BASED ON THAT LIST ? - WHERE TO STORE ORIGINS AND OTHER USER VARS ?
 	
-	//GET CREDITS DATA
-	ePlayer.setVectorVar("mrmCredits",vStartCredits);
+	//GET CREDITS DATA - make sure we add starting credits to any that already are set
+	vector vCred;
+	vCred = ePlayer.getVectorVar("mrmCredits");
+	vCred_x += vStartCredits_x;
+	vCred_y	+= vStartCredits_y;
+	vCred_z += vStartCredits_z;
+	//make sure we don'thave any floating points
+	vCred_x = floor(vCred_x);
+	vCred_y = floor(vCred_y);
+	vCred_z = floor(vCred_z);
+	//write credits data to player
+	ePlayer.setVectorVar("mrmCredits",mrm_returnNoNegativeCredit(vCred));
 	
 	//GET ITEM DATA
 	float fItem;
@@ -467,32 +500,12 @@ void mrm_uiPopulateMenu(entity ePlayer)
 	//wait for function "mrm_setResourceData", at least 1 frame
 	wait(0.1);	
 	
-	//set credits on player
-	vector vCredits;
-	vCredits = ePlayer.getVectorVar("mrmCredits");
-	ePlayer.widgetcommand("mrmReqValue","title",""+vectorGetX(vCredits));
-	ePlayer.widgetcommand("mrmEnergyValue","title",""+vectorGetY(vCredits));
+	thread mrn_uiUpdateCredits(ePlayer);
 	
 	//wait for function "mrm_setResourceData", at least 1 frame
 	wait(0.1);
 	
 	if(!doesEntityExist(ePlayer)){ return; }
-	
-	//get required items
-	float fRequired1;
-	float fRequired2;
-	float fRequired3;
-	fRequired1 = vectorGetX(vRequired3Items);
-	fRequired2 = vectorGetY(vRequired3Items);
-	fRequired3 = vectorGetZ(vRequired3Items);
-	if(fRequired1){ ePlayer.widgetcommand("mrmRequiredItem1","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired1));  }
-	else{ ePlayer.widgetcommand("mrmRequiredItem1","shader",""+sEmptyShader); }
-	if(fRequired2){ ePlayer.widgetcommand("mrmRequiredItem2","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired2));  }
-	else{ ePlayer.widgetcommand("mrmRequiredItem2","shader",""+sEmptyShader); }
-	if(fRequired3){ ePlayer.widgetcommand("mrmRequiredItem3","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired3));  }
-	else{ ePlayer.widgetcommand("mrmRequiredItem3","shader",""+sEmptyShader); }
-	
-	//print("->mrm_uiPopulateMenu:"+ePlayer.getStringVar("mrmItemBuyShader"+fRequired1)+"\n");
 	
 	//populate inventory Items
 	//GET ITEM DATA
@@ -511,7 +524,31 @@ void mrm_uiPopulateMenu(entity ePlayer)
 		
 		ePlayer.widgetcommand("mrmInv"+fInv,"shader",sShaderz);
 		wait(0.05);
-	}
+	}	
+	
+	if(!doesEntityExist(ePlayer)){ return; }
+	
+	//get required items and thair costs
+	float fRequired1;
+	float fRequired2;
+	float fRequired3;
+	fRequired1 = vectorGetX(vRequired3Items);
+	fRequired2 = vectorGetY(vRequired3Items);
+	fRequired3 = vectorGetZ(vRequired3Items);
+	
+	if(fRequired1 != 0 && mrm_requiredInventoryOnceCheck(ePlayer,1) != 1){
+		ePlayer.widgetcommand("mrmRequiredItem1","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired1));
+	}else{ ePlayer.widgetcommand("mrmRequiredItem1","shader",""+sEmptyShader); }
+	
+	if(fRequired2 != 0 && mrm_requiredInventoryOnceCheck(ePlayer,2) != 1){
+		ePlayer.widgetcommand("mrmRequiredItem2","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired2));
+	}else{ ePlayer.widgetcommand("mrmRequiredItem2","shader",""+sEmptyShader); }
+	
+	if(fRequired3 != 0 && mrm_requiredInventoryOnceCheck(ePlayer,3) != 1){
+		ePlayer.widgetcommand("mrmRequiredItem3","shader",""+ePlayer.getStringVar("mrmItemBuyShader"+fRequired3));
+	}else{ ePlayer.widgetcommand("mrmRequiredItem3","shader",""+sEmptyShader); }
+	
+	//print("->mrm_uiPopulateMenu:"+ePlayer.getStringVar("mrmItemBuyShader"+fRequired1)+"\n");
 	
 	//populate Buy Items
 	//GET ITEM DATA
@@ -542,7 +579,7 @@ void mrm_uiPopulateMenu(entity ePlayer)
 
 void mrn_uiUpdateClass(entity ePlayer)
 //===================================
-// updates the class for player
+// updates the class for player in menu
 //===================================
 {
 	if(doesEntityExist(ePlayer) == 0){
@@ -584,6 +621,18 @@ void mrn_uiUpdateClass(entity ePlayer)
 		sPreviouseCoopClass = sCoopClass;
 		wait(0.5);
 	}
+}
+
+void mrn_uiUpdateCredits(entity ePlayer)
+//===================================
+// updates the credits for player in menu
+//===================================
+{
+	if(!doesEntityExist(ePlayer)){ return; }
+	vector vCredits;
+	vCredits = ePlayer.getVectorVar("mrmCredits");
+	ePlayer.widgetcommand("mrmReqValue","title",""+vectorGetX(vCredits));
+	ePlayer.widgetcommand("mrmEnergyValue","title",""+vectorGetY(vCredits));
 }
 
 void mrm_uiSelectSellItem(entity ePlayer, float fItem)
@@ -675,7 +724,7 @@ void mrm_uiSelectBuyItem(entity ePlayer,float fItem)
 	}
 
 	//enable/disable button to buy
-	mrm_uiEnableBuyButton(ePlayer,mrm_canBuySelectedItem(ePlayer,fItem));
+	mrm_uiEnableBuyButton(ePlayer,mrm_canBuyItem(ePlayer,fItem));
 	
 	//set name and description of selected item
 	if(fAmount > 0 && sTemp1 != ""){	ePlayer.widgetcommand("mrmItemTitle","labeltext",sTemp1); }
@@ -685,7 +734,7 @@ void mrm_uiSelectBuyItem(entity ePlayer,float fItem)
 	else{				ePlayer.widgetcommand("mrmItemDescr","labeltext","^");}
 }
 
-float mrm_canBuySelectedItem(entity ePlayer,float fItem)
+float mrm_canBuyItem(entity ePlayer,float fItem)
 //===================================
 // checks if player can buy selected items
 //===================================
@@ -1035,8 +1084,7 @@ vector mrm_addToPlayerBalance(entity ePlayer,vector vCredits)
 	vBallance = (vBallance + vCredits);
 	ePlayer.setVectorVar("mrmCredits",vBallance);
 	
-	ePlayer.widgetcommand("mrmReqValue","title",vectorGetX(vBallance));
-	ePlayer.widgetcommand("mrmEnergyValue","title",vectorGetY(vBallance));
+	thread mrn_uiUpdateCredits(ePlayer);
 	
 	return vBallance;
 }
@@ -1052,8 +1100,7 @@ vector mrm_removeFromPlayerBalance(entity ePlayer,vector vCredits)
 //ePlayer.hudprint("Current Credits: "+vBallance+" remove: "+vCredits+" Credits new: "+(vBallance - vCredits)+"\n");
 	ePlayer.setVectorVar("mrmCredits",vBallance);
 
-	ePlayer.widgetcommand("mrmReqValue","title",vectorGetX(vBallance));
-	ePlayer.widgetcommand("mrmEnergyValue","title",vectorGetY(vBallance));
+	thread mrn_uiUpdateCredits(ePlayer);
 	
 	return vBallance;
 }
@@ -1082,6 +1129,12 @@ void mrm_accept(entity ePlayer)
 	
 	//let the scripts know player is done
 	ePlayer.setFloatVar("mrmLoadOutComplete",1);
+	
+	//count how many times the player completed this menu
+	float fSucceeded;
+	fSucceeded = ePlayer.getFloatVar("mrmLoadOutSucceeded");
+	fSucceeded++;
+	ePlayer.setFloatVar("mrmLoadOutSucceeded",fSucceeded);
 	
 	//terminate the class updater
 	//terminate(ePlayer.getFloatVar("mrmClassUpdaterThraeNum"));
@@ -1116,20 +1169,75 @@ void mrm_giveItems(entity ePlayer)
 		fInventoryItem = ePlayer.getFloatVar("mrmInvAssociation"+fInv);
 		if(fInventoryItem != 0){
 			sItem = ePlayer.getStringVar("mrmItemBuy"+fInventoryItem);
-
-			//check if it is a item
-			if(getIntStringFind(sItem,"item") != -1){
-				spawn("item","model",sItem,"origin",""+ePlayer.getOrigin(),"scale","0.01");
-				ePlayer.setFloatVar("mrmInvAssociation"+fInv,0);
-				//ePlayer.hudprint(sItem+" - spawned\n");
+			
+			entity eSpawned;
+			eSpawned = spawn(sItem,"origin",""+ePlayer.getOrigin(),"scale","0.01");
+			if(getIntStringFind(sItem,"item") != -1 ){
+				thread mrm_checkItemUsed(ePlayer,eSpawned,fInventoryItem);
 			}else{
 				ePlayer.give(sItem);
-				//ePlayer.hudprint(sItem+" - given\n");
 			}
+			//item
+			//HoldableItem
+			//Health
+			//Powerup
+			//Rune
+			//BasicArmor
+			//AmmoEntity
 		}
 	}	
 	//play pickup sound on player
 	ePlayer.playsound("sound/player/player_invpickup.wav",0,2,100);
+}
+
+void mrm_checkItemUsed(entity ePlayer, entity eItem,float fInvAssociation)
+//===================================
+// waits and checks if player actually picks up that item
+//===================================
+{
+	wait(0.15);
+	if(!doesEntityExist(ePlayer)){return;}
+	if(doesEntityExist(eItem)){
+		//not picked up
+		//ePlayer.hudprint("Item "+eItem.getModelName()+" could not be picked up!\n");
+		
+		string sItem;
+		sItem = ePlayer.getStringVar("mrmItemBuy"+fInvAssociation);
+		
+		//if it is a health item, auto use it if player has low health
+		if(getIntStringFind(sItem,"hypospray") != -1 ){
+			thread mrm_autoUseItemHealth(ePlayer,fInvAssociation);
+		}
+		
+		eItem.remove(); //prevent it to be pickedup by others
+	}else{
+		//picked up, clear from inventory
+		ePlayer.setFloatVar("mrmInvAssociation"+fInvAssociation,0);
+	}
+}
+
+void mrm_autoUseItemHealth(entity ePlayer,float fInv)
+//===================================
+// waits and checks if player actually picks up that item
+//===================================
+{
+	if(doesEntityExist(ePlayer)!= 1 || ePlayer.getFloatVar("mrmAutoUseHealthActive")){ return; }
+	ePlayer.setFloatVar("mrmAutoUseHealthActive",1);
+	
+	while(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
+		if(ePlayer.getHealth() < 50){
+			entity eSpawned;
+			string sItem;
+			sItem = ePlayer.getStringVar("mrmItemBuy"+fInv);
+			eSpawned = spawn(sItem,"origin",""+ePlayer.getOrigin(),"scale","0.01");
+			thread mrm_checkItemUsed(ePlayer,eSpawned,fInv);
+			return;
+		}
+		wait(1);
+	}
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("mrmAutoUseHealthActive",0);
+	}
 }
 
 float mrm_isEquiped(entity ePlayer)
@@ -1148,4 +1256,51 @@ void mrm_printMessageNoSpam(entity ePlayer,string sMessage)
 	if(doesEntityExist(ePlayer) != 1 || sMessage == "" || (ePlayer.getFloatVar("mrmLastMsgTime") + 2) > getLevelTime()){ return; }
 	ePlayer.setFloatVar("mrmLastMsgTime",getLevelTime());
 	ePlayer.hudprint(sMessage+"\n");
+}
+
+vector mrm_returnNoNegativeCredit(vector vCred)
+//===================================
+// makes sure player credits don't go into negative value
+//===================================
+{
+	if(vCred_x < 0){vCred_x = 0;}
+	if(vCred_y < 0){vCred_y = 0;}
+	if(vCred_z < 0){vCred_z = 0;}
+	return vCred;
+}
+
+vector mrm_returnVectorFromString(string sVec)
+//===================================
+// adds or substracts energy credits from player
+//===================================
+{
+	return getVectorFromString(sVec);
+}
+
+void mrm_giveCreditsEnergy(entity ePlayer,float fCredits)
+//===================================
+// adds or substracts energy credits from player, does not go below 0
+//===================================
+{
+	vector vCredits;
+	vCredits = ePlayer.getVectorVar("mrmCredits");
+	vCredits_y = floor((vCredits_y + fCredits));
+	if(vCredits_y < 0){vCredits_y = 0;}
+	ePlayer.setVectorVar("mrmCredits",vCredits);
+	thread mrn_uiUpdateCredits(ePlayer);
+	print("ADD ENERGY:"+fCredits+"\n");
+}
+
+void mrm_giveCreditsRequisition(entity ePlayer,float fCredits)
+//===================================
+// adds or substracts requisition credits from player, does not go below 0
+//===================================
+{
+	vector vCredits;
+	vCredits = ePlayer.getVectorVar("mrmCredits");
+	vCredits_x = floor((vCredits_x + fCredits));
+	if(vCredits_x < 0){vCredits_x = 0;}
+	ePlayer.setVectorVar("mrmCredits",vCredits);
+	thread mrn_uiUpdateCredits(ePlayer);
+	print("ADD REQUISITION:"+fCredits+"\n");
 }
