@@ -4,7 +4,7 @@ Label
 	cvarvisibility coop_ui_vt 20 ==
 	
 	title "$$c#041$$"
-	name "coopHzmTestLevelsTitle"
+	name "coopHzmTestLvlStartSvTitle"
 	rect		274 89 330 24
 	fgcolor 1.000 0.000 0.000 0.800
 	bgcolor 0.12 0.15 0.25 1.00
@@ -22,7 +22,7 @@ resource
 Button
 {
 	title "Next"
-	name 	"coopHzmTestLevelsButtonNext0"
+	name 	"coopHzmTestLvlStartSvButtonNext0"
 	rect	543 90 60 22
 	font serpentinemedium-10
 	fgcolor			0.937 0.643 0.129 1.000
@@ -46,7 +46,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Coop NoScript Example"
-	name 	"coopHzmTestLevels0"
+	name 	"coopHzmTestLvlStartSv0"
 	rect	275 114 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -67,7 +67,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Animation"
-	name 	"coopHzmTestLevels1"
+	name 	"coopHzmTestLvlStartSv1"
 	rect	275 135 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -88,7 +88,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Bind"
-	name 	"coopHzmTestLevels2"
+	name 	"coopHzmTestLvlStartSv2"
 	rect	275 156 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -109,7 +109,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Callvolume"
-	name 	"coopHzmTestLevels3"
+	name 	"coopHzmTestLvlStartSv3"
 	rect	275 177 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -130,7 +130,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Cinematic"
-	name 	"coopHzmTestLevels4"
+	name 	"coopHzmTestLvlStartSv4"
 	rect	275 198 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -151,7 +151,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Destructible"
-	name 	"coopHzmTestLevels5"
+	name 	"coopHzmTestLvlStartSv5"
 	rect	275 219 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -172,7 +172,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Destructible Vanish"
-	name 	"coopHzmTestLevels6"
+	name 	"coopHzmTestLvlStartSv6"
 	rect	275 240 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -193,7 +193,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Dialog"
-	name 	"coopHzmTestLevels7"
+	name 	"coopHzmTestLvlStartSv7"
 	rect	275 261 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -214,7 +214,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Doors"
-	name 	"coopHzmTestLevels8"
+	name 	"coopHzmTestLvlStartSv8"
 	rect	275 282 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -235,7 +235,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Everyone"
-	name 	"coopHzmTestLevels9"
+	name 	"coopHzmTestLvlStartSv9"
 	rect	275 303 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -256,7 +256,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Forcefield"
-	name 	"coopHzmTestLevels10"
+	name 	"coopHzmTestLvlStartSv10"
 	rect	275 324 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -277,7 +277,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Heal"
-	name 	"coopHzmTestLevels11"
+	name 	"coopHzmTestLvlStartSv11"
 	rect	275 345 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -298,7 +298,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 20 ==
 	title "Prefab Bioscanner"
-	name 	"coopHzmTestLevels12"
+	name 	"coopHzmTestLvlStartSv12"
 	rect	275 366 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -320,7 +320,7 @@ Label
 	cvarvisibility coop_ui_vt 21 ==
 	
 	title "$$c#041$$"
-	name "coopHzmTestLevelsTitle2"
+	name "coopHzmTestLvlStartSvTitle2"
 	rect		274 89 330 24
 	fgcolor 1.000 0.000 0.000 0.800
 	bgcolor 0.12 0.15 0.25 1.00
@@ -338,7 +338,7 @@ resource
 Button
 {
 	title "Next"
-	name 	"coopHzmTestLevelsButtonNext1"
+	name 	"coopHzmTestLvlStartSvButtonNext1"
 	rect	543 90 60 22
 	font serpentinemedium-10
 	fgcolor			0.937 0.643 0.129 1.000
@@ -361,7 +361,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Hud"
-	name 	"coopHzmTestLevels13"
+	name 	"coopHzmTestLvlStartSv13"
 	rect	275 114 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -382,7 +382,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Hurt"
-	name 	"coopHzmTestLevels14"
+	name 	"coopHzmTestLvlStartSv14"
 	rect	275 135 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -403,7 +403,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Immobilize"
-	name 	"coopHzmTestLevels15"
+	name 	"coopHzmTestLvlStartSv15"
 	rect	275 156 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -424,7 +424,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Lock"
-	name 	"coopHzmTestLevels16"
+	name 	"coopHzmTestLvlStartSv16"
 	rect	275 177 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -445,7 +445,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Load Map"
-	name 	"coopHzmTestLevels17"
+	name 	"coopHzmTestLvlStartSv17"
 	rect	275 198 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -466,7 +466,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Objective"
-	name 	"coopHzmTestLevels18"
+	name 	"coopHzmTestLvlStartSv18"
 	rect	275 219 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -487,7 +487,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Puzzle"
-	name 	"coopHzmTestLevels19"
+	name 	"coopHzmTestLvlStartSv19"
 	rect	275 240 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -508,7 +508,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Remove"
-	name 	"coopHzmTestLevels20"
+	name 	"coopHzmTestLvlStartSv20"
 	rect	275 261 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -529,7 +529,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Respawn"
-	name 	"coopHzmTestLevels21"
+	name 	"coopHzmTestLvlStartSv21"
 	rect	275 282 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -550,7 +550,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Savegame"
-	name 	"coopHzmTestLevels22"
+	name 	"coopHzmTestLvlStartSv22"
 	rect	275 303 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -571,7 +571,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Selection Move"
-	name 	"coopHzmTestLevels23"
+	name 	"coopHzmTestLvlStartSv23"
 	rect	275 324 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -592,7 +592,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Rotating Doors"
-	name 	"coopHzmTestLevels24"
+	name 	"coopHzmTestLvlStartSv24"
 	rect	275 345 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -613,7 +613,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 21 ==
 	title "Prefab Walkto"
-	name 	"coopHzmTestLevels25"
+	name 	"coopHzmTestLvlStartSv25"
 	rect	275 366 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -635,7 +635,7 @@ Label
 	cvarvisibility coop_ui_vt 22 ==
 	
 	title "$$c#041$$"
-	name "coopHzmTestLevelsTitle4"
+	name "coopHzmTestLvlStartSvTitle4"
 	rect		274 89 330 24
 	fgcolor 1.000 0.000 0.000 0.800
 	bgcolor 0.12 0.15 0.25 1.00
@@ -653,7 +653,7 @@ resource
 Button
 {
 	title "Next"
-	name 	"coopHzmTestLevelsButtonNext2"
+	name 	"coopHzmTestLvlStartSvButtonNext2"
 	rect	543 90 60 22
 	font serpentinemedium-10
 	fgcolor			0.937 0.643 0.129 1.000
@@ -676,7 +676,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Weapon"
-	name 	"coopHzmTestLevels27"
+	name 	"coopHzmTestLvlStartSv27"
 	rect	275 114 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -697,7 +697,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Cinematic 2"
-	name 	"coopHzmTestLevels28"
+	name 	"coopHzmTestLvlStartSv28"
 	rect	275 135 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -718,7 +718,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Fallschirmspringer"
-	name 	"coopHzmTestLevels29"
+	name 	"coopHzmTestLvlStartSv29"
 	rect	275 156 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -739,7 +739,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Multi Options Menu (MOM)"
-	name 	"coopHzmTestLevels30"
+	name 	"coopHzmTestLvlStartSv30"
 	rect	275 177 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -760,7 +760,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Borg Work"
-	name 	"coopHzmTestLevels31"
+	name 	"coopHzmTestLvlStartSv31"
 	rect	275 198 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -781,7 +781,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Group Death Thread"
-	name 	"coopHzmTestLevels32"
+	name 	"coopHzmTestLvlStartSv32"
 	rect	275 219 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -802,7 +802,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Teammate"
-	name 	"coopHzmTestLevels33"
+	name 	"coopHzmTestLvlStartSv33"
 	rect	275 240 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -823,7 +823,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Lead Player"
-	name 	"coopHzmTestLevels34"
+	name 	"coopHzmTestLvlStartSv34"
 	rect	275 261 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -844,7 +844,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Bat'leth Teammate"
-	name 	"coopHzmTestLevels35"
+	name 	"coopHzmTestLvlStartSv35"
 	rect	275 282 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -865,7 +865,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Triggerish"
-	name 	"coopHzmTestLevels36"
+	name 	"coopHzmTestLvlStartSv36"
 	rect	275 303 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
@@ -886,8 +886,8 @@ Button
 {
 	cvarvisibility coop_ui_vt 22 ==
 	title "Prefab Mission Resource Managment"
-	name 	"coopHzmTestLevels37"
-	rect	275 344 328 20
+	name 	"coopHzmTestLvlStartSv37"
+	rect	275 324 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
 	bgcolor 		0.12 0.15 0.25 0.7
