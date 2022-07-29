@@ -54,7 +54,18 @@ float	float_barLookingAtTheStars=7;
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-#include "maps/global_scripts/global_common.scr" 
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+float	liftSpawnDone = 0;
+
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
 #include "maps/global_scripts/global_debugUtils.scr" 
 #include "maps/global_scripts/global_tricorderBase.scr" 
 #include "maps/global_scripts/global_tricorderRoute.scr" 
@@ -1296,15 +1307,62 @@ void makeRomiesAggressive()
 	$usedtobeawomanguard2.kill();
 }
 
+//[b611] chrissstrahl - added spawn location update
+void coop_updateSpawnlocations1()
+//------------------------------------------------------------------------------
+//update spawn locations
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('10790 -3754 -1216');
+	$ipd2.origin('10730 -3754 -1216');
+	$ipd3.origin('10670 -3754 -1216');
+	$ipd4.origin('10610 -3754 -1216');
+	$ipd5.origin('10550 -3754 -1216');
+	$ipd6.origin('10490 -3754 -1216');
+	$ipd7.origin('10430 -3754 -1216');
+	$ipd8.origin('10786 -3554 -1216');
+	float fOrigin;
+	entity eSpot;
+	for(fOrigin=1;fOrigin++;fOrigin<7){
+		eSpot = getEntity("ipd"+fOrigin);
+		eSpot.angle(90);
+	}
+	$ipd8.angle(180);
+}
+
 void levelEnd()
 //------------------------------------------------------------------------------
 //Level end
 //------------------------------------------------------------------------------
 {
 //load next map
-	wait(3);
-	stuffcmd("disconnect");
+	if(getCvarInt("g_gametype")	== 0){
+		wait(3);
+		stuffcmd("disconnect");	
+	}else{
+		thread coop_endLevel();
+	}
 }
 
+//[b611] chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+	//show mod title - but before get the player out of all menus he currently has showing
+	globalCoop_player_transmittToAll("popmenu 1;popmenu 0");//close 2 layers of menu
+	wait(0.1);
+	globalCoop_player_transmittToAll("popmenu 0");//close 1 layer of menu
+	wait(0.1);
+	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_aftermath/cCredits.cfg\n");
+	globalCoop_player_transmittToAll("showmenu coop_cCredits\n");
 
+	//globalCoop_huds_AddAll("coop_cCredits");
+	wait(10);
+
+//load next map
+	thread globalCoop_mission_completed("secret1");
+}
 
