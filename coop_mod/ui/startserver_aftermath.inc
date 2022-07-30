@@ -108,7 +108,7 @@ Button
 	cvarvisibility coop_ui_vt 16 ==
 	title "Episode 1 - The City Part 5"
 	name 	"coopAftermathModLevels4"
-	rect	275 199 328 20
+	rect	275 198 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
 	bgcolor 		0.12 0.15 0.25 0.7
@@ -121,6 +121,27 @@ Button
  
 	stuffcommand "set ui_startmap coop_aftermath5\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_aftermath5.tga;globalwidgetcommand coop_startserverName title \"Daedalus\""
+	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
+}
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 16 ==
+	title "Episode 1 - The City Part 6"
+	name 	"coopAftermathModLevels5"
+	rect	275 219 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "set ui_startmap coop_aftermath6\n"
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_aftermath6.tga;globalwidgetcommand coop_startserverName title \"Daedalus\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
 end.
