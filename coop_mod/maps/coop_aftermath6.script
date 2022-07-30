@@ -38,6 +38,8 @@ void exiting();
 void toolbox_take();
 void toolbox_place();
 void reactivateKlingon();
+void rommy2Killed();
+void coop_phaser_pickup();
 
 float boolPlayerGotCode = 0;
 float integer_actorWalktoVectorIndex = 0;
@@ -74,6 +76,28 @@ float	liftSpawnDone = 0;
 
 void main()
 {
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "Daedalus";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1 = "Escape from Prison";
+	coop_string_objectiveItem2 = "Find a Weapon";
+	coop_string_objectiveItem3 = "Avoid to be detected";
+	coop_string_objectiveItem4 = "Contact ?";
+	coop_string_objectiveItem5 = "Leave the area";
+	coop_string_objectiveTacticalInfo1 = "";//Use the distraction to your own advantage
+
+	//hzm coop mod chrissstrahl - declare objectives - german
+	coop_string_objectiveItem1_deu = "Brechen Sie aus";
+	coop_string_objectiveItem2_deu = "Finden Sie eine Waffe";
+	coop_string_objectiveItem3_deu = "Vermeiden Sie entdeckt zu werden";
+	coop_string_objectiveItem4_deu = "Kontakt";
+	coop_string_objectiveItem5_deu = "Verlassen Sie den Bereich";
+	coop_string_objectiveTacticalInfo1_deu = "";//Use the distraction to your own advantage
+	
+	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
+	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+
 	//set empty archetype, hence removing the current archetype that won't work for this level
 	$pektraq_standExplodeDieCrate.archetype("");
 
@@ -114,6 +138,7 @@ void main()
 	
 //make em weak so they die fast by the blade
 	$rommy2.health(10);
+	$rommy2.killthread("rommy2Killed");
 	$storeroomguard.health(10);
 
 	$rommy2.mass(9999);
@@ -133,12 +158,14 @@ void main()
 	$phaser.hide();
 	$phaser_symbol2.hide();
 	$phaser_symbol2.scale(0.01);
+	
+	thread intro();
 }
 	
 void intro()
 {
 	//for testing move player to spot
-	if( 0 ){ //getCvar("username") == "Chrissstrahl"
+	if( 0 ){
 		//lift Testing /////////////////////////
 		//$player.origin('3578 -548 -216');
 		//$pektraq.origin('3640 -488 -200');
@@ -171,8 +198,7 @@ void intro()
 	$blowupdoor.solid();
 	
 //load objectives, then inizial
-	if(getCvarInt("g_gametype") == 0)
-	{
+	if(getCvarInt("g_gametype") == 0){
 		$player.health(100);
 		$player.loadobjectives( "city5b" );
 		wait( .1 );
@@ -181,7 +207,8 @@ void intro()
 		$player.setobjectiveshow( "c5bstealth", 1 );
 		$player.setobjectiveshow( "c5bcontact", 1 );
 		$player.setobjectiveshow( "c5bgetout", 1 );
-	}
+	}	
+	
 //warp munro to area
 	$munro.anim( "conv-yes" );
 	
@@ -194,8 +221,7 @@ void intro()
 //do not do that in multiplayer, only singleplayer and solomatch
 //get the current game type from the config variables of game
 //0=sp,1=mp,2=solomatch
-	if( getCvarInt("g_gametype") == 0)
-	{
+	if( getCvarInt("g_gametype") == 0){
 		$player.hide();
 		$player.notsolid();
 	}
@@ -230,8 +256,12 @@ void intro()
 	clearletterbox(0.1);
 	cueplayer();
 	releaseplayer();
-	$player.show();
-	$player.solid();
+	
+	if( getCvarInt("g_gametype") == 0){
+		$player.show();
+		$player.solid();
+	}
+	
 //remove the cinematic actor
 	$munro.remove();
 	$munro2.hide();
@@ -244,9 +274,8 @@ void intro()
 	cam_fadeIn(0.25,0,0,0,1);
 	
 	$cellUseSymbol.scale(1); //show symbol again
-	
-//chrissstrahl - test tricorder puzzle - remove this code again!
-//$player.origin('322 563 8');
+
+	globalCoop_objectives_update("incomplete" , 1 , 1 );//Escape from prison
 }
 
 void setupAi()
@@ -333,6 +362,9 @@ void datapadPickup()
 		$player.give("models/weapons/worldmodel-rom-datapad.tik");
 		wait(0.1);
 		$player.use("models/weapons/worldmodel-rom-datapad.tik");
+	}else{
+		coop_string_weapon1 = "models/weapons/worldmodel-rom-datapad.tik";
+		globalCoop_armory_useTiki(coop_string_weapon1);
 	}
 }
 
@@ -352,7 +384,6 @@ void emptyChellGrate()
 void guard1_walkToEmptyChell()
 {
 //walk to node, scare player
-	$player.hudprint("");
 	$guard1.show();
 	$guard1.walkto("$guard1_emptyChellWalkto","run");
 	waitFor($guard1);
@@ -442,6 +473,8 @@ void solved_codepanel_trigger0()
 	$munroChellDoor.unlock();
 	$munroChellDoor.open($world);
 	
+	globalCoop_objectives_update("complete" , 1 , 0 );//Escape from Jail
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//find weapon
 
 //make klingon cheer
 	$pektraq.anim("cheer");
@@ -462,14 +495,27 @@ void securitydoorunlock()
 
 void player_detected()
 {
-	$player.setobjectivefailed( "c5bstealth", 1 );
+	if( getCvarInt("g_gametype") == 0){
+		$player.setobjectivefailed( "c5bstealth", 1 );
+	}
+	else{
+		globalCoop_objectives_update("failed" , 3 , 1 );//Avoid to be detected
+	}
 	wait(0.1);
 }
 
 void klingonstay()
 {
 	//munro says -> stay behind and secure the area, while I do a chicken dance
-	$player.simplePlayDialog("localization/sound/dialog/dallas01/munro_waitduct.mp3",1,128);
+	if( getCvarInt("g_gametype") == 0){
+		$player.simplePlayDialog("localization/sound/dialog/dallas01/munro_waitduct.mp3",1,128);
+	}else{
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestActive($pektraq);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.simplePlayDialog("localization/sound/dialog/dallas01/munro_waitduct.mp3",1,128);
+		}
+	}
 	$pektraq.setTendency("follow",0);
 }
 
@@ -862,17 +908,15 @@ void ffconduit()
 	cam_fadeOut(0.25,0,0,0,1);
 	wait(0.3);
 	//do cinematic commands only in singleplayer
-	if(getFloatVar("game.isCoopServer") == 1 || getCvarInt("g_gametype") != 1)
-	{
-		cinematic();
-		freezeplayer();
-		letterbox(0.1);
-		cam_fadeIn (0.25,0,0,0,1);	
-		$cam1.follow($f1);
-		$cam1.cut();
-		wait(0.1);
-		cuecamera($cam1);
-	}
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	cam_fadeIn (0.25,0,0,0,1);	
+	$cam1.follow($f1);
+	$cam1.cut();
+	wait(0.1);
+	cuecamera($cam1);
+	
 	wait(0.2); //give player time to realize where the cam is
 	$exploders.selfdetonate();
 	$ffconduit.remove();
@@ -881,14 +925,12 @@ void ffconduit()
 	$ff.remove();
 	//wait for the effect to end
 	wait(2.7);
-	//cinematics only for SP
-	if(getFloatVar("game.isCoopServer") == 1 || getCvarInt("g_gametype") != 1)
-	{
-		noncinematic();
-		clearletterbox(0.1);
-		cueplayer();
-		releaseplayer();
-	}
+
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
 	cam_fadeIn (0.25,0,0,0,1);
 }
 
@@ -900,7 +942,15 @@ void exploders()
 	wait(4);
 	$exploders.selfdetonate();
 	$accesspanel.unlock();
-	$player.simplePlayDialog("localization/sound/dialog/m8l2/munro_cancloak.mp3",1,2048);
+	if( getCvarInt("g_gametype") == 0){
+		$player.simplePlayDialog("localization/sound/dialog/m8l2/munro_cancloak.mp3",1,128);
+	}else{
+		entity ePlayer;
+		ePlayer = globalCoop_return_playerClosestActive($pektraq);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.simplePlayDialog("localization/sound/dialog/m8l2/munro_cancloak.mp3",1,128);
+		}
+	}
 }
 
 void sneakuponguard()
@@ -916,6 +966,11 @@ void sneakuponguard()
 	}
 }
 
+void coop_phaser_pickup()
+//added for coop, so if player leaves or dies another player can pick up the phaser
+{
+}
+
 void phaser_pickup()
 {
 	entity eTrigger,ePlayer;
@@ -925,9 +980,13 @@ void phaser_pickup()
 	wait(0.05);
 	ePlayer.use("models/weapons/worldmodel-Phaser-stx.tik");
 	
-	//move useable symbol
-	//$phaser_symbol.origin('2746.00 -410.00 -177.0');
-	$phaser_symbol.remove();
+	//update objective
+	globalCoop_objectives_update("complete" , 2 , 1 );//Escape from prison
+	
+	thread coop_phaser_pickup();
+	
+	$phaser_symbol.scale(0.01);
+	
 	
 	$phaser_placeTrigger.triggerable();
 	
@@ -945,11 +1004,15 @@ void phaser_pickup()
 void phaser()
 //phaser overload.  It didnt destroy the crates so I removed them.
 {
-	entity eTrigger,ePlayer;
+	/*entity eTrigger,ePlayer;
 	eTrigger = getCurrentEntity();
 	ePlayer = eTrigger.getLastActivatingEntity();
-	ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");
-
+	ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");*/
+	
+	$phaser_symbol2.scale(0.01);
+	
+	globalCoop_player_takeAll("models/weapons/worldmodel-Phaser-stx.tik");
+	
 	$phaser.fade(0.25, 1);
 	$phaser.clearcustomshader("textures/common/fracture_small");
 	
@@ -1143,6 +1206,11 @@ void recovertricorderdone()
 		$player.give("models/weapons/worldmodel-Phaser-stx.tik");
 		wait(0.1);
 		$player.use("models/weapons/worldmodel-Tricorder-stx.tik");
+	}else{
+		coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
+		coop_string_weapon3 = "models/weapons/worldmodel-Phaser-stx.tik";
+		globalCoop_armory_useTiki(coop_string_weapon2);
+		globalCoop_armory_useTiki(coop_string_weapon3);
 	}
 }
 
@@ -1186,7 +1254,16 @@ void endLift()
 	//$pektraq.turntowardsplayer();
 	
 	//wait for player to position on lift
-	while(vectorlength(($player.getOrigin() - '2645 -4769 -229')) > 100){
+	entity ePlayer;
+	float fWait;
+	fWait = 1;
+	while(fWait){
+		ePlayer = globalCoop_return_playerClosestActive($endLift);
+		if(doesEntityExist(ePlayer)){
+			if(vectorlength((ePlayer.getOrigin() - '2645 -4769 -229')) < 100){
+				fWait = 0;
+			}
+		}
 		wait(0.01);
 	}
 	
@@ -1328,6 +1405,14 @@ void coop_updateSpawnlocations1()
 		eSpot.angle(90);
 	}
 	$ipd8.angle(180);
+}
+
+void rommy2Killed()
+//------------------------------------------------------------------------------
+//if romulan gets killed bny anythink other than the use button
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist($rommy2_symbol)){ $rommy2_symbol.remove(); }
 }
 
 void levelEnd()
