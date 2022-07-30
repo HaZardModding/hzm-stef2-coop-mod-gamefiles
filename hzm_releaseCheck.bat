@@ -68,10 +68,39 @@ echo -2----------------------coop_mod\cfg\setup.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
-echo -6------------------------hcm_changelog.txt---
-echo Check changelog if all entries are made and
-echo file looks clean.
-echo Located in Relaase Folder!
+echo -6----------------------------leveldefs.txt---
+echo Check if new maps need to be added to level
+echo definitions
+echo ----------------------------------------------
+start global\leveldefs.txt
+pause
+
+cls
+echo -1--------------coop_mod\ui\setup_mainmenu.inc
+echo -2----------------------coop_mod\cfg\setup.cfg
+echo -3------------------c++ Gamecode Build Version
+echo -4--------------------------------INI-FILES---
+echo -5------------------------globalstrings.loc---
+echo -6----------------------------leveldefs.txt---
+echo -7-----callvote_*.inc AND startserver_*.inc---
+echo Check Coop specific Start Server and Callvote 
+echo menu include files, do maps need to be added ?
+echo ----------------------------------------------
+start coop_mod\ui
+pause
+
+
+cls
+echo -1--------------coop_mod\ui\setup_mainmenu.inc
+echo -2----------------------coop_mod\cfg\setup.cfg
+echo -3------------------c++ Gamecode Build Version
+echo -4--------------------------------INI-FILES---
+echo -5------------------------globalstrings.loc---
+echo -6----------------------------leveldefs.txt---
+echo -7-----callvote_*.inc AND startserver_*.inc---
+echo -8------------------------hcm_changelog.txt---
+echo Check changelog again, is there something missing
+echo can you find any obvious typos ?
 echo ----------------------------------------------
 cd ../
 start RELASE
@@ -83,8 +112,10 @@ echo -2----------------------coop_mod\cfg\setup.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
-echo -6------------------------hcm_changelog.txt---
-echo -7---------------------------hcm_readme.pdf---
+echo -6----------------------------leveldefs.txt---
+echo -7-----callvote_*.inc AND startserver_*.inc---
+echo -8------------------------hcm_changelog.txt---
+echo -9---------------------------hcm_readme.pdf---
 echo Check changelog if the Readme file needs update.
 echo Verify readme to be latest version.
 echo ----------------------------------------------
@@ -98,9 +129,11 @@ echo -2----------------------coop_mod\cfg\setup.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
-echo -6------------------------hcm_changelog.txt---
-echo -7---------------------------hcm_readme.pdf---
-echo -8-------------compile and copy then upload---
+echo -6----------------------------leveldefs.txt---
+echo -7-----callvote_*.inc AND startserver_*.inc---
+echo -8------------------------hcm_changelog.txt---
+echo -9---------------------------hcm_readme.pdf---
+echo -10------------compile and copy then upload---
 echo Check compile and copy latest gamecode.
 echo Create and copy windows dll and linux so.
 echo Create and copy all needed pk3 files.
@@ -120,9 +153,11 @@ echo -2----------------------coop_mod\cfg\setup.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
-echo -6------------------------hcm_changelog.txt---
-echo -7---------------------------hcm_readme.pdf---
-echo -8-------------compile and copy then upload---
+echo -6----------------------------leveldefs.txt---
+echo -7-----callvote_*.inc AND startserver_*.inc---
+echo -8------------------------hcm_changelog.txt---
+echo -9---------------------------hcm_readme.pdf---
+echo -10------------compile and copy then upload---
 echo.
 echo ----------------------------------------------
 echo YAY, all should now be complete!
