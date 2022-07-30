@@ -123,5 +123,26 @@ Button
 	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_aftermath5.tga;globalwidgetcommand coopName title \"Daedalus\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 16 ==
+	title "Episode 1 - The City Part 6"
+	name 	"coopAftermathModLevels5"
+	rect	275 219 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "callvote map coop_aftermath6;popmenu 1;popmenu 0\n"
+	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_aftermath6.tga;globalwidgetcommand coopName title \"Daedalus\""
+	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+}
 end.
 
