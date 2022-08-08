@@ -1,0 +1,401 @@
+//Section 31 Level 1 Script file//
+
+//--
+//EF2 Script File
+//Level - Section 31 Episode 1
+//Script by - Nicholas Groom
+//Created on - 16/08/2007
+//
+//Last Edited - 16/08/2007
+//
+//--
+
+//Define Variables
+//--
+
+
+//UPDATED 2022.08.07 by Chrissstrahl for the use in the HZM Coop Mod
+//hzm coop mod - chrissstrahl - include the required coop level-scripts
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void	coop_randomSpawner();
+void	coop_timeOutSuicide(entity eMonster);
+void	coop_manageBossHud();
+void	coop_endLevel();
+entity	entityPlayerGlobal;
+entity	ePlayerZ;
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/global/global_common.scr"
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+float f_wallstate1;
+
+//Spawner variables
+float f_numberofmonsterstokill 		= 150;
+float f_minscale					= 1;
+float f_maxscale					= 1.4;
+float f_bugsmaximumnum				= 15;
+float f_waitTimeBeetweenSpawn		= 0.5;
+float f_plasmaAmmountReturnsToPlayerPerKill = 60; 
+float f_bugsalive; 
+float f_bugskilled; 
+float f_monsterskilled;
+float f_numberofmonsterSpawned;
+float f_randomSpawnerIsActive; 
+
+string s_modeltype4 				= "char/alien-type1c-basher.tik";
+string s_modeltype3 				= "char/alien-type1a-lurker.tik";
+string s_modeltype2 				= "char/alien-type1b-chewer.tik";
+string s_modeltype1 				= "char/bug_female-nosack.tik";
+string s_modeltype0 				= "char/alien-type6-crab.tik";
+
+//Declare functions
+void main();
+//self functions
+void turnoffforcefield1();
+void turnonforcefield1();
+void intialize();
+void activatemonsters();
+void triggertouched();
+void monstergotkilled();
+void level_complete();
+void warningtrigger();
+
+
+void main()
+{
+	cache (s_modeltype0);
+	cache (s_modeltype1);
+	cache (s_modeltype2);
+	cache (s_modeltype3);
+	cache (s_modeltype4);
+	
+	//hzm coop mod chrissstrahl
+	coop_string_levelAuthor = "Nicholas Groom";
+	
+	coop_string_objectiveItem1 = "Get to the outpost the bugs will attack shortly.";
+	coop_string_objectiveItem2 = "Activate the forcefield, the bugs are attacking...";
+	coop_string_objectiveItem3 = "Defend the Outpost!";
+	coop_string_objectiveTacticalInfo1 = "";
+	
+	coop_string_objectiveItem1_deu = "Gehen Sie zum Aussenposten, Sie werden bald angegriffen.";
+	coop_string_objectiveItem2_deu = "Aktivieren Sie das Kraftfeld, Sie werden angegriffen...";
+	coop_string_objectiveItem3_deu = "Verteidigen Sie den Aussenposten!";
+	coop_string_objectiveTacticalInfo1_deu = "";
+	
+	coop_string_story = "";
+	coop_string_story_deu = "";
+	
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");
+	
+	soundtrack( "music/dm_kw.mus" );
+	
+	
+	thread intialize();
+	thread turnoffforcefield1();
+}
+
+void intialize()
+{
+	$bug1.ai_off();
+	$bug1.notsolid();
+	$bug1.hide();
+	$bug1.killthread("monstergotkilled");
+	
+	$bug2.ai_off();
+	$bug2.notsolid();
+	$bug2.hide();
+	$bug2.killthread("monstergotkilled");
+
+	$bug3.ai_off();
+	$bug3.notsolid();
+	$bug3.hide();
+	$bug3.killthread("monstergotkilled");
+	
+	waitForPlayer();
+	ePlayerZ = $player0;
+
+	//add objectives marker
+	$triggerActivateForceField.missionobjective(1);
+	
+	//Equip player
+	ePlayerZ.give("models/weapons/worldmodel-phaser-stx.tik");
+	ePlayerZ.give("models/weapons/worldmodel-tricorder-stx.tik");
+	//give armor
+	ePlayerZ.health(100);
+	ePlayerZ.armor("basicarmor", 150);
+	
+	//hzm coop mod chrissstrahl - this is what the ai attacks
+	$targetForAiAttack.ai_off();
+}
+
+
+//Forcefields//
+void actforcefield1()
+{
+	//hzm coop mod chrissstrahl
+	if($world.getFloatVar("ffActivated") != 1){
+		$world.setFloatVar("ffActivated",1);
+		globalCoop_objectives_update("complete" , 2 , 0 );//Activate the forcefield, the bugs are attacking...
+		globalCoop_objectives_update("incomplete" , 3 , 1 );//Defend Outpost
+	}
+
+	if(f_wallstate1) //if var is == 1 or TRUE it's the dsame for the game script
+	{
+		thread turnoffforcefield1();
+	}
+	else
+	{
+		thread turnonforcefield1();
+	}
+}
+
+void turnoffforcefield1()
+{
+	$forcefield1.notsolid();
+	$forcefield1.playsound("sound/environment/computer/lcars_yes.wav",3,1,100);
+	$forcefield1.hide();
+	f_wallstate1=0;
+}
+
+void turnonforcefield1()
+{
+	$forcefield1.solid();
+	$forcefield1.forcealpha(1);
+	$forcefield1.alpha(1);
+	$forcefield1.playsound("sound/environment/computer/lcars_yes.wav",2,1,100);
+	wait (0.5);
+	$forcefield1.playsound("sound/ships/borg/borg_forcefield_on.wav",2,1,100);
+	$forcefield1.loopsound("sound/ships/enterprise/ent_forcefield.wav",2,100);
+	$forcefield1.show();
+	wait(0.1);
+	f_wallstate1=1;
+}
+//End of forcefield script//
+
+
+void activatemonsters()
+{
+	//hzm coop mod chrissstrahl
+	thread coop_manageBossHud(); 
+
+	//spawn multiple monsterz
+	float fMonsterz;
+	fMonsterz = (4 *globalCoop_return_integerPlayersQuantity(1));
+	if(fMonsterz > f_bugsmaximumnum){
+		fMonsterz = f_bugsmaximumnum;
+	}
+	
+	for(fMonsterz=fMonsterz;fMonsterz>0;fMonsterz--){
+		coop_randomSpawner();
+	}
+}
+
+
+void monstergotkilled()
+{
+	entity eMonster;
+	eMonster = getCurrentEntity();
+	if(!doesEntityExist(eMonster)){
+		return;
+	}
+	
+	ePlayerZ.ammo("Plasma", f_plasmaAmmountReturnsToPlayerPerKill);
+	f_monsterskilled++;
+	f_bugsalive--;
+	ePlayerZ.hudprint("Monster Got Killed:"+eMonster.getTargetName()+"\n");
+
+	if (f_monsterskilled >= f_numberofmonsterstokill)
+	{
+		thread level_complete();
+	}
+	else{
+		coop_randomSpawner();
+	}
+}
+
+
+void triggertouched()
+{
+	//remove objectives marker
+	$triggerActivateForceField.missionobjective(0);
+	
+	wait(0.5);
+	globalCoop_objectives_update("complete" , 1 , 0 );//Escape to outpost bugs will attack
+	globalCoop_objectives_update("incomplete" , 2 , 1 );//Activate the forcefield, the bugs are attacking...
+	thread activatemonsters();
+}
+
+
+void level_complete()
+{
+	centerPrint("Level Complete...\n");
+	globalCoop_objectives_update("complete" , 3 , 1 );//Defend Outpost
+	
+	wait(5);
+	thread coop_endLevel();
+}
+
+
+void warningtrigger()
+{
+	globalCoop_objectives_update("incomplete" , 1 , 1 );//Escape to outpost bugs will attack
+}
+
+	
+void coop_timeOutSuicide(entity eMonster)
+{
+	float fHealth;
+	vector vLoc;
+	float fTimeout;
+	while(doesEntityExist(eMonster) && eMonster.getHealth() > 0){
+		fHealth = eMonster.getHealth();
+		if(fHealth	== eMonster.getHealth() && vLoc	 == eMonster.getOrigin()){
+			fTimeout++;
+		}
+		fHealth	= eMonster.getHealth();
+		vLoc	= eMonster.getOrigin();
+		wait(1);
+		
+		//this moster was to long stuck, idle or not takeing damage
+		if(fTimeout > 30 && doesEntityExist(eMonster) && eMonster.getHealth() > 0){
+			eMonster.suicide();
+		}
+	}
+}
+
+
+void coop_randomSpawner()
+{
+	if(f_bugsalive > f_bugsmaximumnum || f_numberofmonsterSpawned >= f_numberofmonsterstokill){
+		return;
+	}
+
+	entity eMonster;
+	entity eSpawnLoc;
+	string sModel;
+	
+	float fRandomModel;
+	float fScale;
+	float fRandomLocation;
+	
+	//set random Model
+	fRandomModel = randomInt(5);
+	if(fRandomModel==0)			{sModel = s_modeltype0;}
+	else if(fRandomModel==1)	{sModel = s_modeltype1;}
+	else if(fRandomModel==2)	{sModel = s_modeltype2;}
+	else if(fRandomModel==3)	{sModel = s_modeltype3;}
+	else						{sModel = s_modeltype4;}
+	
+	//set random location
+	fRandomLocation = randomInt(10);
+	eSpawnLoc = getEntity("spawnposition"+fRandomLocation);
+	while(!doesEntityExist(eSpawnLoc)){
+		ePlayerZ.hudprint("Does not exist: $spawnposition"+fRandomLocation+"\n");
+		
+		fRandomLocation = randomInt(10);
+		eSpawnLoc = getEntity("spawnposition"+fRandomLocation);
+	}
+	
+	//set scale
+	fScale = randomfloat(f_maxscale);
+	if(fScale < f_minscale){fScale = f_minscale;}
+	if(fScale > f_maxscale){fScale = f_maxscale;}
+	
+	//spawn monster
+	eMonster = spawn("actor", "model", sModel, "origin", vectorToString(eSpawnLoc.getOrigin()), "killThread", "monstergotkilled", "scale",""+fScale);
+	//Wait for the entity to be spawned
+	wait(0.05);
+
+	//hzm coop mod chrissstrahl - make sure we don't get stuck because monster won't die
+	thread coop_timeOutSuicide(eMonster);
+	//Allow to fall of eges etc
+	eMonster.allowFall(1);
+	//Allow to walk on other monsters
+	eMonster.canwalkonothers();
+	//set targetname
+	eMonster.targetname("monster"+f_numberofmonsterSpawned);
+	//Make angry :)
+	eMonster.aggressive(1);
+	//The player is your best frind :)
+	eMonster.attackPlayer();
+	//give proper health
+	eMonster.health(eMonster.getHealth() * fScale);
+	//Let the script know of the new bug
+	f_bugsalive++;
+	f_numberofmonsterSpawned++;
+}
+
+
+void coop_manageBossHud()
+{
+	//hzm coop mod chrissstrahl, make compatible for multiplayer
+	entity	ePlayer;
+	float	fPlayerId;
+	float	fStatistics;
+
+	//hzm coop mod chrissstrahl, add hud
+	thread globalCoop_huds_AddAll("m4l1b-podtimer");
+	
+	while( f_monsterskilled < f_numberofmonsterstokill ){
+		fStatistics = ( 100 - (f_numberofmonsterstokill / 100) * f_monsterskilled );
+		
+		//if none killed show full bar
+		if(fStatistics == 0){
+			fStatistics = 100;
+		}
+		
+		//hzm coop mod chrissstrahl, send to each player
+		for(fPlayerId=0;fPlayerId<coop_integer_maxPlayers;fPlayerId++){
+			ePlayer = getentity("player"+fPlayerId);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setstat( "generic",fStatistics);
+			}
+		}
+		wait( 0.2 );
+	}
+	
+	//hzm coop mod chrissstrahl, remove hud
+	thread globalCoop_huds_RemoveAll("m4l1b-podtimer");
+}
+
+//[b611] chrissstrahl - make sure the player sees the hud description correctly
+void coop_playerEntered()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//use blue and red huds like enterprise and m4 airsupply mission
+	//globalwitchcommand bossRedName title xx
+	//globalwitchcommand bossBlueName title xx
+}
+
+//[b611] chrissstrahl - standard coop mod handling
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+//credits, and history of map
+	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_section31/cCredits.cfg\n");
+	globalCoop_huds_AddAll("coop_cCredits");
+	wait(15);
+	
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+		return;
+	}
+
+//load next map
+	thread globalCoop_mission_completed("coop_section31l1");
+}
+	
+	
