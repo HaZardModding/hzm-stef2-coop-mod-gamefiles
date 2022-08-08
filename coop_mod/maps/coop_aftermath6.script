@@ -41,6 +41,12 @@ void reactivateKlingon();
 void rommy2Killed();
 void coop_phaser_pickup();
 
+void removeMosterClip();
+void coop_updateSpawns1();
+void coop_updateSpawns2();
+void coop_updateSpawns3();
+void coop_updateSpawns4();
+
 float boolPlayerGotCode = 0;
 float integer_actorWalktoVectorIndex = 0;
 float level_autoSavedCart=0;
@@ -159,7 +165,29 @@ void main()
 	$phaser_symbol2.hide();
 	$phaser_symbol2.scale(0.01);
 	
+	//make sure ai does not leave area before ready - one way monster clip
+	$preventAiFromLeaving.solid();
+	
 	thread intro();
+	thread removeMosterClip();
+}
+
+void removeMosterClip()
+{
+	//wait for any player to come into range
+	while(!globalCoop_check_playerInRange($preventAiFromLeaving,300)){
+		wait(0.2);
+	}
+	$preventAiFromLeaving.remove();
+	
+	//cheap hack to make them attack
+	$usedtobeawomanguard3.hurt(1);
+	wait(0.1);
+	$usedtobeawomanguard4.hurt(1);
+	$usedtobeawomanguard1.hurt(1);
+	wait(0.1);
+	$usedtobeawomanguard0.hurt(1);
+	$usedtobeawomanguard2.hurt(1);
 }
 	
 void intro()
@@ -281,7 +309,7 @@ void intro()
 void setupAi()
 //setup all NPCs that require us to do so
 {
-	$munro.killattach();
+	$munro.killattach(); //remove any weapons or devices
 	//$pektraq.anim("bar_sitting_sleep");
 	$pektraq.useActorWeapon( "none" );
 	wait(0.05);
@@ -295,11 +323,11 @@ void setupAi()
 	$pektraq.setnodeID(666);
 	addrosterteammate1($pektraq);
 //make vison ideal for the player to sneak by the romulan
-	$guard1.fov(10);
+	$guard1.fov(15);
 	$guard1.health(10);
-	$guard1.visiondistance(128);
-//give slightly more health
-//$guard.health(90);
+	$guard1.visiondistance(256);
+//give slightly more health to the guard we can us from behind to disable, so if we attack instead of stealth he will be more of a challange
+	$rommy2.health(90);
 }
 
 void vaporizeActivator()
@@ -416,10 +444,10 @@ void stealth()
 //do patrol if patrol path is near
 	$guard2.settendency("patrol",1);
 //make vison ideal for the player to sneak by the romulan
-	$guard2.fov(10);
-	$guard2.visiondistance(128);
+	$guard2.fov(15);
+	$guard2.visiondistance(256);
 //give slightly more health
-	$guard2.health(90);
+	$guard2.health(30);
 }
 
 
@@ -479,10 +507,30 @@ void solved_codepanel_trigger0()
 //make klingon cheer
 	$pektraq.anim("cheer");
 	wait( 1 );
-	$pektraq.ai_on();
 	
 	//unlock the exit door, player may now leave this area
 	$firstExitDoor.unlock();
+	
+//make him leave cell
+	while(doesEntityExist($pektraq)){
+		if($pektraq.isWithinDistanceOf($t5,111)){ //this is a splinepath we checking distance to - does not work when using pathnode or helpernode
+			$pektraq.ai_on();
+			//$player0.hudprint("aion final\n");
+			return;
+		}
+		
+		//turn ai off and wait for dude to move, then while moving keep ai off
+		//$player0.hudprint("aioff run\n");
+		$pektraq.ai_off();
+		$pektraq.walkto("$pektraqAiOn","run"); //this is a pathnode
+		wait(1);
+		while(vectorlength($pektraq.getVelocity()) > 1){
+			//$player0.hudprint("moving\n");
+			wait(0.1);
+		}
+		//$player0.hudprint("aion\n");
+		$pektraq.ai_on();
+	}
 }
 
 void securitydoorunlock()
@@ -1004,10 +1052,11 @@ void phaser_pickup()
 void phaser()
 //phaser overload.  It didnt destroy the crates so I removed them.
 {
-	/*entity eTrigger,ePlayer;
-	eTrigger = getCurrentEntity();
-	ePlayer = eTrigger.getLastActivatingEntity();
-	ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");*/
+	//entity eTrigger,ePlayer;
+	//eTrigger = getCurrentEntity();
+	//ePlayer = eTrigger.getLastActivatingEntity();
+	//ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");
+	globalCoop_player_takeAll("models/weapons/worldmodel-Phaser-stx.tik");
 	
 	$phaser_symbol2.scale(0.01);
 	
@@ -1023,7 +1072,14 @@ void phaser()
 	float fTimer = 5;
 	while(fTimer > 0){
 		centerPrint("^3WARNING: ^1Explosion in:^5 "+fTimer+"\n");
+		//make sure klingon runs away if he is to close
+		if($pektraq.isWithinDistanceOf($phaser,128)){
+			$pektraq.ai_off();
+			$pektraq.walkto("$pektraqAwayFromExplosion","run");
+		}
+		
 		wait(1);
+		$pektraq.ai_on();
 		fTimer--;
 	}
 	
@@ -1426,6 +1482,104 @@ void levelEnd()
 		stuffcmd("disconnect");	
 	}else{
 		thread coop_endLevel();
+	}
+}
+
+void coop_updateSpawns1()
+//------------------------------------------------------------------------------
+//Move Spawnlocations - after prison first room before you go down
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('-2345 680 8');
+	$ipd2.origin('-2391 680 8');
+	$ipd3.origin('-2436 680 8');
+	$ipd4.origin('-2482 680 8');
+	$ipd5.origin('-2528 680 8');
+	$ipd6.origin('-2528 586 8');
+	$ipd7.origin('-2528 460 8');
+	$ipd8.origin('-2528 366 8');
+	float fSpawnLoc;
+	entity eSpawnLoc;
+	for(fSpawnLoc=1;fSpawnLoc<=8;fSpawnLoc++){
+		eSpawnLoc = getEntity("$ipd"+fSpawnLoc);
+		if(doesEntityExist(eSpawnLoc)){
+			eSpawnLoc.angle(270);
+		}
+	}
+}
+
+void coop_updateSpawns2()
+//------------------------------------------------------------------------------
+//Move Spawnlocations - near the room and the shaft you have to enter
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('-424 -488 -200');
+	$ipd2.origin('-424 -288 -200');
+	$ipd3.origin('-376 -488 -200');
+	$ipd4.origin('-376 -288 -200');
+	$ipd5.origin('-328 -488 -200');
+	$ipd6.origin('-328 -288 -200');
+	$ipd7.origin('-280 -288 -200');
+	$ipd8.origin('-64 -488 -200');
+	float fSpawnLoc;
+	entity eSpawnLoc;
+	for(fSpawnLoc=1;fSpawnLoc<=8;fSpawnLoc++){
+		eSpawnLoc = getEntity("$ipd"+fSpawnLoc);
+		if(doesEntityExist(eSpawnLoc)){
+			eSpawnLoc.angle(1);
+		}
+	}
+}
+
+void coop_updateSpawns3()
+//------------------------------------------------------------------------------
+//Move Spawnlocations - lift up floor
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('3664 -656 -32');
+	$ipd2.origin('3616 -656 -32');
+	$ipd3.origin('3568 -656 -32');
+	$ipd4.origin('3520 -656 -32');
+	$ipd5.origin('3520 -760 -32');
+	$ipd6.origin('3520 -808 -32');
+	$ipd7.origin('3520 -856 -32');
+	$ipd8.origin('3520 -904 -32');
+	float fSpawnLoc;
+	entity eSpawnLoc;
+	for(fSpawnLoc=1;fSpawnLoc<=4;fSpawnLoc++){
+		eSpawnLoc = getEntity("$ipd"+fSpawnLoc);
+		if(doesEntityExist(eSpawnLoc)){
+			eSpawnLoc.angle(270);
+		}
+	}
+	for(fSpawnLoc=1;fSpawnLoc<=8;fSpawnLoc++){
+		eSpawnLoc = getEntity("$ipd"+fSpawnLoc);
+		if(doesEntityExist(eSpawnLoc)){
+			eSpawnLoc.angle(315);
+		}
+	}
+}
+
+void coop_updateSpawns4()
+//------------------------------------------------------------------------------
+//Move Spawnlocations - in tram tunnel
+//------------------------------------------------------------------------------
+{
+	$ipd1.origin('2992 -2088 -256');
+	$ipd2.origin('2992 -2040 -256');
+	$ipd3.origin('2992 -1992 -256');
+	$ipd4.origin('3056 -1960 -256');
+	$ipd5.origin('3096 -1904 -256');
+	$ipd6.origin('3152 -1846 -256');
+	$ipd7.origin('3048 -2136 -256');
+	$ipd8.origin('3104 -2187 -256');
+	float fSpawnLoc;
+	entity eSpawnLoc;
+	for(fSpawnLoc=1;fSpawnLoc<=8;fSpawnLoc++){
+		eSpawnLoc = getEntity("$ipd"+fSpawnLoc);
+		if(doesEntityExist(eSpawnLoc)){
+			eSpawnLoc.angle(315);
+		}
 	}
 }
 
