@@ -18,16 +18,21 @@
 //hzm coop mod - chrissstrahl - include the required coop level-scripts
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+void	coop_flyInEnemy();
 void	coop_randomSpawner();
 void	coop_timeOutSuicide(entity eMonster);
 void	coop_manageBossHud();
 void	coop_endLevel();
 entity	entityPlayerGlobal;
 entity	ePlayerZ;
+
 #include "coop_mod/matrix/main.scr"
-#include "coop_mod/matrix/global/global_common.scr"
+#include "coop_mod/maps/global_scripts/global_common.scr"
+#include "coop_mod/maps/global_scripts/global_flyin.scr"
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+//#include "maps/global_scripts/global_spawnWave.scr"
+#include "maps/global_scripts/global_debugutils.scr"
 
 float f_wallstate1;
 
@@ -44,9 +49,9 @@ float f_monsterskilled;
 float f_numberofmonsterSpawned;
 float f_randomSpawnerIsActive; 
 
-string s_modeltype4 				= "char/alien-type1c-basher.tik";
-string s_modeltype3 				= "char/alien-type1a-lurker.tik";
-string s_modeltype2 				= "char/alien-type1b-chewer.tik";
+//string s_modeltype3 				= "char/alien-type1b-chewer.tik";
+//string s_modeltype2 				= "char/alien-type1a-lurker.tik";
+string s_modeltype2 				= "char/bug_male.tik";
 string s_modeltype1 				= "char/bug_female-nosack.tik";
 string s_modeltype0 				= "char/alien-type6-crab.tik";
 
@@ -68,30 +73,33 @@ void main()
 	cache (s_modeltype0);
 	cache (s_modeltype1);
 	cache (s_modeltype2);
-	cache (s_modeltype3);
-	cache (s_modeltype4);
+	//cache (s_modeltype3);
+	
+	soundtrack( "music/dm_kw.mus" );
 	
 	//hzm coop mod chrissstrahl
 	coop_string_levelAuthor = "Nicholas Groom";
 	
-	coop_string_objectiveItem1 = "Get to the outpost the bugs will attack shortly.";
-	coop_string_objectiveItem2 = "Activate the forcefield, the bugs are attacking...";
-	coop_string_objectiveItem3 = "Defend the Outpost!";
+	coop_string_objectiveItem1 = "$$coop_section31l1_o1$$";
+	coop_string_objectiveItem2 = "$$coop_section31l1_o2$$";
+	coop_string_objectiveItem3 = "$$coop_section31l1_o3$$";
 	coop_string_objectiveTacticalInfo1 = "";
-	
-	coop_string_objectiveItem1_deu = "Gehen Sie zum Aussenposten, Sie werden bald angegriffen.";
-	coop_string_objectiveItem2_deu = "Aktivieren Sie das Kraftfeld, Sie werden angegriffen...";
-	coop_string_objectiveItem3_deu = "Verteidigen Sie den Aussenposten!";
-	coop_string_objectiveTacticalInfo1_deu = "";
-	
-	coop_string_story = "";
-	coop_string_story_deu = "";
+	coop_string_story = "$$coop_section31l1_story$$";
 	
 	//structural view mode
 	$world.addAvailableViewMode("structuralintegrity");
 	
-	soundtrack( "music/dm_kw.mus" );
+	//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
 	
+	//singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		$player.health(100);
+		$player.armor("basicarmor", 150);	
+	}
 	
 	thread intialize();
 	thread turnoffforcefield1();
@@ -99,36 +107,17 @@ void main()
 
 void intialize()
 {
-	$bug1.ai_off();
-	$bug1.notsolid();
-	$bug1.hide();
-	$bug1.killthread("monstergotkilled");
-	
-	$bug2.ai_off();
-	$bug2.notsolid();
-	$bug2.hide();
-	$bug2.killthread("monstergotkilled");
+	//stup clips
+	$entranceMonsterClip.solid();
 
-	$bug3.ai_off();
-	$bug3.notsolid();
-	$bug3.hide();
-	$bug3.killthread("monstergotkilled");
+	//bind script objects
+	$entranceFloorDestructible.bind($entranceFloorDestructibleOrigin);
 	
 	waitForPlayer();
 	ePlayerZ = $player0;
 
 	//add objectives marker
 	$triggerActivateForceField.missionobjective(1);
-	
-	//Equip player
-	ePlayerZ.give("models/weapons/worldmodel-phaser-stx.tik");
-	ePlayerZ.give("models/weapons/worldmodel-tricorder-stx.tik");
-	//give armor
-	ePlayerZ.health(100);
-	ePlayerZ.armor("basicarmor", 150);
-	
-	//hzm coop mod chrissstrahl - this is what the ai attacks
-	$targetForAiAttack.ai_off();
 }
 
 
@@ -138,8 +127,16 @@ void actforcefield1()
 	//hzm coop mod chrissstrahl
 	if($world.getFloatVar("ffActivated") != 1){
 		$world.setFloatVar("ffActivated",1);
+		
+		$triggerActivateForceField0.triggerable();
+		
 		globalCoop_objectives_update("complete" , 2 , 0 );//Activate the forcefield, the bugs are attacking...
 		globalCoop_objectives_update("incomplete" , 3 , 1 );//Defend Outpost
+
+		globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",0);
+		globalCoop_player_giveAll("models/weapons/worldmodel-sniperrifle.tik",0);
+		globalCoop_player_giveAll("models/weapons/worldmodel-attrex-rifle.tik",0);
+		globalCoop_player_giveAll("models/weapons/worldmodel-BurstRifle.tik",1);
 	}
 
 	if(f_wallstate1) //if var is == 1 or TRUE it's the dsame for the game script
@@ -168,7 +165,7 @@ void turnonforcefield1()
 	$forcefield1.playsound("sound/environment/computer/lcars_yes.wav",2,1,100);
 	wait (0.5);
 	$forcefield1.playsound("sound/ships/borg/borg_forcefield_on.wav",2,1,100);
-	$forcefield1.loopsound("sound/ships/enterprise/ent_forcefield.wav",2,100);
+	$forcefield1.loopsound("sound/ships/enterprise/ent_forcefield.wav",0.5,50);
 	$forcefield1.show();
 	wait(0.1);
 	f_wallstate1=1;
@@ -198,14 +195,17 @@ void monstergotkilled()
 {
 	entity eMonster;
 	eMonster = getCurrentEntity();
-	if(!doesEntityExist(eMonster)){
-		return;
+	string sMonsterName;
+	if(doesEntityExist(eMonster)){
+		sMonsterName = eMonster.getTargetName();
+	}else{
+		sMonsterName = "Killed Early";
 	}
 	
 	ePlayerZ.ammo("Plasma", f_plasmaAmmountReturnsToPlayerPerKill);
 	f_monsterskilled++;
 	f_bugsalive--;
-	ePlayerZ.hudprint("Monster Got Killed:"+eMonster.getTargetName()+"\n");
+	ePlayerZ.hudprint("Monster Got Killed:"+sMonsterName+"\n");
 
 	if (f_monsterskilled >= f_numberofmonsterstokill)
 	{
@@ -221,6 +221,24 @@ void triggertouched()
 {
 	//remove objectives marker
 	$triggerActivateForceField.missionobjective(0);
+	
+	//remove the effects on shuttle - temp model issue
+	
+	/*
+	$shuttleMoreEffects.remove();	
+	$shuttleSparks.remove();
+	$shuttleFireEngine.remove();
+	*/
+	
+	removeClass("SFX_sparks_directional-blue-small");
+	removeClass("SFX_smoke_black-vertical");
+	removeClass("SFX_smoke_gray-vertical-thin");
+	removeClass("SFX_sparks_sparkshower-blue");
+	removeClass("SFX_fire_plasma_red-medium");
+	removeClass("SFX_sparks_sparkshower-yellow");
+	$shuttleFireEngineTrigger.remove();
+	$shuttleMoreEffectsTrigger1.remove();
+	$shuttleMoreEffectsTrigger2.remove();
 	
 	wait(0.5);
 	globalCoop_objectives_update("complete" , 1 , 0 );//Escape to outpost bugs will attack
@@ -266,6 +284,32 @@ void coop_timeOutSuicide(entity eMonster)
 	}
 }
 
+void coop_flyInEnemy()
+{
+	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
+	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
+	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
+	
+	//select random flyin path
+	//model can be lurker, chewer, basher
+	float fMonsterzzz;
+	fMonsterzzz = 20;
+	while(fMonsterzzz > 0){
+		//get spawntargetname and check if it is alive
+		entity eMonster;
+		eMonster = globalFlyin_SpawnLaunch( $swarmSpawner8, "char/alien-type1a-lurker.tik", 0, "", "flyingModelDamageThread", 0 );
+		wait( .1 );
+		if(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0){
+			eMonster.killthread("monstergotkilled");
+			eMonster.ai_on();
+		}else{
+			thread monstergotkilled();
+		}
+		fMonsterzzz--;
+		wait(20);
+	}
+}
+
 
 void coop_randomSpawner()
 {
@@ -282,12 +326,11 @@ void coop_randomSpawner()
 	float fRandomLocation;
 	
 	//set random Model
-	fRandomModel = randomInt(5);
+	fRandomModel = randomInt(4);
 	if(fRandomModel==0)			{sModel = s_modeltype0;}
 	else if(fRandomModel==1)	{sModel = s_modeltype1;}
-	else if(fRandomModel==2)	{sModel = s_modeltype2;}
-	else if(fRandomModel==3)	{sModel = s_modeltype3;}
-	else						{sModel = s_modeltype4;}
+	else						{sModel = s_modeltype2;}
+	//else						{sModel = s_modeltype3;}
 	
 	//set random location
 	fRandomLocation = randomInt(10);
@@ -304,13 +347,26 @@ void coop_randomSpawner()
 	if(fScale < f_minscale){fScale = f_minscale;}
 	if(fScale > f_maxscale){fScale = f_maxscale;}
 	
+	
+	if(randomInt(101) > 70){
+		coop_flyInEnemy();
+		f_bugsalive++;
+		f_numberofmonsterSpawned++;
+		return;
+	}
+	
 	//spawn monster
 	eMonster = spawn("actor", "model", sModel, "origin", vectorToString(eSpawnLoc.getOrigin()), "killThread", "monstergotkilled", "scale",""+fScale);
 	//Wait for the entity to be spawned
 	wait(0.05);
+	
+//spawn from inside ground - based on model, crab, femalebug
+//have a chance to fly in lurker, chewer or basher
+//coop_flyInEnemy())
 
 	//hzm coop mod chrissstrahl - make sure we don't get stuck because monster won't die
 	thread coop_timeOutSuicide(eMonster);
+
 	//Allow to fall of eges etc
 	eMonster.allowFall(1);
 	//Allow to walk on other monsters
@@ -337,7 +393,7 @@ void coop_manageBossHud()
 	float	fStatistics;
 
 	//hzm coop mod chrissstrahl, add hud
-	thread globalCoop_huds_AddAll("m4l1b-podtimer");
+	thread globalCoop_huds_AddAll("coop_timerRedL");
 	
 	while( f_monsterskilled < f_numberofmonsterstokill ){
 		fStatistics = ( 100 - (f_numberofmonsterstokill / 100) * f_monsterskilled );
@@ -358,7 +414,7 @@ void coop_manageBossHud()
 	}
 	
 	//hzm coop mod chrissstrahl, remove hud
-	thread globalCoop_huds_RemoveAll("m4l1b-podtimer");
+	thread globalCoop_huds_RemoveAll("coop_timerRedL");
 }
 
 //[b611] chrissstrahl - make sure the player sees the hud description correctly
@@ -395,7 +451,7 @@ void coop_endLevel()
 	}
 
 //load next map
-	thread globalCoop_mission_completed("coop_section31l1");
+	thread globalCoop_mission_completed("coop_gbs1");
 }
 	
 	
