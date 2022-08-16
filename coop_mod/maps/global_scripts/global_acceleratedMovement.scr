@@ -1,0 +1,662 @@
+//-----------------------------------------------------------------
+//
+//  EF2 Global Level Script File
+//
+//  Function:	  Acceleration command set
+//
+//  Script By:    Doug S. - _AxisAligned function
+//				  Benson R. - move, _Rotate, Pendulum functions
+//  Created on:   8/13/2002
+//
+//  Last Edited:  Benson R
+//
+//-----------------------------------------------------------------
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  DECLARATIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--- EXTERNAL FUNCTIONS
+void globalAccelMove_AxisAligned( string entityName, float totalTime, float totalDistance, string moveDirection );
+
+void globalAccelMove( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound );
+void globalAccelMoveX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMoveY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMoveZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_Relative( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RelativeX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RelativeY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RelativeZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_Rotate( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RotateX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RotateY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_RotateZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound );
+void globalAccelMove_Pendulum( entity entObject, vector vecMove, float fltTime, float fltFriction, string strSound );
+
+//--- INTERNAL FUNCTIONS
+void globalAccelMove_DoMove( string strType, entity entObject, vector vecMove, float fltTime, string strCurve, string strSound );
+void globalAccelMove_DoMove_Absolute( entity entObject, float x1, float y1, float z1 );
+void globalAccelMove_DoMove_Relative( entity entObject, float x1, float y1, float z1 );
+void globalAccelMove_DoMove_Rotation( entity entObject, float x1, float y1, float z1 );
+
+vector globalAccelMove_Pendulum_CalcInverse( vector vecPassed );
+vector globalAccelMove_Pendulum_CalcFriction( vector vecMove, float fltFriction );
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  EXTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//------------------------------------------------------------------
+// The below function moves an entity with acceleration and deceleration.
+//
+// Parameters:
+//   entity name - targetname of entity .
+//
+//   totalTime - A floating point value that represents the
+//   the total time it takes the door to move the specified distance.
+//
+//   totalDistance - The total distance the door will move.
+//
+//   moveDirection - The direction the door will move. Valid values are:
+//       up
+//       down
+//		 north
+//		 south
+//       east
+//       west
+//------------------------------------------------------------------
+
+//---------------------
+void globalAccelMove_AxisAligned( string entityName, float totalTime, float totalDistance, string moveDirection )
+//---------------------
+{
+	entity entityReference;
+	entityReference = getEntity( entityName );
+
+	//
+	// IMPORTANT timeStep should be about .1 seconds.
+	// Otherwise, you may get jerks at low frame rates (fps < 20).
+	//
+	float halfDistance;						// Distance at which transition occurs
+	float transitionStep;					// Step at which transition from acceleration to deceleration occurs
+	float timeStep;							// Time duration for a single step
+	float iterations;
+	//iterations = totalTime / 10;		// Number of iterations
+	iterations = 100;
+	timeStep = totalTime / iterations;
+	transitionStep = iterations / 2;
+	halfDistance = totalDistance / 2;
+
+	float sum;
+	float distanceInc;
+	sum = (transitionStep * (transitionStep + 1)) / 2;
+	distanceInc = halfDistance / sum;
+
+
+	float idx;
+	float moveInc = 0;
+	for ( idx = 0; idx < iterations; idx += 1)
+	{
+	 	if ( idx < transitionStep )
+	 	{
+	 		moveInc += distanceInc;
+	 	}
+	 	else
+	 	{
+	 	    moveInc -= distanceInc;
+	 	}
+
+		entityReference.time( timeStep );
+
+		if ( moveDirection == "up" )
+		{
+			entityReference.moveUp( moveInc );
+		}
+		else if ( moveDirection == "down" )
+		{
+			entityReference.moveDown( moveInc );
+		}
+		else if ( moveDirection == "west" )
+		{
+			entityReference.moveWest( moveInc );
+		}
+		else if ( moveDirection == "east" )
+		{
+			entityReference.moveEast( moveInc );
+		}
+		else if ( moveDirection == "north" )
+		{
+			entityReference.moveNorth( moveInc );
+		}
+		else if ( moveDirection == "south" )
+		{
+			entityReference.moveSouth( moveInc );
+		}
+		else
+		{
+			centerprint ( "moveAxisAlignedEntity() : invalid moveDirection \""+moveDirection+"\"");
+			return;
+		}
+
+		waitfor ( entityReference );
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--------------------------------
+//	globalAccelMove
+//	entObject - entity, the object to move
+//	vecMove - vector, the path to move the object along: X - east Y - north Z - up
+//	fltTime - float, the total time to take for the move
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//			   "none", the object will move linearly (no acceleration)
+//	strSound - string, path to sound to play
+//	absolute moves an object in a straight line the distances specified on each axis with acceleration based
+//	on the selected curve.
+//--------------------------------
+void globalAccelMove( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		globalAccelMove_DoMove( "absolute", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMoveX
+//	fltDistance - float, the distance to move
+//	wrapper function to absolute move an object on just the X axis
+//--------------------------------
+void globalAccelMoveX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetX( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "absolute", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMoveY
+//	fltDistance - float, the distance to move
+//	wrapper function to absolute move an object on just the Y axis
+//--------------------------------
+void globalAccelMoveY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetY( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "absolute", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMoveZ
+//	fltDistance - float, the distance to move
+//	wrapper function to absolute move an object on just the Z axis
+//--------------------------------
+void globalAccelMoveZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetZ( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "absolute", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--------------------------------
+//	globalAccelMove_Relative
+//	entObject - entity, the object to move
+//	vecMove - vector, the path to move the object along: X - right Y - forward Z - up
+//	fltTime - float, the total time to take for the move
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//			   "none", the object will move linearly (no acceleration)
+//	strSound - string, path to sound to play
+//	relative moves an object in a straight line the distances specified on each axis with acceleration based
+//	on the selected curve.
+//--------------------------------
+void globalAccelMove_Relative( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		globalAccelMove_DoMove( "relative", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RelativeX
+//	fltDistance - float, the distance to move
+//	wrapper function to relative move an object on just the X axis
+//--------------------------------
+void globalAccelMove_RelativeX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetX( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "relative", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RelativeY
+//	fltDistance - float, the distance to move
+//	wrapper function to relative move an object on just the Y axis
+//--------------------------------
+void globalAccelMove_RelativeY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetY( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "relative", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RelativeZ
+//	fltDistance - float, the distance to move
+//	wrapper function to relative move an object on just the Z axis
+//--------------------------------
+void globalAccelMove_RelativeZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetZ( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "relative", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--------------------------------
+//	globalAccelMove_Rotate
+//	entObject - entity, the object to rotate
+//	vecMove - vector, how many degrees to rotate around each axis: X - pitch Y - yaw Z - roll
+//	fltTime - float, the total time to take for the rotation
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//			   "none", the object will move linearly (no acceleration)
+//	strSound - string, path to sound to play
+//	rotates an object with acceleration based on the selected curve
+//--------------------------------
+void globalAccelMove_Rotate( entity entObject, vector vecMove, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		globalAccelMove_DoMove( "rotation", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RotateX
+//	fltDistance - float, the distance to move
+//	wrapper function to rotate move an object on just the X axis
+//--------------------------------
+void globalAccelMove_RotateX( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetX( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "rotate", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RotateY
+//	fltDistance - float, the distance to move
+//	wrapper function to rotate move an object on just the Y axis
+//--------------------------------
+void globalAccelMove_RotateY( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetY( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "rotate", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+//--------------------------------
+//	globalAccelMove_RotateZ
+//	fltDistance - float, the distance to move
+//	wrapper function to rotate move an object on just the Z axis
+//--------------------------------
+void globalAccelMove_RotateZ( entity entObject, float fltDistance, float fltTime, string strCurve, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		vector vecMove = '0 0 0';
+		vecMove = vectorSetZ( vecMove, fltDistance );
+		
+		globalAccelMove_DoMove( "rotate", entObject, vecMove, fltTime, strCurve, strSound );
+	}
+}
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--------------------------------
+//	globalAccelMove_Pendulum
+//	entObject - entity, the object to swing back and forth: X - pitch Y - yaw Z - roll
+//	vecMove - vector, the amplitude to move on each axis
+//	fltTime - float, the total time to take for one full swing
+//	fltFriction - float, friction factor to apply, percentange between 0 and 1
+//	strSound - string, path to sound to play
+//	Swings an object back and forth in a pendulum motion
+//--------------------------------
+void globalAccelMove_Pendulum( entity entObject, vector vecMove, float fltTime, float fltFriction, string strSound )
+{
+	if(doesEntityExist(entObject)){
+		//--- check if the friction value is out of range
+		if( fltFriction > 1 || fltFriction < 0 )
+		{
+	    	print( "PENDULUM: Friction value is NOT between 0 and 1\nPENDULUM: for entity: " + entObject.gettargetname() + "\nPENDULUM: friction value set to: " + fltFriction + "\n" );
+	    	stuffcmd( "disconnect\n" );
+		}
+		
+		vector vecStartingAngles, vecInverseMove;
+		float fltFrictionTime, fltFrictionFactor;
+
+		//--- grab the starting angles
+		vecStartingAngles = entObject.getAngles();
+
+		//--- calculate the inverse of the move
+		vecInverseMove = globalAccelMove_Pendulum_CalcInverse( vecMove );
+		
+		//--- set the friction time to the total time
+		fltFrictionTime = fltTime;
+		
+		//--- start the loop
+		while( doesEntityExist( entObject ) && (fltFrictionTime >= .1) )
+		{			
+			//--- from start to first maximum
+			if( doesEntityExist( entObject ) )
+			{
+				globalAccelMove_Rotate( entObject, vecMove, (fltTime * .25), "rampdown", "" );
+			}
+			
+			//--- from first maximum to start
+			if( doesEntityExist( entObject ) )
+			{
+	        	//--- play sound
+	        	if( strSound != "" )
+	        	{
+	        		entObject.playsound( strSound, 0, 1, 32 );
+	        	}
+
+				globalAccelMove_Rotate( entObject, vecInverseMove, (fltTime * .25), "rampup", "" );
+			}
+						
+			//--- if friction is set, apply friction
+			if( fltFriction > 0 )
+			{
+	    		//--- if friction is set, then degrade the extents
+	    		vecMove = globalAccelMove_Pendulum_CalcFriction( vecMove, fltFriction );
+	    		vecInverseMove = globalAccelMove_Pendulum_CalcInverse( vecMove );
+	    		fltFrictionFactor = fltFrictionTime * fltFriction;
+	    		fltFrictionTime -= fltFrictionFactor;
+	    	}
+
+			//--- from start to second maximum
+			if( doesEntityExist( entObject ) )
+			{
+				globalAccelMove_Rotate( entObject, vecInverseMove, (fltTime * .25), "rampdown", "" );
+			}
+						
+			//--- from second maximum to start
+			if( doesEntityExist( entObject ) )
+			{
+	        	//--- play sound
+	        	if( strSound != "" )
+	        	{
+	        		entObject.playsound( strSound, 0, 1, 32 );
+	        	}
+	        	
+				globalAccelMove_Rotate( entObject, vecMove, (fltTime * .25), "rampup", "" );
+			}
+
+			//--- if friction is set, apply friction
+			if( fltFriction > 0 )
+			{
+	    		//--- if friction is set, then degrade the extents
+	    		vecMove = globalAccelMove_Pendulum_CalcFriction( vecMove, fltFriction );
+	    		vecInverseMove = globalAccelMove_Pendulum_CalcInverse( vecMove );
+	    		fltFrictionFactor = fltFrictionTime * fltFriction;
+	    		fltFrictionTime -= fltFrictionFactor;
+	    	}
+		}
+		
+		//--- check if the entity exists, if it does, reset it to it's starting angles
+		if( doesEntityExist( entObject ) )
+		{
+			entObject.angles( vecStartingAngles );
+		}
+	}
+}
+
+
+
+
+//====================================================================================================================================================
+//====================================================================================================================================================
+//  INTERNAL FUNCTIONS
+//====================================================================================================================================================
+//====================================================================================================================================================
+
+//--------------------------------
+//	globalAccelMove_DoMove
+//	strType - string, the type of movement: absolute, relative, rotation
+//	entObject - entity, the object to move
+//	vecMove - vector, distance on 3 axis
+//	fltTime - float, the total time to take for the move
+//	strCurve - string, the type of acceleration to use
+//			   "rampup", the object will start still and accelerate up to it's maximum velocity
+//			   "rampdown", the object will start at its maximum velocity and accelerate down to still
+//			   "rampupdown", the object will start still, accelerate up to maximum, then back down to still
+//			   "none", the object will move linearly (no acceleration)
+//	strSound - string, path to sound to play
+//	rotates an object with acceleration based on the selected curve
+//--------------------------------
+void globalAccelMove_DoMove( string strType, entity entObject, vector vecMove, float fltTime, string strCurve, string strSound )
+{
+	float fltCurrentFrame, fltTotalFrames, fltPercentageDone_Move, fltPercentageDone_Distance;
+	float x1, y1, z1, x2, y2, z2;
+	vector vecPreviousPosition, vecNewPosition;
+
+	//--- calculate the total number of frames
+	fltTotalFrames = fltTime / .05;
+	
+	fltCurrentFrame = 1;
+	vecPreviousPosition = '0 0 0';
+
+	//--- play sound
+	if( strSound != "" )
+	{
+		entObject.playsound( strSound, 0, 1, 128 );
+	}
+	
+	//--- start the loop
+	while( doesEntityExist( entObject ) && (fltCurrentFrame <= fltTotalFrames) )
+	{
+		//--- get the percentage of the total move the object should be at based on the curve selected
+		fltPercentageDone_Move = fltCurrentFrame / fltTotalFrames;
+		
+		//--- determine the type of acceleration curve and calculate the movement done percentage
+		if( strCurve == "rampup" )
+		{
+			fltPercentageDone_Distance = globalMath_RampUp_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		else if( strCurve == "rampdown" )
+		{
+			fltPercentageDone_Distance = globalMath_RampDown_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		else if( strCurve == "rampupdown" )
+		{
+			fltPercentageDone_Distance = globalMath_RampUpDown_GetMovementPercentage( fltPercentageDone_Move );
+		}
+		else if( strCurve == "none" )
+		{
+			fltPercentageDone_Distance = fltPercentageDone_Move;
+		}
+		else	//an invalid acceleration curve was given
+		{
+        	print( "ACCEL MOVE ERROR: An invalid acceleration curve was given\nACCEL MOVE ERROR: for entity: " + entObject.gettargetname() + "\n" );
+        	print( "ACCEL MOVE ERROR: Acceleration curve is currently set to: " + strCurve + "\n" );
+        	stuffcmd( "disconnect\n" );
+        }
+    			
+		//--- get the actual position the object should be at for this frame
+		vecNewPosition = globalMath_LerpGetPosition( vecMove, fltPercentageDone_Distance );
+		
+		//--- get the distance for each axis the object needs to move this frame
+		x1 = vecNewPosition_x;
+		x2 = vecPreviousPosition_x;
+		y1 = vecNewPosition_y;
+		y2 = vecPreviousPosition_y;
+		z1 = vecNewPosition_z;
+		z2 = vecPreviousPosition_z;
+		x1 -= x2;
+		y1 -= y2;
+		z1 -= z2;
+
+		//--- store the new position as the previous
+		vecPreviousPosition = vecNewPosition;
+		
+		//--- move the object on all 3 axis
+		if( doesEntityExist( entObject ) )
+		{
+			//--- check the move type and do the appropriate move
+			if( strType == "absolute" )			//north, south, east, west movement
+			{
+				globalAccelMove_DoMove_Absolute( entObject, x1, y1, z1 );
+			}
+			else if( strType == "relative" )	//forward, backward, left, right movement
+			{
+				globalAccelMove_DoMove_Relative( entObject, x1, y1, z1 );
+			}
+			else	//pitch, yaw, roll rotational movement
+			{
+				globalAccelMove_DoMove_Rotation( entObject, x1, y1, z1 );
+			}
+    	}
+		
+		//--- up the frame counter
+		fltCurrentFrame++;
+	}
+}
+
+//--- absolute move the object
+void globalAccelMove_DoMove_Absolute( entity entObject, float x1, float y1, float z1 )
+{
+	entObject.time( .05 );
+	entObject.moveEast( x1 );
+	entObject.moveNorth( y1 );
+	entObject.moveUp( z1 );
+	waitFor( entObject );
+}
+
+//--- relative move the object
+void globalAccelMove_DoMove_Relative( entity entObject, float x1, float y1, float z1 )
+{
+	entObject.time( .05 );
+	entObject.moveRight( x1 );
+	entObject.moveForward( y1 );
+	entObject.moveUp( z1 );
+	waitFor( entObject );
+}
+
+//--- rotation move the object
+void globalAccelMove_DoMove_Rotation( entity entObject, float x1, float y1, float z1 )
+{
+	entObject.time( .05 );
+	entObject.rotateXUp( x1 );
+	entObject.rotateYUp( y1 );
+	entObject.rotateZUp( z1 );
+	waitFor( entObject );
+}
+
+
+//--------------------------------
+//	globalAccelMove_Pendulum_CalcInverse
+//	vecPassed - vector, the vector to inverse
+//	inverts all 3 axis of the passed in vectors and returns the result
+//--------------------------------
+vector globalAccelMove_Pendulum_CalcInverse( vector vecPassed )
+{
+	float x2, y2, z2;
+	vector vecInverse;
+
+	//--- calculate the sendswing, it's the inverse of the vecMove
+	x2 = vectorGetX( vecPassed );
+	y2 = vectorGetY( vecPassed );
+	z2 = vectorGetZ( vecPassed );
+
+	x2 *= -1;
+	y2 *= -1;
+	z2 *= -1;
+	
+	vecInverse = vectorSetX( vecInverse, x2 );
+	vecInverse = vectorSetY( vecInverse, y2 );
+	vecInverse = vectorSetZ( vecInverse, z2 );
+	
+	return( vecInverse );
+}
+
+
+//--------------------------------
+//	globalAccelMove_Pendulum_CalcFriction
+//	vecMove - vector, the movement vector to apply friction to
+//	fltFriction - float, the percentage of friction to apply
+//	takes the friction percentange and subtracts it from the passed in vector
+//	returns the new vector with friction applied
+//--------------------------------
+vector globalAccelMove_Pendulum_CalcFriction( vector vecMove, float fltFriction )
+{
+	float x1, y1, z1, x2, y2, z2;
+	vector vecMoveWithFriction;
+	
+	x1 = vectorGetX( vecMove );
+	y1 = vectorGetY( vecMove );
+	z1 = vectorGetZ( vecMove );
+	
+	x2 = x1 * fltFriction;
+	y2 = y1 * fltFriction;
+	z2 = z1 * fltFriction;
+	
+	x1 -= x2;
+	y1 -= y2;
+	z1 -= z2;
+
+	vecMoveWithFriction = vectorSetX( vecMoveWithFriction, x1 );
+	vecMoveWithFriction = vectorSetY( vecMoveWithFriction, y1 );
+	vecMoveWithFriction = vectorSetZ( vecMoveWithFriction, z1 );
+	
+	return( vecMoveWithFriction );
+}
