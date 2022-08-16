@@ -231,5 +231,26 @@ Button
 	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_coreattack.tga;globalwidgetcommand coopName title \"-\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
-
+//[b609] chrissstrahl - added new map
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 13 ==
+	title "Coop Section 31"
+	name 	"communitymap_coop_section31l1"
+	rect	275 324 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+	
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "callvote map coop_section31l1;popmenu 1;popmenu 0\n"
+	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_section31l1.tga;globalwidgetcommand coopName title \"-\""
+	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+}
 end.
