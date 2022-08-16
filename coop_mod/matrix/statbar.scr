@@ -1,0 +1,254 @@
+void globalCoop_statbar_statSendAll(string sStatName,float fStatValue)
+//------------------------------------------------------------------------------
+//update the specified statistic for players - the game will send it to the players
+//------------------------------------------------------------------------------
+{
+	//abort if statistic name is empty
+	if(sStatName == ""){
+		globalCoop_main_globalMessage("globalCoop_statbar_statSendAll() statistics name was empty!");
+		return;
+	}
+
+	//for singleplayer only
+	if(!cvar_bool_multiplayer){
+		$player.setstat( sStatName,fStatValue);
+	}
+	//multiplayer/Coop
+	else{
+		entity ePlayer;
+		float fPlayerId;
+		//hzm coop mod chrissstrahl, send to each player
+		for(fPlayerId=0;fPlayerId<coop_integer_maxPlayers;fPlayerId++){
+			ePlayer = getentity("player"+fPlayerId);
+			if(doesEntityExist(ePlayer) == 1 ){
+				if(ePlayer.isSpectator() != 1){
+					ePlayer.setstat( sStatName,fStatValue);
+				}
+			}
+		}
+	}
+}
+
+void globalCoop_statbar_removeHud(string sHudName)
+//------------------------------------------------------------------------------
+//removes and unregisters the hud for players
+//------------------------------------------------------------------------------
+{
+	//unregister the hud with the coop mod
+	thread globalCoop_huds_registerMissionHud(sHudName,0,"");
+	//remove hud again
+	thread globalCoop_huds_RemoveAll(sHudName);
+	
+	//clear custom name and restore huds to default
+	string sWidgetName;
+	string sTitleName;
+	float fResetTitle;
+	if(sHudName == "m4l1a-airsupply"){
+		fResetTitle	= 1;
+		sTitleName	= "$$AirSupply$$";
+	}else if(sHudName == "m6SabotageTimer"){
+		fResetTitle	= 1;
+		sTitleName	= "$$SabotageProgress$$";
+	}
+	if(fResetTitle){
+		sWidgetName = sHudName+"Name";
+		thread globalCoop_player_transmittToAll("globalwidgetcommand "+sWidgetName+" title "+sTitleName+"\n");
+	}
+}
+
+void globalCoop_statbar_healthStop(entity eMonitor)
+//------------------------------------------------------------------------------
+//stops statbar for given entity
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eMonitor)){
+		globalCoop_main_print("statbarStop() Given Entity does not exist!");
+		return;
+	}
+	eMonitor.setFloatVar("monitorMe",0);
+}
+
+
+void globalCoop_statbar_timerStop()
+//------------------------------------------------------------------------------
+//stops statbar timer
+//------------------------------------------------------------------------------
+{
+	coop_bool_statbarTimerTermminate=1;
+}
+
+void globalCoop_statbar_timer(string sColor,string sUp, string sName,float fTime,string sThread)
+//------------------------------------------------------------------------------
+//starts statbar timer
+//------------------------------------------------------------------------------
+{
+	//you can't start this twice
+	if(coop_bool_statbarTimerActive){
+		globalCoop_main_print("globalCoop_statbar_timer() Already active!");
+		return;
+	}
+	
+	//set as active
+	coop_bool_statbarTimerActive = 1;
+	
+	//reset termination signal
+	coop_bool_statbarTimerTermminate = 0;
+
+	string sHudName;
+	string sStatname;
+	string sWidgetName;
+	
+	if(sColor == "blue"){
+		sHudName	= "m4l1a-airsupply"; //blue/right
+		sStatname	= "generic";
+		sWidgetName	= "m4l1a-airsupplyName";
+	}else{
+		sHudName	= "m6SabotageTimer"; //red/left
+		sStatname	= "mp_generic1";
+		sWidgetName	= "m6SabotageTimerName";
+	}
+	
+	//set name if wanted
+	string sCommand;
+	if(sName != ""){
+		sCommand = "globalwidgetcommand "+sWidgetName+" labeltext "+sName+"\n";
+		thread globalCoop_player_transmittToAll("globalwidgetcommand "+sWidgetName+" labeltext "+sName+"\n");
+	}
+	
+	//add hud to player
+	thread globalCoop_huds_AddAll(sHudName);
+	//register the hud with the coop mod, so player joining late will have it automatically added by the mod
+	thread globalCoop_huds_registerMissionHud(sHudName,1,sCommand);
+	
+	//create vars we use
+	float fEndAtTime;
+	float fUpdateInterval;
+	float fTimeLeft;
+	float fPercentLeft;
+	float fTimeLast;
+	float fLevelTime;
+	fUpdateInterval = 0.25;
+	fEndAtTime = (getLevelTime() + fTime);
+
+	//loop as long as it is not terminated and the time is not over
+	while( fEndAtTime > getLevelTime() && coop_bool_statbarTimerTermminate == 0)
+	{
+		fLevelTime			= getLevelTime();
+		fTimeLeft			= (fEndAtTime - fLevelTime);
+		
+		if((fTimeLast + fUpdateInterval) <= fLevelTime){
+			fTimeLast		= fLevelTime;
+			
+			if(sUp == "up"){
+				fPercentLeft	= (100 - ((100 / fTime) * fTimeLeft));
+			}else{
+				fPercentLeft	= ((100 / fTime) * fTimeLeft);
+			}
+			
+			//send statistics to all players
+			thread globalCoop_statbar_statSendAll(sStatname,fPercentLeft);
+		}
+		//update in a interval if we do not abort
+		//we need fast updating rate so we don't have to much delay if timer is ended and new hud is pushed by a different timer
+		globalCoop_main_waitAFrame();
+	}
+	
+	//start sThread - if threadname given and statbar was not aborted
+	if(sThread != "" && coop_bool_statbarTimerTermminate == 0){
+		thread globalCoop_level_callReliably(sThread);
+	}
+	
+	//remove, unregister and reset hud
+	globalCoop_statbar_removeHud(sHudName);
+	
+	//reset active status
+	coop_bool_statbarTimerActive=0;
+}
+
+void globalCoop_statbar_health(entity eMonitor,string sColor,string sName,float fHealthStop,string sThread)
+//------------------------------------------------------------------------------
+//shows a statbar for given entity - monitoring health
+//if fBlue is 1 bar will be blue
+//if fHealthStop is not 0 and is reached monitoring will be ended and sThread will be started
+//if sName is not "" it will be shown to all players
+//if health is reaching 0 sThread is started
+//if monitoring is aborted via eMonitor.setFloatVar("monitorMe",0) sThread will be started
+//------------------------------------------------------------------------------
+{
+	//abort if we can't find entity
+	if(!doesEntityExist(eMonitor)){
+		globalCoop_main_globalMessage("globalCoop_statbar_health() entity to monitor does not exist!");
+		return;
+	}
+	
+	//do not start this twice on same entity
+	if(eMonitor.getFloatVar("monitorMe") == 1){
+		globalCoop_main_globalMessage("globalCoop_statbar_health() $"+eMonitor.getRawTargetName()+" has already monitoring running!");
+		return;
+	}
+	
+	//set marker - it can be canceled else where by setting it to 0
+	eMonitor.setFloatVar("monitorMe",1);
+	
+	//get health we start with (100% - full bar)
+	float fStartingHealth;
+	fStartingHealth = eMonitor.getHealth();
+	
+	string sHudName;
+	string sStatname;
+	string sWidgetName;
+	
+	if(sColor == "blue"){
+		sHudName	= "m4l1a-airsupply"; //blue/right
+		sStatname	= "generic";
+		sWidgetName	= "m4l1a-airsupplyName";
+	}else{
+		sHudName	= "m6SabotageTimer"; //red/left
+		sStatname	= "mp_generic1";
+		sWidgetName	= "m6SabotageTimerName";
+	}
+	
+	//set name if wanted
+	string sCommand;
+	if(sName != ""){
+		sCommand = "globalwidgetcommand "+sWidgetName+" labeltext "+sName+"\n";
+		thread globalCoop_player_transmittToAll("globalwidgetcommand "+sWidgetName+" title "+sName+"\n");
+	}
+
+	//add hud to player
+	thread globalCoop_huds_AddAll(sHudName);
+	//register the hud with the coop mod, so player joining late will have it automatically added by the mod
+	thread globalCoop_huds_registerMissionHud(sHudName,1,sCommand);
+	
+	//create vars we use
+	float fValue;
+	float fOnePercent;
+	fOnePercent = (fStartingHealth / 100);
+	
+	//loop the monitoring - as long as entity exists, is alive and should still be monitored
+	while(doesEntityExist(eMonitor) == 1 && eMonitor.getHealth() > 0 && fOnePercent != 0 && eMonitor.getFloatVar("monitorMe") == 1){
+		fValue =  (eMonitor.getHealth() / fOnePercent); //clac health on a scale 0-100
+	
+		//send statistics to all players
+		thread globalCoop_statbar_statSendAll(sStatname,fValue);
+		
+		//check if we should abort right now
+		if(fHealthStop != 0 && eMonitor.getHealth() <= fHealthStop ){
+			fOnePercent=0;
+		}else{
+			//update in a interval if we do not abort
+			wait(0.25);		
+		}
+	}
+	
+	//start sThread - if threadname given and statbar was not aborted
+	if(sThread != "" && eMonitor.getFloatVar("monitorMe") != 0){
+		thread globalCoop_level_callReliably(sThread);
+	}
+	
+	//reset monitoring status
+	eMonitor.setFloatVar("monitorMe",0);
+	
+	//remove, unregister and reset hud
+	globalCoop_statbar_removeHud(sHudName);
+}
