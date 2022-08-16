@@ -923,4 +923,25 @@ Button
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 22 ==
+	title "Prefab Statistics and Health Bar"
+	name 	"coopHzmTestLvlStartSv39"
+	rect	275 366 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "set ui_startmap prf_statbar\n"
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
+}
 end.
