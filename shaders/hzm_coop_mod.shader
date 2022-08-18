@@ -405,5 +405,32 @@ cull none
   }
 }
 
+//--------------------------------------------------------------------
+// Blood Sprite Shader for the Blod Model
+//--------------------------------------------------------------------
+zombi_blood-red
+{
+   spritegen parallel_oriented
+      {
+      map models/fx/blood/bloodmap1.tga
+      blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+      alphaGen vertex
+      rgbgen vertex
+      }
+}
+
+//--------------------------------------------------------------------
+// Blood Sprite Shader for the Blod Model
+//--------------------------------------------------------------------
+zombi_blood-green
+{
+	spritegen parallel_oriented
+		{
+		map models/fx/blood/greenblood1.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		alphaGen vertex
+		rgbgen vertex
+		}
+}
 
 
