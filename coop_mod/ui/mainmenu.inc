@@ -1,3 +1,91 @@
+resource
+Label
+{
+title "EF2"
+name "Default"
+rect 20 455 25 16
+fgcolor 1.00 1.00 1.00 1.00
+bgcolor 1.00 1.00 1.00 0.00
+borderstyle "RAISED"
+font serpentinelight-10
+}
+
+resource
+Label
+{
+name "Default"
+rect 40 455 40 16
+fgcolor 1.00 1.00 1.00 1.00
+bgcolor 1.00 1.00 1.00 0.00
+borderstyle "RAISED"
+linkcvar "shortversion"
+font serpentinelight-10
+}
+
+resource
+Label
+{
+title "$$c#005$$"
+name "Default"
+rect 80 455 210 16
+fgcolor 1.00 1.00 1.00 1.00
+bgcolor 0.00 1.00 0.00 0.0
+borderstyle "RAISED"
+font serpentinelight-10
+}
+
+resource
+Label
+{
+name "Default"
+rect 284 455 40 16
+fgcolor 0.00 1.00 1.00 1.00
+bgcolor 0.00 1.00 0.00 0
+borderstyle "RAISED"
+font serpentinelight-10
+linkcvar "coop_ver"
+}
+
+////////////////////////////
+// adds troubleshooting button
+////////////////////////////
+
+resource
+widget
+{
+	rect 	 371 339 256 32
+	fgcolor 1.00 1.00 0.00 1.00
+	bgcolor 0.00 0.00 0.00 0.00
+	borderstyle "none"
+	
+	shader menu/main/secrets
+	shadercolor 1.00 0.10 0.60 1.00
+	hovershadercolor 1.00 0.10 0.60 1.00
+	armedshadercolor 1.00 0.10 0.60 1.00
+	selectedshadercolor 1.00 0.10 0.60 1.00
+}
+
+resource
+Button
+{
+	title "TROUBLESHOOTING"
+	name 	"Default"
+	rect 	 424 341 123 26
+	font serpentinemedium-8
+	fgcolor 		1.000 1.000 1.000 1.000
+	bgcolor 		0.000 0.000 0.000 0.000
+
+	hovershader menu/generic/button-hover
+	pressedshader menu/generic/button-press
+
+	stuffcommand "pushmenu coop_ts\n"
+
+    hovercommand "globalwidgetcommand tooltip_main title \"Might help you to fix issues with the game.\""
+    hoverexitcommand "globalwidgetcommand tooltip_main title \"\""
+    
+    clicksound sound/misc/menu/click.wav
+}
+
 ////////////////////////////
 // This fires up the setup menu if required
 ////////////////////////////
@@ -26,7 +114,6 @@ widget
 	horizontaljustify center
 	verticaljustify top
 	borderstyle "none"
-	//shader textures/menu/clouds
 }
 resource
 widget
