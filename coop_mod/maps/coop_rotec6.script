@@ -37,6 +37,7 @@ void dynLightFlicker();
 
 float secretCollected;
 float fEnemyKilled;
+float float_enemies_to_kill = 8;
 
 //hzm coop mod - chrissstrahl - include the required coop level-scripts
 /////////////////////////////////////////////////////////////////////////
@@ -94,6 +95,7 @@ void main()
 	$romSurprise0.anim("crouch_idle");
 	$romSurprise1.anim("crouch_idle");
 	$romSurprise2.anim("crouch_idle");
+	$romSurprise3.anim("crouch_idle");
 	
 	//setup world
 	$world.entity_fade_dist( 4000 );
@@ -161,6 +163,7 @@ void surpriseSuprise()
 	$romSurprise0.ai_on();
 	$romSurprise1.ai_on();
 	$romSurprise2.ai_on();
+	$romSurprise3.ai_on();
 	wait(3);
 	$romGranade.ai_on();
 }
@@ -193,11 +196,18 @@ void basherBasher()
 	waitForAnimation($basher,"taunt");
 	
 	$basher.ai_on();
-	if(doesEntityExist(ePlayer)){
-		if(ePlayer.getHealth() > 0){
-			$basher.attack(ePlayer);
-		}
-	}
+	
+	//[b60011] chrissstrahl - show boss health hud/statbar
+	float fHealth;
+	fHealth = $basher.getHealth();
+	$basher.health(fHealth);
+	$basher.maxbosshealth(fHealth + 1);// + 1
+	$basher.updatebosshealth( 1,1);
+	
+	//[b60011] chrissstrahl - changed attack command to be player neutral
+	$basher.aggressive(1);
+	//[b60011] chrissstrahl - added marker on radar
+	$levelEndTrigger_useSymbol.missionobjective(1);
 }
 /* //chrissstrahl disabled, as it is no longer used [b607]
 void basherLampBashing()
@@ -252,7 +262,7 @@ void theLineMustBeDrawn_thisFarNoFurther()
 
 void leavesFlyAway()
 {
-	float leavesIndex = 22;
+	float leavesIndex = 16;
 	float i;
 	entity e;
 	float fUp;
@@ -313,9 +323,10 @@ void leavesFlyAway()
 }
 
 void enemyKilled()
+//killthread - make sure they are all taken care of
 {
 	fEnemyKilled++;
-	if(fEnemyKilled == 7){
+	if(fEnemyKilled >= float_enemies_to_kill){
 		$levelEndTrigger.triggerable();
 	}
 }
@@ -428,6 +439,12 @@ void waitForTeam()
 	//hzm coop mod chrissstrahl - spawn a gathering area, players must gather here for the game to continue
 	v_z = 0;
 	thread globalCoop_level_gatheringArea("coop_playerGatherIngArea","shuttleTakeOff",100,'1000 300 300',v);
+	
+	//[b60011] chrissstrahl - show on radar
+	wait(1);
+	if(doesEntityExist($coop_playerGatherIngArea)){
+		$coop_playerGatherIngArea.missionobjective(1);
+	}
 }
 
 void coop_endLevel()
