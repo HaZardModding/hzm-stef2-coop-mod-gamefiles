@@ -48,7 +48,7 @@ state CORE_FAILED
 	{
 	legs
 		{
-		idle : default
+		sleep : default
 		}
 
 	time ( 1.5 )

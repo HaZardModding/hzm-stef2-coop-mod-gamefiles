@@ -42,7 +42,7 @@ state CORE
 	{
 	entrycommands
 		{
-		usebehaviorpackage ( "coop_zombi_core" )
+		usebehaviorpackage ( "coop_zombiH_core" )
 		}
 		
 	states
@@ -59,7 +59,7 @@ state ATTACK
 {
 	entrycommands
 		{
-		usebehaviorpackage ( "coop_zombi_attack" )
+		usebehaviorpackage ( "coop_zombiH_attack" )
 		}
 		
 	states
