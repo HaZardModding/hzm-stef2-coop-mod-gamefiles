@@ -15,6 +15,7 @@ void givePlayerAmmo();
 void ffOnTouch();
 void ffOnTouch1Blue1();
 void ffOnTouch2Blue1();
+void barclayPathPrevention();
 
 //hzm coop mod - chrissstrahl - include the required coop level-scripts
 /////////////////////////////////////////////////////////////////////////
@@ -30,6 +31,10 @@ entity	entityPlayerGlobal;
 void main()
 {
 	coop_string_levelAuthor = "Gsio,Chrissstrahl,Unknown";
+	
+	//[b60011] chrissstrahl - moved here because they where loadad to late on fast pc //set weapons
+	coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-Phaser-stx.tik";
 	
 	$picard.notarget();
 	$picard.nodamage();
@@ -53,10 +58,6 @@ void setupMap()
 {
 	//--set the soundtrack
 	soundtrack( "music/m1l1-borg_sphere.mus" );
-	
-	//set weapons
-	coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
-	coop_string_weapon1 = "models/weapons/worldmodel-Phaser-stx.tik";
 	
 	//stacked drones in warpcore room
 	$drone5.allowfall(1);
@@ -469,6 +470,20 @@ void barclayStopFollowing()
 	if($world.getFloatVar("BarclayFollowingStop") != 1){
 		$world.setFloatVar("BarclayFollowingStop",1);
 		$barclay.settendency("follow",0); //stop following
+		
+		//[b60011] chrissstrahl - make barclay go to door - to prevent him getting stuck at forcefield
+		$barclay.ai_off();
+		do{
+			if($barclay.getHealth() <= 0){ return; }
+			
+			$barclay.walkto("$t363","run");
+			waitFor($barclay);
+			if($barclay.isWithinDistanceOf($engineering_door1,200)){
+				$barclay.ai_on();
+				return;
+			}
+			wait(0.1);
+		}while(doesEntityExist($barclay));
 	}
 }
 
@@ -489,6 +504,34 @@ void givePlayerAmmo()
 			}
 		}
 		wait( 1 );
+	}
+}
+
+//[b60011] chrissstrahl - prevent Barclay trying to enter via forcefield (will get him stuck)
+//this would be needed to be fixed in the game code, but would be considerably more work
+//I don't have time to fix that now, maybe in the future
+void barclayPathPrevention()
+{
+	return;
+	
+	float fDisconnected;
+	float fReconnectCountDown;
+	while(doesEntityExist($barclay)){
+		if($barclay.getHealth() <= 0){ return; }
+		if($barclay.isWithinDistanceOf($t331,300)){
+			if(!fDisconnected){
+				disconnectPathnodes("$t348","$t347");
+				fDisconnected = 1;
+				fReconnectCountDown = 5;
+			}
+		}else if(fDisconnected){
+			fReconnectCountDown--;
+			if(fReconnectCountDown == 0){
+				fDisconnected = 0;
+				connectPathnodes("$t348","$t347");
+			}
+		}
+		wait(0.5);
 	}
 }
 
