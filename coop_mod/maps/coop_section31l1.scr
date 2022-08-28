@@ -544,12 +544,6 @@ void setupFuncSpawn(entity e,string sModelName,string sSpawnTargetName)
 		return;
 	}
 	e.modelName(sModelName);
-	e.spawnTargetName(sSpawnTargetName);
-	//create uniqe group and set thread
-	e.setspawngroupdeaththread("enemy_killed");
-	float fRand;
-	fRand = getLevelTime() * randomInt(33);
-	e.setspawngroupID(floor(fRand));
 	//e.spawneffectname( String effectType, [ String effectName ] );
 	//e.startanim("");
 	//e.starthidden(1);
@@ -615,12 +609,29 @@ void attack_start()
 	float fMaxEnemies;
 	fMaxEnemies = 5;	
 	while(fEnemiesToKill > 0){
-		entity eTrigger;
-		eTrigger = getEntity("spawnOutOfSight"+randomInt(3));
 		if(fEnemiesActive < fMaxEnemies){
+	
+			entity eTrigger;
+			string sSpawnTargetName;
+			sSpawnTargetName = "spawnOutOfSight"+randomInt(3);
+			
+			eTrigger = getEntity(sSpawnTargetName);
+			
+			sSpawnTargetName = sSpawnTargetName+""+floor(getLevelTime());
+			eTrigger.spawnTargetName(sSpawnTargetName);
+			eTrigger.setspawngroupdeaththread("enemy_killed");
+			eTrigger.setspawngroupID(floor(getLevelTime()));
+			globalCoop_main_waitAFrame();
+			
 			if(doesEntityExist(eTrigger)){
 				triggerEntity( eTrigger );
 				fEnemiesActive++;
+				globalCoop_main_waitAFrame();
+				
+				//make sure the monster dies if it is stuck or idle
+				entity eMonster;
+				eMonster = getEntity(sSpawnTargetName);
+				thread coop_timeOutSuicide(eMonster);
 			}
 		}
 		wait(3);
@@ -688,8 +699,6 @@ void cinematic_queen()
 	$entrancePlate.remove();
 	$patchOfDirtThatTheQueenWillMakeGoAway.remove();
 	$path.remove();
-	
-	
 	
 	//start alarmsound
 	$cameraSpawn.loopsound("sound/ships/forever/for_alarm_beeps.wav",4,256);
@@ -761,15 +770,9 @@ void enemy_killed()
 		globalCoop_main_print("enemy_killed() - glitched: No Monster");
 		return;
 	}
-	
-	string sSpawner;
-	sSpawner = eMonster.getStringVar("spawnedBy");
-	if(sSpawner == ""){
-		globalCoop_main_print("enemy_killed() - glitched: No Spawner name");
-		return;
-	}
 
 	entity eSpawner;
+	string sSpawner;
 	eSpawner = getEntity(sSpawner);
 	if(!doesEntityExist(eSpawner)){
 		globalCoop_main_print("enemy_killed() - glitched: Spawner $"+sSpawner+" not found");
@@ -788,9 +791,6 @@ void enemy_killed()
 		globalCoop_main_print("enemy_killed() - glitched: Monster $"+sTargetname+" was not spawned");
 		return;
 	}
-	
-	//make sure the monster dies if it is stuck or idle
-	thread coop_timeOutSuicide(eSpawner);
 }
 
 void queen_killed()
@@ -897,7 +897,10 @@ void objectives_forceField()
 			vPos_y -= 48;
 		}
 	}
+	
+	$triggerActivateForceField1.missionobjective(0);
 
+	globalCoop_objectives_update("complete" , 1 , 0 );//get to outpost
 	globalCoop_objectives_update("complete" , 2 , 0 );//Activate the forcefield, the bugs are attacking...
 	globalCoop_objectives_update("incomplete" , 3 , 1 );//Defend Outpost	
 	
@@ -1044,6 +1047,8 @@ void coop_endLevel()
 	//stop heartbeat sound if in sp and injured
 	if(getCvarInt("g_gametype") == 0){
 		$player.health(100);
+		$player.nodamage();
+		freezeplayer();
 	}
 	
 //credits, and history of map
