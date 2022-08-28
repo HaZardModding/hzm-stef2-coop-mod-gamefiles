@@ -1,0 +1,96 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2022.08.27
+// E-Mail:		chrissstrahl@yahoo.de
+//-----------------------------------------------------------------------------------
+// This script contains helper functions to create effects like explosions and so on
+//-----------------------------------------------------------------------------------
+
+void effects_check(entity e);
+void effects_scale(entity eScale,float fStartScale,float fScaleStep,float fScaleStop);
+entity effects_spawnScaleFade(string sModel,float fStartScale,float fScaleStep,float fFadeTime,vector vOrigin);
+
+
+void effects_scale(entity eScale,float fStartScale,float fScaleStep,float fScaleStop)
+//-----------------------------------------------------------------------------------
+// scales entity - every server frame (sv_fps)
+//-----------------------------------------------------------------------------------
+{
+	//figure out if we want to scale up or down
+	float fUp;
+	fUp = 1;
+	if(fScaleStop != -1){
+		if(fScaleStop < fStartScale){
+			fUp = 0;
+			if(fScaleStop > fStartScale || fScaleStep > 0){
+				globalCoop_main_print("effects_scale: Check your Parameters! To scale down use minus stepsSize");
+				return;
+			}
+		}
+	}
+	
+	eScale.scale(fStartScale);
+	while(doesEntityExist(eScale)){
+		
+		//stop scaleing if fScaleStop is set to a valid value
+		if(fScaleStop != -1){
+			if(fUp == 1){
+				if(fStartScale >= fScaleStop){
+					return;
+				}
+			}else{
+				if(fStartScale <= fScaleStop){
+					return;
+				}
+			}
+		}
+		
+		eScale.scale(fStartScale);
+		globalCoop_main_waitAFrame();
+		fStartScale += fScaleStep;
+	}
+}
+
+void effects_check(entity e)
+//-----------------------------------------------------------------------------------
+// used to debug
+//-----------------------------------------------------------------------------------
+{
+	string sTargetname;
+	sTargetname = e.getTargetname();
+	while(doesEntityExist(e)){
+		globalCoop_main_waitAFrame();
+	}
+	globalCoop_main_print("effects_check: removed "+sTargetname);
+}
+
+entity effects_spawnScaleFade(string sModel,float fStartScale,float fScaleStep,float fFadeTime,vector vOrigin)
+//-----------------------------------------------------------------------------------
+// spawns a effect model, Scales it and Fades it
+//-----------------------------------------------------------------------------------
+{
+	if(sModel == ""){
+		globalCoop_main_print("effects_spawnScaleFade: Parameter 1 was empty!");
+		return $NUL;
+	}
+	if(fScaleStep == 0){
+		globalCoop_main_print("effects_spawnScaleFade: Parameter 3 was 0!");
+		return $NUL;
+	}
+	if(fFadeTime == 0){
+		globalCoop_main_print("effects_spawnScaleFade: Parameter 4 was 0!");
+		return $NUL;
+	}
+	
+	entity eExplo;
+	eExplo = spawn(sModel,"scale",""+fStartScale,"origin",""+vOrigin,"notsolid","1");	
+	globalCoop_main_waitAFrame();
+	
+	eExplo.fadeout(fFadeTime,0);
+	thread effects_scale(eExplo,fStartScale,fScaleStep,-1);
+	
+	//debug
+	//thread effects_check(eExplo);
+	
+	return eExplo;
+}
