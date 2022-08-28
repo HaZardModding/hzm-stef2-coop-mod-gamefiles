@@ -1,32 +1,19 @@
-//Section 31 Level 1 Script file//
-
-//--
-//EF2 Script File
 //Level - Section 31 Episode 1
-//Script by - Nicholas Groom
-//Created on - 16/08/2007
-//
-//Last Edited - 16/08/2007
-//
-//--
-
-//Define Variables
-//--
+//Created on			- 16/08/2007
+//Last Edited			- 16/08/2007
+//Geometry				- Nicholas Groom
+//Geometry updates		- Chrissstrahl
+//Script				- Chrissstrahl
+//UPDATED 2022.08.07	- Chrissstrahl for the use in the HZM Coop Mod
 
 
-//UPDATED 2022.08.07 by Chrissstrahl for the use in the HZM Coop Mod
 //hzm coop mod - chrissstrahl - include the required coop level-scripts
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-void	coop_flyInEnemy();
-void	coop_randomSpawner();
-void	coop_timeOutSuicide(entity eMonster);
-void	coop_manageBossHud();
 void	coop_endLevel();
-entity	entityPlayerGlobal;
-entity	ePlayerZ;
 
 #include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/effects.scr"
 #include "coop_mod/maps/global_scripts/global_common.scr"
 #include "coop_mod/maps/global_scripts/global_flyin.scr"
 /////////////////////////////////////////////////////////////////////////
@@ -34,47 +21,70 @@ entity	ePlayerZ;
 //#include "maps/global_scripts/global_spawnWave.scr"
 #include "maps/global_scripts/global_debugutils.scr"
 
-float f_wallstate1;
-
-//Spawner variables
-float f_numberofmonsterstokill 		= 150;
-float f_minscale					= 1;
-float f_maxscale					= 1.4;
-float f_bugsmaximumnum				= 15;
-float f_waitTimeBeetweenSpawn		= 0.5;
-float f_plasmaAmmountReturnsToPlayerPerKill = 60; 
-float f_bugsalive; 
-float f_bugskilled; 
-float f_monsterskilled;
-float f_numberofmonsterSpawned;
-float f_randomSpawnerIsActive; 
-
-//string s_modeltype3 				= "char/alien-type1b-chewer.tik";
-//string s_modeltype2 				= "char/alien-type1a-lurker.tik";
-string s_modeltype2 				= "char/bug_male.tik";
-string s_modeltype1 				= "char/bug_female-nosack.tik";
-string s_modeltype0 				= "char/alien-type6-crab.tik";
-
-//Declare functions
 void main();
-//self functions
-void turnoffforcefield1();
-void turnonforcefield1();
-void intialize();
-void activatemonsters();
-void triggertouched();
-void monstergotkilled();
-void level_complete();
-void warningtrigger();
+void cacheResources();
+void setupLevel();
+void skyAction();
+void skyExcelsiorExplode();
+void setupFuncSpawn(entity e,string sModelName,string sSpawnTargetName);
+void objectives_goToOutpost();
+void attack_start();
+void attack_start();
+void attack_stop();
+void cinematic_queen();
+void enemy_killed();
+void forceField_toggle();
+void objectives_forceField();
+void coop_timeOutSuicide(entity eMonster);
+void setupOnBlock_kill(entity eKiller);
+void onBlock_kill();
+void rescue_start();
+void skyAddTarget(entity eTarget);
+void skyAutoFire();
+void skySpawnTarget();
+
+float fEnemiesToKill = 40; //40
+float fEnemiesToKillSaveAt;
+float fEnemiesActive;
+float fAllTargetsDestroyed;
+
+void cacheResources()
+//-----------------------------------------------------------------
+//preloads the files before they are actually used, prevents lags and glitching
+//-----------------------------------------------------------------
+{
+	cache("char/alien-type1a-lurker.tik");
+	cache("char/bug_female-nosack.tik");
+	cache("char/bug_male.tik");
+	cache("char/alien-type6-crab.tik");
+	
+	cache("sound/environment/computer/lcars_yes.wav");
+	cache("sound/ships/borg/borg_forcefield_on.wav");
+	cache("sound/ships/enterprise/ent_forcefield.wav");
+	
+	//coop weapons
+	cache(coop_string_weapon1);
+	cache(coop_string_weapon2);
+	cache(coop_string_weapon3);
+	cache(coop_string_weapon4);
+	
+	/*
+	//use this for cinematic
+	cache("sound/chars/bugqueen/bq_amb1.wav");
+	cache("sound/chars/bugqueen/bq_amb2.wav");
+	cache("sound/chars/bugqueen/bq_amb3.wav");
+	cache("sound/chars/bugqueen/bq_step1.wav");
+	cache("sound/chars/bugqueen/bq_step2.wav");
+	cache("sound/chars/bugqueen/bq_taunt.wav");
+	
+	cache("sound/chars/bugsmall/bug_sleep.wav");
+	cache("sound/chars/bugsmall/bug_web1.wav");
+	*/
+}
 
 
 void main()
 {
-	cache (s_modeltype0);
-	cache (s_modeltype1);
-	cache (s_modeltype2);
-	//cache (s_modeltype3);
-	
 	soundtrack( "music/dm_kw.mus" );
 	
 	//hzm coop mod chrissstrahl
@@ -83,6 +93,8 @@ void main()
 	coop_string_objectiveItem1 = "$$coop_section31l1_o1$$";
 	coop_string_objectiveItem2 = "$$coop_section31l1_o2$$";
 	coop_string_objectiveItem3 = "$$coop_section31l1_o3$$";
+	coop_string_objectiveItem4 = "$$coop_section31l1_o4$$";
+	coop_string_objectiveItem5 = "$$coop_section31l1_o5$$";
 	coop_string_objectiveTacticalInfo1 = "";
 	coop_string_story = "$$coop_section31l1_story$$";
 	
@@ -95,175 +107,719 @@ void main()
 	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
 	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
 	
-	//singleplayer
-	if(getCvarInt("g_gametype") == 0){
-		$player.health(100);
-		$player.armor("basicarmor", 150);	
-	}
+	//calc when to save - save at 50% of total enemies to kill
+	fEnemiesToKillSaveAt = (fEnemiesToKill / 2);
 	
-	thread intialize();
-	thread turnoffforcefield1();
-}
-
-void intialize()
-{
-	//stup clips
-	$entranceMonsterClip.solid();
-
-	//bind script objects
-	$entranceFloorDestructible.bind($entranceFloorDestructibleOrigin);
+	//preload resources - prevents lag
+	thread cacheResources();
+	
+	//prepare and configure the level objects
+	thread setupLevel();
 	
 	waitForPlayer();
-	ePlayerZ = $player0;
-
-	//add objectives marker
-	$triggerActivateForceField.missionobjective(1);
+	globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",0);
+	globalCoop_player_giveAll("models/weapons/worldmodel-sniperrifle.tik",0);
+	globalCoop_player_giveAll("models/weapons/worldmodel-attrex-rifle.tik",0);
+	globalCoop_player_giveAll("models/weapons/worldmodel-BurstRifle.tik",1);
 }
 
-
-//Forcefields//
-void actforcefield1()
+void setupLevel()
+//------------------------------------------------------------------------------
+//prepare and configure the level objects
+//------------------------------------------------------------------------------
 {
-	//hzm coop mod chrissstrahl
-	if($world.getFloatVar("ffActivated") != 1){
-		$world.setFloatVar("ffActivated",1);
-		
-		$triggerActivateForceField0.triggerable();
-		
-		globalCoop_objectives_update("complete" , 2 , 0 );//Activate the forcefield, the bugs are attacking...
-		globalCoop_objectives_update("incomplete" , 3 , 1 );//Defend Outpost
+	//bind shuttle together
+	$shuttleRescue.dmg(999999);
+	$shuttleRescue.bind($shuttleRescueOrigin);
+	$shuttleRescueModelHull.bind($shuttleRescueOrigin);
+	$shuttleRescueModelRamp.bind($shuttleRescueOrigin);
+	$shuttleRescueOrigin.moveto($start_shuttleRescueOrigin);
+	$shuttleRescueOrigin.time(0.1);
+	
+	//sky	
+	thread skyAction();	
 
-		globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",0);
-		globalCoop_player_giveAll("models/weapons/worldmodel-sniperrifle.tik",0);
-		globalCoop_player_giveAll("models/weapons/worldmodel-attrex-rifle.tik",0);
-		globalCoop_player_giveAll("models/weapons/worldmodel-BurstRifle.tik",1);
-	}
-
-	if(f_wallstate1) //if var is == 1 or TRUE it's the dsame for the game script
-	{
-		thread turnoffforcefield1();
-	}
-	else
-	{
-		thread turnonforcefield1();
-	}
+	$spawnOutOfSight1Patch.solid();
+	$patchOfDirtThatTheQueenWillMakeGoAway.solid();
 }
 
-void turnoffforcefield1()
+void skyExcelsiorExplode()
+//------------------------------------------------------------------------------
+//make things happening in the skybox
+//------------------------------------------------------------------------------
 {
-	$forcefield1.notsolid();
-	$forcefield1.playsound("sound/environment/computer/lcars_yes.wav",3,1,100);
-	$forcefield1.hide();
-	f_wallstate1=0;
-}
-
-void turnonforcefield1()
-{
-	$forcefield1.solid();
-	$forcefield1.forcealpha(1);
-	$forcefield1.alpha(1);
-	$forcefield1.playsound("sound/environment/computer/lcars_yes.wav",2,1,100);
-	wait (0.5);
-	$forcefield1.playsound("sound/ships/borg/borg_forcefield_on.wav",2,1,100);
-	$forcefield1.loopsound("sound/ships/enterprise/ent_forcefield.wav",0.5,50);
-	$forcefield1.show();
-	wait(0.1);
-	f_wallstate1=1;
-}
-//End of forcefield script//
-
-
-void activatemonsters()
-{
-	//hzm coop mod chrissstrahl
-	thread coop_manageBossHud(); 
-
-	//spawn multiple monsterz
-	float fMonsterz;
-	fMonsterz = (4 *globalCoop_return_integerPlayersQuantity(1));
-	if(fMonsterz > f_bugsmaximumnum){
-		fMonsterz = f_bugsmaximumnum;
+	vector vCrashLoc;
+	float fTime;
+	float fScaleStep;
+	float fScaleStart;
+	fTime = 20; //was 10
+	//fScaleStep = 0.0002;
+	fScaleStep = (0.0003 / 2);
+	fScaleStart = 0.02;
+	vCrashLoc = $skyDallasCrashOrigin.getOrigin();
+	
+	wait(0.11);
+	
+	$skyDallasOrigin.rotatex(randomInt(4)+2);
+	$skyDallasOrigin.rotateY(-2);
+	$skyDallasOrigin.rotateZ(-2);
+	$skyDallasOrigin.movetopos(vCrashLoc);
+	$skyDallasOrigin.time(fTime);
+	
+	$skyDallasSmoke.scale(0.1);
+	$skyDallasSmoke.show();
+	
+	//thread effects_scale($skyDallasA,fScaleStart,fScaleStep,0.4);
+	//thread effects_scale($skyDallasB,fScaleStart,fScaleStep,0.4);
+	
+	//ArmorDeflection
+	//drullship-energyfield
+	//powerup_strength
+	//mod_default
+	$skyDallasB.setCustomShader("ArmorDeflection");
+	$skyDallasA.setCustomShader("ArmorDeflection");
+	
+	//wait for the ship to reach crash loc
+	vector vOrigin;
+	vOrigin = '0 0 9999';
+	
+	while(vOrigin_z > (vCrashLoc_z + 12)){
+		if(!doesEntityExist($skyDallasOrigin)){ return; }
+		globalCoop_main_waitAFrame();
+		vOrigin = $skyDallasOrigin.getOrigin();
 	}
 	
-	for(fMonsterz=fMonsterz;fMonsterz>0;fMonsterz--){
-		coop_randomSpawner();
+	$skyDallasA.displayeffect("FadeOut","Phaser");
+	$skyDallasB.displayeffect("FadeOut","Phaser");
+	vector vFlashLoc;
+	vFlashLoc = vCrashLoc;
+	vFlashLoc_z += 12;
+	
+	while(vOrigin_z > vCrashLoc_z){
+		if(!doesEntityExist($skyDallasOrigin)){ return; }
+		globalCoop_main_waitAFrame();
+		vOrigin = $skyDallasOrigin.getOrigin();
 	}
+	
+	$skyDallasA.remove();
+	$skyDallasB.remove();
+	$skyDallasCrashOrigin.remove();
+	
+	float fFadeTime;
+	fFadeTime = 7;
+	entity eExplo;
+	vector vExploLoc;
+	vExploLoc = $skyDallasOrigin.getOrigin();
+	vExploLoc_z += 18;
+	eExplo = effects_spawnScaleFade("fx/fx-concussionsphere-comprifle.tik",0.2,0.01,fFadeTime,vExploLoc);
+	globalCoop_main_waitAFrame();
+	$skyDallasOrigin.remove();
+	
+	fScaleStep = -0.0002;
+	fScaleStart = 0.3;
+	wait(3);
+	$skyDallasSmoke.scale(fScaleStart);
+	
+	wait(fFadeTime);
+	if(doesEntityExist(eExplo)){
+		eExplo.remove();
+	}
+	
+	effects_scale($skyDallasSmoke,fScaleStart,fScaleStep,0);
+	if(doesEntityExist($skyDallasSmoke)){$skyDallasSmoke.remove();}
 }
 
-
-void monstergotkilled()
+void skyFirePhaserAt(float fPhaserNum,entity eTarget,float fTime)
+//------------------------------------------------------------------------------
+//activate phaser of ship - only the galaxy can fire
+//------------------------------------------------------------------------------
 {
-	entity eMonster;
-	eMonster = getCurrentEntity();
-	string sMonsterName;
-	if(doesEntityExist(eMonster)){
-		sMonsterName = eMonster.getTargetName();
+	if(!doesEntityExist(eTarget)){
+		globalCoop_main_print("skyFirePhaserAt: target does not exist");
+		return;
+	}
+	
+	entity ePhaser;
+	
+	//if phaserarray is set to -1 we want autoselect
+	//select closest phaser to fire from, ship has 0,1,2,3
+	if(fPhaserNum == -1){
+		entity eArray;
+		float fBestLength = 999999;
+		float fArrays;
+		float fWinner;
+		for(fArrays=3;fArrays > -1;fArrays--){
+			eArray = getEntity("skyGalaxyBeam"+fArrays);
+			if(!doesEntityExist(eArray)){
+				globalCoop_main_print("skyFirePhaserAt: select closest - $skyGalaxyBeam"+fArrays+" does not exist!");
+			}else{
+				float fCurLength;
+				
+				//needs to be calucalted exactly like that
+				vector v1,v2;
+				v1 = eArray.getOrigin();
+				v2 = eTarget.getOrigin();
+				fCurLength = vectorLength((v1 - v2));
+				
+				if(fCurLength < fBestLength){
+					fBestLength = fCurLength;
+					fWinner = fArrays;
+					
+					//debug
+					//globalCoop_main_print("skyFirePhaserAt: fCurLength "+fCurLength);
+				}
+			}
+		}
+		ePhaser = getEntity("skyGalaxyBeam"+fWinner);
 	}else{
-		sMonsterName = "Killed Early";
+		ePhaser = getEntity("skyGalaxyBeam"+fPhaserNum);
+	}
+
+	if(!doesEntityExist(eTarget)){
+		globalCoop_main_print("skyFirePhaserAt: phaser $skyGalaxyBeam"+fPhaserNum+" does not exist");
+		return;
+	}	
+	
+	ePhaser.shader("phaserbeam01");
+	ePhaser.maxoffset(10);
+	ePhaser.numsegments(1);
+	ePhaser.activate();
+	ePhaser.endpoint(eTarget.getOrigin());
+	
+	//debug
+	//globalCoop_main_print("skyFirePhaserAt: START END at "+ePhaser.getOrigin()+" - "+eTarget.getOrigin());
+	
+	wait(fTime);
+	ePhaser.deactivate();
+}
+
+void skyTargetMoveTowards(entity eMover,float fTime)
+//------------------------------------------------------------------------------
+//makes target move towards the galaxy also adds it to the list of targets to shoot at
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eMover)){
+		globalCoop_main_print("skyTargetMoveTowards: Entity in Parameter 1 was not found!");
+		return;
+	}
+	if(fTime <= 0){
+		globalCoop_main_print("skyTargetMoveTowards: Time in Parameter 2 was to low!");
+		return;
 	}
 	
-	ePlayerZ.ammo("Plasma", f_plasmaAmmountReturnsToPlayerPerKill);
-	f_monsterskilled++;
-	f_bugsalive--;
-	ePlayerZ.hudprint("Monster Got Killed:"+sMonsterName+"\n");
+	//add to target list
+	skyAddTarget(eMover);
+	
+	eMover.rotateX(randomint(7)+ 3);
+	//eMover.rotatey(randomint(10)+5);
+	eMover.rotatez(randomint(7)+ 3);
+	eMover.moveto($skyGalaxyOrigin);
+	eMover.time(fTime);
+}
 
-	if (f_monsterskilled >= f_numberofmonsterstokill)
-	{
-		thread level_complete();
+void skyAddTarget(entity eTarget)
+//------------------------------------------------------------------------------
+//adds a target to the list of the galaxy
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eTarget)){
+		globalCoop_main_print("skyAddTarget: Entity in Parameter 1 was not found!");
+		return;
 	}
-	else{
-		coop_randomSpawner();
+	
+	//find free slot or entity that has been destroyed already and swap
+	float fCurrentTarget;
+	float fSlotFree;
+	fSlotFree = 0;
+	fCurrentTarget = -1;
+	while(!fSlotFree){
+		fCurrentTarget++;
+		string sSlotName;
+		string sSlotValue;
+		sSlotName = "skyGalaxyTarget"+fCurrentTarget;
+		sSlotValue = $world.getStringVar(sSlotName);
+		//value empty
+		if(sSlotValue == ""){
+			fSlotFree=1;
+		}
+		//entity no longer present
+		else{
+			entity eListEntity;
+			eListEntity = getEntity(sSlotValue);
+			if(!doesEntityExist(eListEntity)){
+				fSlotFree=1;
+			}
+		}
+	}
+	//add to slot
+	string sTargetname;
+	sTargetname = eTarget.getRawTargetName();
+	//globalCoop_main_print("skyAddTarget: Added $"+sTargetname+" to list at "+fCurrentTarget+".");
+	$world.setStringVar("skyGalaxyTarget"+fCurrentTarget,""+sTargetname);
+	globalCoop_main_waitAFrame();
+}
+
+void skyAutoFireDestroy(entity eTarget,float fDelay)
+//------------------------------------------------------------------------------
+//destroyes the target
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eTarget) == 1){
+		entity eTargetModel;
+		vector vExploLoc;
+		
+		//debug
+		//globalCoop_main_print("skyAutoFireDestroy: explosion for $"+eTarget.getRawTargetName()+" at "+getLevelTime());
+
+		//grab model of target (usually the target is a script_origin)
+		eTargetModel = eTarget.gettargetentity();	
+		vExploLoc = eTarget.getOrigin();
+		
+		if(doesEntityExist(eTargetModel)){eTargetModel.remove();}
+		eTarget.remove();
+		
+		thread effects_spawnScaleFade("fx/fx-compressionring.tik",0.1,0.04,1,vExploLoc);
+		thread effects_spawnScaleFade("fx/fx-concussionsphere-comprifle.tik",0.1,0.05,0.8,vExploLoc);
 	}
 }
 
-
-void triggertouched()
+entity skyAutoFireGrabTargetSimple()
+//------------------------------------------------------------------------------
+//makes the ship select a target from the list
+//------------------------------------------------------------------------------
 {
-	//remove objectives marker
-	$triggerActivateForceField.missionobjective(0);
+	entity eTarget;
+	eTarget = $NUL;
+	float fCurrentTarget;
+	fCurrentTarget = $world.getFloatVar("skyGalaxyTargetSelected");
+	string sTargetName;
+	sTargetName = $world.getStringVar("skyGalaxyTarget"+fCurrentTarget);
+	//end of list grab 0 again
+	if(sTargetName == ""){
+		fCurrentTarget = 0;
+		sTargetName = $world.getStringVar("skyGalaxyTarget"+fCurrentTarget);
+	}
 	
-	//remove the effects on shuttle - temp model issue
+	//setup next target for next time
+	$world.setFloatVar("skyGalaxyTargetSelected",(fCurrentTarget + 1));
 	
-	/*
-	$shuttleMoreEffects.remove();	
-	$shuttleSparks.remove();
-	$shuttleFireEngine.remove();
-	*/
-	
-	removeClass("SFX_sparks_directional-blue-small");
-	removeClass("SFX_smoke_black-vertical");
-	removeClass("SFX_smoke_gray-vertical-thin");
-	removeClass("SFX_sparks_sparkshower-blue");
-	removeClass("SFX_fire_plasma_red-medium");
-	removeClass("SFX_sparks_sparkshower-yellow");
-	$shuttleFireEngineTrigger.remove();
-	$shuttleMoreEffectsTrigger1.remove();
-	$shuttleMoreEffectsTrigger2.remove();
-	
-	wait(0.5);
-	globalCoop_objectives_update("complete" , 1 , 0 );//Escape to outpost bugs will attack
-	globalCoop_objectives_update("incomplete" , 2 , 1 );//Activate the forcefield, the bugs are attacking...
-	thread activatemonsters();
+	//return current target - the autofire func will detect if that target exists or not
+	eTarget = getEntity(sTargetName);
+	return eTarget;
 }
 
-
-void level_complete()
+void skyAutoFire()
+//------------------------------------------------------------------------------
+//makes the ship autofire
+//------------------------------------------------------------------------------
 {
-	centerPrint("Level Complete...\n");
-	globalCoop_objectives_update("complete" , 3 , 1 );//Defend Outpost
+	//globalCoop_main_print("skyAutoFire() STARTED");
 	
-	wait(5);
-	thread coop_endLevel();
+	//start targets
+	thread skySpawnTarget();
+
+	entity eCurrentTarget;
+	entity eCurrentModel;
+
+	while(doesEntityExist($skyGalaxyOrigin) && fAllTargetsDestroyed != 1){
+		if(doesEntityExist(eCurrentTarget)){
+			//wait for it to be close
+			if($skyGalaxyOrigin.isWithinDistanceOf(eCurrentTarget,40)){
+				//make ship fire at target
+				skyFirePhaserAt(-1,eCurrentTarget,0.2);
+				thread skyAutoFireDestroy(eCurrentTarget,0);
+				globalCoop_main_waitAFrame();
+			}
+		}
+		globalCoop_main_waitAFrame();
+		eCurrentTarget = skyAutoFireGrabTargetSimple();
+	}
 }
 
-
-void warningtrigger()
+void skySpawnTarget()
+//------------------------------------------------------------------------------
+//selects a location and trows a target towards the ship
+//------------------------------------------------------------------------------
 {
+	entity eLocation;
+	float fMaxTargets;
+	float fStartedTargets;
+	string sLocationName;
+	fMaxTargets = 1000;
+	while(fStartedTargets <= fMaxTargets){
+		sLocationName = ("skyAttackStart"+randomInt(10));
+		eLocation = getEntity(sLocationName);
+		if(!doesEntityExist(eLocation)){
+			globalCoop_main_print("skySpawnTarget: Location did not exist $"+sLocationName+" !");
+		}else{
+			//globalCoop_main_print("skySpawnTarget: Attacking from location $"+sLocationName+" !");
+			entity eOrigin;
+			entity eModel;
+			vector vOrigin;
+			string sTargetname;
+			string sModel;
+			vOrigin = eLocation.getOrigin();
+			
+			float fScale;
+			float fRandomModel;
+			fRandomModel = randomInt(3);
+			fScale = 0.01;
+			if(fRandomModel == 1){
+				sModel = "models/projectile/m4_turretprojectile.tik";
+				fScale = 0.1;
+			}
+			else if(fRandomModel == 2){
+				sModel = "models/projectile/projectile-crab2.tik";
+				fScale = 0.1;
+			}
+			else{
+				sModel = "models/enviro/attrexian_asteriod"+(randomint(5) + 1)+".tik";
+			}
+			
+			//spawn
+			eOrigin = spawn("script_origin","origin",""+vOrigin,"notsolid","1");
+			eModel = spawn("script_model","model",sModel,"scale",""+fScale,"origin",""+vOrigin);
+			globalCoop_main_waitAFrame();
+			//create random targetname
+			sTargetname = "skyTarget"+randomInt(222)+"Q"+randomInt(33)+"Q"+getLevelTime();
+			eOrigin.targetname(sTargetname+"Model");
+			eModel.targetname(sTargetname+"Model");
+			
+			//make sure the model is attached to the mover
+			eModel.notsolid(); //need to be notsolid for the beam to work
+			eModel.bind(eOrigin);
+			
+			//make sure we can retrive the model from the mover later
+			eOrigin.target(sTargetname+"Model");
+			
+			//trow towards ship
+			thread skyTargetMoveTowards(eOrigin,randomInt(30) + 10);
+			fStartedTargets++;
+		}
+		//wait(randomInt(30) + 3);
+		wait(3);
+	}
+}
+
+void skyAction()
+//------------------------------------------------------------------------------
+//make things happening in the skybox
+//------------------------------------------------------------------------------
+{
+	$skyDallasSmoke.bind($skyDallasA);
+	$skyDallasA.origin($skyDallasOrigin.getOrigin());
+	$skyDallasB.origin($skyDallasOrigin.getOrigin());
+	
+	$skyDallasA.bind($skyDallasOrigin);
+	$skyDallasB.bind($skyDallasOrigin);
+	
+	$skyDallasOrigin.rotateydown(180);
+	$skyDallasOrigin.time(0.1);
+
+	$skyGalaxy.bind($skyGalaxyOrigin);
+	$skyGalaxyBeam0.bind($skyGalaxyOrigin);
+	$skyGalaxyBeam1.bind($skyGalaxyOrigin);
+	$skyGalaxyBeam2.bind($skyGalaxyOrigin);
+	
+	
+	//make the excelsior go down
+	thread skyExcelsiorExplode();
+	
+	//make the galaxy auto fire
+	//also start targets flying towards the ship
+	thread skyAutoFire();
+}
+
+void setupFuncSpawn(entity e,string sModelName,string sSpawnTargetName)
+//------------------------------------------------------------------------------
+//prepare and configure the level objects
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		globalCoop_main_print("setupFuncSpawn: Parameter 1 - Entity does not exist");
+		return;
+	}
+	if(sModelName == ""){
+		globalCoop_main_print("setupFuncSpawn: Parameter 2 - was empty");
+		return;
+	}
+	e.modelName(sModelName);
+	e.spawnTargetName(sSpawnTargetName);
+	//create uniqe group and set thread
+	e.setspawngroupdeaththread("enemy_killed");
+	float fRand;
+	fRand = getLevelTime() * randomInt(33);
+	e.setspawngroupID(floor(fRand));
+	//e.spawneffectname( String effectType, [ String effectName ] );
+	//e.startanim("");
+	//e.starthidden(1);
+}
+
+void objectives_goToOutpost()
+//------------------------------------------------------------------------------
+//forcefield was activated - update objectives
+//------------------------------------------------------------------------------
+{
+	//set objective for player radar
+	$triggerActivateForceField1.missionobjective(1);
+	
+	//allow now usage from outside
+	$triggerActivateForceField0.triggerable();
+	
 	globalCoop_objectives_update("incomplete" , 1 , 1 );//Escape to outpost bugs will attack
 }
 
+void attack_status()
+//------------------------------------------------------------------------------
+//player entered the outpost - now start attacking
+//------------------------------------------------------------------------------
+{
+	//use this actor for our status bar of enemies to kill
+	$enemyHealthForStatbar.health(fEnemiesToKill);
 	
+	//start statbar - entity,  color red=0 blue=1, custom name, stop-health (default 0), thread to start if dead or stop-health is hit
+	thread globalCoop_statbar_health($enemyHealthForStatbar,"red","$$HostileDesc1$$",0,"attack_stop");
+	
+	while(doesEntityExist($enemyHealthForStatbar)){
+		$enemyHealthForStatbar.health(fEnemiesToKill);
+		wait(0.25);
+	}
+}
+
+void attack_start()
+//------------------------------------------------------------------------------
+//player entered the outpost - now start attacking
+//------------------------------------------------------------------------------
+{
+	 thread attack_status();
+	 
+	//set spawn parameters
+	setupFuncSpawn($spawnOutOfSight0,"char/bug_female-nosack.tik","spawnOutOfSight0Monster");
+	setupFuncSpawn($spawnOutOfSight1,"char/bug_female-nosack.tik","spawnOutOfSight1Monster");
+	setupFuncSpawn($spawnOutOfSight2,"char/bug_female-nosack.tik","spawnOutOfSight2Monster");
+	
+	//enable all the proximioty spawners
+	entity e;
+	float fNum;
+	fNum = 709;
+	e = getEntity("t"+fNum+"_trigger");
+	while(doesEntityExist(e)){
+		//debug
+		globalCoop_main_print("Activated Proximity trigger: "+e.getTargetName());
+		
+		fNum++;
+		e = getEntity("t"+fNum+"_trigger");
+	}	
+	
+	//start spawning enemies
+	float fMaxEnemies;
+	fMaxEnemies = 5;	
+	while(fEnemiesToKill > 0){
+		entity eTrigger;
+		eTrigger = getEntity("spawnOutOfSight"+randomInt(3));
+		if(fEnemiesActive < fMaxEnemies){
+			if(doesEntityExist(eTrigger)){
+				triggerEntity( eTrigger );
+				fEnemiesActive++;
+			}
+		}
+		wait(3);
+	}
+}
+
+void attack_stop()
+//------------------------------------------------------------------------------
+//stop attacking
+//------------------------------------------------------------------------------
+{
+	killthread("attack_start");
+	wait(5);
+	thread cinematic_queen();
+}
+
+void cinematic_queen()
+//------------------------------------------------------------------------------
+//do queen cinematic
+//------------------------------------------------------------------------------
+{
+	if($world.getFloatVar("cinematic_queen")){
+		return;
+	}
+	$world.setFloatVar("cinematic_queen",1);
+	
+	$path.playsound("sound/environment/earthquake/earthquake01.wav");
+	
+	$path.playsound("sound/environment/earthquake/earthquake01.wav",3,2,2048);
+	$entrancePlate.playsound("sound/ships/forever/ship_creak_low2.wav",0,1,2048);
+	
+	//fade cam in
+	cam_fadeOut(0.25,0,0,0,1);
+	spawn("camera","targetname","cam1","origin",""+$cameraSpawn.getOrigin(),"angle","200");
+	wait(0.25);
+	
+	cinematic();
+	freezeplayer();
+	letterbox(0.1);
+	
+	$cam1.cut();
+	
+	//make sure we don't kill player
+	if(getCvarInt("g_gametype") == 0){
+		if($player.isWithinDistanceOf($queen,350)){
+			$player.origin($queenMovePlayerHere.getOrigin());
+			$player.playerviewangles('0 222 0');
+		}
+		stuffcmd("ui_savegamewithname \"^5Section 31 Lvl1 ^8Queen\"\n");
+	}
+
+	$queen.show();
+	$queen.solid();
+	$pathDamaged.show();
+	$pathDamagedSolid.show();
+	$pathDamagedSolid.solid();
+	$pathDamaged.solid();
+	
+	$triggerActivateForceField0.remove();
+	$triggerActivateForceField1.remove();
+	$forcefield1.remove();
+	$entranceMonsterClip.remove();
+	$entranceWallPart.remove();
+	$entranceFloorDestructible.remove();
+	$entrancePlate.remove();
+	$patchOfDirtThatTheQueenWillMakeGoAway.remove();
+	$path.remove();
+	
+	
+	
+	//start alarmsound
+	$cameraSpawn.loopsound("sound/ships/forever/for_alarm_beeps.wav",4,256);
+	
+	//fade cam in
+	cam_fadeIn(0.25,0,0,0,1);
+	cuecamera($cam1);
+	wait(0.1);
+	
+	$queen.anim("taunt");
+	wait(2);
+	
+	//fade cam in
+	cam_fadeOut(0.25,0,0,0,1);
+	wait(0.25);
+	
+	$queen.health($queen.getHealth() * 1.5);
+	$queen.scale(1.2);
+	$queen.origin($queenMoveHere.getOrigin());
+	$queen.angles($queenMoveHere.getAngles());
+	$queen.ai_on();
+	$queen.missionobjective(1);
+	
+	noncinematic();
+	clearletterbox(0.1);
+	cueplayer();
+	releaseplayer();
+	
+	$cam1.remove();
+	
+	//fade cam in
+	cam_fadeIn(0.25,0,0,0,1);
+	
+	
+	globalCoop_objectives_update("failed" , 3 , 0 );//Defend Outpost
+	globalCoop_objectives_update("incomplete" , 4 , 1 );//defeat queen
+	//globalCoop_objectives_update("incomplete" , 5 , 1 );//evacuate/exfiltrate
+}
+
+void enemy_killed()
+//------------------------------------------------------------------------------
+//enemy was killed, add to count
+//------------------------------------------------------------------------------
+{
+	fEnemiesToKill--;
+	fEnemiesActive--;
+	if(fEnemiesActive < 0){fEnemiesActive = 0;}
+	
+	//create save as player is half done
+	if(getCvarInt("g_gametype") == 0){
+		if(fEnemiesToKillSaveAt == fEnemiesToKill){
+			stuffcmd("ui_savegamewithname \"^5Section 31 Lvl1 ^8Queen\"\n");
+		}
+	}
+	
+	//limit reached, we spawn no more
+	if(fEnemiesToKill <= 0){
+		if(fEnemiesToKill == 0){
+			wait(10);
+			thread cinematic_queen();
+		}
+		return;
+	}
+	
+	//do a series of checks and pick the free spawner
+	entity eMonster;
+	eMonster = getCurrentEntity();
+	if(!doesEntityExist((eMonster))){
+		globalCoop_main_print("enemy_killed() - glitched: No Monster");
+		return;
+	}
+	
+	string sSpawner;
+	sSpawner = eMonster.getStringVar("spawnedBy");
+	if(sSpawner == ""){
+		globalCoop_main_print("enemy_killed() - glitched: No Spawner name");
+		return;
+	}
+
+	entity eSpawner;
+	eSpawner = getEntity(sSpawner);
+	if(!doesEntityExist(eSpawner)){
+		globalCoop_main_print("enemy_killed() - glitched: Spawner $"+sSpawner+" not found");
+		return;
+	}
+		
+	//make spawner spawn a monster
+	string sTargetname;
+	sTargetname = (sSpawner+"Monster");
+	eSpawner.spawnNow();
+	globalCoop_main_waitAFrame();
+	
+	//grab monster and make sure it s there
+	eSpawner = getEntity(sTargetname);
+	if(!doesEntityExist(eSpawner)){
+		globalCoop_main_print("enemy_killed() - glitched: Monster $"+sTargetname+" was not spawned");
+		return;
+	}
+	
+	//make sure the monster dies if it is stuck or idle
+	thread coop_timeOutSuicide(eSpawner);
+}
+
+void queen_killed()
+//------------------------------------------------------------------------------
+//enemy was killed, add to count
+//------------------------------------------------------------------------------
+{
+	$queen.missionobjective(0);
+	
+	//crate final save
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("ui_savegamewithname \"^5Section 31 Lvl1 ^8Exfiltrate\"\n");
+	}
+	
+	wait(5);
+	$gatheringLocationExitHud.triggerable();
+	$gatheringLocationVisible.show();
+	
+	globalCoop_objectives_update("complete" , 4 , 0 );//defeat queen
+	globalCoop_objectives_update("incomplete" , 5 , 1 );//evacuate/exfiltrate
+	
+	//have shuttle come down
+	thread rescue_start();
+}
+
 void coop_timeOutSuicide(entity eMonster)
+//------------------------------------------------------------------------------
+//make sure the moster gets killed if stuck or idle for to long
+//------------------------------------------------------------------------------
 {
 	float fHealth;
 	vector vLoc;
@@ -284,160 +840,211 @@ void coop_timeOutSuicide(entity eMonster)
 	}
 }
 
-void coop_flyInEnemy()
+void forceField_toggle()
+//------------------------------------------------------------------------------
+//toggle forcefield on/off
+//------------------------------------------------------------------------------
 {
-	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
-	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
-	//careful globalFlyin_SpawnLaunch crashes the game if spawner does not exist!
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){return;}
 	
-	//select random flyin path
-	//model can be lurker, chewer, basher
-	float fMonsterzzz;
-	fMonsterzzz = 20;
-	while(fMonsterzzz > 0){
-		//get spawntargetname and check if it is alive
-		entity eMonster;
-		eMonster = globalFlyin_SpawnLaunch( $swarmSpawner8, "char/alien-type1a-lurker.tik", 0, "", "flyingModelDamageThread", 0 );
-		wait( .1 );
-		if(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0){
-			eMonster.killthread("monstergotkilled");
-			eMonster.ai_on();
-		}else{
-			thread monstergotkilled();
+	//player sound on trigger
+	eTrigger.playsound("sound/environment/computer/lcars_yes.wav",3,1,100);
+	
+	//disable trigger
+	eTrigger.notTriggerAble();
+	
+	//ff is on - disable
+	if($forcefield1.getFloatVar("isActive") == 1){
+		$forcefield1.notsolid();
+		$forcefield1.hide();
+		$forcefield1.setFloatVar("isActive",0);
+	}else{
+		$forcefield1.playsound("sound/ships/borg/borg_forcefield_on.wav",2,1,100);
+		wait(0.2);
+		$forcefield1.loopsound("sound/ships/enterprise/ent_forcefield.wav",0.5,50);
+		$forcefield1.show();
+		
+		//wait until no player is inside the forcefield anymore
+		while(globalCoop_check_isEntityInsideOfPlayer($forcefield1,4)){
+			wait(0.1);
 		}
-		fMonsterzzz--;
-		wait(20);
+		//ff go solid
+		$forcefield1.solid();
+		$forcefield1.setFloatVar("isActive",1);
 	}
+	//enable trigger
+	eTrigger.triggerAble();
 }
 
-
-void coop_randomSpawner()
+void objectives_forceField()
+//------------------------------------------------------------------------------
+//forcefield was activated - update objectives
+//------------------------------------------------------------------------------
 {
-	if(f_bugsalive > f_bugsmaximumnum || f_numberofmonsterSpawned >= f_numberofmonsterstokill){
-		return;
+	//move spawnloacations
+	$ipd1.origin('1182 389 115');
+	float fIpd;
+	entity eSpawn;
+	vector vPos;
+	vPos = '1182 277 115';
+	for(fIpd=2;fIpd<=8;fIpd++){
+		eSpawn = getEntity("ipd"+fIpd);
+		if(doesEntityExist(eSpawn)){
+			eSpawn.origin(vPos);
+			eSpawn.angle(180);
+			vPos_y -= 48;
+		}
 	}
 
-	entity eMonster;
-	entity eSpawnLoc;
-	string sModel;
+	globalCoop_objectives_update("complete" , 2 , 0 );//Activate the forcefield, the bugs are attacking...
+	globalCoop_objectives_update("incomplete" , 3 , 1 );//Defend Outpost	
 	
-	float fRandomModel;
+	//blow the crashed shuttle up
+	wait(2);
+	
+	//$.doexplosion( "fx/fx-explosion-crate-romulan-03.tik" );
+	//$.doexplosion( "fx/fx-explosion-crate-romulan-03.tik" );
+	
+	spawn("models/fx/fx-warpflash-federation.tik","origin","-1768.00 -776.00 100.00","scale","6");
+
+	$shuttleMoreEffectsTrigger2.remove();
+	$shuttleMoreEffects.remove();
+	$shuttleSparks.remove();
+	$shuttleClip.remove();
+	$treeLeaves1.remove();
+	$treeLeaves2.remove();
+	$treeLeaves3.remove();	
+	
+	spawn("fx/fx-explosion-crate-romulan-03.tik","origin","-1768.00 -776.00 100.00","scale","2");
+	spawn("models/fx/fx-blowingdust-large-brown.tik","origin","-1768.00 -776.00 100.00","scale","2");
+	
+	//show seats and fire at where the shuttle once was
+	$shuttleRemainsEffect.show();
+	$shuttleMoreEffectsTrigger1.movetopos('-1493.00 -896.00 80.00');
+	
+	//trow engine part towards outpost
+	$shuttleSparksEngine.bind($shuttleEngineOrigin);
+	$shuttleFireEngine.bind($shuttleEngineOrigin);
+	$shuttleFireEngineTrigger.bind($shuttleEngineOrigin);
+	$shuttleModel3.bind($shuttleEngineOrigin);
+	$shuttleClipEngine.bind($shuttleEngineOrigin);
+	$shuttleEngineOrigin.moveto($shuttleEngineLandSpot);
+	$shuttleEngineOrigin.rotatexdown(270);
+	$shuttleEngineOrigin.rotateyup(290);
+	$shuttleEngineOrigin.time(0.5);
+	$shuttleClipEngine.dmg(999999); //make sure to kill whom ever
+	
+	
+	//move up crashed shuttle rotate and scale down to appear exploding and flying away
+	$shuttleOrigin.doradiusdamage(8000,"explosion",2048,2000,0);
+	$shuttleModel1.bind($shuttleOrigin);
+	$shuttleModel2.bind($shuttleOrigin);
+	$shuttleOrigin.moveto($shuttleExplosionDest);
+	$shuttleOrigin.rotatexdown(270);
+	$shuttleOrigin.rotateyup(290);
+	$shuttleOrigin.time(1.3);
+	
 	float fScale;
-	float fRandomLocation;
-	
-	//set random Model
-	fRandomModel = randomInt(4);
-	if(fRandomModel==0)			{sModel = s_modeltype0;}
-	else if(fRandomModel==1)	{sModel = s_modeltype1;}
-	else						{sModel = s_modeltype2;}
-	//else						{sModel = s_modeltype3;}
-	
-	//set random location
-	fRandomLocation = randomInt(10);
-	eSpawnLoc = getEntity("spawnposition"+fRandomLocation);
-	while(!doesEntityExist(eSpawnLoc)){
-		ePlayerZ.hudprint("Does not exist: $spawnposition"+fRandomLocation+"\n");
-		
-		fRandomLocation = randomInt(10);
-		eSpawnLoc = getEntity("spawnposition"+fRandomLocation);
+	fScale = 1;
+	while(fScale > 0.1){
+		$shuttleModel1.scale(fScale);
+		$shuttleModel2.scale(fScale);
+		wait(0.1);
+		fScale -= 0.11;
 	}
-	
-	//set scale
-	fScale = randomfloat(f_maxscale);
-	if(fScale < f_minscale){fScale = f_minscale;}
-	if(fScale > f_maxscale){fScale = f_maxscale;}
-	
-	
-	if(randomInt(101) > 70){
-		coop_flyInEnemy();
-		f_bugsalive++;
-		f_numberofmonsterSpawned++;
-		return;
-	}
-	
-	//spawn monster
-	eMonster = spawn("actor", "model", sModel, "origin", vectorToString(eSpawnLoc.getOrigin()), "killThread", "monstergotkilled", "scale",""+fScale);
-	//Wait for the entity to be spawned
+	$shuttleModel1.remove();
+	$shuttleModel2.remove();
+}
+
+void setupOnBlock_kill(entity eKiller)
+//------------------------------------------------------------------------------
+//makes killer ready
+//------------------------------------------------------------------------------
+{
 	wait(0.05);
-	
-//spawn from inside ground - based on model, crab, femalebug
-//have a chance to fly in lurker, chewer or basher
-//coop_flyInEnemy())
-
-	//hzm coop mod chrissstrahl - make sure we don't get stuck because monster won't die
-	thread coop_timeOutSuicide(eMonster);
-
-	//Allow to fall of eges etc
-	eMonster.allowFall(1);
-	//Allow to walk on other monsters
-	eMonster.canwalkonothers();
-	//set targetname
-	eMonster.targetname("monster"+f_numberofmonsterSpawned);
-	//Make angry :)
-	eMonster.aggressive(1);
-	//The player is your best frind :)
-	eMonster.attackPlayer();
-	//give proper health
-	eMonster.health(eMonster.getHealth() * fScale);
-	//Let the script know of the new bug
-	f_bugsalive++;
-	f_numberofmonsterSpawned++;
+	if(doesEntityExist(eKiller)){ return; }
+	eKiller.onBlock("onBlock_kill");
+	pause();
 }
 
-
-void coop_manageBossHud()
+void onBlock_kill()
+//------------------------------------------------------------------------------
+//kills whom eva dares to block this entity while it is moving - used for shuttle clip
+//------------------------------------------------------------------------------
 {
-	//hzm coop mod chrissstrahl, make compatible for multiplayer
-	entity	ePlayer;
-	float	fPlayerId;
-	float	fStatistics;
+	entity eCurrent;
+	eCurrent = getCurrentEntity();
+	if(doesEntityExist(eCurrent)){
+		entity eBlocker;
+		eBlocker = eCurrent.getLastActivatingEntity();
+		if(doesEntityExist(eBlocker)){
+			eBlocker.health(1);
+			eBlocker.hurt(999);
+		}
+		thread setupOnBlock_kill(eCurrent);
+	}
+}
 
-	//hzm coop mod chrissstrahl, add hud
-	thread globalCoop_huds_AddAll("coop_timerRedL");
+void rescue_start()
+//------------------------------------------------------------------------------
+//standard coop mod handling
+//------------------------------------------------------------------------------
+{
+	thread setupOnBlock_kill($shuttleRescue);
 	
-	while( f_monsterskilled < f_numberofmonsterstokill ){
-		fStatistics = ( 100 - (f_numberofmonsterstokill / 100) * f_monsterskilled );
-		
-		//if none killed show full bar
-		if(fStatistics == 0){
-			fStatistics = 100;
-		}
-		
-		//hzm coop mod chrissstrahl, send to each player
-		for(fPlayerId=0;fPlayerId<coop_integer_maxPlayers;fPlayerId++){
-			ePlayer = getentity("player"+fPlayerId);
-			if(doesEntityExist(ePlayer)){
-				ePlayer.setstat( "generic",fStatistics);
-			}
-		}
-		wait( 0.2 );
+	//position the shuttle correctly
+	$shuttleRescueOrigin.rotateYdown(180);
+	$shuttleRescueOrigin.time(2);
+	wait(2);
+	
+	
+	$shuttleRescueModelRamp.missionobjective(1);
+	$shuttleRescueModelRamp.show();
+	$shuttleRescueModelHull.show();
+	
+	float fScale;
+	fScale = 0.1;
+	while(fScale < 1){
+		$shuttleRescueModelRamp.scale(fScale);
+		$shuttleRescueModelHull.scale(fScale);
+		wait(0.1);
+		fScale += 0.02;
 	}
 	
-	//hzm coop mod chrissstrahl, remove hud
-	thread globalCoop_huds_RemoveAll("coop_timerRedL");
+	$shuttleRescue.solid();
+	$shuttleRescueOrigin.moveto($end_shuttleRescueOrigin);
+	$shuttleRescueOrigin.time(10);
+	//slow down shortly before hitting the ground
+	wait(9);
+	$shuttleRescueOrigin.moveto($end_shuttleRescueOrigin);
+	$shuttleRescueOrigin.time(4);
+	wait(1);
+	$shuttleRescueOrigin.moveto($end_shuttleRescueOrigin);
+	$shuttleRescueOrigin.time(5);
+	
+	//allow now to finish mission
+	$gatheringLocationTrigger.triggerable();
 }
 
-//[b611] chrissstrahl - make sure the player sees the hud description correctly
-void coop_playerEntered()
-//------------------------------------------------------------------------------
-//Level end
-//------------------------------------------------------------------------------
-{
-	//use blue and red huds like enterprise and m4 airsupply mission
-	//globalwitchcommand bossRedName title xx
-	//globalwitchcommand bossBlueName title xx
-}
-
-//[b611] chrissstrahl - standard coop mod handling
 void coop_endLevel()
 //------------------------------------------------------------------------------
-//Level end
+//standard coop mod handling
 //------------------------------------------------------------------------------
 {
 //credits, and history of map
 //mark this map as completed to the scripts (can not fail anymore)
 	globalCoop_mission_accomplished();
 	globalCoop_main_globalCommand("nodamage");
+	
+	//remove all enemies
+	removeclass("Actor");
+	
+	//stop heartbeat sound if in sp and injured
+	if(getCvarInt("g_gametype") == 0){
+		$player.health(100);
+	}
 	
 //credits, and history of map
 	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_section31/cCredits.cfg\n");
