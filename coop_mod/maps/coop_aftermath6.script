@@ -81,7 +81,12 @@ float	liftSpawnDone = 0;
 #include "maps/global_scripts/global_tricorderKeypad.scr"
 
 void main()
-{
+{	
+	soundtrack( "music/dm_kw.mus" );
+	
+	//fade screen black, this level starts with a cinematic
+	cam_fadeout(0.1,0,0,0,1);
+	
 	//hzm coop mod chrissstrahl - author
 	coop_string_levelAuthor = "Daedalus";
 	
@@ -107,6 +112,9 @@ void main()
 	
 	coop_string_story = "Aftermath Episode 1 - Romulan Espionage";
 	coop_string_story_deu = "Nachwirkungen Episode 1 - Romulanische Spionage";
+	
+	waitForPlayer();
+	$pektraqliftPlayerClip.solid();
 
 	//set empty archetype, hence removing the current archetype that won't work for this level
 	$pektraq_standExplodeDieCrate.archetype("");
@@ -129,14 +137,15 @@ void main()
 	$deadbody_sfPhaserDude.origin('2604.00 -348.00 -198.00');
 	$deadbody_sfPhaserDude.anim("cin-m9l2_munro_lurok");
 
-	//structural view mode
-	$world.addAvailableViewMode("structuralintegrity");
-	
-	soundtrack( "music/dm_kw.mus" );
+
+
 	
 	thread setupAi();
-//fade screen black, this level starts with a cinematic
-	cam_fadeout(0.1,0,0,0,1);
+
+	
+	//structural view mode
+	$world.addAvailableViewMode("structuralintegrity");	
+	
 	$munroChellGrateOpen.solid();
 	$munroChellGrateClosed.notsolid();
 	$munroChellGrateClosed.hide();
@@ -196,35 +205,10 @@ void removeMosterClip()
 	
 void intro()
 {
-	//for testing move player to spot
-	if( 0 ){
-		//lift Testing /////////////////////////
-		//$player.origin('3578 -548 -216');
-		//$pektraq.origin('3640 -488 -200');
-		//$ff.remove();
-		////////////////////////////////////////
-		
-		//tram testing /////////////////////////
-		$player.origin('3230 -1110 -224');
-		$pektraq.origin('3103 -1104 -224');
-		thread givethecode();
-		////////////////////////////////////////
-		
-		spawn("camera","targetname","cam1");
-		$pektraq.ai_on();
-		$pektraq.setTendency("lead",0);
-		$pektraq.setTendency("follow",1);
-		cam_fadeIn(0.25,0,0,0,1);
-		return;
-	}
-
 	$cellUseSymbol.scale(0.001); //hide
 	
 	cam_fadeIn(0.25,0,0,0,1);//dissable cinematic during development
 	//return;//dissable cinematic during development
-
-//Wait for the player to be ready (the script contimues as soon as the computer has finished loading all materials)
-	waitForPlayer();
 	
 //make door solid - was nonsolid to allow paths to connect
 	$blowupdoor.solid();
@@ -1238,10 +1222,48 @@ void toolbox_place()
 	$toolbox_stair.clearcustomshader("textures/common/fracture_small");
 }
 
+void liftToggle()
+{
+	entity eTrig;
+	eTrig = getCurrentEntity();
+	eTrig.nottriggerable();
+
+	$pektraqliftDoors1.lock();
+	$pektraqliftDoors1.close();
+	$pektraqliftDoors1.wait(0);
+	$pektraqliftDoors2.lock();
+	$pektraqliftDoors2.close();
+	$pektraqliftDoors1.wait(0);
+	wait(1.2);
+	triggerEntity($pektraqlift);
+	wait(3);
+	//lift was up - is now down
+	if(eTrig.getFloatVar("liftIsUp")){
+		$pektraqliftDoors1.unlock();
+		$pektraqliftDoors1.open($world);
+		$pektraqliftDoors1.wait(-1);
+		eTrig.setFloatVar("liftIsUp",0);
+	}//lift was down - is now up
+	else{
+		$pektraqliftDoors2.unlock();
+		$pektraqliftDoors2.open($world);
+		$pektraqliftDoors2.wait(-1);
+		eTrig.setFloatVar("liftIsUp",1);
+		
+	}
+	wait(3);
+	eTrig.triggerable();
+}
+
 
 //trigger inside lift was used, make lift move
 void pektraqlift()
 {
+	entity eTrig;
+	eTrig = getCurrentEntity();
+	eTrig.nottriggerable();
+	eTrig.thread("liftToggle");
+
 	//$pektraq.ai_on();
 	//$pektraq.setTendency("follow",1);
 	//$pektraq.setTendency("lead",1);
@@ -1252,13 +1274,14 @@ void pektraqlift()
 	float fWait;
 	fWait = 1;
 	while(doesEntityExist($pektraq) && fWait){	
-		if(vectorLength($pektraq.getOrigin() - '3898 -680 -208') < 50){
+		if(vectorLength($pektraq.getOrigin() - '3812 -670 -208') < 30){
 			fWait=0;
 		}
 		wait(0.2);
 	}
 	$pektraq.ai_off();
 	$pektraq.turntowardsentity($pektraqliftDoors1);
+	$pektraqliftPlayerClip.remove();
 
 	$pektraqliftDoors1.lock();
 	$pektraqliftDoors1.close();
@@ -1290,6 +1313,7 @@ void pektraqlift()
 		}
 		wait(0.2);
 	}
+	$liftAiReEnterStop.solid();
 	$pektraq.ai_on();
 	
 	globalCoop_objectives_update("complete" , 4 , 0 );//Disable Forcefield and take Lift
@@ -1304,6 +1328,8 @@ void pektraqlift()
 	
 	//[b60011] chrissstrahl - change radar objective
 	$recovertricorderdone_symbol.missionobjective(1);
+	eTrig.setFloatVar("liftIsUp",1);
+	eTrig.triggerable();
 }
 
 //pickup tricorder and phaser
