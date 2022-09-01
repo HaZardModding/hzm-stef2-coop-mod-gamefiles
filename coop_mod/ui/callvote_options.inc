@@ -376,12 +376,12 @@ PulldownMenuContainer
 	cvarvisibility coop_ui_vt 5 ==
 }
 
-// new team arrow option [b607]
+//[b60011] chrissstrahl - challenge selection option
 resource
 Label
 {
 	title "$$c#032$$"
-	name "coopGpoTiLabel"
+	name "coopGpoChLabel"
 	rect	280 248 210 20
 	fgcolor 1 1 1 1
 	bgcolor 0 0 1 0
@@ -395,7 +395,7 @@ resource
 Label
 {
 	title ""
-	name "coopGpoTi"
+	name "coopGpoCh"
 	rect	490 248 90 20
 	fgcolor 0.0 1.0 1.0 1.000
 	bgcolor 0.50 0.50 0.50 0
@@ -409,7 +409,7 @@ resource
 PulldownMenuContainer
 {
 	title "$$list$$"
-	name "coopGpoTiSelect"
+	name "coopGpoChSelect"
 	rect 580 248 16 20
     fgcolor 				0.953 0.667 0.271 1.000
     bgcolor                 1.000 1.000 1.000 0.000
@@ -422,8 +422,10 @@ PulldownMenuContainer
 	menushader "MENU" "textures/menu/pulldownarrow"
 	selmenushader "MENU" "textures/menu/pulldownarrow_sel"
 
-	addpopup "MENU" "0 - Off"	command "callvote coop_teamIcon 0\n"
-	addpopup "MENU" "1 - On"	command "callvote coop_teamIcon 1\n"
+	addpopup "MENU" "$$None$$"				command "callvote coop_challenge 0\n"
+	addpopup "MENU" "Stick Together"		command "callvote coop_challenge 1\n"
+	//addpopup "MENU" "Halo"				command "callvote coop_challenge 2\n"
+	//addpopup "MENU" "Collision"			command "callvote coop_challenge 3\n"
 	
 	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#033$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
@@ -432,7 +434,6 @@ PulldownMenuContainer
     clicksound sound/misc/menu/click.wav
 	cvarvisibility coop_ui_vt 5 ==
 }
-//end of new team arrow option [b607]
 
 // new dead bodies option [b607]
 resource
