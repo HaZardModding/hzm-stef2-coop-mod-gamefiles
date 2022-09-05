@@ -28,6 +28,7 @@ void skyAction();
 void skyExcelsiorExplode();
 void setupFuncSpawn(entity e,string sModelName,string sSpawnTargetName);
 void objectives_goToOutpost();
+void spawnerSpawn(entity eSpawner);
 void attack_start();
 void attack_start();
 void attack_stop();
@@ -46,6 +47,7 @@ void skySpawnTarget();
 float fEnemiesToKill = 40; //40
 float fEnemiesToKillSaveAt;
 float fEnemiesActive;
+float fEnemiesMonsterIndex;
 float fAllTargetsDestroyed;
 
 void cacheResources()
@@ -88,7 +90,7 @@ void main()
 	soundtrack( "music/dm_kw.mus" );
 	
 	//hzm coop mod chrissstrahl
-	coop_string_levelAuthor = "Nicholas Groom";
+	coop_string_levelAuthor = "Nicholas Groom, Chrissstrahl";
 	
 	coop_string_objectiveItem1 = "$$coop_section31l1_o1$$";
 	coop_string_objectiveItem2 = "$$coop_section31l1_o2$$";
@@ -107,7 +109,7 @@ void main()
 	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
 	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
 	
-	//calc when to save - save at 50% of total enemies to kill
+	//SINGLEPLAYER - calc when to save - save at 50% of total enemies to kill
 	fEnemiesToKillSaveAt = (fEnemiesToKill / 2);
 	
 	//preload resources - prevents lag
@@ -117,6 +119,10 @@ void main()
 	thread setupLevel();
 	
 	waitForPlayer();
+	
+	$world.weather( "rain", 400 );
+	$skyClouds.fade(0.1,0.5);
+	
 	globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",0);
 	globalCoop_player_giveAll("models/weapons/worldmodel-sniperrifle.tik",0);
 	globalCoop_player_giveAll("models/weapons/worldmodel-attrex-rifle.tik",0);
@@ -138,8 +144,8 @@ void setupLevel()
 	
 	//sky	
 	thread skyAction();	
-
-	$spawnOutOfSight1Patch.solid();
+	
+	$shuttleClip.solid();
 	$patchOfDirtThatTheQueenWillMakeGoAway.solid();
 }
 
@@ -219,6 +225,9 @@ void skyExcelsiorExplode()
 	fScaleStart = 0.3;
 	wait(3);
 	$skyDallasSmoke.scale(fScaleStart);
+	$turretFarOut.playsound("sound/environment/earthquake/earthquake01.wav",3,4,99999);
+	//wait(1.5);
+	//$turretFarOut.playsound("sound/ships/enterprise/defgun_explo.wav",3,3,99999);
 	
 	wait(fFadeTime);
 	if(doesEntityExist(eExplo)){
@@ -389,7 +398,7 @@ entity skyAutoFireGrabTargetSimple()
 //------------------------------------------------------------------------------
 {
 	entity eTarget;
-	eTarget = $NUL;
+	eTarget = $NULL;
 	float fCurrentTarget;
 	fCurrentTarget = $world.getFloatVar("skyGalaxyTargetSelected");
 	string sTargetName;
@@ -580,61 +589,126 @@ void attack_status()
 	}
 }
 
+void spawnerSpawn(entity eSpawner)
+//------------------------------------------------------------------------------
+// make sure the spawned monster is named, grouped and does count to killcount
+//------------------------------------------------------------------------------
+{
+	float fMaxEnemies;
+	fMaxEnemies = 5;	
+		
+	if(doesEntityExist(eSpawner) != 1 || fEnemiesActive >= fMaxEnemies){ return; }
+	
+	string sMonsterTargetname;
+	sMonsterTargetname = (eSpawner.getRawTargetName()+""+fEnemiesMonsterIndex);
+	eSpawner.spawnTargetName(sMonsterTargetname);
+	eSpawner.setspawngroupdeaththread("enemy_killed");
+	eSpawner.setspawngroupID(fEnemiesMonsterIndex);
+	fEnemiesMonsterIndex++;
+	//globalCoop_main_waitAFrame();
+	
+	triggerEntity( eSpawner );
+	fEnemiesActive++;
+	globalCoop_main_waitAFrame();
+	
+	//debug
+	//globalCoop_main_print("spawnerSpawn: "+sMonsterTargetname);
+	
+	//make sure the monster dies if it is stuck or idle
+	eSpawner = getEntity(sMonsterTargetname);
+	if(doesEntityExist(eSpawner)){
+		eSpawner.allowfall(1);
+		eSpawner.pushable(0);
+		thread coop_timeOutSuicide(eSpawner);
+	}
+}
+
 void attack_start()
 //------------------------------------------------------------------------------
 //player entered the outpost - now start attacking
 //------------------------------------------------------------------------------
 {
-	 thread attack_status();
+	//make sure we have at max 3 times as much enemies scaleing with players
+	float fEnemiesToKillOriginalNum;
+	fEnemiesToKillOriginalNum = fEnemiesToKill;
+	fEnemiesToKill = (fEnemiesToKill * globalCoop_return_integerPlayersQuantity(2));
+	if(fEnemiesToKill > (fEnemiesToKillOriginalNum * 3)){
+		fEnemiesToKill = (fEnemiesToKillOriginalNum * 3);
+	}
+	
+	$world.weather( "rain", 0 );
+	$skyClouds.fadeout(20,0);
+
+	thread attack_status();
 	 
 	//set spawn parameters
 	setupFuncSpawn($spawnOutOfSight0,"char/bug_female-nosack.tik","spawnOutOfSight0Monster");
 	setupFuncSpawn($spawnOutOfSight1,"char/bug_female-nosack.tik","spawnOutOfSight1Monster");
 	setupFuncSpawn($spawnOutOfSight2,"char/bug_female-nosack.tik","spawnOutOfSight2Monster");
+	setupFuncSpawn($spawnOutOfSight3,"char/bug_female-nosack.tik","spawnOutOfSight3Monster");
 	
-	//enable all the proximioty spawners
+	//enable all the proximity spawners
 	entity e;
 	float fNum;
 	fNum = 709;
 	e = getEntity("t"+fNum+"_trigger");
 	while(doesEntityExist(e)){
 		//debug
-		globalCoop_main_print("Activated Proximity trigger: "+e.getTargetName());
+		globalCoop_main_print("attack_start(): Activated Proximity trigger "+e.getTargetName());
 		
 		fNum++;
 		e = getEntity("t"+fNum+"_trigger");
+		e.triggerable();
 	}	
 	
-	//start spawning enemies
-	float fMaxEnemies;
-	fMaxEnemies = 5;	
-	while(fEnemiesToKill > 0){
-		if(fEnemiesActive < fMaxEnemies){
 	
-			entity eTrigger;
-			string sSpawnTargetName;
-			sSpawnTargetName = "spawnOutOfSight"+randomInt(3);
-			
-			eTrigger = getEntity(sSpawnTargetName);
-			
-			sSpawnTargetName = sSpawnTargetName+""+floor(getLevelTime());
-			eTrigger.spawnTargetName(sSpawnTargetName);
-			eTrigger.setspawngroupdeaththread("enemy_killed");
-			eTrigger.setspawngroupID(floor(getLevelTime()));
-			globalCoop_main_waitAFrame();
-			
-			if(doesEntityExist(eTrigger)){
-				triggerEntity( eTrigger );
-				fEnemiesActive++;
-				globalCoop_main_waitAFrame();
-				
-				//make sure the monster dies if it is stuck or idle
-				entity eMonster;
-				eMonster = getEntity(sSpawnTargetName);
-				thread coop_timeOutSuicide(eMonster);
+	//start spawning enemies - select closest 2 spawns
+	while(fEnemiesToKill > 0){
+		entity eSpawn1;
+		entity eSpawn2;
+		
+		entity eHole;
+		entity ePlaya;
+		vector vOrigin1;
+		vector vOrigin2;		
+		float fBugHole;
+		string sSpawnTargetName;
+		float fDistanceCurrent;
+		float fDistanceBestSpawn;
+		fDistanceBestSpawn=99999;
+
+		//get closest spawn
+		for(fBugHole=3;fBugHole>-1;fBugHole--){
+			sSpawnTargetName = "spawnOutOfSight"+fBugHole;
+			eHole = getEntity(sSpawnTargetName);
+			ePlaya = globalCoop_return_playerClosestPreferActive(eHole);
+			vOrigin1 = eHole.getOrigin();
+			vOrigin2 = ePlaya.getOrigin();
+			fDistanceCurrent = vectorLength((vOrigin1 - vOrigin2));	
+			if(fDistanceCurrent < fDistanceBestSpawn){
+				eSpawn1 = eHole;
+				fDistanceBestSpawn = fDistanceCurrent;
 			}
 		}
-		wait(3);
+		
+		fDistanceBestSpawn=99999;
+		
+		//get next closest spawn
+		for(fBugHole=3;fBugHole>-1;fBugHole--){
+			sSpawnTargetName = "spawnOutOfSight"+fBugHole;
+			eHole = getEntity(sSpawnTargetName);
+			ePlaya = globalCoop_return_playerClosestPreferActive(eHole);
+			vOrigin1 = eHole.getOrigin();
+			vOrigin2 = ePlaya.getOrigin();
+			fDistanceCurrent = vectorLength((vOrigin1 - vOrigin2));	
+			if(eHole != eSpawn1 && fDistanceCurrent < fDistanceBestSpawn){
+				eSpawn2 = eHole;
+				fDistanceBestSpawn = fDistanceCurrent;
+			}
+		}
+		if(doesEntityExist(eSpawn1)){ spawnerSpawn(eSpawn1); }
+		if(doesEntityExist(eSpawn2)){ spawnerSpawn(eSpawn2); }
+	wait(3);
 	}
 }
 
@@ -658,12 +732,7 @@ void cinematic_queen()
 	}
 	$world.setFloatVar("cinematic_queen",1);
 	
-	$path.playsound("sound/environment/earthquake/earthquake01.wav");
-	
-	$path.playsound("sound/environment/earthquake/earthquake01.wav",3,2,2048);
-	$entrancePlate.playsound("sound/ships/forever/ship_creak_low2.wav",0,1,2048);
-	
-	//fade cam in
+	//fade cam
 	cam_fadeOut(0.25,0,0,0,1);
 	spawn("camera","targetname","cam1","origin",""+$cameraSpawn.getOrigin(),"angle","200");
 	wait(0.25);
@@ -690,6 +759,10 @@ void cinematic_queen()
 	$pathDamagedSolid.solid();
 	$pathDamaged.solid();
 	
+	globalCoop_main_waitAFrame();
+	
+	$usablesymbol1.remove();
+	$usablesymbol2.remove();
 	$triggerActivateForceField0.remove();
 	$triggerActivateForceField1.remove();
 	$forcefield1.remove();
@@ -700,16 +773,15 @@ void cinematic_queen()
 	$patchOfDirtThatTheQueenWillMakeGoAway.remove();
 	$path.remove();
 	
-	//start alarmsound
-	$cameraSpawn.loopsound("sound/ships/forever/for_alarm_beeps.wav",4,256);
-	
 	//fade cam in
 	cam_fadeIn(0.25,0,0,0,1);
 	cuecamera($cam1);
-	wait(0.1);
-	
+	$cam1.playsound("sound/environment/earthquake/earthquake01.wav",3,2,2048);
+	wait(0.1);	
 	$queen.anim("taunt");
-	wait(2);
+	wait(0.1);	
+	$cam1.playsound("sound/ships/forever/ship_creak_low2.wav",0,1,2048);
+	wait(1.9);
 	
 	//fade cam in
 	cam_fadeOut(0.25,0,0,0,1);
@@ -732,6 +804,9 @@ void cinematic_queen()
 	//fade cam in
 	cam_fadeIn(0.25,0,0,0,1);
 	
+	//start alarmsound
+	$cameraSpawn.loopsound("sound/ships/forever/for_alarm_beeps.wav",4,256);
+	
 	
 	globalCoop_objectives_update("failed" , 3 , 0 );//Defend Outpost
 	globalCoop_objectives_update("incomplete" , 4 , 1 );//defeat queen
@@ -743,6 +818,12 @@ void enemy_killed()
 //enemy was killed, add to count
 //------------------------------------------------------------------------------
 {
+	entity eKilled;
+	eKilled = getCurrentEntity();
+	
+	//debug
+	//globalCoop_main_print("enemy_killed(): "+eKilled.getRawTargetName());
+	
 	fEnemiesToKill--;
 	fEnemiesActive--;
 	if(fEnemiesActive < 0){fEnemiesActive = 0;}
@@ -760,35 +841,6 @@ void enemy_killed()
 			wait(10);
 			thread cinematic_queen();
 		}
-		return;
-	}
-	
-	//do a series of checks and pick the free spawner
-	entity eMonster;
-	eMonster = getCurrentEntity();
-	if(!doesEntityExist((eMonster))){
-		globalCoop_main_print("enemy_killed() - glitched: No Monster");
-		return;
-	}
-
-	entity eSpawner;
-	string sSpawner;
-	eSpawner = getEntity(sSpawner);
-	if(!doesEntityExist(eSpawner)){
-		globalCoop_main_print("enemy_killed() - glitched: Spawner $"+sSpawner+" not found");
-		return;
-	}
-		
-	//make spawner spawn a monster
-	string sTargetname;
-	sTargetname = (sSpawner+"Monster");
-	eSpawner.spawnNow();
-	globalCoop_main_waitAFrame();
-	
-	//grab monster and make sure it s there
-	eSpawner = getEntity(sTargetname);
-	if(!doesEntityExist(eSpawner)){
-		globalCoop_main_print("enemy_killed() - glitched: Monster $"+sTargetname+" was not spawned");
 		return;
 	}
 }
@@ -824,7 +876,24 @@ void coop_timeOutSuicide(entity eMonster)
 	float fHealth;
 	vector vLoc;
 	float fTimeout;
-	while(doesEntityExist(eMonster) && eMonster.getHealth() > 0){
+	
+	//wait for monster to be pushed
+	wait(0.1);
+	//wait for monster to have negative velocity
+	vLoc_z = 9999;
+	while(doesEntityExist(eMonster) && eMonster.getHealth() > 0 && vLoc_z > -5){
+		fHealth = eMonster.getHealth();
+		vLoc = eMonster.getVelocity();
+		globalCoop_main_waitAFrame();
+	}
+	
+	if(!doesEntityExist(eMonster)){ return; }
+	
+	//make monster heavy
+	eMonster.mass(2000);
+	//eMonster.attackplayer();	
+	
+	while(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0){
 		fHealth = eMonster.getHealth();
 		if(fHealth	== eMonster.getHealth() && vLoc	 == eMonster.getOrigin()){
 			fTimeout++;
@@ -918,13 +987,18 @@ void objectives_forceField()
 	$shuttleClip.remove();
 	$treeLeaves1.remove();
 	$treeLeaves2.remove();
-	$treeLeaves3.remove();	
+	$treeLeaves3.remove();
+
+	$shuttlePlant1	.remove();
+	$shuttlePlant2	.remove();
+	$shuttlePlant3	.remove();
 	
 	spawn("fx/fx-explosion-crate-romulan-03.tik","origin","-1768.00 -776.00 100.00","scale","2");
-	spawn("models/fx/fx-blowingdust-large-brown.tik","origin","-1768.00 -776.00 100.00","scale","2");
+	//spawn("models/fx/fx-blowingdust-large-brown.tik","origin","-1768.00 -776.00 100.00","scale","2");
 	
 	//show seats and fire at where the shuttle once was
 	$shuttleRemainsEffect.show();
+	$shuttleRemainsEffect.playsound("sound/ships/enterprise/defgun_explo.wav",3,2,1500);
 	$shuttleMoreEffectsTrigger1.movetopos('-1493.00 -896.00 80.00');
 	
 	//trow engine part towards outpost
@@ -937,7 +1011,7 @@ void objectives_forceField()
 	$shuttleEngineOrigin.rotatexdown(270);
 	$shuttleEngineOrigin.rotateyup(290);
 	$shuttleEngineOrigin.time(0.5);
-	$shuttleClipEngine.dmg(999999); //make sure to kill whom ever
+	$shuttleClipEngine.dmg(9999); //make sure to kill whom ever
 	
 	
 	//move up crashed shuttle rotate and scale down to appear exploding and flying away
@@ -948,6 +1022,7 @@ void objectives_forceField()
 	$shuttleOrigin.rotatexdown(270);
 	$shuttleOrigin.rotateyup(290);
 	$shuttleOrigin.time(1.3);
+	$shuttleOrigin.dmg(9999);
 	
 	float fScale;
 	fScale = 1;
