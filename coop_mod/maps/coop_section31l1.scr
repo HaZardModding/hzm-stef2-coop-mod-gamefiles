@@ -55,6 +55,7 @@ void cacheResources()
 //preloads the files before they are actually used, prevents lags and glitching
 //-----------------------------------------------------------------
 {
+	
 	cache("char/alien-type1a-lurker.tik");
 	cache("char/bug_female-nosack.tik");
 	cache("char/bug_male.tik");
@@ -64,6 +65,10 @@ void cacheResources()
 	cache("sound/ships/borg/borg_forcefield_on.wav");
 	cache("sound/ships/enterprise/ent_forcefield.wav");
 	
+	
+	return;
+	//WARNING - for some reason this will break the renderer and/or the fov
+	//[b60011]chrissstrahl
 	//coop weapons
 	cache(coop_string_weapon1);
 	cache(coop_string_weapon2);
@@ -87,6 +92,16 @@ void cacheResources()
 
 void main()
 {
+	//hzm coop mod chrissstrahl - give weapons to players
+	coop_string_weapon5 = "models/weapons/worldmodel-attrex-rifle.tik";
+	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
+
+	//preload resources - prevents lag
+	cacheResources();
+	
 	soundtrack( "music/dm_kw.mus" );
 	
 	//hzm coop mod chrissstrahl
@@ -103,17 +118,8 @@ void main()
 	//structural view mode
 	$world.addAvailableViewMode("structuralintegrity");
 	
-	//hzm coop mod chrissstrahl - give weapons to players
-	coop_string_weapon4 = "models/weapons/worldmodel-CompressionRifle.tik";
-	coop_string_weapon2 = "models/weapons/worldmodel-Phaser-stx.tik";
-	coop_string_weapon3 = "models/weapons/worldmodel-Tricorder-stx.tik";
-	coop_string_weapon1 = "models/weapons/worldmodel-sniperrifle.tik";
-	
 	//SINGLEPLAYER - calc when to save - save at 50% of total enemies to kill
 	fEnemiesToKillSaveAt = (fEnemiesToKill / 2);
-	
-	//preload resources - prevents lag
-	thread cacheResources();
 	
 	//prepare and configure the level objects
 	thread setupLevel();
@@ -123,10 +129,7 @@ void main()
 	$world.weather( "rain", 400 );
 	$skyClouds.fade(0.1,0.5);
 	
-	globalCoop_player_giveAll("models/weapons/worldmodel-compressionrifle.tik",0);
-	globalCoop_player_giveAll("models/weapons/worldmodel-sniperrifle.tik",0);
-	globalCoop_player_giveAll("models/weapons/worldmodel-attrex-rifle.tik",0);
-	globalCoop_player_giveAll("models/weapons/worldmodel-BurstRifle.tik",1);
+	thread rescue_start();
 }
 
 void setupLevel()
@@ -857,13 +860,6 @@ void queen_killed()
 		stuffcmd("ui_savegamewithname \"^5Section 31 Lvl1 ^8Exfiltrate\"\n");
 	}
 	
-	wait(5);
-	$gatheringLocationExitHud.triggerable();
-	$gatheringLocationVisible.show();
-	
-	globalCoop_objectives_update("complete" , 4 , 0 );//defeat queen
-	globalCoop_objectives_update("incomplete" , 5 , 1 );//evacuate/exfiltrate
-	
 	//have shuttle come down
 	thread rescue_start();
 }
@@ -879,9 +875,10 @@ void coop_timeOutSuicide(entity eMonster)
 	
 	//wait for monster to be pushed
 	wait(0.1);
+	
 	//wait for monster to have negative velocity
 	vLoc_z = 9999;
-	while(doesEntityExist(eMonster) && eMonster.getHealth() > 0 && vLoc_z > -5){
+	while(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0 && vLoc_z > -5){
 		fHealth = eMonster.getHealth();
 		vLoc = eMonster.getVelocity();
 		globalCoop_main_waitAFrame();
@@ -891,7 +888,19 @@ void coop_timeOutSuicide(entity eMonster)
 	
 	//make monster heavy
 	eMonster.mass(2000);
-	//eMonster.attackplayer();	
+	eMonster.gravity(20);
+	//eMonster.attackplayer();
+	
+	//wait for monster to stop falling
+	while(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0 && vLoc_z > 0){
+		fHealth = eMonster.getHealth();
+		vLoc = eMonster.getVelocity();
+		globalCoop_main_waitAFrame();
+	}
+	
+	//make monster normal again
+	eMonster.mass(200);
+	eMonster.gravity(1);
 	
 	while(doesEntityExist(eMonster) == 1 && eMonster.getHealth() > 0){
 		fHealth = eMonster.getHealth();
@@ -1070,6 +1079,13 @@ void rescue_start()
 //standard coop mod handling
 //------------------------------------------------------------------------------
 {
+	wait(5);
+	$gatheringLocationExitHud.triggerable();
+	$gatheringLocationVisible.show();
+	
+	globalCoop_objectives_update("complete" , 4 , 0 );//defeat queen
+	globalCoop_objectives_update("incomplete" , 5 , 1 );//evacuate/exfiltrate
+
 	thread setupOnBlock_kill($shuttleRescue);
 	
 	//position the shuttle correctly
@@ -1102,8 +1118,12 @@ void rescue_start()
 	$shuttleRescueOrigin.moveto($end_shuttleRescueOrigin);
 	$shuttleRescueOrigin.time(5);
 	
-	//allow now to finish mission
-	$gatheringLocationTrigger.triggerable();
+	waitFor($shuttleRescueOrigin);
+	wait(1);
+	
+	//setup trigger for gathering location - allow now to finish mission
+	$gatheringLocationTrig.setStringVar("globalCoop_level_areaThread","coop_endLevel");
+	$gatheringLocationTrig.triggerable();
 }
 
 void coop_endLevel()
