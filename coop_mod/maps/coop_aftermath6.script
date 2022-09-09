@@ -80,6 +80,119 @@ float	liftSpawnDone = 0;
 #include "maps/global_scripts/global_tricorderMod.scr" 
 #include "maps/global_scripts/global_tricorderKeypad.scr"
 
+void liftGetGoing()
+{
+	$pektraqlift_triggerUse.notTriggerable();
+	$pektraqlift_triggerUse.thread("liftToggle");
+	
+	vector v1;
+	v1 = '3794 -729 -230';
+	v1 = '3818 -772 -230';
+	thread globalCoop_actor_walkToVector($pektraq,v1,"run");
+	
+	float fWwaitForAI = 1;
+	float fWait=0;
+	while(fWwaitForAI){
+		wait(0.25);
+		fWait++;
+		fWwaitForAI = 0;
+		
+		if(vectorlength($pektraq.getOrigin() - v1) > 30 ){
+			fWwaitForAI = 1;
+		}
+		if(fWait > 20){
+			fWwaitForAI = 0;
+			thread globalCoop_level_warpEntityToVectorSafty($pektraq,v1);
+		}
+	}
+	$pektraq.ai_off();
+	$pektraq.pushable(1);
+	$pektraq.mass(100);
+	
+	$pektraqlift_triggerUseBottom.nottriggerable();
+	$pektraqlift_triggerUse.nottriggerable();
+	$pektraqlift_triggerUseTop.nottriggerable();
+
+	$pektraqliftDoors1.lock();
+	$pektraqliftDoors1.close();
+	$pektraqliftDoors1.wait(0);
+	$pektraqliftDoors2.lock();
+	$pektraqliftDoors2.close();
+	$pektraqliftDoors1.wait(0);
+	wait(1.2);
+	triggerEntity($pektraqlift);
+	
+	wait(3.5);
+	
+	$pektraq.ai_on();
+	
+	$pektraqliftDoors2.unlock();
+	$pektraqliftDoors2.open($world);
+	$pektraqliftDoors2.wait(-1);
+	
+	$pektraq.ai_off();
+	v1 = '3570 -716 -30';
+	thread globalCoop_actor_walkToVector($pektraq,v1,"walk");
+	
+	fWwaitForAI = 1;
+	fWait=0;
+	while(fWwaitForAI){
+		wait(0.25);
+		fWait++;
+		fWwaitForAI = 0;
+		
+		if(vectorlength($pektraq.getOrigin() - v1) > 30 ){
+			fWwaitForAI = 1;
+		}
+		if(fWait > 20){
+			fWwaitForAI = 0;
+			thread globalCoop_level_warpEntityToVectorSafty($pektraq,v1);
+		}
+	}
+	$pektraq.pushable(0);
+	$pektraq.mass(9999);
+	$pektraq.ai_on();
+	$pektraqlift.setFloatVar("liftIsUp",1);
+	
+	wait(2);
+	$pektraqlift_triggerUseBottom.triggerable();
+	$pektraqlift_triggerUse.triggerable();
+	
+	//thread globalCoop_player_makeSolidASAP($pektraq);
+}
+
+void debug_liftSequence()
+{
+	$pektraq.ai_off();
+	$pektraq.origin($f1.getOrigin());
+	$ff.hide();
+	$ff.open($world);
+	wait(1);
+	
+	$pektraq.mass(99999);
+	$pektraq.pushable(0);
+	$pektraq.actortype("teammate");
+	$pektraq.settendency("lead",0);
+	$pektraq.setTendency("follow",1);
+	$pektraq.setnodeID(666);
+	addrosterteammate1($pektraq);
+	
+	$enterLiftTrigger.requiredentity("chell");
+	$enterLiftTrigger.requiredentity("pektraq");
+	//$enterLiftTrigger.thread("pektraqlift_callvolume");
+	
+	if(getCvarInt("g_gametype") == 0){
+		$player.origin('3610 -520 -180');
+	}else{
+		$player0.origin('3610 -520 -180');
+	}
+	
+	$ff.remove();
+	cam_fadeIn(0.25,0,0,0,1);
+	wait(5);
+	$pektraq.ai_on();
+}
+
 void main()
 {	
 	soundtrack( "music/dm_kw.mus" );
@@ -139,11 +252,7 @@ void main()
 	$deadbody_sfPhaserDude.origin('2604.00 -348.00 -198.00');
 	$deadbody_sfPhaserDude.anim("cin-m9l2_munro_lurok");
 
-
-
-	
 	thread setupAi();
-
 	
 	//structural view mode
 	$world.addAvailableViewMode("structuralintegrity");	
@@ -183,7 +292,11 @@ void main()
 	//make sure ai does not leave area before ready - one way monster clip
 	$preventAiFromLeaving.solid();
 	
+	//debug crap
+	//thread debug_liftSequence();
+	
 	thread intro();
+	
 	thread removeMosterClip();
 }
 
@@ -970,9 +1083,13 @@ void ffconduit()
 	$ffconduit.remove();
 	$conduitblowup.selfdetonate();
 	wait(0.15);
-	$ff.remove();
+	$ff.hide();
+	$ff.open($world);
+	$ff.wait(-1);
+	
 	//wait for the effect to end
 	wait(2.7);
+	$ff.remove();
 
 	noncinematic();
 	clearletterbox(0.1);
@@ -1226,9 +1343,9 @@ void toolbox_place()
 
 void liftToggle()
 {
-	entity eTrig;
-	eTrig = getCurrentEntity();
-	eTrig.nottriggerable();
+	$pektraqlift_triggerUseBottom.nottriggerable();
+	$pektraqlift_triggerUseTop.nottriggerable();
+	$pektraqlift_triggerUse.nottriggerable();
 
 	$pektraqliftDoors1.lock();
 	$pektraqliftDoors1.close();
@@ -1240,83 +1357,48 @@ void liftToggle()
 	triggerEntity($pektraqlift);
 	wait(3);
 	//lift was up - is now down
-	if(eTrig.getFloatVar("liftIsUp")){
+	if($pektraqlift.getFloatVar("liftIsUp")){
 		$pektraqliftDoors1.unlock();
 		$pektraqliftDoors1.open($world);
 		$pektraqliftDoors1.wait(-1);
-		eTrig.setFloatVar("liftIsUp",0);
+		$pektraqlift.setFloatVar("liftIsUp",0);
 	}//lift was down - is now up
 	else{
 		$pektraqliftDoors2.unlock();
 		$pektraqliftDoors2.open($world);
 		$pektraqliftDoors2.wait(-1);
-		eTrig.setFloatVar("liftIsUp",1);
-		
+		$pektraqlift.setFloatVar("liftIsUp",1);
 	}
 	wait(3);
-	eTrig.triggerable();
+	if($pektraqlift.getFloatVar("liftIsUp")==1){
+		$pektraqlift_triggerUseBottom.triggerable();
+	}else{
+		$pektraqlift_triggerUseTop.triggerable();
+	}
+	$pektraqlift_triggerUse.triggerable();
 }
 
-
-//trigger inside lift was used, make lift move
-void pektraqlift()
+void pektraqlift_callvolume()
 {
+	thread coop_updateSpawns3();
+
 	entity eTrig;
 	eTrig = getCurrentEntity();
-	eTrig.nottriggerable();
-	eTrig.thread("liftToggle");
-
-	//$pektraq.ai_on();
-	//$pektraq.setTendency("follow",1);
-	//$pektraq.setTendency("lead",1);
-	//$pektraq.setnodeID(999);
-	$pektraq.ai_off();
-	$pektraq.walkto("$pektraqliftPos","walk");
-
-	float fWait;
-	fWait = 1;
-	while(doesEntityExist($pektraq) && fWait){	
-		if(vectorLength($pektraq.getOrigin() - '3812 -670 -208') < 30){
-			fWait=0;
-		}
-		wait(0.2);
-	}
-	$pektraq.ai_off();
-	$pektraq.turntowardsentity($pektraqliftDoors1);
-	$pektraqliftPlayerClip.remove();
+	
+	$enterLiftTrigger.remove();
 
 	$pektraqliftDoors1.lock();
 	$pektraqliftDoors1.close();
 	wait(1.2);
-	$pektraq.ai_on();
-	
 	triggerEntity($pektraqlift);
 	wait(3);
+	
+	if(doesEntityExist($enterLiftTrigger)){$enterLiftTrigger.remove();}
 	
 	$pektraqliftDoors2.open($world);
 	$pektraqliftDoors2.wait(-1);
 	
-	$pektraq.ai_off();
-	$pektraq.walkto("$pektraqliftPosExitPre","walk");
-	waitFor($pektraq);
-	$pektraq.walkto("$pektraqliftPosExit","walk");
-	waitFor($pektraq);
-	
-	// $pektraq.ai_on();
-	// $pektraq.setTendency("follow",1);
-	// $pektraq.setTendency("lead",1);
-	// $pektraq.setTendency("leadslow",1);
-	// $pektraq.setnodeID(888);
-	
-	fWait = 1;
-	while(doesEntityExist($pektraq) && fWait){	
-		if(vectorLength($pektraq.getOrigin() - '3561 -725 -12') < 60){
-			fWait=0;
-		}
-		wait(0.2);
-	}
 	$liftAiReEnterStop.solid();
-	$pektraq.ai_on();
 	
 	globalCoop_objectives_update("complete" , 4 , 0 );//Disable Forcefield and take Lift
 	globalCoop_objectives_update("incomplete" , 5 , 0 );//unlock exterior door
@@ -1324,14 +1406,65 @@ void pektraqlift()
 	
 	$pektraqliftDoors2.wait(2);
 	$liftPathnodeClipNextLevel.remove();
-	$pektraq.setTendency("follow",1);
-	$pektraq.setTendency("lead",0);
+	
+	//make ai leave lift
 	$pektraq.setTendency("leadslow",0);
+	$pektraq.settendency("lead",1);
+	$pektraq.setnodeID(888);
+	$pektraq.setTendency("follow",0);
+	
+	/*
+	thread globalCoop_actor_walkToVector($chell,'771 -3311 100',"walk");
+	thread globalCoop_actor_walkToVector($telsia,'765 -3387 100',"walk");
+	
+	vector v1;
+	float fWwaitForAI = 1;
+	float fWait=0;
+	while(fWwaitForAI){
+		fWait++;
+		fWwaitForAI = 0;
+		v1 = '771 -3211 75';
+		if(vectorlength($telsia.getOrigin() - v1) > 180 ){
+			fWwaitForAI = 1;
+		}
+		v1 = '771 -3311 75';
+		if(vectorlength($chell.getOrigin() - v1) > 180 ){
+			fWwaitForAI = 1;
+		}
+		if(fWait > 20){
+			fWwaitForAI = 0;
+			thread globalCoop_level_warpEntityToVectorSafty($telsia,'771 -3311 75');
+			thread globalCoop_level_warpEntityToVectorSafty($chell,'765 -3387 75');
+		}
+		wait(0.25);
+	}
+
+	$chell.allowfall(0);
+	$chell.ai_on();
+spawn("trigger_push","targetname","CoopLiftPushOffTrigger","origin",""+$EndHallwayLift.getOrigin(),"angle","180","spawnflags","4");//push only AI
+	$CoopLiftPushOffTrigger.speed(1000);
+	$CoopLiftPushOffTrigger.setSize(vSizeMin,vSizeMax);
+	*/
+}
+
+void pektraqlift_exited()
+{	
+	$pektraqlift_triggerUse.triggerable();
 	
 	//[b60011] chrissstrahl - change radar objective
 	$recovertricorderdone_symbol.missionobjective(1);
-	eTrig.setFloatVar("liftIsUp",1);
-	eTrig.triggerable();
+	
+	$pektraqlift_triggerUse.setFloatVar("liftIsUp",1);
+	$pektraqlift_triggerUse.thread("liftToggle");
+	
+	$pektraqlift.setFloatVar("liftIsUp",1);
+	$pektraqlift_triggerUseBottom.triggerable();
+	
+	//make ai leave lift
+	$pektraq.setTendency("leadslow",0);
+	$pektraq.settendency("lead",0);
+	//$pektraq.setnodeID(888);
+	$pektraq.setTendency("follow",1);
 }
 
 //pickup tricorder and phaser
