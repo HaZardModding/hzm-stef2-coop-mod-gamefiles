@@ -128,8 +128,6 @@ void main()
 	
 	$world.weather( "rain", 400 );
 	$skyClouds.fade(0.1,0.5);
-	
-	thread rescue_start();
 }
 
 void setupLevel()
@@ -228,9 +226,9 @@ void skyExcelsiorExplode()
 	fScaleStart = 0.3;
 	wait(3);
 	$skyDallasSmoke.scale(fScaleStart);
-	$turretFarOut.playsound("sound/environment/earthquake/earthquake01.wav",3,4,99999);
+	$cannon3.playsound("sound/environment/earthquake/earthquake01.wav",3,4,99999);
 	//wait(1.5);
-	//$turretFarOut.playsound("sound/ships/enterprise/defgun_explo.wav",3,3,99999);
+	//$cannon3.playsound("sound/ships/enterprise/defgun_explo.wav",3,3,99999);
 	
 	wait(fFadeTime);
 	if(doesEntityExist(eExplo)){
@@ -533,13 +531,14 @@ void skyAction()
 	$skyGalaxyBeam1.bind($skyGalaxyOrigin);
 	$skyGalaxyBeam2.bind($skyGalaxyOrigin);
 	
-	
-	//make the excelsior go down
-	thread skyExcelsiorExplode();
-	
 	//make the galaxy auto fire
 	//also start targets flying towards the ship
 	thread skyAutoFire();
+	
+	wait(4);
+	
+	//make the excelsior go down
+	thread skyExcelsiorExplode();
 }
 
 void setupFuncSpawn(entity e,string sModelName,string sSpawnTargetName)
@@ -755,7 +754,7 @@ void cinematic_queen()
 		stuffcmd("ui_savegamewithname \"^5Section 31 Lvl1 ^8Queen\"\n");
 	}
 
-	$queen.show();
+	
 	$queen.solid();
 	$pathDamaged.show();
 	$pathDamagedSolid.show();
@@ -769,10 +768,6 @@ void cinematic_queen()
 	$triggerActivateForceField0.remove();
 	$triggerActivateForceField1.remove();
 	$forcefield1.remove();
-	$entranceMonsterClip.remove();
-	$entranceWallPart.remove();
-	$entranceFloorDestructible.remove();
-	$entrancePlate.remove();
 	$patchOfDirtThatTheQueenWillMakeGoAway.remove();
 	$path.remove();
 	
@@ -780,7 +775,16 @@ void cinematic_queen()
 	cam_fadeIn(0.25,0,0,0,1);
 	cuecamera($cam1);
 	$cam1.playsound("sound/environment/earthquake/earthquake01.wav",3,2,2048);
-	wait(0.1);	
+	wait(0.1);
+	spawn("sfx","model","models/fx/fx-explosion-debris-metal-forever.tik","origin","797 -298 228");
+	spawn("sfx","model","models/fx/fx-explosion-rockdebris-brown-falling-sparse.tik","origin","757 -203 234");
+	spawn("sfx","model","models/fx/fx-explosion-debris-idryllruins-xtralarge.tik","origin","753 -252 206");
+	wait(0.1);
+	$entranceMonsterClip.remove();
+	$entranceWallPart.remove();
+	$entranceFloorDestructible.remove();
+	$entrancePlate.remove();
+	$queen.show();
 	$queen.anim("taunt");
 	wait(0.1);	
 	$cam1.playsound("sound/ships/forever/ship_creak_low2.wav",0,1,2048);
@@ -1008,12 +1012,10 @@ void objectives_forceField()
 	//show seats and fire at where the shuttle once was
 	$shuttleRemainsEffect.show();
 	$shuttleRemainsEffect.playsound("sound/ships/enterprise/defgun_explo.wav",3,2,1500);
-	$shuttleMoreEffectsTrigger1.movetopos('-1493.00 -896.00 80.00');
+	$shuttleMoreEffectsTrigger1.remove();
 	
 	//trow engine part towards outpost
 	$shuttleSparksEngine.bind($shuttleEngineOrigin);
-	$shuttleFireEngine.bind($shuttleEngineOrigin);
-	$shuttleFireEngineTrigger.bind($shuttleEngineOrigin);
 	$shuttleModel3.bind($shuttleEngineOrigin);
 	$shuttleClipEngine.bind($shuttleEngineOrigin);
 	$shuttleEngineOrigin.moveto($shuttleEngineLandSpot);
@@ -1076,7 +1078,7 @@ void onBlock_kill()
 
 void rescue_start()
 //------------------------------------------------------------------------------
-//standard coop mod handling
+//have shuttle come down and allow player to complete the map
 //------------------------------------------------------------------------------
 {
 	wait(5);
@@ -1119,11 +1121,17 @@ void rescue_start()
 	$shuttleRescueOrigin.time(5);
 	
 	waitFor($shuttleRescueOrigin);
+	
+	
 	wait(1);
 	
+	//spawn a gathering area
 	//setup trigger for gathering location - allow now to finish mission
-	$gatheringLocationTrig.setStringVar("globalCoop_level_areaThread","coop_endLevel");
-	$gatheringLocationTrig.triggerable();
+	vector v;
+	v = $gatheringLocationTrig.getMaxs();
+	v_z = 384;
+	globalCoop_level_gatheringArea("","coop_endLevel",100,v,$gatheringLocationTrig.getOrigin());
+	$gatheringLocationTrig.remove();
 }
 
 void coop_endLevel()
@@ -1135,6 +1143,7 @@ void coop_endLevel()
 //mark this map as completed to the scripts (can not fail anymore)
 	globalCoop_mission_accomplished();
 	globalCoop_main_globalCommand("nodamage");
+	thread globalCoop_player_imobilizeAll(1);
 	
 	//remove all enemies
 	removeclass("Actor");
