@@ -250,7 +250,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "callvote map coop_section31l1;popmenu 1;popmenu 0\n"
-	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_section31l1.tga;globalwidgetcommand coopName title \"-\""
+	hovercommand "globalwidgetcommand coopShot shader sysimg/mapshots/coop_section31l1.tga;globalwidgetcommand coopName title \"Nicholas Groom, Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
 end.
