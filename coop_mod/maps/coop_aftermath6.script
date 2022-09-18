@@ -40,7 +40,7 @@ void toolbox_place();
 void reactivateKlingon();
 void rommy2Killed();
 void coop_phaser_pickup();
-
+void randomDynamicLightFlicker(string sLightName);
 void removeMosterClip();
 void coop_updateSpawns1();
 void coop_updateSpawns2();
@@ -97,7 +97,11 @@ void liftGetGoing()
 		fWait++;
 		fWwaitForAI = 0;
 		
-		if(vectorlength($pektraq.getOrigin() - v1) > 30 ){
+		vector V;
+		V = $pektraq.getOrigin();
+		v1_z = V_z;
+		
+		if(vectorlength(V - v1) > 30 ){
 			fWwaitForAI = 1;
 		}
 		if(fWait > 20){
@@ -105,6 +109,8 @@ void liftGetGoing()
 			thread globalCoop_level_warpEntityToVectorSafty($pektraq,v1);
 		}
 	}
+	$liftAiLeaveStop.solid();
+	
 	$pektraq.ai_off();
 	$pektraq.pushable(1);
 	$pektraq.mass(100);
@@ -112,6 +118,8 @@ void liftGetGoing()
 	$pektraqlift_triggerUseBottom.nottriggerable();
 	$pektraqlift_triggerUse.nottriggerable();
 	$pektraqlift_triggerUseTop.nottriggerable();
+	
+	thread coop_updateSpawns3();
 
 	$pektraqliftDoors1.lock();
 	$pektraqliftDoors1.close();
@@ -120,6 +128,7 @@ void liftGetGoing()
 	$pektraqliftDoors2.close();
 	$pektraqliftDoors1.wait(0);
 	wait(1.2);
+	$pektraqlift.dmg(9999);
 	triggerEntity($pektraqlift);
 	
 	wait(3.5);
@@ -141,7 +150,11 @@ void liftGetGoing()
 		fWait++;
 		fWwaitForAI = 0;
 		
-		if(vectorlength($pektraq.getOrigin() - v1) > 30 ){
+		vector V;
+		V = $pektraq.getOrigin();
+		v1_z = V_z;
+		
+		if(vectorlength(V - v1) > 30 ){
 			fWwaitForAI = 1;
 		}
 		if(fWait > 20){
@@ -149,13 +162,24 @@ void liftGetGoing()
 			thread globalCoop_level_warpEntityToVectorSafty($pektraq,v1);
 		}
 	}
+	
+	globalCoop_objectives_update("complete" , 4 , 1 );//Disable Forcefield and take Lift
+	
 	$pektraq.pushable(0);
 	$pektraq.mass(9999);
 	$pektraq.ai_on();
-	$pektraqlift.setFloatVar("liftIsUp",1);
 	
 	wait(2);
-	$pektraqlift_triggerUseBottom.triggerable();
+	
+	
+	vector vOrgy;
+	vOrgy = $pektraqlift.getOrigin();
+	if(vOrgy_z > -24){
+		$pektraqlift_triggerUseBottom.triggerable();
+	}else{
+		$pektraqlift_triggerUseTop.triggerable();
+	}
+	$aiPreventReenterLift.triggerable();
 	$pektraqlift_triggerUse.triggerable();
 	
 	//thread globalCoop_player_makeSolidASAP($pektraq);
@@ -177,7 +201,6 @@ void debug_liftSequence()
 	$pektraq.setnodeID(666);
 	addrosterteammate1($pektraq);
 	
-	$enterLiftTrigger.requiredentity("chell");
 	$enterLiftTrigger.requiredentity("pektraq");
 	//$enterLiftTrigger.thread("pektraqlift_callvolume");
 	
@@ -189,13 +212,12 @@ void debug_liftSequence()
 	
 	$ff.remove();
 	cam_fadeIn(0.25,0,0,0,1);
-	wait(5);
 	$pektraq.ai_on();
 }
 
 void main()
 {	
-	soundtrack( "music/dm_kw.mus" );
+	soundtrack( "music/m10l2b-romulan_installation.mus" );
 	
 	//fade screen black, this level starts with a cinematic
 	cam_fadeout(0.1,0,0,0,1);
@@ -293,11 +315,35 @@ void main()
 	$preventAiFromLeaving.solid();
 	
 	//debug crap
-	//thread debug_liftSequence();
+//thread debug_liftSequence();
+//cam_fadeIn(0.25,0,0,0,1);
 	
 	thread intro();
 	
 	thread removeMosterClip();
+	
+	$blowupDoorDynLightSparks.scale(0.0);
+	
+	//spawn a gathering area
+	//setup trigger for gathering location - allow now to finish mission
+	vector v,v2;
+	v2 = $levelEndGather.getOrigin();
+	v = $levelEndGather.getMaxs();
+	v_z = 384;
+	$levelEndGather.remove();
+	globalCoop_main_waitAFrame();
+	globalCoop_level_gatheringArea("levelEndGather","coop_endLevel",100,v,v2);
+}
+
+void randomDynamicLightFlicker(string sLightName)
+{
+	while(1)
+	{
+		$world.light_intensity("fogShaftLightDynamic",(randomFloat(0.8) + 0.2));
+		wait( randomInt(3) + 0.25 );
+		$world.light_intensity("fogShaftLightDynamic",0);
+		wait( randomInt(1) + 0.1 );
+	}
 }
 
 void removeMosterClip()
@@ -580,6 +626,29 @@ void walkToVector(entity eActor, vector vOrigin,string sAnimName)
 }
 
 
+void cellGrateMakeSolid()
+{
+	$munroChellGrateClosed.makeSolidAsap();
+	
+	return;
+	entity ePlayer;
+	float fPlayerIdInUse;
+	float fCheck;
+	fCheck = 1;
+	while(fCheck){
+		fCheck = 0;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer) && doesEntityExist($munroChellGrateClosed)){
+				if(globalCoop_check_playerSpectator(ePlayer) == 0 && $munroChellGrateClosed.isEntityInsideOfEntity(ePlayer)){
+					fCheck = 1;
+				}
+			}
+		}
+	}
+	$munroChellGrateClosed.solid();
+}
+
 void solved_codepanel_trigger0()
 //puzzle solved, cell will open, klingon will react to it
 {
@@ -595,12 +664,12 @@ void solved_codepanel_trigger0()
 	$pektraq.angle(90);
 	$pektraq.mass(999);
 	
-//ready chell
+//ready cell
 	$munroChellGrateClosed.show();
-	$munroChellGrateClosed.solid();
+	thread cellGrateMakeSolid();	
 	$munroChellGrateOpen.remove();
 	
-//open chell door
+//open cell door
 	$munroChellDoor.unlock();
 	$munroChellDoor.open($world);
 	
@@ -686,9 +755,7 @@ void storeroomunlock()
 	$storeroomdoor_use.remove();
 	
 	wait(0.15);
-	if(doesEntityExist($storeroomguard)){
-		$storeroomguard.hurt(1);
-	}
+	thread storeroomattack();
 	
 //make klingon friend follow player again
 	$pektraq.setTendency("follow",1);
@@ -704,10 +771,12 @@ void storeroomattack()
 //make rom attack player
 {
 	if(doesEntityExist($storeroomguard)){
+		$storeroomguard.ai_off();
 		$storeroomguard.turntowardsplayer();
 		$storeroomguard.aggressive(1);
-		$storeroomguard.hurt(1);
 		$storeroomguard.attackPlayer();
+		wait(0.05);
+		$storeroomguard.ai_on();
 	}
 }
 
@@ -730,6 +799,8 @@ void door_open()
 	
 //make sure the romulan knows the player is there if he didn't know before
 	thread storeroomattack();
+	
+	thread randomDynamicLightFlicker();
 }
 
 void bioscannerSetup()
@@ -1067,6 +1138,15 @@ void ffconduit()
 {
 //fade out cam
 	cam_fadeOut(0.25,0,0,0,1);
+	
+	$ffDynLightCeiling.bind($ffDynLightCeilingOrigin);
+	
+	//spawn camera entity, if not already spawned
+	if(!doesEntityExist($cam1)){
+		spawn("camera","targetname","cam1");
+	}
+	
+	
 	wait(0.3);
 	//do cinematic commands only in singleplayer
 	cinematic();
@@ -1083,12 +1163,22 @@ void ffconduit()
 	$ffconduit.remove();
 	$conduitblowup.selfdetonate();
 	wait(0.15);
+	
+	$ffDynLightCeilingOrigin.rotateXdown(33);
+	$ffDynLightCeilingOrigin.time(0.1);
+	$world.light_intensity("ffDynLightCeiling",0);
+	
 	$ff.hide();
 	$ff.open($world);
 	$ff.wait(-1);
 	
+	wait(0.3);
+	
+	$world.light_intensity("ffDynLight",0);
+	
+	
 	//wait for the effect to end
-	wait(2.7);
+	wait(2.4);
 	$ff.remove();
 
 	noncinematic();
@@ -1209,6 +1299,13 @@ void phaser()
 	$phaseroverload.selfdetonate();
 	$crates.remove();
 	$phaser.remove();
+	
+	$world.light_intensity("blowupDoorDynLight",0);
+	$blowupDoorDynLight.moveDown(4);
+	$blowupDoorDynLight.rotateXdown(4);
+	$blowupDoorDynLight.rotateYdown(4);
+	$blowupDoorDynLight.time(0.1);
+	$blowupDoorDynLightSparks.scale(1);
 	
 	//[b60011] chrissstrahl - change radar objective
 	$FFcONDUITsYMBOL.missionobjective(1);	
@@ -1343,6 +1440,9 @@ void toolbox_place()
 
 void liftToggle()
 {
+	vector vOrgy;
+	vOrgy = $pektraqlift.getOrigin();
+	
 	$pektraqlift_triggerUseBottom.nottriggerable();
 	$pektraqlift_triggerUseTop.nottriggerable();
 	$pektraqlift_triggerUse.nottriggerable();
@@ -1356,24 +1456,22 @@ void liftToggle()
 	wait(1.2);
 	triggerEntity($pektraqlift);
 	wait(3);
-	//lift was up - is now down
-	if($pektraqlift.getFloatVar("liftIsUp")){
+	
+	if(vOrgy_z > -24){
 		$pektraqliftDoors1.unlock();
 		$pektraqliftDoors1.open($world);
-		$pektraqliftDoors1.wait(-1);
-		$pektraqlift.setFloatVar("liftIsUp",0);
-	}//lift was down - is now up
-	else{
+		$pektraqliftDoors1.wait(-1);	
+	}else{
 		$pektraqliftDoors2.unlock();
 		$pektraqliftDoors2.open($world);
-		$pektraqliftDoors2.wait(-1);
-		$pektraqlift.setFloatVar("liftIsUp",1);
+		$pektraqliftDoors2.wait(-1);	
 	}
 	wait(3);
-	if($pektraqlift.getFloatVar("liftIsUp")==1){
-		$pektraqlift_triggerUseBottom.triggerable();
-	}else{
+	
+	if(vOrgy_z > -24){
 		$pektraqlift_triggerUseTop.triggerable();
+	}else{
+		$pektraqlift_triggerUseBottom.triggerable();
 	}
 	$pektraqlift_triggerUse.triggerable();
 }
@@ -1453,12 +1551,16 @@ void pektraqlift_exited()
 	
 	//[b60011] chrissstrahl - change radar objective
 	$recovertricorderdone_symbol.missionobjective(1);
-	
-	$pektraqlift_triggerUse.setFloatVar("liftIsUp",1);
 	$pektraqlift_triggerUse.thread("liftToggle");
 	
-	$pektraqlift.setFloatVar("liftIsUp",1);
-	$pektraqlift_triggerUseBottom.triggerable();
+	vector vOrgy;
+	vOrgy = $pektraqlift.getOrigin();
+	if(vOrgy_z > -24){
+		$pektraqlift_triggerUseBottom.triggerable();
+	}else{
+		$pektraqlift_triggerUseTop.triggerable();
+	}
+	$aiPreventReenterLift.triggerable();
 	
 	//make ai leave lift
 	$pektraq.setTendency("leadslow",0);
@@ -1817,6 +1919,7 @@ void coop_endLevel()
 //mark this map as completed to the scripts (can not fail anymore)
 	globalCoop_mission_accomplished();
 	globalCoop_main_globalCommand("nodamage");
+	thread globalCoop_player_imobilizeAll(1);
 	
 //credits, and history of map
 	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_aftermath/cCredits.cfg\n");
