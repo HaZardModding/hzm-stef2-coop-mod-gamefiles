@@ -660,7 +660,7 @@ Button
 	hovershader menu/generic/button-hover
 	pressedshader menu/generic/button-press
     clicksound sound/misc/menu/click.wav
-	stuffcommand "seta coop_ui_vt 20\n"
+	stuffcommand "seta coop_ui_vt 23\n"
     verticaljustify top
 	
 	cvarvisibility coop_ui_vt 22 ==
@@ -935,6 +935,47 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "callvote map prf_statbar;popmenu 1;popmenu 0\n"
+	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+}
+resource
+Button
+{
+	title "$$next$$"
+	name 	"coopHzmTestLvlCallvoteButtonNext3"
+	rect	543 90 60 22
+	font serpentinemedium-10
+	fgcolor			0.937 0.643 0.129 1.000
+	bgcolor			0.125 0.157 0.251 1.000
+	hoverbgcolor	0.278 0.365 0.510 1.000
+	hoverfgcolor	1.000 1.000 1.000 1.000
+	borderstyle "3D_BORDER"
+	hovershader menu/generic/button-hover
+	pressedshader menu/generic/button-press
+    clicksound sound/misc/menu/click.wav
+	stuffcommand "seta coop_ui_vt 20\n"
+    verticaljustify top
+	
+	cvarvisibility coop_ui_vt 23 ==
+}
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 23 ==
+	title "Prefab Ranks"
+	name 	"coopHzmTestLvlCallvote40"
+	rect	275 114 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "callvote map prf_ranks;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }

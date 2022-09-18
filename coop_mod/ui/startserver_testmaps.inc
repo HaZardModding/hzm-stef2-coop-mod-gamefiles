@@ -664,7 +664,7 @@ Button
 	hovershader menu/generic/button-hover
 	pressedshader menu/generic/button-press
     clicksound sound/misc/menu/click.wav
-	stuffcommand "seta coop_ui_vt 20\n"
+	stuffcommand "seta coop_ui_vt 23\n"
     verticaljustify top
 	hovercommand "globalwidgetcommand coop_settings_tooltip title \"Show more HaZardModding Test Maps\""
 	hoverexitcommand "globalwidgetcommand coop_settings_tooltip title \"\""
@@ -941,6 +941,49 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set ui_startmap prf_statbar\n"
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
+}
+resource
+Button
+{
+	title "Next"
+	name 	"coopHzmTestLvlStartSvButtonNext3"
+	rect	543 90 60 22
+	font serpentinemedium-10
+	fgcolor			0.937 0.643 0.129 1.000
+	bgcolor			0.125 0.157 0.251 1.000
+	hoverbgcolor	0.278 0.365 0.510 1.000
+	hoverfgcolor	1.000 1.000 1.000 1.000
+	borderstyle "3D_BORDER"
+	hovershader menu/generic/button-hover
+	pressedshader menu/generic/button-press
+    clicksound sound/misc/menu/click.wav
+	stuffcommand "seta coop_ui_vt 20\n"
+    verticaljustify top
+	hovercommand "globalwidgetcommand coop_settings_tooltip title \"Show more HaZardModding Test Maps\""
+	hoverexitcommand "globalwidgetcommand coop_settings_tooltip title \"\""
+	
+	cvarvisibility coop_ui_vt 23 ==
+}
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 23 ==
+	title "Prefab Ranks"
+	name 	"coopHzmTestLvlStartSv40"
+	rect	275 114 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "set ui_startmap prf_ranks\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }

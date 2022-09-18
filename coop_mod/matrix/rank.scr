@@ -1,0 +1,243 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2022.09.07
+// E-Mail:		chrissstrahl@yahoo.de
+//-----------------------------------------------------------------------------------
+//Used to handle rank/clearance related things
+//-----------------------------------------------------------------------------------
+void	rank_add(string sRankName);
+float	rank_setupPlayer(entity ePlayer, string sMapname);
+float	rank_getPos(string sRank);
+string	rank_getFromPos(float fRank);
+float	rank_equalOrAbove(string sRank1,string sRank2);
+void	rank_promote(entity ePlayer);
+void	rank_demote(entity ePlayer);
+void	rank_set(entity ePlayer,string sRank);
+string	rank_getCurrent(entity ePlayer);
+float	rank_save(entity ePlayer);
+
+float fLowestDemotionRankPos = 1; //0 would be enemy
+float fHighestPromotionRankPos; //will be autoset
+
+void rank_add(string sRankName)
+//----------------------------------------------------------------------
+// adds a rank to the ranks list - the order does matter
+// the idea is that this is done only once on level start
+// allowes to expand and change the order and names very easily
+//----------------------------------------------------------------------
+{
+	float iRankNum;
+	while( iRankNum < 100 ){ //100 ranks maximum
+		if($world.getStringVar("rank_list"+iRankNum) != ""){
+			iRankNum++;
+		}else{
+			globalCoop_main_print("rank_add: rank "+sRankName+" added at pos "+iRankNum);
+			$world.setStringVar("rank_list"+iRankNum,sRankName);
+			fHighestPromotionRankPos = iRankNum;
+			return;
+		}
+	}
+}
+
+float rank_setupPlayer(entity ePlayer, string sMapname)
+//----------------------------------------------------------------------
+// returns rank from a map specific ini
+// if no mapname is given, it will read from the current map
+//----------------------------------------------------------------------
+{
+	string sRank;
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_print("rank_setupPlayer: could not set rank, player does not exist");
+		return 0; 
+	}
+	if(sMapname == ""){
+		globalCoop_main_print("rank_setupPlayer: no ini name given, using current mapname");
+		sMapname = getCvar("mapname");
+		sMapname = getStringToLower(sMapname);
+	}
+	sRank = getIniDataPlayer(ePlayer,"ranks","",sMapname);
+	if(sRank == ""){
+		globalCoop_main_print("rank_setupPlayer: no rank for "+ePlayer.getTargetName()+" in ini using lowest rank");
+		//set lowest rank
+		rank_demote(ePlayer);
+		return 0;
+	}
+	rank_set(ePlayer,sRank);
+	return 1;
+}
+
+string rank_getFromPos(float fRank)
+//----------------------------------------------------------------------
+// get position at which the given rank is at - used to compare priorities
+//----------------------------------------------------------------------
+{
+	string sRank;
+	sRank = $world.getStringVar("rank_list"+fRank);
+	if(sRank == ""){
+		globalCoop_main_print("rank_getFromPos: no rank at position "+fRank+" in rank list!");
+	}
+	return ""+sRank;
+}
+
+float rank_getPos(string sRank)
+//----------------------------------------------------------------------
+// get position at which the given rank is at - used to compare priorities
+//----------------------------------------------------------------------
+{
+	if(sRank == ""){
+		globalCoop_main_print("rank_getPos: rank was empty string!");
+		return -1;
+	}
+	
+	float iRankNum;
+	string sRankCurrent;
+	while( iRankNum < 100 ){ //100 ranks maximum
+		sRankCurrent = $world.getStringVar("rank_list"+iRankNum);
+		if(sRankCurrent != ""){
+			string sCurrent,sLookup;
+			sCurrent = getStringToLower(sRankCurrent);
+			sLookup = getStringToLower(sRank);
+			if(sCurrent == sLookup){
+				return iRankNum;
+			}else{
+				iRankNum++;
+			}
+		}else{
+			iRankNum = 100;
+		}
+	}
+	if(iRankNum == 0){
+		globalCoop_main_print("rank_getPos: no ranks added - use func rank_add() to add ranks.");
+	}else{
+		globalCoop_main_print("rank_getPos: rank "+sRank+" not in list.");
+	}
+	return -1;
+}
+
+float rank_equalOrAbove(string sRank1,string sRank2)
+//----------------------------------------------------------------------
+// compares ranks
+// if rank1 is higher or equal to rank2 it returns 1
+// if rank2 is higer or unknown it returns 0
+//----------------------------------------------------------------------
+{
+	float fRank1,fRank2;
+	fRank1=rank_getPos(sRank1);
+	fRank2=rank_getPos(sRank2);
+	
+	if(fRank1 > fRank2 || fRank1 == fRank2){
+		globalCoop_main_print("rank_equalOrAbove: "+sRank1+" higher or equal to "+sRank2);
+		return 1;
+	}
+	return 0;
+}
+
+void rank_promote(entity ePlayer)
+//----------------------------------------------------------------------
+// rank up player - set 1 rank higher than current
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_print("rank_promote: could not promote, player does not exist");
+		return; 
+	}
+	float fRank;
+	string sRank;
+	sRank = rank_getCurrent(ePlayer);
+	fRank = rank_getPos(sRank);
+	fRank++;
+	
+	if(fRank > fHighestPromotionRankPos){
+		globalCoop_main_print("rank_promote: "+ePlayer.getTargetName()+" already at highest rank: "+sRank);
+		return;
+	}
+	
+	sRank = rank_getFromPos(fRank);
+	rank_set(ePlayer,sRank);
+	rank_save(ePlayer);
+	
+	globalCoop_main_print("rank_promote: "+ePlayer.getTargetName()+" promoted to: "+sRank);
+}
+
+void rank_demote(entity ePlayer)
+//----------------------------------------------------------------------
+// rank down player - set 1 rank lower than current
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_print("rank_demote: could not demote, player does not exist");
+		return; 
+	}
+	float fRank;
+	string sRank;
+	sRank = rank_getCurrent(ePlayer);
+	fRank = rank_getPos(sRank);
+	fRank--;
+	
+	if(fRank < 0){
+		globalCoop_main_print("rank_demote: "+ePlayer.getTargetName()+" already at lowest rank: "+sRank);
+		return;
+	}
+	
+	sRank = rank_getFromPos(fRank);
+	rank_set(ePlayer,sRank);
+	rank_save(ePlayer);
+	
+	globalCoop_main_print("rank_demote: "+ePlayer.getTargetName()+" demoted to: "+sRank);
+}
+
+void rank_set(entity ePlayer,string sRank)
+//----------------------------------------------------------------------
+// set rank of player
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_print("rank_set: could not set rank "+sRank+", player does not exist");
+		return; 
+	}
+	ePlayer.setStringVar("rankCurrent",sRank);
+}
+
+string rank_getCurrent(entity ePlayer)
+//----------------------------------------------------------------------
+// returns the current rank of a player, stored on player
+// if you want to retrive saved rank from ini/map, use rank_setupPlayer
+//----------------------------------------------------------------------
+{
+	string sRank;
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_print("rank_getCurrent: could not get rank, player does not exist");
+	}else{
+		sRank = ePlayer.getStringVar("rankCurrent");
+		if(sRank == ""){
+			globalCoop_main_print("rank_getCurrent: "+ePlayer.getTargetName()+", has no rank.");
+			sRank = "No-Rank";
+		}
+	}
+	return ""+sRank;
+}
+
+float rank_save(entity ePlayer)
+//----------------------------------------------------------------------
+// saves current player rank to ini of this map/level
+// returns 1 on succsess 0 on failure
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(ePlayer)){
+		thread globalCoop_main_print("rank_save: could not save rank, player does not exist");
+		return 0;
+	}
+	string sRank;
+	sRank = ePlayer.getStringVar("rankCurrent");
+	if(sRank == ""){
+		thread globalCoop_main_print("rank_save: "+sRank+" was empty for "+ePlayer.getTargetName()+", not saving!");
+		return 0;
+	}
+	if(rank_getPos(sRank) == -1){
+		thread globalCoop_main_print("rank_save: "+sRank+" for "+ePlayer.getTargetName()+" was not in rank list, not saving!");
+		return 0;
+	}
+	setIniDataPlayer(ePlayer,"ranks","",sRank);
+	thread globalCoop_main_print("rank_save: "+sRank+" saved to /base/ini/"+getCvar("mapname")+".ini for "+ePlayer.getTargetName());
+	return 1;
+}
