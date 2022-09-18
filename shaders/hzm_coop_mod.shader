@@ -1,3 +1,27 @@
+textures/coop_mod/nature/vine
+
+{
+	surfaceparm trans
+	surfaceparm playerclip
+	surfaceparm monsterclip
+	//cull none
+	//nopicmip
+	qer_editorimage textures/coop_mod/nature/vine.tga
+   	{
+		map textures/coop_mod/nature/vine.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		alphaFunc GE128
+		depthWrite
+		rgbGen identity
+	}
+	{
+		map $lightmap
+		rgbGen identity
+		blendFunc GL_DST_COLOR GL_ZERO
+		depthFunc equal
+	}
+}
+
 //type 8 shuttle shader by Deadlydarkness
 models/vehicle/type8/t8nac
 {
