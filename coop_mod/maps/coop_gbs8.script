@@ -142,6 +142,9 @@ void main()
 	freezeplayer();
 	cinematic();
 	thread intro();	
+	
+	//[b60011] chrissstrahl - fix fire model being visible before explosion
+	$hallwayFloorFlame.scale(0.01);
 }
 
 void finish_intro()
@@ -661,47 +664,22 @@ void activate_trigger_count()
 	$stopCounter.triggerable();
 }
 
+//[b60011] chrissstrahl - player failed
+void collision_counterFailure()
+{
+	cam_fadeout( 3, 1, 1, 1, 1, 0 );
+	wait( 4 );
+	//hzm coop mod chrissstrahl - fail mission
+	globalCoop_mission_fail();
+}
+
 void collision_counter()
 {
-	//hzm coop mod chrissstrahl - add mission relevant hud to all players
-	thread globalCoop_huds_manageAll("coopGbs_timeUntilCollision",1,1);
-	
-	
 	//hzm coop mod chrissstrahl - create our own counter
-	float fValue		= 100;//full time
-	float fTime			= 60; //time in secounds
-	float fSubstract;
-	fSubstract = (fValue / fTime);
+	float fTime			= 60; //time in secounds	
 	
-	entity ePlayer;
-	float fPlayerIdInUse;
-	
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		ePlayer = getentity("player"+fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			ePlayer.setstat ( "generic" , fValue );
-		}
-	}
-	
-	while(fValue > 0)
-	{
-		fValue -= fSubstract;
-		
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(doesEntityExist(ePlayer)){
-				ePlayer.setstat ( "generic" , (fValue)  );
-			}
-		}
-		wait(1);
-	}
-	
-	if(fValue <= 0){
-		cam_fadeout( 3, 1, 1, 1, 1, 0 );
-		wait( 4 );
-		//hzm coop mod chrissstrahl - fail mission
-		globalCoop_mission_fail();
-	}
+	//start statbar - color red=0 blue=1, up/down, custom name, time in sec, thread to start if time runs out
+	thread globalCoop_statbar_timer("red","down","$$TimeUntilAssimilation$$",fTime,"collision_counterFailure");
 }
 
 //Energieumleitung wird benutzt
@@ -753,6 +731,9 @@ void energyrouting_Solved()
 	
 	killthread( "collision_counter" );
 	killthread( "loop_explosions_bridge" );
+	
+	//[b60011] chrissstrahl - make sure to stop count down
+	globalCoop_statbar_timerStop();
 	
 	//hzm coop mod chrissstrahl - set objective complete
 	globalCoop_objectives_update("complete"	, 6 , 1 );
@@ -889,7 +870,7 @@ void playergotKilled()
 void coop_showHallwayFloorFlame()
 {
 	$hallwayFloorFlame.selfdetonate();
-	$hallwayFloorFlame.show();
+	$hallwayFloorFlame.scale(1);
 }
 
 void coop_endLevel()
