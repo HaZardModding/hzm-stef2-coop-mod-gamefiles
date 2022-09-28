@@ -631,7 +631,7 @@ Label
 	cvarvisibility coop_ui_vt 22 ==
 	
 	title "$$c#041$$"
-	name "coopHzmTestLvlCallvoteTitle4"
+	name "coopHzmTestLvlCallvoteTitle3"
 	rect		274 89 330 24
 	fgcolor 1.000 0.000 0.000 0.800
 	bgcolor 0.12 0.15 0.25 1.00
@@ -937,6 +937,26 @@ Button
 	stuffcommand "callvote map prf_statbar;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+}
+resource 
+Label
+{
+	cvarvisibility coop_ui_vt 23 ==
+	
+	title "$$c#041$$"
+	name "coopHzmTestLvlCallvoteTitle4"
+	rect		274 89 330 24
+	fgcolor 1.000 0.000 0.000 0.800
+	bgcolor 0.12 0.15 0.25 1.00
+	
+	borderstyle "3D_BORDER"
+	
+	horizontaljustify left
+	verticaljustify top
+	font 	serpentinemedium-10
+	
+	hovercommand "globalwidgetcommand tooltip_callvote title \"Test levels from HaZardModding...\""
+    hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 resource
 Button
