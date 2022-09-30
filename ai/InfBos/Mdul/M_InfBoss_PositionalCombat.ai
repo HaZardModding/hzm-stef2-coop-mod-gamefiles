@@ -1,0 +1,833 @@
+//
+// Name:     Humanoid_ModulePositionalCombat.ai
+// Purpose:  Module for fighting using COMBAT node
+//
+
+//
+// Defines
+//
+//---------------------------------------------------------
+$define RANGE_MELEE 			96
+$define RANGE_THREAT 			192.0
+$define RANGE_MIN_ENGAGEMENT 	960.0
+$define RANGE_MAX_ENGAGEMENT 	1024.0
+$define RANGE_RETREAT 			96.0
+$define DISTANCE_STRAFE 		64.0
+$define TIME_AT_NODE			2.0
+$define CHANCE_DUCK_COMBAT 		.35
+$define CHANCE_ROLL 			.25 
+$define CHANCE_ATTACK 			.45
+$define CHANCE_SPLIT 			.5
+$define CHANCE_STRAFE 			.35
+$define CHANCE_DIVE				.25
+//---------------------------------------------------------
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_WITH_RANGED_WEAPON
+//---------------------------------------------------------
+	{
+	states 
+		{
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN	: default				
+		}
+	}
+
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN
+//---------------------------------------------------------
+	{
+	states
+		{	
+		POSITIONAL_COMBAT_GOTO_COMBAT_NODE			: default		
+		}
+	}
+
+//------------------------------------------------------------------------------
+state POSITIONAL_COMBAT_GOTO_COMBAT_NODE
+//------------------------------------------------------------------------------
+{
+	entrycommands
+		{
+		fade ( .5 , .005 )
+		viewmode "forcevisible"
+		noshadow
+		weaponanimon "idle_transparent" "dualhand"
+		incontext "incombat"
+		playsound "sound/chars/predator/pred_cloakout.wav" 1 0.7 2000
+		}
+
+	behavior GotoCurrentHelperNode ( "run_footprint" )
+	
+	states
+		{
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN		
+		POSITIONAL_COMBAT_SEEK_ENEMY	: BEHAVIOR_SUCCESS !CAN_ATTACK_ENEMY
+		POSITIONAL_COMBAT_SEEK_ENEMY	: BEHAVIOR_FAILED !CAN_ATTACK_ENEMY
+		POSITIONAL_COMBAT_FACE_ENEMY 	: BEHAVIOR_SUCCESS
+		POSITIONAL_COMBAT_FACE_ENEMY 	: BEHAVIOR_FAILED
+		}
+}
+
+//------------------------------------------------------------------------------
+state POSITIONAL_COMBAT_FACE_ENEMY
+//------------------------------------------------------------------------------
+{
+	TorsoBehavior torsoAimAndFireWeapon ( 0 , 1 )
+	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+	
+	states
+		{			
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_SUCCESS CAN_ATTACK_ENEMY
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_FAILED CAN_ATTACK_ENEMY
+		POSITIONAL_COMBAT_FACE_ENEMY_RESET			: BEHAVIOR_SUCCESS
+		POSITIONAL_COMBAT_FACE_ENEMY_RESET			: BEHAVIOR_FAILED
+		}
+}
+
+state POSITIONAL_COMBAT_FACE_ENEMY_RESET
+{
+	states
+		{
+		POSITIONAL_COMBAT_FACE_ENEMY : default
+		}
+}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN
+//---------------------------------------------------------
+	{
+	states
+		{
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE		: default
+		}
+	}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		setvartime ( "AT_NODE" )
+		}
+
+	states
+		{
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN	
+		POSITIONAL_COMBAT_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ )
+		DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE : default
+		}
+}
+
+//---------------------------------------------------------
+state DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		fadein ( 1.0 )
+		viewmode ""
+		shadow
+		runthread InformantBoss_PickNewNodeID
+		weaponanimon "idle" "dualhand"
+		playsound "sound/chars/predator/pred_cloakin.wav" 1 0.7 2000
+		}
+
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+	
+	states 
+		{	
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN	
+		POSITIONAL_COMBAT_MELEE_ATTACK					: RANGE ( $RANGE_MELEE$ )
+		POSITIONAL_COMBAT_GOTO_COMBAT_NODE				: !CAN_ATTACK_ENEMY VALID_COMBAT_NODE_IN_RANGE ( 5000 )
+		POSITIONAL_COMBAT_GOTO_COMBAT_NODE				: TORSO_BEHAVIOR_DONE CHECK_VAR_TIME_DIFFERENCE ( "AT_NODE" , $TIME_AT_NODE$ ) VALID_COMBAT_NODE_IN_RANGE ( 5000 )		
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET	: TORSO_BEHAVIOR_DONE CHECK_VAR_TIME_DIFFERENCE ( "AT_NODE" , $TIME_AT_NODE$ ) 
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET	: TORSO_BEHAVIOR_DONE
+		}
+}
+
+//------------------------------------------------------------------------------
+state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET
+//------------------------------------------------------------------------------
+{
+	states
+		{
+		DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE : default
+		}
+}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_SEEK_ENEMY
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		runthread InformantBoss_PickNewNodeID
+		}
+
+	Behavior CloseInOnEnemy ( "run_footprint" , $RANGE_MELEE$ )
+	
+	states
+		{
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN	
+		POSITIONAL_COMBAT_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ )
+		DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE	: CAN_ATTACK_ENEMY
+		POSITIONAL_COMBAT_HOLD								: BEHAVIOR_SUCCESS
+		POSITIONAL_COMBAT_HOLD 								: BEHAVIOR_FAILED
+		}
+	}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_HOLD
+//---------------------------------------------------------
+	{
+	TorsoBehavior torsoAimAndFireWeapon ( 0 , 1 )
+	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+	
+	states
+		{
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN		
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_SUCCESS
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_FAILED
+		}
+	}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_MELEE_ATTACK
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		fadein ( 1.0 )				  
+		runthread InformantBoss_PickNewNodeID
+		playsound "sound/chars/predator/pred_cloakin.wav" 1 0.7 2000
+		}
+
+	Behavior DoAttack ( "" , 15 , 1 , "shuffle" )
+
+	states
+		{
+		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN	
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN	: BEHAVIOR_SUCCESS VALID_COMBAT_NODE_IN_RANGE ( 10000 )
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN	: BEHAVIOR_FAILED VALID_COMBAT_NODE_IN_RANGE ( 10000 )
+		}
+	}
+
+
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_PAIN
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		fadein ( 1.0 )				  
+		runthread InformantBoss_PickNewNodeID
+		playsound "sound/chars/predator/pred_cloakin.wav" 1 0.7 2000
+		}
+
+	states
+		{
+		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "explosion" )
+		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "imod_primary" )
+		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "plasmashotgun" )
+		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "small_explosion" )
+		POSITIONAL_COMBAT_SMALL_PAIN : default
+		}	
+	}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_BIG_PAIN
+//---------------------------------------------------------
+{
+	legs
+		{
+		pain_knockback : default
+		}
+
+	states
+		{		
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 10000 )
+		}
+}
+
+//---------------------------------------------------------
+state POSITIONAL_COMBAT_SMALL_PAIN
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		saveofflasthitbone
+		}
+
+	legs
+		{		
+		pain_stomach 	: BONE_DAMAGED ( "Bip01 Pelvis" )
+		pain_stomach 	: BONE_DAMAGED ( "Bip01 Spine" )
+		pain_chest 		: BONE_DAMAGED ( "Bip01 Spine2" )
+		pain_head 		: BONE_DAMAGED ( "Bip01 Head" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Clavicle" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Upperarm" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Forearm" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Hand" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Finger2" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Clavicle" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Upperarm" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Forearm" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Hand" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Finger2" )
+		pain_leg_L 		: BONE_DAMAGED ( "Bip01 L Thigh" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Calf" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Foot" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Toe0" )		
+		pain_leg_R 		: BONE_DAMAGED ( "Bip01 R Thigh" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Calf" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Foot" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Toe0" )
+		pain_chest		: default
+		}
+
+	states
+		{		
+		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 10000 )
+		}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON
+////---------------------------------------------------------
+//	{
+//	states 
+//		{
+//		POSITIONAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN	: default				
+//		}
+//	}
+//
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_BEGIN
+////---------------------------------------------------------
+//	{
+//	states
+//		{	
+//		POSITIONAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_DODGE						: IN_CONE_OF_FIRE
+//		POSITIONAL_COMBAT_DIVE						: INCOMING_PROJECTILE
+//		POSITIONAL_COMBAT_GOTO_COMBAT_NODE			: default		
+//		}
+//	}
+//
+////------------------------------------------------------------------------------
+//state POSITIONAL_COMBAT_GOTO_COMBAT_NODE
+////------------------------------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		fade ( .5 , .005 )
+//		viewmode "forcevisible"
+//		noshadow
+//		weaponanimon "idle_transparent" "dualhand"
+//		incontext "incombat"
+//		}
+//
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+//	behavior GotoCurrentHelperNode ( "run" )
+//	
+//	states
+//		{
+//		POSITIONAL_COMBAT_PAIN			: SHOW_PAIN
+//		POSITIONAL_COMBAT_FACE_ENEMY 	: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_FACE_ENEMY 	: BEHAVIOR_FAILED
+//		}
+//}
+//
+////------------------------------------------------------------------------------
+//state POSITIONAL_COMBAT_FACE_ENEMY
+////------------------------------------------------------------------------------
+//{
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 , 1 )
+//	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+//	
+//	states
+//		{	
+//		POSITIONAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_DODGE						: IN_CONE_OF_FIRE
+//		POSITIONAL_COMBAT_DIVE						: INCOMING_PROJECTILE
+//
+//		FOLLOW_THE_LEADER 							: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME							: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//
+//		POSITIONAL_COMBAT_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ ) ALLOWED_TO_MELEE_ENEMY
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_SUCCESS CAN_ATTACK_ENEMY
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_FAILED CAN_ATTACK_ENEMY
+//		POSITIONAL_COMBAT_FACE_ENEMY_RESET			: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_FACE_ENEMY_RESET			: BEHAVIOR_FAILED
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_FACE_ENEMY_RESET
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_FACE_ENEMY : default
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN
+////---------------------------------------------------------
+//	{
+//	states
+//		{
+//		POSITIONAL_COMBAT_PAIN							: SHOW_PAIN
+//		POSITIONAL_COMBAT_DODGE						: IN_CONE_OF_FIRE
+//		POSITIONAL_COMBAT_DIVE						: INCOMING_PROJECTILE
+//
+//		FOLLOW_THE_LEADER 								: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME								: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE		: default
+//		}
+//	}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_HOLD
+////---------------------------------------------------------
+//	{
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 , 1 )
+//	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+//	
+//	states
+//		{	
+//		POSITIONAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_DODGE						: IN_CONE_OF_FIRE
+//		POSITIONAL_COMBAT_DIVE						: INCOMING_PROJECTILE
+//
+//		FOLLOW_THE_LEADER 							: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME							: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		POSITIONAL_COMBAT_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ ) ALLOWED_TO_MELEE_ENEMY
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_FAILED
+//		}
+//	}
+//
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		setvartime ( "AT_NODE" )
+//		}
+//
+//	states
+//		{
+//		DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE : default
+//		}
+//}
+//
+////---------------------------------------------------------
+//state DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		fadein ( 1.0 )
+//		viewmode ""
+//		shadow
+//		runthread InformantBoss_PickNewNodeID
+//		weaponanimon "idle" "dualhand"
+//		}
+//
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+//	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+//	
+//	states 
+//		{	
+//		POSITIONAL_COMBAT_PAIN							: SHOW_PAIN
+//		POSITIONAL_COMBAT_MELEE_ATTACK					: RANGE ( $RANGE_MELEE$ ) ALLOWED_TO_MELEE_ENEMY
+//		FOLLOW_THE_LEADER 								: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME								: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		POSITIONAL_COMBAT_SEEK_ENEMY					: SHOULD_DO_ACTION ( "seekenemyfromposition" ) !CAN_ATTACK_ENEMY
+//		POSITIONAL_COMBAT_GOTO_COMBAT_NODE				: SHOULD_DO_ACTION ( "changepositions" ) TORSO_BEHAVIOR_DONE CHECK_VAR_TIME_DIFFERENCE ( "AT_NODE" , $TIME_AT_NODE$ ) VALID_COMBAT_NODE_IN_RANGE ( 512 )		
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET	: TORSO_BEHAVIOR_DONE CHECK_VAR_TIME_DIFFERENCE ( "AT_NODE" , $TIME_AT_NODE$ ) 
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET	: TORSO_BEHAVIOR_DONE
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_SEEK_ENEMY
+////---------------------------------------------------------
+//	{
+//	Behavior CloseInOnEnemy ( "run" , $RANGE_MELEE$ )
+//	
+//	states
+//		{
+//		POSITIONAL_COMBAT_PAIN								: SHOW_PAIN
+//		POSITIONAL_COMBAT_MELEE_ATTACK 						: RANGE ( $RANGE_MELEE$ ) ALLOWED_TO_MELEE_ENEMY
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE	: CAN_ATTACK_ENEMY
+//		POSITIONAL_COMBAT_HOLD								: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_HOLD 								: BEHAVIOR_FAILED
+//		}
+//	}
+//
+////------------------------------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN_RESET
+////------------------------------------------------------------------------------
+//{
+//	states
+//		{
+//		DO_POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE : default
+//		}
+//}
+//
+////------------------------------------------------------------------------------
+//state RETREAT
+////------------------------------------------------------------------------------
+//	{
+//	Behavior BackAwayFromEnemy ( "swat_backpedal_run" , 96.0 , 64.0 )
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_MELEE_ATTACK					: RANGE ( $RANGE_MELEE$ ) ALLOWED_TO_MELEE_ENEMY
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE				: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE		: BEHAVIOR_FAILED		
+//		}
+//	}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_MELEE_ATTACK
+////---------------------------------------------------------
+//	{
+//	Behavior DoAttack ( "" , 15 , 1 , "shuffle" )
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_MELEE_ATTACK_RESET		: BEHAVIOR_SUCCESS RANGE ( $RANGE_MELEE$ )
+//		POSITIONAL_COMBAT_MELEE_ATTACK_RESET		: BEHAVIOR_FAILED RANGE ( $RANGE_MELEE$ )
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_SUCCESS
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN	: BEHAVIOR_FAILED
+//		}
+//	}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_MELEE_ATTACK_RESET
+////---------------------------------------------------------
+//	{
+//	states
+//		{
+//		POSITIONAL_COMBAT_MELEE_ATTACK : default
+//		}
+//	}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_PAIN
+////---------------------------------------------------------
+//	{
+//	states
+//		{
+//		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "explosion" )
+//		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "imod_primary" )
+//		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "plasmashotgun" )
+//		POSITIONAL_COMBAT_BIG_PAIN	  : MOD ( "small_explosion" )
+//		POSITIONAL_COMBAT_SMALL_PAIN : default
+//		}	
+//	}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_BIG_PAIN
+////---------------------------------------------------------
+//{
+//	legs
+//		{
+//		pain_knockback : default
+//		}
+//
+//	states
+//		{		
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN : ANIM_DONE
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_SMALL_PAIN
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		saveofflasthitbone
+//		}
+//
+//	legs
+//		{		
+//		pain_stomach 	: BONE_DAMAGED ( "Bip01 Pelvis" )
+//		pain_stomach 	: BONE_DAMAGED ( "Bip01 Spine" )
+//		pain_chest 		: BONE_DAMAGED ( "Bip01 Spine2" )
+//		pain_head 		: BONE_DAMAGED ( "Bip01 Head" )
+//		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Clavicle" )
+//		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Upperarm" )
+//		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Forearm" )
+//		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Hand" )
+//		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Finger2" )
+//		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Clavicle" )
+//		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Upperarm" )
+//		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Forearm" )
+//		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Hand" )
+//		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Finger2" )
+//		pain_leg_L 		: BONE_DAMAGED ( "Bip01 L Thigh" )
+//		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Calf" )
+//		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Foot" )
+//		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Toe0" )		
+//		pain_leg_R 		: BONE_DAMAGED ( "Bip01 R Thigh" )
+//		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Calf" )
+//		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Foot" )
+//		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Toe0" )
+//		pain_chest		: default
+//		}
+//
+//	states
+//		{		
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN : ANIM_DONE
+//		}
+//
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_DODGE
+////---------------------------------------------------------
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_CHECK_LEFT : CHANCE ( $CHANCE_SPLIT$ )
+//		POSITIONAL_COMBAT_CHECK_RIGHT : default
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_CHECK_LEFT
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_SELECT_DODGE_LEFT : LEFT_CLEAR ( $DISTANCE_STRAFE$ )
+//		POSITIONAL_COMBAT_CHECK_LEFT_FAILED : default
+//		}	
+//}
+//
+//state POSITIONAL_COMBAT_CHECK_LEFT_FAILED
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_SELECT_DODGE_RIGHT : RIGHT_CLEAR ( $DISTANCE_STRAFE$ )
+//		POSITIONAL_COMBAT_CANT_DODGE : default
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_CHECK_RIGHT
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_SELECT_DODGE_RIGHT : RIGHT_CLEAR ( $DISTANCE_STRAFE$ )
+//		POSITIONAL_COMBAT_CHECK_RIGHT_FAILED : default
+//		}	
+//}
+//
+//state POSITIONAL_COMBAT_CHECK_RIGHT_FAILED
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_SELECT_DODGE_LEFT : LEFT_CLEAR ( $DISTANCE_STRAFE$ )
+//		POSITIONAL_COMBAT_CANT_DODGE : default
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_SELECT_DODGE_LEFT
+//{
+//	states
+//		{		
+//		POSITIONAL_COMBAT_DIVE_LEFT : CHANCE ( $CHANCE_DIVE$ )
+//		POSITIONAL_COMBAT_DODGE_LEFT : default
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_SELECT_DODGE_RIGHT
+//{
+//	states
+//		{		
+//		POSITIONAL_COMBAT_DIVE_RIGHT : CHANCE ( $CHANCE_DIVE$ )
+//		POSITIONAL_COMBAT_DODGE_RIGHT : default
+//		}
+//}
+//
+// 
+//state POSITIONAL_COMBAT_DIVE
+//{
+//	states
+//		{
+//		POSITIONAL_COMBAT_DIVE_LEFT : CHANCE ( $CHANCE_SPLIT$ )
+//		POSITIONAL_COMBAT_DIVE_RIGHT : default
+//		}
+//
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_DODGE_LEFT
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		turntowardsenemy
+//		}
+//
+//	legs
+//		{
+//		swat_dodge_L : default
+//		}
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_PAIN								: SHOW_PAIN		
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE : ANIM_DONE
+//		
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_DODGE_RIGHT
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		turntowardsenemy
+//		}
+//
+//	legs
+//		{		
+//		swat_dodge_R : default
+//		}
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_PAIN									: SHOW_PAIN		
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_AND_FIRE 	: ANIM_DONE
+//		}
+//}
+//
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_DIVE_LEFT
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		turntowardsenemy
+//		}
+//
+//	legs
+//		{
+//		diveroll_L : default		
+//		}
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_CROUCH_AND_FIRE : ANIM_DONE
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_DIVE_RIGHT
+////---------------------------------------------------------
+//{
+//	entrycommands
+//		{
+//		turntowardsenemy		
+//		}
+//
+//	legs
+//		{
+//		diveroll_R : default
+//		}
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_CROUCH_AND_FIRE : ANIM_DONE
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_CANT_DODGE
+//{
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+//	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+//	
+//	states 
+//		{	
+//		FOLLOW_THE_LEADER 										: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME									: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		POSITIONAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_COWER					: ENEMY_PROJECTILE_CLOSE
+//		
+//		POSITIONAL_COMBAT_HOLD						: TORSO_BEHAVIOR_DONE
+//		}
+//}
+//
+//state POSITIONAL_COMBAT_COWER
+//{
+//	legs
+//		{
+//		cower : default
+//		}
+//
+//	time ( .5 , .75 )
+//
+//	states
+//		{
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_MAIN : TIME_DONE
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_CROUCH_AND_FIRE
+////---------------------------------------------------------
+//{
+//
+//	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+//	Behavior WatchEntity ( 1 , 15 , "crouch_idle" , 0 , "crouch_idle" )
+//	
+//	states 
+//		{	
+//		FOLLOW_THE_LEADER 										: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME									: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		//GENERAL_COMBAT_PAIN						: SHOW_PAIN
+//		POSITIONAL_COMBAT_COWER						: ENEMY_PROJECTILE_CLOSE
+//		POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_UP	: TORSO_BEHAVIOR_DONE
+//		}
+//}
+//
+////---------------------------------------------------------
+//state POSITIONAL_COMBAT_WITH_RANGED_WEAPON_STAND_UP
+////---------------------------------------------------------
+//{
+//	legs
+//		{
+//		from_crouch : default
+//		}
+//
+//	states
+//		{
+//		FOLLOW_THE_LEADER 										: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
+//		HANDLE_CALL_VOLUME									: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+//		POSITIONAL_COMBAT_HOLD						: ANIM_DONE
+//		}
+//}

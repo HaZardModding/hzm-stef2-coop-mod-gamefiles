@@ -1,0 +1,582 @@
+
+$define PREATTACK_DELAY 			0.1
+$define NODE_TRANSITION_DELAY		1
+$define HEAT_SEEKER_DELAY			0.5
+$define STUN_TIME					2
+
+$define PRE_ATTACK_DAMAGE_THRESHOLD	50
+$define STUN_DAMAGE_THRESHOLD		100
+
+$define HEALTH_THRESHOLD_STAGE1		75
+$define HEALTH_THRESHOLD_STAGE2		50
+$define HEALTH_THRESHOLD_STAGE3		25
+
+$define BEGIN_FLAME_BURST_TIME		1
+$define BEGIN_MAGMA_BLAST_TIME		1
+$define BEGIN_EYE_LASER_TIME		1
+
+$define FLAME_BURST_MIN_DISTANCE	1500
+
+//-------------------------------------------------------------------------------------------------
+state START
+{
+	states
+	{
+		GOTO_RANDOM_NODE : default
+	}
+}
+
+//================================================================================================= MOVEMENT STATES
+state GOTO_RANDOM_NODE
+{
+	behavior WatchEntity ( $NODE_TRANSITION_DELAY$ , 20 , "idle" , 0 , "idle")
+	entrycommands
+	{
+		runthread "finalBoss_gotoRandomNode"
+	}
+	states
+	{
+		FIRE_HEAT_SEEKERS 	: BEHAVIOR_SUCCESS CHANCE ( 0.33 )
+		RAISE 				: BEHAVIOR_SUCCESS
+		FIRE_HEAT_SEEKERS	: BEHAVIOR_FAILED
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state RAISE
+{
+	behavior WatchEntity ( 100 , 20 , "raise" , 1 , "raise" )
+	entrycommands
+	{
+		//nodamage
+		cleardamagethreshold
+		runthread "finalBoss_regenShields"
+		runthread "finalBoss_arriveRandomNode"
+	}
+	states
+	{
+		PREATTACK_PAUSE : BEHAVIOR_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state SUBMERGE
+{
+	states
+	{
+		//TRANSITION_TO_NEXT_STAGE : STAGE ( 1 ) HEALTH_PERCENT_LESS_THAN ( $HEALTH_THRESHOLD_STAGE1$ )
+		//TRANSITION_TO_NEXT_STAGE : STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $HEALTH_THRESHOLD_STAGE2$ )
+		//TRANSITION_TO_NEXT_STAGE : STAGE ( 3 ) HEALTH_PERCENT_LESS_THAN ( $HEALTH_THRESHOLD_STAGE3$ )
+		SAME_STAGE_SUBMERGE : default
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state SAME_STAGE_SUBMERGE
+{
+	entrycommands
+	{
+		//nodamage
+		addhealthovertime 50 3
+	}
+	//exitcommands
+	//{
+	//	takedamage
+	//}
+	legs
+	{
+		dropdown : default
+	}
+	states
+	{
+		GOTO_RANDOM_NODE : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state PREATTACK_PAUSE
+{
+	behavior WatchEntity ( $PREATTACK_DELAY$ , 20 , "idle" , 0 , "idle" )
+
+	states
+	{
+		SUBMERGE : BEHAVIOR_FAILED
+		PICK_RANDOM_ATTACK : BEHAVIOR_SUCCESS
+	}
+}
+
+//================================================================================================= LAVA ROCKET ATTACK
+state BEGIN_LAVA_ROCKETS
+{
+	//entrycommands
+	//{
+	//	takedamage
+	//}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+
+	behavior WatchEntity ( 100 , 20 , "pre-attack1" , 1 , "pre-attack1" )
+	states
+	{
+		FIRE_LAVA_ROCKETS : BEHAVIOR_SUCCESS
+		SUBMERGE : BEHAVIOR_FAILED
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_LAVA_ROCKETS
+{
+	behavior doAttack ( "attack1-fire", 10, 1 )
+	states
+	{
+		FIRE_LAVA_ROCKETS_DONE : BEHAVIOR_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_LAVA_ROCKETS_DONE
+{
+	legs
+	{
+		attack1-2-idle : default
+	}
+	states
+	{
+		SUBMERGE : ANIM_DONE
+	}
+}
+
+//================================================================================================= FLAME BURST ATTACK
+state BEGIN_FLAME_BURST
+{
+	behavior WatchEntity ( 100 , 20 , "pre-attack2" , 0 , "pre-attack2" )
+	time ( $BEGIN_FLAME_BURST_TIME$ )
+	
+	entrycommands
+	{
+		//takedamage
+		setdamagethreshold $PRE_ATTACK_DAMAGE_THRESHOLD$ $BEGIN_FLAME_BURST_TIME$
+	}
+	exitcommands
+	{
+		//nodamage
+	}
+	states
+	{
+		SUBMERGE : BEHAVIOR_FAILED
+		STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Head" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Neck" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip01 Spine" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine1" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine2" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone09" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone10" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone11" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone12" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone18" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone21" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone24" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone25" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone26" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone27" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone30" )
+		//STUN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone36" )
+		FIRE_FLAME_BURST : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_FLAME_BURST
+{
+	//entrycommands
+	//{
+	//	takedamage
+	//}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+
+	behavior doAttack ( "attack2-fire", 10, 1 )
+	states
+	{
+		SUBMERGE : BEHAVIOR_DONE
+	}
+}
+
+//================================================================================================= EYE LASER ATTACK
+state BEGIN_EYE_LASER
+{
+	behavior WatchEntity ( 100 , 20 , "pre-attack3" , 0 , "pre-attack3" )
+	time ( $BEGIN_EYE_LASER_TIME$ )
+
+	entrycommands
+	{
+		setdamagethreshold $PRE_ATTACK_DAMAGE_THRESHOLD$ $BEGIN_EYE_LASER_TIME$
+		//takedamage
+	}
+	//exitcommands
+	///{
+	//	nodamage
+	//}
+
+	states
+	{
+		SUBMERGE : BEHAVIOR_FAILED
+		STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Head" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Neck" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip01 Spine" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine1" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine2" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone09" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone10" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone11" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone12" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone18" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone21" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone24" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone25" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone26" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone27" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone30" )
+		//STUN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone36" )
+		FIRE_EYE_LASER : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_EYE_LASER
+{
+	//entrycommands
+	//{
+	//	takedamage
+	//}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+
+	behavior doAttack ( "attack3-fire", 10, 1 )
+
+	states
+	{
+		FIRE_EYE_LASER_DONE : BEHAVIOR_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_EYE_LASER_DONE
+{
+	legs
+	{
+		attack3-2-idle : default
+	}
+	states
+	{
+		SUBMERGE : ANIM_DONE
+	}
+}
+
+//================================================================================================= HEAT SEEKER ATTACK
+state FIRE_HEAT_SEEKERS
+{
+	entrycommands
+	{
+		runthread "finalBoss_fireHeatSeekers"
+	}
+
+	Time ( $HEAT_SEEKER_DELAY$ )
+
+	states
+	{
+		GOTO_RANDOM_NODE : TIME_DONE
+	}
+}
+
+//================================================================================================= MAGMA BLAST ATTACK
+state BEGIN_MAGMA_BLAST
+{
+	behavior WatchEntity ( 100 , 20 , "pre-attack4" , 0 , "pre-attack4"  )
+	time ( $BEGIN_MAGMA_BLAST_TIME$ )
+
+	entrycommands
+	{
+		setdamagethreshold $PRE_ATTACK_DAMAGE_THRESHOLD$ $BEGIN_MAGMA_BLAST_TIME$
+		//takedamage
+	}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+
+	states
+	{
+		SUBMERGE : BEHAVIOR_FAILED
+		STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED 
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Head" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Neck" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip01 Spine" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine1" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bip02 Spine2" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone09" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone10" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone11" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone12" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone18" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone21" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone24" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone25" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone26" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone27" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone30" )
+		//STUN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED BONE_DAMAGED ( "Bone36" )
+		FIRE_MAGMA_BLAST : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state FIRE_MAGMA_BLAST
+{
+	//entrycommands
+	//{
+	//	takedamage
+	//}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+
+	behavior doAttack ( "attack4-fire", 10, 1 )
+
+	states
+	{
+		SUBMERGE : BEHAVIOR_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_FLAME_BURST
+{
+	entrycommands
+	{
+		setdamagethreshold $STUN_DAMAGE_THRESHOLD$ $STUN_TIME$
+		//takedamage
+	}
+	///exitcommands
+	//{
+	//	nodamage
+	//}
+	legs
+	{
+		to-stunned2 : default
+	}
+	
+	states
+	{
+		STUN_FLAME_BURST_LOOP : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_FLAME_BURST_LOOP
+{
+	legs
+	{
+		stunned2-loop : default
+	}
+	
+	Time ( $STUN_TIME$ )
+
+	states
+	{
+		PAIN_FLAME_BURST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED
+		STUN_FLAME_BURST_LOOP_DONE : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_FLAME_BURST_LOOP_DONE
+{
+	legs
+	{
+		back-2-attack2 : default
+	}
+	states
+	{
+		FIRE_FLAME_BURST : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_EYE_LASER
+{
+	entrycommands
+	{
+		setdamagethreshold $STUN_DAMAGE_THRESHOLD$ $STUN_TIME$
+		//takedamage
+	}
+	//exitcommands
+	//{
+	//	nodamage
+	//}
+	legs
+	{
+		to-stunned3 : default
+	}
+	
+	states
+	{
+		STUN_EYE_LASER_LOOP : ANIM_DONE
+	}
+}
+
+
+//-------------------------------------------------------------------------------------------------
+state STUN_EYE_LASER_LOOP
+{
+	legs
+	{
+		stunned3-loop : default
+	}
+
+	Time ( $STUN_TIME$ )
+
+	states
+	{
+		PAIN_EYE_LASER : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED
+		STUN_EYE_LASER_LOOP_DONE : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_EYE_LASER_LOOP_DONE
+{
+	legs
+	{
+		back-2-attack3 : default
+	}
+	states
+	{
+		FIRE_EYE_LASER : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_MAGMA_BLAST
+{
+	entrycommands
+	{
+		setdamagethreshold $STUN_DAMAGE_THRESHOLD$ $STUN_TIME$
+		//takedamage
+	}
+	//exitcommands
+	//{
+	////	nodamage
+	//}
+	legs
+	{
+		to-stunned4 : default
+	}
+	states
+	{
+		STUN_MAGMA_BLAST_LOOP : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_MAGMA_BLAST_LOOP
+{
+	legs
+	{
+		stunned4-loop : default
+	}
+
+	Time ( $STUN_TIME$ )
+
+	states
+	{
+		PAIN_MAGMA_BLAST : TIME_DONE DAMAGE_THRESHOLD_EXCEEDED
+		STUN_MAGMA_BLAST_LOOP_DONE : TIME_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state STUN_MAGMA_BLAST_LOOP_DONE
+{
+	legs
+	{
+		back-2-attack4 : default
+	}
+	states
+	{
+		FIRE_MAGMA_BLAST : ANIM_DONE
+	}
+}
+
+//================================================================================================= PAINS
+state PAIN_FLAME_BURST
+{
+	legs
+	{
+		attack2-pain : default
+	}
+	states
+	{
+		STUN_FLAME_BURST_LOOP_DONE : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state PAIN_EYE_LASER
+{
+	legs
+	{
+		attack3-pain : default
+	}
+	states
+	{
+		STUN_EYE_LASER_LOOP_DONE : ANIM_DONE
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+state PAIN_MAGMA_BLAST
+{
+	legs
+	{
+		attack4-pain : default
+	}
+	states
+	{
+		STUN_MAGMA_BLAST_LOOP_DONE : ANIM_DONE
+	}
+}
+
+//================================================================================================= TRANSITIONS
+state TRANSITION_TO_NEXT_STAGE
+{
+	entrycommands
+	{
+		runthread "finalBoss_incrementStage"
+		//nodamage
+	}
+	//exitcommands
+	//{
+		//takedamage
+	//}
+	legs
+	{
+		dropdown : default
+	}
+	states
+	{
+		GOTO_RANDOM_NODE : ANIM_DONE
+	}
+}

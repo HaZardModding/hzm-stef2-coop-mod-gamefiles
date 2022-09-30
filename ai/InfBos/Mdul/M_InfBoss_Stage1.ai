@@ -1,0 +1,641 @@
+//
+// Name:     InformantBoss_ModuleCombatWithMeleeWeapon.ai
+// Purpose:  Module for fighting with a Melee Based Weapon
+//
+
+//
+// Defines
+//
+//---------------------------------------------------------
+$define CHANCE_SPLIT						.50
+$define CHANCE_CROUCH_FIRE					.45
+$define CHANCE_NEW_NODE						.45
+$define CHANCE_DIVE							.25
+
+$define RANGE_MAX_ENGAGEMENT				448.0
+$define RANGE_MIN_ENGAGEMENT 				320.0
+$define RANGE_MELEE 						96
+
+$define DISTANCE_STRAFE 					64.0
+
+$define DODGE_CHANCE						.65
+
+$define TIME_DODGE							1.0
+
+$define PERCENT_HEALTH_STAGE2				66
+//---------------------------------------------------------
+
+//---------------------------------------------------------
+state STAGE1_GENERAL_COMBAT_WITH_RANGED_WEAPON
+//---------------------------------------------------------
+	{
+	entrycommands
+		{		
+		setvartime ( "last_dodge" )
+		selectclosestenemy		
+		fadein ( 1.0 )
+		contents +targetable
+		viewmode ""
+		shadow		
+		weaponanimon "idle" "dualhand"
+		runthread InformantBoss_PickNewNodeID_Stage1
+		playsound "sound/chars/predator/pred_cloakin.wav" 1 0.7 2000
+		}
+
+	states 
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_COMBAT_MAIN	: default					
+		}
+	}
+
+state WTF
+{
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+	Behavior MoveRandomDirection ( "walk_footprint" , 256 , 96 , 0 , 1 , 1 )
+
+	states 
+		{	
+		WTF_2 : TORSO_BEHAVIOR_DONE
+		//GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		//STAGE1_PAIN						: SHOW_PAIN
+		//STAGE1_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ )
+		//STAGE1_PRECLOAK						: TORSO_BEHAVIOR_DONE		
+		}
+}
+
+state WTF_2
+{
+	states
+		{
+		WTF : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_PRECLOAK
+//---------------------------------------------------------
+	{
+	legs
+		{
+		precloak : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )
+		STAGE1_CLOAK : ANIM_DONE
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_CLOAK
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		fade ( .75 , .005 )
+		noshadow
+		contents -targetable
+		weaponanimon "idle_transparent" "dualhand"		
+		playsound "sound/chars/predator/pred_cloakout.wav" 1 0.7 2000
+		}
+	
+	legs
+		{
+		stage1_cloak : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )				
+		STAGE1_WARP : ANIM_DONE
+		}			
+	}
+
+state STAGE1_WARP
+	{
+	entrycommands
+		{
+		runthread InformantBoss_WarpToNode_Stage1
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_GOTO_COMBAT_NODE : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 5000 )						
+		STAGE1_COMBAT_MAIN : ANIM_DONE
+		}		
+	}
+
+//------------------------------------------------------------------------------
+state STAGE1_GOTO_COMBAT_NODE
+//------------------------------------------------------------------------------
+{
+	entrycommands
+		{
+		incontext "incombat"
+		}
+
+	behavior GotoCurrentHelperNode ( "run_footprint" )
+	time ( 5.0  )
+	
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )
+		STAGE1_PAIN			: SHOW_PAIN		
+		STAGE1_COMBAT_MAIN		: TIME_DONE 		
+
+		STAGE1_GOTO_NEW_NODE				: BEHAVIOR_SUCCESS CHANCE ( $CHANCE_NEW_NODE$ )
+		STAGE1_GOTO_NEW_NODE				: BEHAVIOR_SUCCESS CHANCE ( $CHANCE_NEW_NODE$ )		
+		STAGE1_COMBAT_MAIN 	: BEHAVIOR_SUCCESS
+		STAGE1_COMBAT_MAIN 	: BEHAVIOR_FAILED		
+		}
+
+}
+
+//------------------------------------------------------------------------------
+state STAGE1_GOTO_NEW_NODE
+//------------------------------------------------------------------------------
+{
+	entrycommands
+		{
+		runthread InformantBoss_PickNewNodeID_Stage1
+		}
+
+	states
+		{
+		STAGE1_GOTO_COMBAT_NODE : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 5000 )
+		STAGE1_COMBAT_MAIN : default
+		}
+}
+
+
+//---------------------------------------------------------
+state STAGE1_COMBAT_MAIN
+//---------------------------------------------------------
+	{
+	entrycommands
+		{
+		incontext "incombat"
+		selectclosestenemy
+		}
+		
+
+	states
+		{
+		GOTO_STAGE_2 	: !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN		: SHOW_PAIN
+				
+		STAGE1_MELEE_ATTACK												: RANGE ( $RANGE_MELEE$ )
+		STAGE1_DODGE						: CHANCE ( $DODGE_CHANCE$ , 1 ) IN_CONE_OF_FIRE CHECK_VAR_TIME_DIFFERENCE ( "last_dodge" , $TIME_DODGE$ )
+		STAGE1_APPROACH									: !RANGE ( $RANGE_MAX_ENGAGEMENT$ ) HAVE_PATH_TO_ENEMY
+		STAGE1_SEEK										: !CAN_ATTACK_ENEMY	HAVE_PATH_TO_ENEMY
+		STAGE1_SPARRING 				: default		
+		}
+
+	exitcommands
+		{
+		fadein ( 1.0 )
+		contents +targetable
+		viewmode ""
+		shadow
+		runthread InformantBoss_PickNewNodeID_Stage1
+		weaponanimon "idle" "dualhand"
+		playsound "sound/chars/predator/pred_cloakin.wav" 1 0.7 2000
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_SPARRING
+//---------------------------------------------------------
+	{
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+	Behavior MoveRandomDirection ( "walk" , 256 , 96 , 0 , 1 , 1 )
+
+	states 
+		{	
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN						: SHOW_PAIN
+		STAGE1_MELEE_ATTACK				: RANGE ( $RANGE_MELEE$ )
+		STAGE1_PRECLOAK						: TORSO_BEHAVIOR_DONE		
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_SEEK
+//---------------------------------------------------------
+	{
+	Behavior CloseInOnEnemy ( "run_footprint" , $RANGE_MELEE$ )
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PRECLOAK			: CAN_ATTACK_ENEMY VALID_COMBAT_NODE_IN_RANGE ( 5000 )				
+		STAGE1_SEEK_FAILED 						: BEHAVIOR_SUCCESS
+		STAGE1_SEEK_FAILED 						: BEHAVIOR_FAILED
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_SEEK_FAILED
+//---------------------------------------------------------
+{
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PRECLOAK	: default
+		}
+
+}
+
+//------------------------------------------------------------------------------
+state STAGE1_MELEE_ATTACK
+//------------------------------------------------------------------------------
+{
+	Behavior DoAttack ( "" , 15 , 1 , "shuffle" )
+
+	states
+		{
+		GOTO_STAGE_2 		: !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PRECLOAK		: BEHAVIOR_SUCCESS
+		STAGE1_PRECLOAK		: BEHAVIOR_FAILED
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_APPROACH
+//---------------------------------------------------------
+	{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_APPROACH_FIRING  			: CAN_ATTACK_ENEMY
+		STAGE1_APPROACH_NO_FIRING 					: default
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_APPROACH_NO_FIRING
+//---------------------------------------------------------
+	{
+	Behavior CloseInOnEnemy ( "run_footprint" , $RANGE_MIN_ENGAGEMENT$ )
+	
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN									: SHOW_PAIN
+		STAGE1_APPROACH_FIRING  					: CAN_ATTACK_ENEMY
+		STAGE1_SPARRING								: !HAVE_PATH_TO_ENEMY
+		STAGE1_SPARRING 			: RANGE ( $RANGE_MIN_ENGAGEMENT$ ) 		
+		STAGE1_SEEK_FAILED							: BEHAVIOR_FAILED
+		}
+	}
+
+
+//---------------------------------------------------------
+state STAGE1_APPROACH_FIRING
+//---------------------------------------------------------
+	{
+	Behavior CloseInOnEnemy ( "run_footprint" , $RANGE_MIN_ENGAGEMENT$ )
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN									: SHOW_PAIN
+		STAGE1_APPROACH_NO_FIRING 					: !CAN_ATTACK_ENEMY
+		STAGE1_SPARRING 							: RANGE ( $RANGE_MIN_ENGAGEMENT$ ) 
+		STAGE1_APPROACH_FIRING_REPEAT				: TORSO_BEHAVIOR_DONE
+		STAGE1_SEEK_FAILED							: BEHAVIOR_FAILED
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_APPROACH_FIRING_REPEAT
+//---------------------------------------------------------
+	{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_APPROACH_FIRING : default
+		}
+	}
+
+//---------------------------------------------------------
+state STAGE1_DODGE
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		setvartime ( "last_dodge" )
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_CHECK_LEFT : CHANCE ( $CHANCE_SPLIT$ )
+		STAGE1_CHECK_RIGHT : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_CHECK_LEFT
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_SELECT_DODGE_LEFT : LEFT_CLEAR ( $DISTANCE_STRAFE$ )
+		STAGE1_CHECK_LEFT_FAILED : default
+		}	
+}
+
+//---------------------------------------------------------
+state STAGE1_CHECK_LEFT_FAILED
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_SELECT_DODGE_RIGHT : RIGHT_CLEAR ( $DISTANCE_STRAFE$ )
+		STAGE1_CANT_DODGE : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_CHECK_RIGHT
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_SELECT_DODGE_RIGHT : RIGHT_CLEAR ( $DISTANCE_STRAFE$ )
+		STAGE1_CHECK_RIGHT_FAILED : default
+		}	
+}
+
+//---------------------------------------------------------
+state STAGE1_CHECK_RIGHT_FAILED
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_SELECT_DODGE_LEFT : LEFT_CLEAR ( $DISTANCE_STRAFE$ )
+		STAGE1_CANT_DODGE : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_SELECT_DODGE_LEFT
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_DIVE_LEFT : CHANCE ( $CHANCE_DIVE$ )
+		STAGE1_DODGE_LEFT : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_SELECT_DODGE_RIGHT
+//---------------------------------------------------------
+{
+	states
+		{	
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_DIVE_RIGHT : CHANCE ( $CHANCE_DIVE$ )
+		STAGE1_DODGE_RIGHT : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_DODGE_LEFT
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		turntowardsenemy
+		}
+
+	legs
+		{
+		cartwheel_L : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN									: SHOW_PAIN
+		STAGE1_APPROACH								: ANIM_DONE !RANGE ( $RANGE_MAX_ENGAGEMENT$ ) HAVE_PATH_TO_ENEMY
+		STAGE1_SPARRING 			: ANIM_DONE 		
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_DODGE_RIGHT
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		turntowardsenemy
+		}
+
+	legs
+		{
+		//dodge_R : default
+		cartwheel_R : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PAIN									: SHOW_PAIN
+		STAGE1_APPROACH								: ANIM_DONE !RANGE ( $RANGE_MAX_ENGAGEMENT$ ) HAVE_PATH_TO_ENEMY
+		STAGE1_SPARRING 			: ANIM_DONE 		
+		}
+}
+
+
+//---------------------------------------------------------
+state STAGE1_DIVE
+//---------------------------------------------------------
+{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_DIVE_LEFT : CHANCE ( $CHANCE_SPLIT$ )
+		STAGE1_DIVE_RIGHT : default
+		}
+
+}
+
+//---------------------------------------------------------
+state STAGE1_DIVE_LEFT
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		turntowardsenemy
+		}
+
+	legs
+		{
+		diveroll_L : default		
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_CROUCH_AND_FIRE : ANIM_DONE CHANCE ( $CHANCE_CROUCH_FIRE$ )
+		STAGE1_STAND_UP : ANIM_DONE
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_DIVE_RIGHT
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		turntowardsenemy		
+		}
+
+	legs
+		{
+		diveroll_R : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_CROUCH_AND_FIRE 	: ANIM_DONE CHANCE ( $CHANCE_CROUCH_FIRE$ )
+		STAGE1_STAND_UP			: ANIM_DONE
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_CANT_DODGE
+//---------------------------------------------------------
+{	
+	states 
+		{	
+		STAGE1_PRECLOAK : default
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_CROUCH_AND_FIRE
+//---------------------------------------------------------
+{	
+	entrycommands
+		{
+		turntowardsenemy
+		}
+
+	TorsoBehavior torsoAimAndFireWeapon ( 0 )
+	Behavior WatchEntity ( 1 , 15 , "crouch_idle" , 0 , "crouch_idle" )
+	
+	states 
+		{	
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_STAND_UP	: TORSO_BEHAVIOR_DONE
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_STAND_UP
+//---------------------------------------------------------
+{
+	legs
+		{
+		from_crouch : default
+		}
+
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+
+		STAGE1_PRECLOAK : ANIM_DONE
+		}
+}
+
+
+//---------------------------------------------------------
+state STAGE1_PAIN
+//---------------------------------------------------------
+	{
+	states
+		{
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_BIG_PAIN	  : MOD ( "explosion" )
+		STAGE1_BIG_PAIN	  : MOD ( "imod_primary" )
+		STAGE1_BIG_PAIN	  : MOD ( "plasmashotgun" )
+		STAGE1_BIG_PAIN	  : MOD ( "small_explosion" )
+		STAGE1_SMALL_PAIN : default
+		}	
+	}
+
+//---------------------------------------------------------
+state STAGE1_BIG_PAIN
+//---------------------------------------------------------
+{
+	legs
+		{
+		pain_knockback : default
+		}
+
+	states
+		{	
+		GOTO_STAGE_2 : !STAGE ( 2 ) HEALTH_PERCENT_LESS_THAN ( $PERCENT_HEALTH_STAGE2$ )		
+		STAGE1_PRECLOAK	 : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 5000 )		
+		}
+}
+
+//---------------------------------------------------------
+state STAGE1_SMALL_PAIN
+//---------------------------------------------------------
+{
+	entrycommands
+		{
+		saveofflasthitbone
+		}
+
+	legs
+		{		
+		pain_stomach 	: BONE_DAMAGED ( "Bip01 Pelvis" )
+		pain_stomach 	: BONE_DAMAGED ( "Bip01 Spine" )
+		pain_chest 		: BONE_DAMAGED ( "Bip01 Spine2" )
+		pain_head 		: BONE_DAMAGED ( "Bip01 Head" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Clavicle" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Upperarm" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Forearm" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Hand" )
+		pain_shoulder_L : BONE_DAMAGED ( "Bip01 L Finger2" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Clavicle" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Upperarm" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Forearm" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Hand" )
+		pain_shoulder_R : BONE_DAMAGED ( "Bip01 R Finger2" )
+		pain_leg_L 		: BONE_DAMAGED ( "Bip01 L Thigh" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Calf" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Foot" )
+		pain_L_lowerleg : BONE_DAMAGED ( "Bip01 L Toe0" )		
+		pain_leg_R 		: BONE_DAMAGED ( "Bip01 R Thigh" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Calf" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Foot" )
+		pain_R_lowerleg : BONE_DAMAGED ( "Bip01 R Toe0" )
+		pain_chest		: default
+		}
+
+	states
+		{		
+		STAGE1_PRECLOAK : ANIM_DONE VALID_COMBAT_NODE_IN_RANGE ( 5000 )				
+		STAGE1_SPARRING : ANIM_DONE
+		}
+
+}
