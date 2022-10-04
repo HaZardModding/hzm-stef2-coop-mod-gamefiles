@@ -10,7 +10,7 @@ void openDustyDoor();
 void blowWallBackToBombs1Show();
 void towerToggleFf();
 void setOnDamageThread(entity e,string sThread);
-void handleStuffWhenDieing(entity ePlayer); //[b607]
+void coop_justDied(); //[b607]
 void coop_endLevel();
 
 float	float_blowTreeCounter,
@@ -159,14 +159,67 @@ void pyramid_tilesPuzzleCrusherDamaged()
 	thread setOnDamageThread(e,"pyramid_tilesPuzzleCrusherDamaged");
 }
 
-//handle stuff that is suppose to happen if player dies
-void handleStuffWhenDieing(entity ePlayer)
+//started by the co-op mod it self, every time a new player enters the level
+void coop_justEntered()
 {
+	thread lights_newPlayer();
+}
+
+//handle stuff that is suppose to happen if player spawns/respawns
+void coop_justSpawned()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
 	if(!doesEntityExist(ePlayer)){ return; }
+	
+	if(globalCoop_check_existingLivingEntity(ePlayer))
+	{
+		ePlayer.immobilize(1);
+	//player did respawn
+		if( vectorLength( coop_vector_respawnOrigin1 - ePlayer.getOrigin() ) < 100 )
+		{
+		//get free sickbed number
+			float fSickbed;
+			fSickbed = enterprise_sickbedReturnFreeBed();
+			
+		//animate fake player of the sickbed
+		// --- this will also resurect the player
+			thread enterprise_sickbedAnimateFakePlayer(ePlayer,fSickbed);			
+			
+		//make the ai come to this player next
+			thread enterprise_sickbayResurectPlayer(ePlayer,fSickbed);
+			
+		//wait a moment for the co-op mod to process the player equipment
+			wait(.2);
+			
+		//take weapons from player
+			ePlayer.take("models/weapons/worldmodel-phaser-stx.tik");
+			ePlayer.take("models/weapons/worldmodel-tricorder-stx.tik");
+		}
+	//if player switched team while he was on the sickbed
+		else
+		{
+			ePlayer.scale(1);
+			ePlayer.forceMoveType("none");
+			ePlayer.immobilize(0);
+		}
+		//moved code to: void handleStuffWhenDieing(entioty ePlayer) [b607]
+	}
+}
+
+//handle stuff that is suppose to happen if player dies
+void coop_justDied()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	if(!doesEntityExist(ePlayer)){ return; }
+	
 	ePlayer.setFloatVar("hasBomb",0);
 	ePlayer.setFloatVar("enhancersAttached",0);
 	ePlayer.removehud("coop_bomb");
 	wait(0.1); //[b609] chrissstrahl - have some delay here to prevent command being skipped
+	
+	if(!doesEntityExist(ePlayer)){ return; }
 	ePlayer.removehud("coopbugs_datapadupdate");
 	
 	//[b609] chrissstrahl - remove pattern enhancer when dieing
@@ -174,42 +227,26 @@ void handleStuffWhenDieing(entity ePlayer)
 	ePe = getEntity("patternEnhancer_"+ePlayer.getRawTargetname());
 	globalCoop_level_remove(ePe);
 	
-	enterprise_handleDeadPlayer(ePlayer);
+	//ePlayer.scale(0.005);
 }
 
-//started by the co-op mod it self, every time a new player enters the level
-void coop_newPlayerEntered(){thread lights_newPlayer();}
+//handle stuff that is suppose to happen if player changes his model
+void coop_justChangedModel()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	if(!doesEntityExist(ePlayer)){ return; }
+	
+	string sTargetname;
+	sTargetname	= "patternEnhancer_"+ePlayer.getRawTargetname();
+	if(doesEntityExist(getEntity(sTargetname))){
+		enhancer_attach(ePlayer);
+	}
+}
 
-//started by the co-op mod it self, every time a player dies
-void coop_justDiedplayer1(){handleStuffWhenDieing($player0);}
-void coop_justDiedplayer2(){handleStuffWhenDieing($player1);}
-void coop_justDiedplayer3(){handleStuffWhenDieing($player2);}
-void coop_justDiedplayer4(){handleStuffWhenDieing($player3);}
-void coop_justDiedplayer5(){handleStuffWhenDieing($player4);}
-void coop_justDiedplayer6(){handleStuffWhenDieing($player5);}
-void coop_justDiedplayer7(){handleStuffWhenDieing($player6);}
-void coop_justDiedplayer8(){handleStuffWhenDieing($player7);}
+void coop_justBecameSpectator(){}
 
-//started by the co-op mod it self, every time a player spawns
-void coop_justSpawnedplayer1(){enterprise_handleRespawn($player0);}
-void coop_justSpawnedplayer2(){enterprise_handleRespawn($player1);}
-void coop_justSpawnedplayer3(){enterprise_handleRespawn($player2);}
-void coop_justSpawnedplayer4(){enterprise_handleRespawn($player3);}
-void coop_justSpawnedplayer5(){enterprise_handleRespawn($player4);}
-void coop_justSpawnedplayer6(){enterprise_handleRespawn($player5);}
-void coop_justSpawnedplayer7(){enterprise_handleRespawn($player6);}
-void coop_justSpawnedplayer8(){enterprise_handleRespawn($player7);}
-
-//started by the co-op mod it self, if player has changed model
-void coop_changedModelplayer1(){thread enhancer_reattach($player0);}
-void coop_changedModelplayer2(){thread enhancer_reattach($player1);}
-void coop_changedModelplayer3(){thread enhancer_reattach($player2);}
-void coop_changedModelplayer4(){thread enhancer_reattach($player3);}
-void coop_changedModelplayer5(){thread enhancer_reattach($player4);}
-void coop_changedModelplayer6(){thread enhancer_reattach($player5);}
-void coop_changedModelplayer7(){thread enhancer_reattach($player6);}
-void coop_changedModelplayer8(){thread enhancer_reattach($player7);}
-
+void coop_justLeft(){}
 
 void campWebBlockadeDestroyed()
 //when blocking web has been destroyed, connect pathnodes, 
