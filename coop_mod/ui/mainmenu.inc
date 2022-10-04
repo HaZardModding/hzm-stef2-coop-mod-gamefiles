@@ -3,7 +3,7 @@ Label
 {
 title "EF2"
 name "Default"
-rect 20 455 25 16
+rect 20 455 25 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 1.00 1.00 1.00 0.00
 borderstyle "RAISED"
@@ -14,7 +14,7 @@ resource
 Label
 {
 name "Default"
-rect 40 455 40 16
+rect 40 455 40 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 1.00 1.00 1.00 0.00
 borderstyle "RAISED"
@@ -27,7 +27,7 @@ Label
 {
 title "$$c#005$$"
 name "Default"
-rect 80 455 210 16
+rect 80 455 210 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 0.00 1.00 0.00 0.0
 borderstyle "RAISED"
@@ -38,7 +38,7 @@ resource
 Label
 {
 name "Default"
-rect 284 455 40 16
+rect 284 455 40 24
 fgcolor 0.00 1.00 1.00 1.00
 bgcolor 0.00 1.00 0.00 0
 borderstyle "RAISED"
@@ -95,7 +95,7 @@ Label
 	cvarvisibility coop_ver 60011 !=
 	title "$$c#001$$"
 	name "coopVersionCheckerTitle"
-	rect 120 90 400 40
+	rect 120 90 400 46
 	//fgcolor 0 0.8 0.9 1.00
 	fgcolor 1 1 1 1.00
 	bgcolor 1.00 0 0 0.40
