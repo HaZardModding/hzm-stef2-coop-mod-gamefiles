@@ -21,8 +21,6 @@ state START
 	}
 }
 
-//hzm find out why they don't attack on spawn, or why they don't select the correct enemy on spawn
-
 //---------------------------------------------------------
 state CORE_MAIN
 //---------------------------------------------------------
@@ -184,7 +182,7 @@ state WANDER_WAIT
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
 
-		//ALERTED 		: HAVE_ENEMY
+		//ALERTED 			: HAVE_ENEMY
 
 		CORE_MAIN			: TIME_DONE
 	}
@@ -194,11 +192,6 @@ state WANDER_WAIT
 state WANDER_FAILED
 //---------------------------------------------------------
 {
-	entrycommands
-		{
-		printmessage "COMBAT:  ALARM_FAILED"
-		}
-		
 	Behavior HoldPosition
 
 	time ( 1.0 )
@@ -337,16 +330,12 @@ state CORE_SMALL_PAIN
 state TO_COMBAT
 //---------------------------------------------------------
 {
-	//hzm chrissstrahl - make ai select the closest enemy each time
 	entrycommands
 	{
 		groupattack
-		ClearCurrentEnemy
-		SelectClosestEnemy
-		turntowardsenemy
+		selectclosestenemy
 		setvar ( "manual_state" , "combat" )
 	}
-	//hzm eof
 }
 
 //---------------------------------------------------------
@@ -357,7 +346,8 @@ state ALERTED
 	{
 		turntowardsenemy
 		forgetenemies
-		playdialog ( "localization/sound/dialog/m10l1/rom_whatthat.mp3" , 1 , 192 , 0)
+		//jhefty -- this is a male voice, but the riflemen are all women
+		//playdialog ( "localization/sound/dialog/m10l1/rom_whatthat.mp3" , 1 , 192 , 0)
 	}
 
 	legs
