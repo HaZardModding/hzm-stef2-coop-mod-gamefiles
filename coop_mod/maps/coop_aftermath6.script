@@ -39,7 +39,6 @@ void toolbox_take();
 void toolbox_place();
 void reactivateKlingon();
 void rommy2Killed();
-void coop_phaser_pickup();
 void randomDynamicLightFlicker(string sLightName);
 void removeMosterClip();
 void coop_updateSpawns1();
@@ -216,13 +215,11 @@ void debug_liftSequence()
 }
 
 void main()
-{	
-	soundtrack( "music/m10l2b-romulan_installation.mus" );
-	
+{
 	//fade screen black, this level starts with a cinematic
-	cam_fadeout(0.1,0,0,0,1);
+	cam_fadeout(0.01,0,0,0,1);
 	
-	$sky.rendereffects("+skyorigin");
+	soundtrack( "music/m10l2b-romulan_installation.mus" );
 	
 	//hzm coop mod chrissstrahl - author
 	coop_string_levelAuthor = "Daedalus";
@@ -1225,11 +1222,6 @@ void sneakuponguard()
 	}
 }
 
-void coop_phaser_pickup()
-//added for coop, so if player leaves or dies another player can pick up the phaser
-{
-}
-
 void phaser_pickup()
 {
 	entity eTrigger,ePlayer;
@@ -1239,10 +1231,11 @@ void phaser_pickup()
 	wait(0.05);
 	ePlayer.use("models/weapons/worldmodel-Phaser-stx.tik");
 	
+	if($world.getFloatVar("level.PhaserPickedUp")){ return; }
+	$world.setFloatVar("level.PhaserPickedUp",1);
+	
 	//update objective
 	globalCoop_objectives_update("complete" , 2 , 1 );//find weapon
-	
-	thread coop_phaser_pickup();
 	
 	$phaser_symbol.scale(0.01);
 	
@@ -1273,11 +1266,6 @@ void phaser()
 	//ePlayer = eTrigger.getLastActivatingEntity();
 	//ePlayer.take("models/weapons/worldmodel-Phaser-stx.tik");
 	
-	//[b60011] chrissstrahl - take weapons again
-	globalCoop_armory_weaponUnregister("models/weapons/worldmodel-Phaser-stx.tik");
-	wait(0.1);
-	globalCoop_player_takeAll("models/weapons/worldmodel-Phaser-stx.tik");
-	
 	//[b60011] chrissstrahl - change radar objective
 	//$phaser_symbol2.missionobjective(0);
 	$phaser_symbol2.remove();
@@ -1286,6 +1274,9 @@ void phaser()
 	
 	//$phaser.angels('25.000000 0.000000 0.000000');
 	//$phaser.origin('2748.50 -408.00 -197.24');
+	
+	//[b60011] chrissstrahl - take weapons again
+	globalCoop_armory_weaponUnregister	("models/weapons/worldmodel-Phaser-stx.tik");
 
 //open door
 	float fTimer = 5;
@@ -1301,6 +1292,8 @@ void phaser()
 		$pektraq.ai_on();
 		fTimer--;
 	}
+	
+	globalCoop_player_takeAll			("models/weapons/worldmodel-Phaser-stx.tik");
 	
 	$phaseroverload.selfdetonate();
 	$crates.remove();
@@ -1744,7 +1737,10 @@ void noleadButFollow()
 //if player has reached the location - klingon will not lead then but follow the player
 //------------------------------------------------------------------------------
 {
-	globalCoop_objectives_update("incomplete" , 3 , 1 );//unlock door
+	thread globalCoop_objectives_update("incomplete" , 3 , 1 );//unlock door
+	
+	$pektraq.pushable(1);
+	$pektraq.mass(190);
 	
 	$pektraq.setTendency("lead",0);
 	$pektraq.setTendency("follow",1);
@@ -1769,8 +1765,12 @@ void makeRomiesAggressive()
 	}
 	$usedtobeawomanguard0.setnodeID(3);
 	$usedtobeawomanguard0.settendency("patrol",1);
-	$usedtobeawomanguard4.hurt(1);
-	$usedtobeawomanguard2.kill();
+	//$usedtobeawomanguard4.hurt(1);
+	//$usedtobeawomanguard2.kill();
+	
+	//[b60011] chrissstrahl - make sure he follows player after combat
+	wait(7);
+	thread noleadButFollow();
 }
 
 //[b611] chrissstrahl - added spawn location update
