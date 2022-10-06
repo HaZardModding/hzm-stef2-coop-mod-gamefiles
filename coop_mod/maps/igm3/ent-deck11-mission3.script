@@ -51,13 +51,9 @@ void miyamotoDialog3_3();
 float telsiaFollowsMunroIGM3 = 0;
 float numberOfTimesTalkedWithTelsiaIGM3 = 0;
 
-//hzm coop mod chrissstrahl, use global player entity reference for libarary menu
-entity ePlayerResarching;
-entity ePreviousePannel;
-string sCurrentMenu;
-
 //hzm coop mod chrissstrahl - failsafe for branch dialog
 void entDeck11IGM3BranchingDialog_failsafe();
+entity ePlayerResarching;
 
 
 //===================================================================================================================
@@ -153,13 +149,11 @@ void queTelsiaForIGM3Cinematic()
 //---------------------
 void cinematicTelsiaGreetsMunro()
 {
-	//this is a test, should be removed before release
-	/*
+	//[b60011] chrissstrahl - test debug - at this time we want telsia to go with us
 	if(getCvar("username") == "Chrissstrahl"){
-		//hzm coop mod chrissstrahl, at this time we want telsia to go with us
 		thread entDeck8IGM3Option1();
 		return;
-	}*/
+	}
 	
 	//--- Fade Out
 	cam_fadeout( .5, 0, 0, 0, 1, 0 );
@@ -274,10 +268,23 @@ void entDeck8IGM3Option1()
 	else{$world.setFloatVar("entDeck8IGM3Option1",1);}
 
 	$triggerLibraryUse1.thread( "useLibraryTerminalIGM3" );
-	//this makes sure you are forced to stand near telsia if she is there
-	//$triggerLibraryUse2.thread( "" );
-	//$triggerLibraryUse3.thread( "" );
-	//$triggerLibraryUse4.thread( "" );
+
+	//[b60011] chrissstrahl - test debug - at this time we want telsia to go with us
+	if(getCvar("username") == "Chrissstrahl"){
+		telsiaFollowsMunroIGM3 = 1;
+		$telsia.origin( '-9580 -978  0' );
+		globalCommon_AiActorUseWeapon( $telsia, "tricorder" );
+		$telsia.angle( 0 );
+		$telsia.anim( "tricorder_use_loop" );
+		$telsia.resethead();
+		
+		$scriptmunro.origin('-9590 -931 0');
+		$scriptmunro.hide();
+		$scriptmunro.notsolid();
+		
+		sendAlisonAndRusselOnPatrolIGM3();
+		return;
+	}
 	
 	$scriptmunro.playdialog("localization/sound/dialog/ent_m3/munro_helpme.mp3", 1, 10000, 0 ); //I wouldn't mind having you help me do some research on the Attrexians.
 	waitForDialog( $scriptmunro );
@@ -337,18 +344,6 @@ void entDeck8IGM3Option2()
 	//hzm coop mod chrissstrahl, allow this thread to be started only once
 	if(	$world.getFloatVar("entDeck8IGM3Option1") != 0){return;}
 	else{$world.setFloatVar("entDeck8IGM3Option1",1);}
-	
-	/* //[b60011] chrissstrahl - disabled to fix issues
-	$triggerLibraryUse1.thread( "useLibraryTerminalIGM3" );
-	$triggerLibraryUse2.thread( "useLibraryTerminalIGM3" );
-	$triggerLibraryUse3.thread( "useLibraryTerminalIGM3" );
-	$triggerLibraryUse4.thread( "useLibraryTerminalIGM3" );
-	
-	// triggerLibraryUse1Archetype isn't called here to prevent the objective from being removed to early
-	globalArchetype_Setup ( $triggerLibraryUse2Archetype, "LibraryTerminal" );
-	globalArchetype_Setup ( $triggerLibraryUse3Archetype, "LibraryTerminal" );
-	globalArchetype_Setup ( $triggerLibraryUse4Archetype, "LibraryTerminal" );
-	*/
 
 	$scriptmunro.playdialog("localization/sound/dialog/ent_m3/munro_thatsit.mp3", 1, 10000, 0 ); //Yeah, that's about it.
 	waitForDialog( $scriptmunro );
@@ -389,10 +384,55 @@ void entDeck8IGM3Option2()
 	wait( .6 );
 }
 
+//[b60011] chrissstrahl - handle the menus stuff differently
+//adding and removing several menus is prone to get player stuck in menus or with activated mouse pointer
+void useLibraryTerminalIGM3Next()
+{
+	//print("useLibraryTerminalIGM3Next\n");
+	
+	if(!doesEntityExist(ePlayerResarching)){ return; }
+
+	float fPage;
+	fPage = ePlayerResarching.getFloatVar("currentzPagez");
+	
+	//print("useLibraryTerminalIGM3Next 1 "+fPage+"\n");
+	
+	fPage++;
+	
+	if(fPage > 6){ fPage = 6; }
+	ePlayerResarching.setFloatVar("currentzPagez",fPage);
+	
+	//print("useLibraryTerminalIGM3Next 2 "+fPage+"\n");
+	
+	ePlayerResarching.runthread("useLibraryTerminalIGM3Page"+fPage);
+}
+void useLibraryTerminalIGM3Back()
+{
+	//print("useLibraryTerminalIGM3Back\n");
+	if(!doesEntityExist(ePlayerResarching)){ return; }
+	
+	float fPage;
+	fPage = ePlayerResarching.getFloatVar("currentzPagez");
+	fPage--;
+	
+	if(fPage <= 1){ fPage = 1; }
+	ePlayerResarching.setFloatVar("currentzPagez",fPage);
+	
+	//print("useLibraryTerminalIGM3Back\n");
+	
+	ePlayerResarching.runthread("useLibraryTerminalIGM3Page"+fPage);
+}
+
 void coop_checkIfPlayerIsValid(entity ePlayer, entity eTrigger)
 {
+	//print("coop_checkIfPlayerIsValid\n");
 	if(!doesEntityExist(ePlayer)){ return; }
+	
+	ePlayer.setFloatVar("currentzPagez",1);
+	ePlayer.setFloatVar("librarayTerminalUseLast",getLevelTime());
 	ePlayer.setFloatVar("librarayTerminalUseStop",0);
+	
+	globalCoop_player_transmitter(ePlayer,"ui_addhud coop_entconIgm3");
 	float fWait;
 	fWait = 0.1;
 	vector v1;
@@ -405,21 +445,18 @@ void coop_checkIfPlayerIsValid(entity ePlayer, entity eTrigger)
 			ePlayer.getFloatVar("librarayTerminalUseStop") == 1 ||
 			(ePlayer.getFloatVar("librarayTerminalUseLast") + 40) < getLevelTime())
 		{
-			globalCoop_player_transmitter(ePlayer,"ui_removehud "+sCurrentMenu);
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page1-IGM3");
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page2-IGM3");
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page3-IGM3");
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page4-IGM3");
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page5-IGM3");
-			//globalCoop_player_transmitter(ePlayer,"ui_removehud ent-console_page6-IGM3");
-			globalCoop_player_transmitter(ePlayer,"ui_hidemouse");
-			wait(3);
-			eTrigger.thread( "useLibraryTerminalIGM3" );
-			return;
+			//print("coop_checkIfPlayerIsValid abbort 1\n");
+			ePlayer.setFloatVar("currentzPagez",0);
+			globalCoop_player_transmitter(ePlayer,"ui_removehud coop_entconIgm3");
+			ePlayer = $NULL;
 		}
 		wait(fWait);
 	}
+	//print("coop_checkIfPlayerIsValid abbort 2\n");
+	ePlayerResarching = $NULL;
+	wait(2);
 	eTrigger.thread( "useLibraryTerminalIGM3" );
+	eTrigger.triggerable();
 }
 
 //////////////////////////////////////
@@ -429,38 +466,30 @@ void coop_checkIfPlayerIsValid(entity ePlayer, entity eTrigger)
 //////////////////////////////////////
 void useLibraryTerminalIGM3()
 {
+	//print("useLibraryTerminalIGM3 stage 0\n");
 //hzm coop mod chrissstrahl, store player that accessed this pannel, for later reference
 	entity eTrigger,ePlayer;
 	eTrigger	= getCurrentEntity();
-	if(doesEntityExist(eTrigger)){
-		ePlayer				= eTrigger.getLastActivatingEntity();
-		if(doesEntityExist(ePlayer)){
-			ePlayerResarching	= ePlayer;
-		}
-	}else{
-		return;
-	}
+	if(!doesEntityExist(eTrigger)){ return; }
+	ePlayer	= eTrigger.getLastActivatingEntity();
+	if(!doesEntityExist(ePlayer)){ return; }
 	
+	//print("useLibraryTerminalIGM3 stage 1\n");
+	
+	//[b60011] chrissstrahl
+	eTrigger.nottriggerable();
+	ePlayerResarching = ePlayer;
 	thread coop_checkIfPlayerIsValid(ePlayer,eTrigger);
-	ePlayer.setFloatVar("librarayTerminalUseLast",getLevelTime());
-
-	//hzm coop mod chrissstrahl - print some info into the game console
-	//globalCoop_main_print("useLibraryTerminalIGM3");
-	
-	//[b60011] chrissstrahl - disabled to fix issues
-	//$triggerLibraryUse1.thread( "" );
-	//$triggerLibraryUse2.thread( "" );
-	//$triggerLibraryUse3.thread( "" );
-	//$triggerLibraryUse4.thread( "" );
 	
 	//Objectives Stuff
 	setfloatvar( "game.goToLibaryIGM3", 2 );
 	justLoadedDeckThreadIGM3();
 	
+	//print("useLibraryTerminalIGM3 stage 2\n");
+	
 	useLibraryTerminalIGM3Page1();
 
-	if( getfloatvar ("game.checkEntMission3RoomsVisited" ) == 1 )
-	{
+	if( getfloatvar ("game.checkEntMission3RoomsVisited" ) == 1 ){
 		// Set this var so the IMG Holo deck mission Will play
 		setfloatvar ("game.checkEntMission3RoomsVisited", 2 );
 	}
@@ -471,60 +500,16 @@ void useLibraryTerminalIGM3()
 //  Function to remove any libaray terminal UI up and wait till it is used agian
 //////////////////////////////////////
 void useLibraryTerminalIGM3Page0()
-{	
+{
+	//print("useLibraryTerminalIGM3Page0\n");
 	//hzm coop mod chrissstrahl, select each time a different pannel
 	//this should make it easier for every player to get a chance
-	/* //[b60011] chrissstrahl - disabled to fix issues
-	$triggerLibraryUse1.thread( "" );
-	$triggerLibraryUse2.thread( "" );
-	$triggerLibraryUse3.thread( "" );
-	$triggerLibraryUse4.thread( "" );
-	
-	float fPannel;
-	entity ePannelTrigger;
-	
-	fPannel = getFloatVar("level.currentLibrarayPannel");
-	if( fPannel == 0 || fPannel >= 4){
-		fPannel = 2;
-	}else{
-		fPannel++;
-	}
-	setFloatVar("level.currentLibrarayPannel",fPannel);
-	
-	if(fPannel == 2){$triggerLibraryUse1Archetype.origin( '-9554 -777 56' );}
-	else if(fPannel == 3){$triggerLibraryUse1Archetype.origin( '-9554 -608 56' );}
-	else if(fPannel == 4){$triggerLibraryUse1Archetype.origin( '-9776 -410 56' );}
-	
-	ePannelTrigger	= getEntity("triggerLibraryUse"+fPannel);
-	ePannelTrigger.thread("useLibraryTerminalIGM3Page1");
-	*/
 
-/*
-	//this makes sure you are forced to stand near telsia if she is there
-	if( telsiaFollowsMunroIGM3 == 0 )
-	{
-		//hzm coop mod chrissstrahl, we only want one trigger to work or it will breake the script
-		//$triggerLibraryUse1.thread( "useLibraryTerminalIGM3Page1" );
-		//$triggerLibraryUse3.thread( "useLibraryTerminalIGM3Page1" );
-		//$triggerLibraryUse4.thread( "useLibraryTerminalIGM3Page1" );
-		$triggerLibraryUse2.thread( "useLibraryTerminalIGM3Page1" );
+	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
+		return;
 	}
-	else
-	{
-		//hzm coop mod chrissstrahl, we only want one trigger to work or it will breake the script
-		$triggerLibraryUse2.thread( "useLibraryTerminalIGM3Page1" );
-		//$triggerLibraryUse1.thread( "" );
-		//$triggerLibraryUse3.thread( "" );
-		//$triggerLibraryUse4.thread( "" );*
-	}
-*/
-	//removes hud when done button is pressed.
-	
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page6-IGM3");
-
 	ePlayerResarching.playsound( "sound/misc/menu/reject.wav", 10 ,0.75 ,100 );
 	ePlayerResarching.setFloatVar("librarayTerminalUseStop",1);
-	sCurrentMenu = "";
 
 	//This makes sure the player can traverse the menu system untill he exits
 	//Problem with out: Play coun't access page 1 after first time
@@ -543,7 +528,6 @@ void useLibraryTerminalIGM3Page0()
 	killthread( "telsiaTalkingDialogPage3IGM3" );
 	killAllTalking();
 		
-		
 	if(getFloatVar("level.ResarchCompleteAftermath") == 0){
 		setFloatVar("level.ResarchCompleteAftermath",1);
 		$triggerLibraryUse1Archetype.missionobjective( 0 );
@@ -555,22 +539,17 @@ void useLibraryTerminalIGM3Page0()
 
 void useLibraryTerminalIGM3Page1()
 {
+	//print("useLibraryTerminalIGM3Page1\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
+		//print("useLibraryTerminalIGM3Page1 abbort\n");
 		return;
 	}
-	sCurrentMenu = "ent-console_page1-IGM3";
-	
-	//if( telsiaFollowsMunroIGM3 == 1 )
-	//	if( numberOfTimesTalkedWithTelsiaIGM3 == 4 )
-	//		return;
-	
-	//add Hud Stuff here
+	//print("useLibraryTerminalIGM3Page1 2\n");
 	
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
 	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page2-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page1-IGM3");
-	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,100 );
 		
 	// This check to see if telsia is there and or needs
@@ -587,35 +566,32 @@ void useLibraryTerminalIGM3Page1()
 
 void useLibraryTerminalIGM3Page2()
 {
+	//print("useLibraryTerminalIGM3Page2\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
+		//print("useLibraryTerminalIGM3Page2 abbort\n");
 		return;
 	}
-	//add Hud Stuff here
-	sCurrentMenu = "ent-console_page2-IGM3";
+	//print("useLibraryTerminalIGM3Page2 go\n");
 	
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
 	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page1-IGM3");
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page3-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page2-IGM3");
-	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,100 );
 }
 
 void useLibraryTerminalIGM3Page3()
 {
+	//print("useLibraryTerminalIGM3Page3\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
+		//print("useLibraryTerminalIGM3Page3 abbort\n");
 		return;
 	}
-	//add Hud Stuff here
-	sCurrentMenu = "ent-console_page3-IGM3";
 	
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
 	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page2-IGM3");
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page4-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page3-IGM3");
-	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,10000 );
 
 	// This check to see if telsia is there and or needs
@@ -632,36 +608,29 @@ void useLibraryTerminalIGM3Page3()
 
 void useLibraryTerminalIGM3Page4()
 {
+	//print("useLibraryTerminalIGM3Page4\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
 		return;
 	}
-
-	//add Hud Stuff here
-	sCurrentMenu = "ent-console_page4-IGM3";
 	
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
-	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page3-IGM3");
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page5-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page4-IGM3");
-	
+	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,10000 );
 }
 
 void useLibraryTerminalIGM3Page5()
 {
-	//add Hud Stuff here
+	//print("useLibraryTerminalIGM3Page5\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
 		return;
 	}
-	sCurrentMenu = "ent-console_page5-IGM3";
 
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
 	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page4-IGM3");
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page6-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page5-IGM3");
-	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,10000 );
 
 	// This check to see if telsia is there and or needs
@@ -678,24 +647,22 @@ void useLibraryTerminalIGM3Page5()
 
 void useLibraryTerminalIGM3Page6()
 {
+	//print("useLibraryTerminalIGM3Page6\n");
+	
+	//[b60011] chrissstrahl
 	if(!doesEntityExist(ePlayerResarching) || ePlayerResarching.getHealth() < 1){
 		return;
 	}
-	//add Hud Stuff here
-	sCurrentMenu = "ent-console_page6-IGM3";
-	
 	
 	//[b60011] chrissstrahl - hud removal can cause the mouse to deactivate on fullscreeen menus
 	ePlayerResarching.setFloatVar("librarayTerminalUseLast",getLevelTime());
-	globalCoop_player_transmittInstantly(ePlayerResarching,"ui_removehud ent-console_page5-IGM3");
-	globalCoop_player_transmitter(ePlayerResarching,"ui_addhud ent-console_page6-IGM3");
-	
 	ePlayerResarching.playsound( "sound/misc/menu/select.wav", 10 ,0.75 ,10000 );
 }
 
 
 void telsiaTalkingDialogPage1IGM3()
 {
+	//print("telsiaTalkingDialogPage1IGM3\n");
 	$telsia.playdialog("localization/sound/dialog/ent_m3/telsia_suspenct.mp3", 1, 10000, 1); //Hmm... no usual suspect here. The Attrexians seem to have made very few enemies. 
 	waitForDialog( $telsia );
 	$scriptmunro.playdialog("localization/sound/dialog/ent_m3/munro_pretty.mp3", 1, 10000, 1); //Pretty good for an expanding mini-empire with over twenty colony planets. 
@@ -711,6 +678,7 @@ void telsiaTalkingDialogPage1IGM3()
 
 void telsiaTalkingDialogPage2IGM3()
 {
+	//print("telsiaTalkingDialogPage2IGM3\n");
 	killthread( "telsiaTalkingDialogPage1IGM3" );
 	killAllTalking();
 	
@@ -729,6 +697,7 @@ void telsiaTalkingDialogPage2IGM3()
 
 void telsiaTalkingDialogPage3IGM3()
 {
+	//print("telsiaTalkingDialogPage3IGM3\n");
 	killthread( "telsiaTalkingDialogPage2IGM3" );
 	killAllTalking();
 	
@@ -792,23 +761,7 @@ void picardCommsMunroIGM3()
 	waitForDialog( $picard );
 	$scriptmunro.playdialog("localization/sound/dialog/ent_m3/munro_onway2.mp3", 1, 10000, 1); //On my way.
 	waitForDialog( $scriptmunro );
-	
-	//[b60011] chrissstrahl - make sure no player can get stuck in menu
-	/*entity ePlayer;
-	float fPlayerIdInUse=0;
-	while(fPlayerIdInUse<coop_integer_maxPlayers){
-		ePlayer = getentity("player"+ fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			ePlayer.removehud( "ent-console_page1-IGM3" );
-			ePlayer.removehud( "ent-console_page2-IGM3" );
-			ePlayer.removehud( "ent-console_page3-IGM3" );
-			ePlayer.removehud( "ent-console_page4-IGM3" );
-			ePlayer.removehud( "ent-console_page5-IGM3" );
-			ePlayer.removehud( "ent-console_page6-IGM3" );
-		}
-		fPlayerIdInUse++;
-	}*/
-	
+
 	wait( .5 );
 	
 	//Objectives
@@ -1034,25 +987,6 @@ void checkForDeckChangeIGM3()
 
 // --------------- TOOLTIPS
 
-void libraryTerminal_tooltipNext( float page )
-{globalCoop_player_transmitter(ePlayerResarching,"globalwidgetcommand ent_console_page"+page+"_toolip title $$ENT_CONSOLE_NEXTPAGE$$");}
-void libraryTerminal_tooltipPrev( float page ){
-globalCoop_player_transmitter( ePlayerResarching,"globalwidgetcommand ent_console_page"+page+"_toolip title $$ENT_CONSOLE_PREVPAGE$$");}
-
-void libraryTerminal_tooltipNextPage1()	{libraryTerminal_tooltipNext(1);}
-void libraryTerminal_tooltipNextPage2()	{libraryTerminal_tooltipNext(2);}
-void libraryTerminal_tooltipNextPage3()	{libraryTerminal_tooltipNext(3);}
-void libraryTerminal_tooltipNextPage4()	{libraryTerminal_tooltipNext(4);}
-void libraryTerminal_tooltipNextPage5()	{libraryTerminal_tooltipNext(5);}
-void libraryTerminal_tooltipExit()
-{globalCoop_player_transmitter(ePlayerResarching,"globalwidgetcommand ent_console_page6_toolip title $$ENT_CONSOLE_EXIT$$");}
-
-void libraryTerminal_tooltipPrevPage2()	{libraryTerminal_tooltipPrev(2);}
-void libraryTerminal_tooltipPrevPage3()	{libraryTerminal_tooltipPrev(3);}
-void libraryTerminal_tooltipPrevPage4()	{libraryTerminal_tooltipPrev(4);}
-void libraryTerminal_tooltipPrevPage5()	{libraryTerminal_tooltipPrev(5);}
-void libraryTerminal_tooltipPrevPage6()	{libraryTerminal_tooltipPrev(6);}
-
 
 void entDeck11IGM3BranchingDialog_failsafe()
 //___IMPORTANT___ NAME THIS FUNCTION AFTER THE NAME OF THE BRANCHDIALOG
@@ -1074,7 +1008,3 @@ void entDeck11IGM3BranchingDialog_failsafe()
 	//start thread, this is the actual failsafe
 	runThreadNamed(sThread);
 }
-
-
-
-
