@@ -44,21 +44,32 @@ textures/enterprise/ctf_blue_halllight01
 }
 
 textures/enterprise/ctf_blue_halllight02lit
+//[b60011] chrissstrahl - fix created by mjt to fix warnings on mapload
 {
-	qer_editorimage textures/enterprise/halllight02_blue.tga
-	surfaceLight 50
+    qer_editorimage textures/enterprise/halllight02_blue.tga
+    surfaceLight 50
 
-	{
-		map textures/env/ent-env-hall.tga
-	        rgbGen identity
-		tcGen environment
-		tcmod scale 0.4 0.4
-	}
-	{
-		map textures/enterprise/halllight02_blue.tga
-		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA			
-		rgbGen identity
-	}
+    {
+        map textures/env/ent-env-hall.tga
+        rgbGen identity
+        tcGen environment
+        tcmod scale 0.4 0.4
+    }
+    {
+        map textures/enterprise/halllight02_blue.tga
+        blendFunc GL_ZERO GL_SRC_ALPHA
+        rgbGen identity
+    }
+    {
+        map $lightmap
+        blendFunc GL_ONE GL_ONE
+        rgbGen identity
+    }
+    {
+        map textures/enterprise/halllight02_blue.tga
+        blendFunc GL_DST_COLOR GL_ZERO
+        rgbGen identity
+    }
 }
 
 textures/enterprise/dm_blue_cielinglight1

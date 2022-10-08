@@ -2065,78 +2065,76 @@ textures/lcars/lcars_locker-1a
 }
 
 textures/lcars/lcars_locker-1e
-{	
-
-	qer_editorimage textures/lcars/lcars_locker-1e.tga
-	nomipmaps
-if VertexLight
-	{
-		map textures/lcars/vlcars_locker-1e.tga
-		rgbGen identity
-		
-	}
-endif
-if noVertexLight
-	{
-		map textures/env/env_dark.tga
-		rgbGen identity
-		tcGen environment
-		tcmod scale 0.475 0.475
-	}
-	{
-		map textures/lcars/lcars_locker-1e.tga
-		blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA			
-		rgbGen identity
-	}
-	{
-		clampmap textures/shaderfx/lcarsfx41.tga
-		blendfunc add
-		rgbGen wave square 0 1 0.5 1
-		tcMod offset -0.015 -0.72
-		tcmod scale 8 5
-	}
-	{
-		clampmap textures/shaderfx/lcarsfx42.tga
-		blendfunc add
-		rgbGen wave square 0 1 0.5 -1
-		tcMod offset -0.015 -0.72
-		tcmod scale 8 5
-	}
-	{
-		clampmap textures/shaderfx/lcarsfx40.tga
-		blendfunc add
-		rgbGen wave square 0 1 0.5 -1
-		tcMod offset -0.242 -0.72
-		tcmod scale 8 5
-	}
-	{
-		clampmap textures/shaderfx/lcarsfx25.tga
-		blendfunc add
-//		rgbGen wave square 0 1 0.5 -1
-		tcMod offset -0.778 -0.72
-		tcmod scale 8 5
-	}
-	{
-		map textures/shaderfx/lcars_locker-1eglow.tga
-		blendfunc GL_ONE GL_ONE
-		rgbGen wave sin	1 .8 0.1 .5
-		detail
-	}
-//	{
-//		map $lightmap
-//		blendfunc gl_dst_color gl_zero
-//		rgbGen identity
-//	}
-endif
-//if no_mtex
-//	{
-//        	map textures/lcars/lcars_locker-1e.tga
-//         	rgbGen default
-//	}
-//
-endif	
-
+//[b60011] chrissstrahl - fix created by mjt to fix warnings on mapload
+{
+    qer_editorimage textures/lcars/lcars_locker-1e.tga
+    nomipmaps
+    if VertexLight
+    {
+        map textures/lcars/vlcars_locker-1e.tga
+        rgbGen identity
+    }
+    endif
+    if noVertexLight
+    {
+        map textures/env/env_dark.tga
+        rgbGen identity
+        tcGen environment
+        tcmod scale 0.475 0.475
+    }
+    {
+        map textures/lcars/lcars_locker-1e.tga
+        blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
+        rgbGen identity
+    }
+    {
+        map $lightmap
+        blendfunc gl_dst_color gl_zero
+        rgbGen identity
+    }
+    {
+        clampmap textures/shaderfx/lcarsfx41.tga
+        blendfunc add
+        rgbGen wave square 0 1 0.5 1
+        tcMod offset -0.015 -0.72
+        tcmod scale 8 5
+    }
+    {
+        clampmap textures/shaderfx/lcarsfx42.tga
+        blendfunc add
+        rgbGen wave square 0 1 0.5 -1
+        tcMod offset -0.015 -0.72
+        tcmod scale 8 5
+    }
+    {
+        clampmap textures/shaderfx/lcarsfx40.tga
+        blendfunc add
+        rgbGen wave square 0 1 0.5 -1
+        tcMod offset -0.242 -0.72
+        tcmod scale 8 5
+    }
+    {
+        clampmap textures/shaderfx/lcarsfx25.tga
+        blendfunc add
+        //rgbGen wave square 0 1 0.5 -1
+        tcMod offset -0.778 -0.72
+        tcmod scale 8 5
+    }
+    {
+        map textures/shaderfx/lcars_locker-1eglow.tga
+        blendfunc GL_ONE GL_ONE
+        rgbGen wave sin    1 .8 0.1 .5
+        detail
+    }
+    endif
+    // if no_mtex
+    // {
+        // map textures/lcars/lcars_locker-1e.tga
+        // rgbGen default
+    // }
+    // endif
 }
+
 /////////////////////////////////////////
 //
 //	LOCKER NAME PLATES
