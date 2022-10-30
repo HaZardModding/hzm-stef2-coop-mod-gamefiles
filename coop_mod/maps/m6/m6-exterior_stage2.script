@@ -95,9 +95,7 @@ void componentDestroyed ( )
 
 	if ( e.gethealth() > 0 )
 	{
-		$capital_ship.anim ( "damaged" );
-		wait ( .1 );
-		$capital_ship.anim ( "idle" );
+		coop_capShipDamage("damaged");
 		globalCommon_OnDamage ( e , "componentDestroyed" );
 		return;
 	}
@@ -248,6 +246,31 @@ vector VectorSubtract ( vector v1, vector v2 )
 	return ret;
 }
 
+//[b60011] Chrissstrahl - of capital ship
+float fShipStatActive;
+void coop_updateStats()
+{
+	if(fShipStatActive){
+		return;
+	}
+	
+	fShipStatActive=1;
+	while(fShipStatActive){
+		//hzm coop mod chrissstrahl - send state to 
+		entity ePlayer;
+		float fPlayerIdInUse;
+		float fStat;
+		fStat = ( 100 * (shipHealth/CAPITAL_SHIP_HEALTH) );
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setstat ( "mp_generic2" , fStat );//update the boss bar
+			}
+		}
+		wait(1);
+	}
+}
+
 void runCapShip ()
 {
 	float done = 0;
@@ -257,19 +280,12 @@ void runCapShip ()
 	
 	$tuvok.playdialog("localization/sound/dialog/m6l2/tuvok_disable.mp3", 1, 80000, 1); //Lieutenant Munro, disable the cruiser’s weapons, engines, and warp drive without destroying the vessel.
 	
-	//hzm coop mod chrissstrahl - remove timmer hud
+	//hzm coop mod chrissstrahl - add timmer hud
 	thread globalCoop_huds_manageAll("m6CapitalShipHealth",1,1);
 	
-	//hzm coop mod chrissstrahl - send state to 
-	entity ePlayer;
-	float fPlayerIdInUse;
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		ePlayer = getentity("player"+fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			ePlayer.setstat ( "mp_generic2" , 100 );
-		}
-	}
-
+	//[b60011] Chrissstrahl - of capital ship
+	thread coop_updateStats();
+	
 	while ( !done )
 	{		
 		if ( !weaponsDestroyed )
@@ -314,9 +330,15 @@ void runCapShip ()
 			wait ( 5 );
 		}
 
-		if ( weaponsDestroyed && enginesDestroyed && warpDriveDestroyed )
+		if ( weaponsDestroyed && enginesDestroyed && warpDriveDestroyed ){
 			done = 1;
+			//[b60011] Chrissstrahl - end stat update
+			fShipStatActive = 0;			
+			killthread("coop_updateStats");
+		}
 	}
+	
+
 	
 	killthread("coop_stage2ForceRulesOnPlayers");
 
@@ -464,24 +486,15 @@ void capShipHit ()
 {
 	entity e;
 	e= getCurrentEntity ();
-	$capital_ship.anim ( "shielded" );
-	wait ( .35 );
-	$capital_ship.anim ( "idle" );
+	
+$player0.hudprint("capShipHit - "+shipHealth+"\n");
+//[b60011] chrissstrahl - make sure theere will be no overlapping
+//e.nodamage();
+	coop_capShipDamage("shielded");
 
-	shipHealth -= ( 10000 - e.gethealth());	//hurt the capship appropriately
-	
-	
-	//hzm coop mod chrissstrahl - send state to 
-	entity ePlayer;
-	float fPlayerIdInUse;
-	float fStat;
-	fStat = ( 100 * (shipHealth/CAPITAL_SHIP_HEALTH) );
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		ePlayer = getentity("player"+fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			ePlayer.setstat ( "mp_generic2" , fStat );//update the boss bar
-		}
-	}	
+	shipHealth -= ( 10000 - e.gethealth());	//hurt the capship appropriately	
+
+$player0.hudprint("capShipHit - "+shipHealth+"\n");
 
 	//print ( "Capship: " +shipHealth+"\n" );
 	if ( shipHealth <= 0 )		//failed
@@ -496,7 +509,6 @@ void capShipHit ()
 		$idryll_weapons.remove();
 		$idryll_warpdrive.remove();
 		$idryll_engines.remove();
-
 		wait ( 5 );
 		
 		globalCoop_mission_failWithReason("YouDestroyedCapitalShip");
@@ -533,4 +545,22 @@ void blah ()
 	$idryll_weapons.model ( "models/fx/fx-smoke-capitalship-damaged.tik" );
 }
 
+//[b60011] chrissstrahl
+float fCapShipDamage=0;
+void coop_capShipDamage(string sAnimName)
+{
+	if(fCapShipDamage != 1){
+		fCapShipDamage=1;
+		if(sAnimName == "shielded"){
+			$capital_ship.anim ( "shielded" );
+			wait ( .35 );
+			$capital_ship.anim ( "idle" );
+		}else{
+			$capital_ship.anim ( "damaged" );
+			wait ( .1 );
+			$capital_ship.anim ( "idle" );
+		}
+		fCapShipDamage=0;
+	}
+}
 
