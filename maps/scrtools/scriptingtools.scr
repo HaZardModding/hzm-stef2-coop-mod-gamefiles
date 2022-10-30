@@ -34,6 +34,7 @@ void npcMakeMortal(entity eActor);
 void npcMakeEnemy(entity eActor);
 void npcGiveWeapon(entity eActor,string sWeapon);
 void npcWalkTo(entity eActor,entity eLocation, string sAnimation);
+void npcWalkToNode(entity eActor,string sNode, string sAnimation);
 void npcAnimate(entity eActor, string sAnimation);
 void entityBeamIn(entity eEntity,string sEffect);
 void entityBeamOut(entity eEntity,string sEffect);
@@ -52,6 +53,15 @@ float playerIsInsideOf(entity e1,float fPadding);
 void dynamicLight_setup(string sLightName,string sLigthStyle);
 string dynamicLight_adjustForMultiplayer(string sLigthStyle);
 void transportFromTo(entity ePlayer, entity eDest);
+entity returnPlayerFromTrigger(entity eTrigger);
+void onUseAction(entity e, string sThread);
+void onDamageAction(entity e, string sThread);
+void onTouchAction(entity e, string sThread);
+void countUp(entity e,string sName);
+void countDown(entity e,string sName);
+float countGet(entity e,string sName);
+void countSet(entity e,string sName,float iValue);
+void messagePlayer(entity e, string sMessage);
 
 void scritingToolsMain()
 //----------------------------------------------------------------------
@@ -227,7 +237,6 @@ void npcMakeEnemy(entity eActor)
 	eActor.immortal(0);
 }
 
-
 void npcGiveWeapon(entity eActor,string sWeapon)
 //----------------------------------------------------------------------
 //makes actor to enemy, gives weapon if specified, makes use weapon, sets new health, makes mortal, actor can now be killed
@@ -262,11 +271,32 @@ void npcWalkTo(entity eActor,entity eLocation, string sAnimation)
 		printConsole("npcWalkTo was given a Location Entity that did not exist");
 		return;
 	}
-	if(sAnimation = ""){
+	if(sAnimation == ""){
 		printConsole("npcWalkTo was given no animation name, usual options: walk or run");
 		sAnimation = "walk";
 	}
 	eActor.walkto(eLocation.getTargetname(),sAnimation);
+	waitFor(eActor);
+}
+
+void npcWalkToNode(entity eActor,string sNode, string sAnimation)
+//----------------------------------------------------------------------
+//makes actor go to node using the given animation - waits for actor reaching node
+//----------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		printConsole("npcWalkToNode was given a Actor Entity that did not exist");
+		return;
+	}
+	if(sNode == ""){
+		printConsole("npcWalkToNode was given no Node name");
+		return;
+	}
+	if(sAnimation == ""){
+		printConsole("npcWalkToNode was given no animation name, usual options: walk or run");
+		sAnimation = "walk";
+	}
+	eActor.walkto(sNode,sAnimation);
 	waitFor(eActor);
 }
 
@@ -710,4 +740,177 @@ void transportFromTo(entity ePlayer, entity eDest)
 	
 	ePlayer.immobilize(0);
 	ePlayer.takedamage();
+}
+
+entity returnPlayerFromTrigger(entity eTrigger)
+//----------------------------------------------------
+// returns the player that has last used the trigger/object
+// Main purpose is to keep the code shorter and easier to read
+//----------------------------------------------------
+{
+	entity ePlayer;
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			return ePlayer;
+		}
+	}
+	if(!doesEntityExist(ePlayer)){
+		printConsole("returnPlayerFromTrigger - could not retrive player - RETURNED: NULL");
+	}
+	return ePlayer;
+}
+
+void onUseAction(entity e, string sThread)
+//----------------------------------------------------
+// executes given thread when the player presses use on object
+//----------------------------------------------------
+{
+	if(sThread == ""){
+		printConsole("onUseAction failed - No thread was given");
+		return;
+	}
+	
+	if(doesEntityExist(e)){
+		thread printConsole("onUseAction suceeded for "+e.getTargetName());
+		e.onUse(sThread);
+		pause();
+	}else{
+		printConsole("onUseAction failed - Could not find given entity");
+	}
+}
+
+void onDamageAction(entity e, string sThread)
+//----------------------------------------------------
+// executes given thread when a object is damaged
+//----------------------------------------------------
+{
+	if(sThread == ""){
+		printConsole("onDamageAction failed - No thread was given");
+		return;
+	}
+	
+	if(doesEntityExist(e)){
+		thread printConsole("onDamageAction suceeded for "+e.getTargetName());
+		e.onDamage(sThread);
+		pause();
+	}else{
+		printConsole("onDamageAction failed - Could not find given entity");
+	}
+}
+
+void onTouchAction(entity e, string sThread)
+//----------------------------------------------------
+// executes given thread when a object is touched by another entity
+//----------------------------------------------------
+{
+	if(sThread == ""){
+		printConsole("onTouchAction failed - No thread was given");
+		return;
+	}
+	
+	if(doesEntityExist(e)){
+		thread printConsole("onTouchAction suceeded for "+e.getTargetName());
+		e.onTouch(sThread);
+		pause();
+	}else{
+		printConsole("onTouchAction failed - Could not find given entity");
+	}
+}
+
+void countUp(entity e,string sName)
+//----------------------------------------------------
+// counts upwards on a entity
+//----------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		thread printConsole("countUp failed - given entity was not found");
+		return;
+	}
+	if(sName == ""){
+		thread printConsole("countUp failed - given name was empty");
+		return;
+	}
+	
+	float iValue;
+	iValue = e.getFloatVar(sName);	
+	iValue++;
+	e.setFloatVar(sName,iValue);
+}
+
+void countDown(entity e,string sName)
+//----------------------------------------------------
+// counts downwards on a entity
+//----------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		thread printConsole("countDown failed - given entity was not found");
+		return;
+	}
+	if(sName == ""){
+		thread printConsole("countDown failed - given name was empty");
+		return;
+	}
+	
+	float iValue;
+	iValue = e.getFloatVar(sName);	
+	iValue--;
+	e.setFloatVar(sName,iValue);
+}
+
+float countGet(entity e,string sName)
+//----------------------------------------------------
+// get current count on entity
+//----------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		thread printConsole("countGet failed - given entity was not found");
+		return -1;
+	}
+	if(sName == ""){
+		thread printConsole("countGet failed - given name was empty");
+		return -1;
+	}
+	
+	float iValue;
+	iValue = e.getFloatVar(sName);
+	return iValue;
+}
+
+void countSet(entity e,string sName,float iValue)
+//----------------------------------------------------
+// set count on entity
+//----------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		thread printConsole("countSet failed - given entity was not found");
+		return;
+	}
+	if(sName == ""){
+		thread printConsole("countSet failed - given name was empty");
+		return;
+	}
+	e.setFloatVar(sName,iValue);
+}
+
+void messagePlayer(entity e, string sMessage)
+//----------------------------------------------------
+// show message to player in singleplayer and multiplayer
+//----------------------------------------------------
+{
+	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	
+	if(!doesEntityExist(e)){
+		thread printConsole("messagePlayer failed - given entity was not found");
+		return;
+	}
+	if(sMessage == ""){
+		thread printConsole("messagePlayer failed - given message was empty");
+		return;
+	}
+	if( integer_serverGametype ){
+		e.hudprint(sMessage+"\n");
+	}else{
+		centerPrint(sMessage+"\n");
+	}
 }
