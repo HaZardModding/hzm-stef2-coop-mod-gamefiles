@@ -126,13 +126,9 @@ void globalCoop_mission_failWithReason(string sReason)
 //Do not call this thread Multiple Times!
 	if($world.getFloatVar("globalCoop_mission_failWithReason_isRunning") != 1){
 		$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",1);
-		
-		float fNoLocalString;
-		fNoLocalString = $world.getFloatVar("globalCoop_missionFailedUserString");
-	
+
 //Set empty string for sp and mp
 		if(sReason == "default" || sReason == ""){
-			fNoLocalString = 0;
 			sReason = "DefaultFailure";
 		}
 		
@@ -153,9 +149,9 @@ void globalCoop_mission_failWithReason(string sReason)
 		if(sReason == "CivilianKilled"){
 			thread globalCoop_dialog_playSimple($world,"combat/picard_court.mp3",3,444444);
 		}
-
-//Add Hud; ui_failureReason
-		if(fNoLocalString != 1){
+		
+		//[b60011] chrissstrahl - add smart localstrings detection
+		if(getIntStringFind(sReason," ") == -1 && getIntStringFind(sReason,"$$") == -1){
 			sReason = "$$"+sReason+"$$";
 		}
 			
@@ -163,36 +159,39 @@ void globalCoop_mission_failWithReason(string sReason)
 		globalCoop_main_print("============ Co-Op = Mission Failure =================");
 		globalCoop_main_print(sReason);
 		
-		
 		entity ePlayer;
 		float fPlayerIdInUse;
 		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
 			ePlayer = getentity("player"+fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
-				if(globalCoop_player_getCoopVersion(ePlayer) == 0)
-				{
-					if(fNoLocalString == 0 && coop_string_failureGerman != "")
-					{
-						if( globalCoop_player_getLanguage(ePlayer) == "Deu" )
-						{
+				if(1 || globalCoop_player_getCoopVersion(ePlayer) == 0){
+					ePlayer.hudprint("\n\n^1======^3 $$MISSIONFAILED$$ ^1======\n");
+				}
+			}
+		}
+
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				if(1 || globalCoop_player_getCoopVersion(ePlayer) == 0){
+					if(coop_string_failureGerman != ""){
+						if( globalCoop_player_getLanguage(ePlayer) == "Deu" ){
 							ePlayer.hudprint(coop_string_failureGerman + "\n");
 						}
-						else
-						{
+						else{
 							ePlayer.hudprint(sReason + "\n");
 						}					
 					}
-					else
-					{
+					else{
 						ePlayer.hudprint(sReason + "\n");
 					}
 				}
-				else
-				{
+				else{
 					thread globalCoop_player_transmitter(ePlayer,"set ui_failureReason "+sReason +";ui_addhud coop_failure\n");
 				}
 			}
 		}
+		
 //Do LevelEnd Rutine
 		thread globalCoop_level_endProcedur();
 		globalCoop_main_wait2DotZero();
