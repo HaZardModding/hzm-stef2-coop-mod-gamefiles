@@ -124,102 +124,22 @@ void globalCoop_mission_failWithReason(string sReason)
 //----------------------------------------------------------------------
 {
 //Do not call this thread Multiple Times!
-	if($world.getFloatVar("globalCoop_mission_failWithReason_isRunning") != 1){
-		$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",1);
+	if($world.getFloatVar("globalCoop_mission_failWithReason_isRunning") == 1){ return; }
+	
+	$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",1);
 
-//Set empty string for sp and mp
-		if(sReason == "default" || sReason == ""){
-			sReason = "DefaultFailure";
-		}
+	if(sReason == "default" || sReason == ""){
+		sReason = "DefaultFailure";
+	}
 		
 //Singeplayer - EXIT
-////////////////////////////////////////////////////////////////////////////////	
-////////////////////////////////////////////////////////////////////////////////
-		if(!cvar_bool_multiplayer){
-			globalCoop_main_wait2DotZero();
-			$player.missionfailed( sReason );
-			return;
-		}
-//Multiplayer - CONTINUE
-////////////////////////////////////////////////////////////////////////////////	
-////////////////////////////////////////////////////////////////////////////////
-//have letterbox gone away, or else players will not see HUD text!
-		clearletterbox( .1 );
-//Check for dialog
-		if(sReason == "CivilianKilled"){
-			thread globalCoop_dialog_playSimple($world,"combat/picard_court.mp3",3,444444);
-		}
-		
-		//[b60011] chrissstrahl - add smart localstrings detection
-		if(getIntStringFind(sReason," ") == -1 && getIntStringFind(sReason,"$$") == -1){
-			sReason = "$$"+sReason+"$$";
-		}
-			
-		//post to server console
-		globalCoop_main_print("============ Co-Op = Mission Failure =================");
-		globalCoop_main_print(sReason);
-		
-		entity ePlayer;
-		float fPlayerIdInUse;
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(doesEntityExist(ePlayer)){
-				if(1 || globalCoop_player_getCoopVersion(ePlayer) == 0){
-					ePlayer.hudprint("\n\n^1======^3 $$MISSIONFAILED$$ ^1======\n");
-				}
-			}
-		}
-
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(doesEntityExist(ePlayer)){
-				if(1 || globalCoop_player_getCoopVersion(ePlayer) == 0){
-					if(coop_string_failureGerman != ""){
-						if( globalCoop_player_getLanguage(ePlayer) == "Deu" ){
-							ePlayer.hudprint(coop_string_failureGerman + "\n");
-						}
-						else{
-							ePlayer.hudprint(sReason + "\n");
-						}					
-					}
-					else{
-						ePlayer.hudprint(sReason + "\n");
-					}
-				}
-				else{
-					thread globalCoop_player_transmitter(ePlayer,"set ui_failureReason "+sReason +";ui_addhud coop_failure\n");
-				}
-			}
-		}
-		
-//Do LevelEnd Rutine
-		thread globalCoop_level_endProcedur();
+	if(!cvar_bool_multiplayer){
 		globalCoop_main_wait2DotZero();
-//Remove failure hud
-		globalCoop_huds_RemoveAll("coop_failure");
-//End Game
-		
-		if(cvar_float_dedicated != 0){
-			globalCoop_level_triggerLevelChange();
-		}
-		if(!globalCoop_server_reboot()){
-			wait(10);
-		}
-		
-		if(coop_string_checkpointParameters == ""){
-			stuffCMD("restart\n");
-			return;
-		}
-		
-		//clean mapname, then add new parameter
-		string sMapname;
-		float fFind;
-		sMapname = getCvar("mapname");
-		fFind = getIntStringFind(sMapname,"$");
-		if(fFind>0){
-			sMapname = getStringFromStringWithLengt(sMapname,0,fFind);
-		}
-		stuffCMD("gamemap "+sMapname+"$"+coop_string_checkpointParameters);
+		$player.missionfailed( sReason );
+		return;
 	}
+		
+//Multiplayer - CONTINUE
+	missionfailed( sReason );
 }
 
