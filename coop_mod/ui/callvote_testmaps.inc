@@ -1005,7 +1005,7 @@ Button
 	cvarvisibility coop_ui_vt 23 ==
 	title "Prefab Symbols, Icons, Sprites"
 	name 	"coopHzmTestLvlCallvote41"
-	rect	275 114 328 20
+	rect	275 135 328 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
 	bgcolor 		0.12 0.15 0.25 0.7
@@ -1017,6 +1017,27 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "callvote map prf_symbols;popmenu 1;popmenu 0\n"
+	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
+}
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 23 ==
+	title "Prefab Continuous Use"
+	name 	"coopHzmTestLvlCallvote42"
+	rect	275 156 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "callvote map prf_continuoususe;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
