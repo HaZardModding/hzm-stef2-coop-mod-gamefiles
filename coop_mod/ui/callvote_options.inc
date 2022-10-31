@@ -366,7 +366,16 @@ PulldownMenuContainer
 	selmenushader "MENU" "textures/menu/pulldownarrow_sel"
 
 	addpopup "MENU" "0 - Off"	command "callvote coop_lms 0\n"
-	addpopup "MENU" "1 - On"	command "callvote coop_lms 1\n"
+	addpopup "MENU" "1 - Live"	command "callvote coop_lms 1\n"
+	addpopup "MENU" "2 - Lives"	command "callvote coop_lms 2\n"
+	addpopup "MENU" "3 - Lives"	command "callvote coop_lms 3\n"
+	addpopup "MENU" "4 - Lives"	command "callvote coop_lms 4\n"
+	addpopup "MENU" "5 - Lives"	command "callvote coop_lms 5\n"
+	addpopup "MENU" "6 - Lives"	command "callvote coop_lms 6\n"
+	addpopup "MENU" "7 - Lives"	command "callvote coop_lms 7\n"
+	addpopup "MENU" "8 - Lives"	command "callvote coop_lms 8\n"
+	addpopup "MENU" "9 - Lives"	command "callvote coop_lms 9\n"
+	addpopup "MENU" "10 - Lives"	command "callvote coop_lms 10\n"
 	
 	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#031$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
