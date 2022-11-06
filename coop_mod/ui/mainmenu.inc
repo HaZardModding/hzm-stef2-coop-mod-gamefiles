@@ -3,7 +3,7 @@ Label
 {
 title "EF2"
 name "Default"
-rect 20 455 25 24
+rect 40 455 25 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 1.00 1.00 1.00 0.00
 borderstyle "RAISED"
@@ -14,7 +14,7 @@ resource
 Label
 {
 name "Default"
-rect 40 455 40 24
+rect 60 455 40 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 1.00 1.00 1.00 0.00
 borderstyle "RAISED"
@@ -27,7 +27,7 @@ Label
 {
 title "$$c#005$$"
 name "Default"
-rect 80 455 210 24
+rect 100 455 210 24
 fgcolor 1.00 1.00 1.00 1.00
 bgcolor 0.00 1.00 0.00 0.0
 borderstyle "RAISED"
@@ -38,7 +38,7 @@ resource
 Label
 {
 name "Default"
-rect 284 455 40 24
+rect 304 455 40 24
 fgcolor 0.00 1.00 1.00 1.00
 bgcolor 0.00 1.00 0.00 0
 borderstyle "RAISED"
@@ -205,6 +205,25 @@ Button
 	clicksound sound/misc/menu/click.wav
 }
 ////////////////////////
+resource
+Button
+{
+	title	"Reset Video"
+	name 	"Default"
+	rect 	 0 453 36 28
+	font serpentinelight-8
+	fgcolor			0.937 0.643 0.129 1.000
+	bgcolor			0.125 0.157 0.251 1.000
+	hoverbgcolor	0.278 0.365 0.510 1.000
+	hoverfgcolor	1.000 1.000 1.000 1.000
+	borderstyle "3D_BORDER"
+	hovershader menu/generic/button-hover
+	pressedshader menu/generic/button-press
+	stuffcommand "r_mode 3;r_fullscreen 0;vid_restart\n"
+    verticaljustify top
+	hovercommand "globalwidgetcommand coop_settings_tooltip title \"\""
+	hoverexitcommand "globalwidgetcommand coop_settings_tooltip title \"\""
+}
 
 end.
 
