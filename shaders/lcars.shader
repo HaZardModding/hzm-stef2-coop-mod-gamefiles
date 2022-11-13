@@ -2064,8 +2064,8 @@ textures/lcars/lcars_locker-1a
 	}
 }
 
+// [b60011] chrissstrahl - fix created by mjt to fix warnings on mapload
 textures/lcars/lcars_locker-1e
-//[b60011] chrissstrahl - fix created by mjt to fix warnings on mapload
 {
     qer_editorimage textures/lcars/lcars_locker-1e.tga
     nomipmaps
@@ -2085,11 +2085,6 @@ textures/lcars/lcars_locker-1e
     {
         map textures/lcars/lcars_locker-1e.tga
         blendFunc GL_ONE_MINUS_SRC_ALPHA GL_SRC_ALPHA
-        rgbGen identity
-    }
-    {
-        map $lightmap
-        blendfunc gl_dst_color gl_zero
         rgbGen identity
     }
     {
