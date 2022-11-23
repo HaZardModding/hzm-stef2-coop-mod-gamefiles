@@ -6,7 +6,7 @@ Button
 	rect 228 360 183 60
 	fgcolor 0.00 1.00 1.00 1.00
 	bgcolor 1.00 1.00 1.00 0.50
-	stuffcommand "transitionmenu coop_ts"
+	stuffcommand "g_gametype 1;dedicated 0;map blackbox$getmap=1"
 	font serpentinemedium-10
 	clicksound sound/misc/menu/click.wav
     verticaljustify top
