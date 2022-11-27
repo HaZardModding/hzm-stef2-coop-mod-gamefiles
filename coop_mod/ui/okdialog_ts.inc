@@ -13,4 +13,6 @@ Button
     horizontaljustify center
 	textshadowcolor 0 0 0 1
 	hovertextshadowcolor 0 0 0 1
+	
+	cvarvisibility cg_gametype -1 ==
 }
