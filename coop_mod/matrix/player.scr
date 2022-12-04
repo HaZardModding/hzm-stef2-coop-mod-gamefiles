@@ -506,103 +506,116 @@ void globalCoop_player_transporter()
 */
 
 void globalCoop_player_makeSolidASAP(entity ePlayer)
-//----------------------------------------------------------------------
+//------------------------------------------------FIXED---------[b60011]
 // MAKE PLAYER SOLID WHEN CLEAR - ORRRRR any other entity, as soon as it is clear of any player
 //----------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-	//CHECK IF ENTITY IS ALLREADY HANDLED
+		//CHECK IF ENTITY IS ALLREADY HANDLED
 		if(!ePlayer.getFloatVar("globalCoop_player_makeSolidASAP")){
+			//print("globalCoop_player_makeSolidASAP - handle "+ePlayer.getTargetname()+"\n");
 			ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",1);
-			float	fSolid;
-			float	fRound;
-			float	fRoundMax;
-			float	fInsideAEntity;
-			entity	eCheckInside;
+			
+			string	sClass;
+			float	bInsideEntity;
 			string	sRawTargetName1;
 			string	sRawTargetName2;
-			
-			fRoundMax = (coop_integer_maxPlayers + 23);
-			
-		//HANDLE AS LONG AS: EXISTING AND LIVE
-		//[b607] chrissstrahl - I want this to also be usable on scriptslaves and other dead objects
-			while(globalCoop_check_existingLivingEntity(ePlayer) == 1 || ePlayer.getSubclassName() != "Sentient" && doesEntityExist(ePlayer)){
-				fInsideAEntity=0;
-				for(fRound=0;fRound<=fRoundMax;fRound++)
-				{
-				//not using if else to save statments due to script limitations
-				//update: i think we can risk it now since many things are now handled in dll/so
-					if(fRound <= coop_integer_maxPlayers)
-					{
-						if(cvar_bool_multiplayer){
-							eCheckInside=getEntity("player"+fRound);
-						}
+			entity	eOther;
+			float	iNum;
+			sClass = ePlayer.getSubclassName();
+			while(doesEntityExist(ePlayer)){
+				//print("globalCoop_player_makeSolidASAP - while "+ePlayer.getTargetname()+"\n");
+				
+				//if actor or player and dead, exit
+				if(sClass == "Player" || sClass == "Actor"){
+					if(ePlayer.getHealth() <= 0 || sClass == "Player" && ePlayer.isSpectator() == 1){
+						//print("globalCoop_player_makeSolidASAP - nohealth or spec EXIT "+ePlayer.getTargetname()+"\n");
+						ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
+						return;
 					}
-					else{
-						if(fRound==(coop_integer_maxPlayers + 1)){eCheckInside=$munro;}
-						else if(fRound==(coop_integer_maxPlayers + 2)){eCheckInside=$Munro;}
-						else if(fRound==(coop_integer_maxPlayers + 3)){eCheckInside=$chang;}
-						else if(fRound==(coop_integer_maxPlayers + 4)){eCheckInside=$Chang;}
-						else if(fRound==(coop_integer_maxPlayers + 5)){eCheckInside=$chell;}
-						else if(fRound==(coop_integer_maxPlayers + 6)){eCheckInside=$Chell;}
-						else if(fRound==(coop_integer_maxPlayers + 7)){eCheckInside=$Jurot;}
-						else if(fRound==(coop_integer_maxPlayers + 8)){eCheckInside=$jurot;}
-						else if(fRound==(coop_integer_maxPlayers + 9)){eCheckInside=$telsia;}
-						else if(fRound==(coop_integer_maxPlayers + 10)){eCheckInside=$Telsia;}
-						else if(fRound==(coop_integer_maxPlayers + 11)){eCheckInside=$Korban;}
-						else if(fRound==(coop_integer_maxPlayers + 12)){eCheckInside=$korban;}
-						else if(fRound==(coop_integer_maxPlayers + 13)){eCheckInside=$kourban;}
-						else if(fRound==(coop_integer_maxPlayers + 14)){eCheckInside=$Kourban;}
-						else if(fRound==(coop_integer_maxPlayers + 15)){eCheckInside=$Gonzales;}
-						else if(fRound==(coop_integer_maxPlayers + 16)){eCheckInside=$gonzales;}
-						else if(fRound==(coop_integer_maxPlayers + 17)){eCheckInside=$Krindo;}
-						else if(fRound==(coop_integer_maxPlayers + 18)){eCheckInside=$krindo;}
-						else if(fRound==(coop_integer_maxPlayers + 19)){eCheckInside=$Franklin;}
-						else if(fRound==(coop_integer_maxPlayers + 20)){eCheckInside=$franklin;}
-						else if(fRound==(coop_integer_maxPlayers + 21)){eCheckInside=$Picard;}
-						else if(fRound==(coop_integer_maxPlayers + 22)){eCheckInside=$picard;}
-						else{eCheckInside=$Engineer;}
-					}		
-				//ENTIYT INSIDE A OTHER IMPORTANT ENTITY
-					if(globalCoop_check_existingLivingEntity(eCheckInside))
-					{
-						sRawTargetName1 = ePlayer.getRawTargetName();//must be put in a var to be checked
-						sRawTargetName2 = eCheckInside.getRawTargetName();//must be put in a var to be checked
-				//DO NOT CHECK IF THE ENTITY IT SELF IS INSIDE IT SELF
-						if(sRawTargetName1 != sRawTargetName2)
-						{
-							if(globalCoop_check_isEntityInsideOfEntity(eCheckInside,ePlayer,0))
-							{
-								thread globalCoop_player_makeSolidASAP(eCheckInside);
-								fInsideAEntity=1;
+				}
+				//reset
+				bInsideEntity = 0;
+				
+				//Grab Targetname
+				sRawTargetName1 = ePlayer.getRawTargetName();		//must be put in a var to be checked
+				
+				//check players
+				if(cvar_bool_multiplayer){
+					for(iNum=0;iNum<=coop_integer_maxPlayers;iNum++){
+						eOther = getentity("player"+iNum);
+						if(doesEntityExist(eOther)){
+							sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
+							
+							if(sRawTargetName2 != sRawTargetName1){
+								if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
+									thread globalCoop_player_makeSolidASAP(eOther);
+									bInsideEntity=1;
+									//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" PLAYER inside "+sRawTargetName2+"\n");
+								}
+							}
+						}
+					}				
+				}
+				
+				//check for npc
+				for(iNum=1;iNum<=23;iNum++){
+					if(iNum==1){eOther=$munro;}
+					else if(iNum==2){eOther=$Munro;}
+					else if(iNum==3){eOther=$chang;}
+					else if(iNum==4){eOther=$Chang;}
+					else if(iNum==5){eOther=$chell;}
+					else if(iNum==6){eOther=$Chell;}
+					else if(iNum==7){eOther=$Jurot;}
+					else if(iNum==8){eOther=$jurot;}
+					else if(iNum==9){eOther=$telsia;}
+					else if(iNum==10){eOther=$Telsia;}
+					else if(iNum==11){eOther=$Korban;}
+					else if(iNum==12){eOther=$korban;}
+					else if(iNum==13){eOther=$kourban;}
+					else if(iNum==14){eOther=$Kourban;}
+					else if(iNum==15){eOther=$Gonzales;}
+					else if(iNum==16){eOther=$gonzales;}
+					else if(iNum==17){eOther=$Krindo;}
+					else if(iNum==18){eOther=$krindo;}
+					else if(iNum==19){eOther=$Franklin;}
+					else if(iNum==20){eOther=$franklin;}
+					else if(iNum==21){eOther=$Picard;}
+					else if(iNum==22){eOther=$picard;}
+					else{eOther=$Engineer;}
+					if(doesEntityExist(eOther) == 1 && eOther.getHealth() > 0){
+						sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
+						if(sRawTargetName2 != sRawTargetName1){
+							if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
+								thread globalCoop_player_makeSolidASAP(eOther);
+								bInsideEntity=1;
+								//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" NPC inside "+sRawTargetName2+"\n");
 							}
 						}
 					}
 				}
-		//NO ENTITY IS INSIDE THIS ENTITY
-				if(!fInsideAEntity){
-					if(doesEntityExist(ePlayer)){
-						string sClass;
-						sClass = ePlayer.getSubclassName();
-						if(globalCoop_check_existingLivingEntity(ePlayer) == 1 || sClass != "Sentient" && doesEntityExist(ePlayer)){
-							if(!globalCoop_check_playerSpectator(ePlayer) == 1 || sClass == "Actor" || sClass != "Sentient"){
-								//globalCoop_player_joinDefaultTeam(ePlayer); //18.08.2015 really not needed anymore with the power of the dll
-								ePlayer.solid();
-								ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
-								return;//exit insitantly, no delay or a bug can be created in the next frame!
-							}
+				
+				//inside each other - make primary entity notsolid
+				//not feeling comfortable making other objects that are not a actor or player notsolid/solid
+				if(bInsideEntity){
+					if(sClass == "Player" || sClass == "Actor"){
+						//print("globalCoop_player_makeSolidASAP - notsolid: "+sRawTargetName1+"\n");
+						ePlayer.notsolid();
+					}
+				}else{
+					if(!globalCoop_check_playerSpectator(ePlayer)){
+						if(sClass == "Player" || sClass == "Actor"){
+							//print("globalCoop_player_makeSolidASAP - solid: "+sRawTargetName1+"\n");
+							ePlayer.solid();
 						}
-						else{
-							ePlayer.notsolid();
-						}
+						//print("globalCoop_player_makeSolidASAP - handle stop: "+sRawTargetName1+"\n");
+						ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
+						return;//exit insitantly, no delay or a bug can be created in the next frame!
 					}
 				}
-		//WAIT A MOMENT
-				globalCoop_main_waitAFrame();
-			}
-			if(doesEntityExist(ePlayer))
-			{
-				ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
+				
+				//WAIT A MOMENT
+				globalCoop_main_waitAFrame();				
 			}
 		}
 	}
