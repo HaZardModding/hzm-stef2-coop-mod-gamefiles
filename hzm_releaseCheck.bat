@@ -10,7 +10,7 @@ echo -1--------------------------setup_mainmenu.inc
 echo Check Build version in Main menu include file.
 echo :: cvarvisibility coop_ver 6xx !=
 echo ----------------------------------------------
-start coop_mod\ui\setup_mainmenu.inc
+start coop_mod\ui\mainmenu.inc
 pause
 
 cls
