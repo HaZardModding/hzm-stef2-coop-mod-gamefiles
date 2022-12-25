@@ -202,6 +202,8 @@ state DIGHIDE_HIDE
 	{
 		DIGHIDE_DIGOUT : HAVE_ENEMY HAVE_PATH_TO_ENEMY
 		//SUICIDE : TIME_DONE RANGE ( $SUICIDE_RANGE$ )
+		//[b60012] chrissstrahl - enable this, make sure they don't get a mission stuck by not adding to the killcount
+		SUICIDE : TIME_DONE
 	}
 }
 
@@ -212,6 +214,9 @@ state DIGHIDE_DIGOUT
 		spawneffect fx/fx-explosion-debris-idryllruins-dustpuff.tik origin
 		playSound "sound/environment/rock/rock_divein.wav" 3 0.7 512
 		flags "-notarget"
+		//[b60012] chrissstrahl - make sure this works right in multiplayer
+		show
+		makeSolidAsap
 	}
 
 	Behavior HoldPosition
@@ -227,7 +232,8 @@ state DIGHIDE_SHOW
 	entrycommands
 	{
 		show
-		solid
+		//[b60012] chrissstrahl
+		//solid
 	}
 
 	Time ( 0.3 )
