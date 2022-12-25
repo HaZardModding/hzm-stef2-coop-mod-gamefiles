@@ -250,7 +250,29 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set ui_startmap coop_section31l1\n"
-	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_section31l1.tga;globalwidgetcommand coop_startserverName title \"-\""
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_section31l1.tga;globalwidgetcommand coop_startserverName title \"Nicholas Groom, Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
+}
+//[b60012] chrissstrahl - added new map
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 13 ==
+	title "Coop Great Deku Tree"
+	name 	"communitymap_coop_greatDekuTree"
+	rect	275 345 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+	
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "set ui_startmap coop_greatDekuTree\n"
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_greatDekuTree.tga;globalwidgetcommand coop_startserverName title \"[RRE]Fvillha\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
 end.
