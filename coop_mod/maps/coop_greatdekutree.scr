@@ -1,0 +1,387 @@
+//---------------------------------------------------------------------------
+/**
+ ** EF2 Level Script File
+ ** >>> "great_deku_tree" level <<<
+ **
+ ** $File:	great_deku_tree.scr$
+ ** $Designer:	[RRE]Fvillha Radaik$
+ ** $Date (US):	11-19-2003$
+ ** $Revision:	11-20-2003$
+ **
+ **/
+//---------------------------------------------------------------------------
+/* $Comments:$
+ */
+//---------------------------------------------------------------------------
+
+
+//[b60012] chrissstrahl - make coop mod compatible
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+#include "coop_mod/matrix/main.scr"
+void	coop_endLevel();
+
+//---------------------------------------------------------------------------
+// script entry point
+void	main();
+void	worldSetup();
+float	countMonsters();
+void	allMonstersDead();
+void	coop_itemToAll();
+void	goldstairsRoomEntered();
+void	balconyRoomEntered();
+void	shuttleRoomEntered();
+void	dekuTreeEntered();
+void	shuttleEntered();
+entity	coniferTreeSpawnEffect(vector v,string sEffect,float fScale);
+void	deleteMeDelayed(entity e,float fDelay);
+void	coniferTreeEffectDelayed(entity e,float fDelay);
+void	coniferTreeFound();
+void	coniferTreeFoundRemoveEffectAndHud(entity eEffect,entity ePlayer);
+void	coniferTreeFoundPlayer(entity ePlayer);
+void	coniferTreesPositionStart();
+void	coniferTreeMessage(float iMessage);
+void	setRandomViewmode(entity e);
+void	coniferTreePositionRandomly();
+void	coop_waitForWeaponDrawDelay(entity ePlayer,string sWeapon);
+
+float	treesArePositioned=0;
+float	treesFoundByPlayarzInThIsztLeVElZ=0;
+
+//---------------------------------------------------------------------------
+void main()
+//---------------------------------------------------------------------------
+{
+	soundtrack("music/coop_greatDekuTree.mus");
+	//hzm coop mod chrissstrahl - author
+	coop_string_levelAuthor = "[RRE] Fvillha, Radaik";
+	
+	//hzm coop mod chrissstrahl - declare objectives - english
+	coop_string_objectiveItem1			= "$$coop_greatDekuTree_Obj1$$";
+	coop_string_objectiveTacticalInfo1	= "$$coop_greatDekuTree_Tac1$$";
+	coop_string_story					= "$$coop_greatDekuTree_Story$$";
+	
+	//hzm coop mod chrissstrahl - give weapons to players
+	//coop_string_weapon3 = "models/weapons/worldmodel-CompressionRifle.tik";
+	coop_string_weapon1 = "models/weapons/worldmodel-Phaser-stx.tik";
+	coop_string_weapon2 = "models/weapons/worldmodel-Tricorder-stx.tik";
+
+	thread coniferTreesPositionStart();
+	
+	thread worldSetup();
+	
+	waitForPlayer();
+
+//stuffCmd("removeclass actor");
+
+	$world.addAvailableViewMode("structuralintegrity");
+	$world.addAvailableViewMode("enemydetect");
+	$world.addAvailableViewMode("tracegas");
+	
+	thread allMonstersDead();
+	
+	thread globalCoop_objectives_update("InComplete",1,1);//State,Item,ShowIt
+}
+
+//---------------------------------------------------------------------------
+void worldSetup()
+//---------------------------------------------------------------------------
+{
+	//was notsolid so paths for ai could connect
+	$funcEx01.solid();
+	$funcEx02.solid();
+	
+	$pushMeBaby.allowFall(1);
+}
+
+//---------------------------------------------------------------------------
+float countMonsters()
+//---------------------------------------------------------------------------
+{
+	float iEntNum;
+	float iMonsterz;
+	entity e;
+	for(iEntNum = 0;iEntNum < 1024;iEntNum++){
+		e = getEntity("*"+iEntNum);
+		if(doesEntityExist(e)){
+			if(e.getSubclassName() == "Actor"){
+				iMonsterz++;
+			}
+		}
+	}
+	return iMonsterz;
+}
+
+//---------------------------------------------------------------------------
+void allMonstersDead()
+//---------------------------------------------------------------------------
+//Most reliable way to do this - screw killthread
+{
+	while(countMonsters()){
+		wait(5);
+	}
+	wait(5);
+	 thread coop_endLevel();
+}
+
+//---------------------------------------------------------------------------
+void coop_itemToAll()
+//---------------------------------------------------------------------------
+{
+	entity e;
+	e = getCurrentEntity();
+	if(doesEntityExist(e)){
+		string sWeapon;
+		sWeapon = e.getModelName();
+		if(sWeapon != ""){
+			//also registers the weapon
+			thread globalCoop_player_giveAll(sWeapon,1);
+			e.remove();
+		}
+	}
+}
+
+//---------------------------------------------------------------------------
+void goldstairsRoomEntered()
+//---------------------------------------------------------------------------
+{
+	if(doesEntityExist($quadGoldstairs)){$quadGoldstairs.ai_on();}
+}
+
+//---------------------------------------------------------------------------
+void balconyRoomEntered()
+//---------------------------------------------------------------------------
+{
+	if(doesEntityExist($balconyRoomSoldier0)){$balconyRoomSoldier0.ai_on();}
+	if(doesEntityExist($balconyRoomSoldier1)){$balconyRoomSoldier1.ai_on();}
+}
+
+//---------------------------------------------------------------------------
+void shuttleRoomEntered()
+//---------------------------------------------------------------------------
+{
+	if(doesEntityExist($InfoInfoInfo)){$InfoInfoInfo.ai_on();$InfoInfoInfo.hurt(1);$InfoInfoInfo.angle(90);}
+	if(doesEntityExist($shuttleRoomSoldier1)){$shuttleRoomSoldier1.ai_on();}
+	if(doesEntityExist($shuttleRoomSoldier2)){$shuttleRoomSoldier2.ai_on();}
+	if(doesEntityExist($balconyRoomSoldier1)){$balconyRoomSoldier1.ai_on();}
+}
+
+//---------------------------------------------------------------------------
+void dekuTreeEntered()
+//---------------------------------------------------------------------------
+{
+	if(doesEntityExist($pushMeBaby)){$pushMeBaby.ai_on();}
+	if(doesEntityExist($treeInsideGroundLevelSmallBug0)){$treeInsideGroundLevelSmallBug0.ai_on();}
+	if(doesEntityExist($treeInsideGroundLevelSmallBug1)){$treeInsideGroundLevelSmallBug1.ai_on();}
+	if(doesEntityExist($treeInsideGroundLevelSmallBug2)){$treeInsideGroundLevelSmallBug2.ai_on();}
+	wait(3);
+	if(doesEntityExist($treeInsideGroundLevelBigBug0)){$treeInsideGroundLevelBigBug0.ai_on();}
+}
+
+//---------------------------------------------------------------------------
+void shuttleEntered()
+//---------------------------------------------------------------------------
+{
+	if(doesEntityExist($khoal1)){$khoal1.ai_on();}
+	if(doesEntityExist($khoal2)){$khoal2.ai_on();}
+	if(doesEntityExist($khoal3)){$khoal3.ai_on();}
+}
+
+//---------------------------------------------------------------------------
+void deleteMeDelayed(entity e,float fDelay)
+//---------------------------------------------------------------------------
+{
+	wait(fDelay);
+	if(doesEntityExist(e)){
+		e.remove();
+	}
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeEffectDelayed(entity e,float fDelay)
+//---------------------------------------------------------------------------
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coniferTreesPositionStart()
+//---------------------------------------------------------------------------
+//Position the trees at the start position
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+entity coniferTreeSpawnEffect(vector v, string sEffect,float fScale)
+//---------------------------------------------------------------------------
+{
+	return spawn("Explosion","model",sEffect+"","origin",""+v,"scale",""+fScale);
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeMessage(float iMessage)
+//---------------------------------------------------------------------------
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeUsed()
+//---------------------------------------------------------------------------
+//if a tree gets used it will make the paired tree visible for some ammount of time
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeFoundPlayer(entity ePlayer)
+//---------------------------------------------------------------------------
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeFound()
+//---------------------------------------------------------------------------
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coniferTreeFoundRemoveEffectAndHud(entity eEffect,entity ePlayer)
+//---------------------------------------------------------------------------
+{
+	wait(3);
+	if(doesEntityExist(eEffect)){eEffect.remove();}
+	if(doesEntityExist(ePlayer)){ePlayer.removehud("coop_iceStation100p");}
+}
+
+//---------------------------------------------------------------------------
+void coniferTreePositionRandomly()
+//---------------------------------------------------------------------------
+//Position the trees randomly on the map
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void setRandomViewmode(entity e)
+//---------------------------------------------------------------------------
+{
+/* no no no */
+}
+
+//---------------------------------------------------------------------------
+void coop_lavaTrapsMonsters()
+//---------------------------------------------------------------------------
+//activate em now or they might be dead until player has reached em
+{
+	float fMonsterz=0;
+	entity e;
+	while(doesEntityExist(e) == 1 || fMonsterz == 0){
+		e = getEntity("loveBird"+fMonsterz);
+		if(doesEntityExist(e)){e.ai_on();}
+		fMonsterz++;
+	}
+}
+
+//---------------------------------------------------------------------------
+void doorLocked()
+//---------------------------------------------------------------------------
+{
+	entity e;
+	e = getCurrentEntity();
+	if(doesEntityExist(e)){
+		e.playsound("sound/doors/door_locked.wav",3,1,60);
+	}
+}
+
+//---------------------------------------------------------------------------
+void coop_glide()
+//---------------------------------------------------------------------------
+{
+	entity e,ePlaya;
+	e = getCurrentEntity();
+	if(doesEntityExist(e)){
+		ePlaya = e.getLastActivatingEntity();
+		if(doesEntityExist(ePlaya)){
+			float fRounds;
+			ePlaya.setvelocity('0 0 0');
+			ePlaya.gravity(0.185);
+			while(doesEntityExist(ePlaya) == 1 && fRounds < 1000){
+//ePlaya.hudprint("while\n");
+				if(ePlaya.getHealth() <= 0 || ePlaya.isSpectator() == 1 || fRounds > 10 && ePlaya.isplayeronground()){
+//ePlaya.hudprint("LowGrav exit\n");
+					ePlaya.gravity(1);
+					return;
+				}
+				//avoid death by falldamage
+				if(ePlaya.getHealth() < 10){
+					ePlaya.health(10);
+				}
+				wait(0.05);
+				fRounds++;
+			}
+			
+		}
+		if(doesEntityExist(ePlaya)){
+			ePlaya.gravity(1);
+		}
+	}
+}
+
+//---------------------------------------------------------------------------
+void coop_waitForWeaponDrawDelay(entity ePlayer,string sWeapon)
+//---------------------------------------------------------------------------
+{
+//waits for delay the weapon needs to be drawn after USE command->player,weaponname
+	float fLimit;
+	while(globalCoop_check_existingLivingEntity(ePlayer)){
+		fLimit++;
+		if(fLimit > 43 || ePlayer.getActiveWeaponName() == sWeapon){
+			return;
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+//---------------------------------------------------------------------------
+void coop_doorKilled()
+//---------------------------------------------------------------------------
+{
+	//spawn some effect
+}
+
+//---------------------------------------------------------------------------
+void coop_endLevel()
+//---------------------------------------------------------------------------
+{
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+//credits, and history of map
+	globalCoop_main_globalCommand("nodamage");
+	
+	if(treesFoundByPlayarzInThIsztLeVElZ == 18){
+		float fCountDown = 60;
+		while(fCountDown > 0){
+			if(globalCoop_check_isPowerOfGiven(fCountDown,10) || fCountDown < 10 && globalCoop_check_isPowerOfGiven(fCountDown,2) || fCountDown <= 5 ){
+				globalCoop_main_globalMessage("^^3WARNING: ^5Level ends in:^2 "+fCountDown);
+			}
+			wait(1);
+			fCountDown--;
+		}
+	}
+
+	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_greatDekuTree/cCredits.cfg\n");
+	globalCoop_huds_AddAll("coop_cCredits");
+	
+	wait(15);
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+	}else{
+	//load next map
+		thread globalCoop_mission_completed("coop_gbs1");
+	}
+}
