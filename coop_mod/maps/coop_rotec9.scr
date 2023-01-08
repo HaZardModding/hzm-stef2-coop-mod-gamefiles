@@ -1,0 +1,450 @@
+void main ();
+void setupActor(entity eActor,string sAnim);
+void setupClips();
+void setupActors();
+void setupArrays();
+void playerManageEvoSuit(entity ePlayer);
+void coop_spaceWalk();
+void coop_klingonSeller();
+void coop_attrexianFriend();
+void coop_klingonFriend();
+void coop_klingonPowerCup();
+void coop_klingonDistNode();
+
+float MAX_ARRAY_WINGS = 3;
+float MAX_ARRAYS = 6;
+float MAX_FWD_SPEED = 99999;
+
+#include "coop_mod/matrix/main.scr"
+void	coop_endLevel();
+
+void main ()
+{
+	//$world.physicsvar ( "gravity" , 250 );
+	$world.physicsvar ( "maxspeed" , 250 );
+	$world.physicsvar ( "airaccelerate" , 1.5 );
+	
+	waitForPlayer();
+	
+	setupClips();
+	setupActors();
+	setupArrays();
+	
+	$klingonPowerCup.contents("+shootable");
+	$klingonDistNode.contents("+shootable");
+	thread globalCoop_level_onDamage($klingonPowerCup,"coop_klingonPowerCup");
+	thread globalCoop_level_onDamage($klingonDistNode,"coop_klingonDistNode");
+	
+}
+
+void setupActor(entity eActor,string sAnim)
+{
+	eActor.mass(99999);
+	eActor.pushable(0);
+	if(sAnim != ""){
+		//eActor.ai_off(); //allready done in radiant
+		eActor.anim(sAnim);
+	}
+}
+
+void setupClips()
+{
+//$playerclipRomulanArea.solid();
+	setupActor($romulan0,"");
+	setupActor($romulan1,"");
+	setupActor($romulan2,"");
+	
+//$playerclipKlingonArea.solid();
+	setupActor($klingon1,"");
+	setupActor($klingon0,"");
+	
+	$klingonBorgFF.solid();
+}
+
+void setupActors()
+{
+	/*
+	$borg_1_1_hibernate.anim ( "alcove_idle" );
+	$borg_1_1_hibernate.setactorflag ( "inalcove" , 1 );
+	$borg_1_1_hibernate.settendency( "hibernate" , 1.0 );
+	$borg_1_1_hibernate.settendency( "patrol" , 0.0 );
+	$borg_1_1_hibernate.settendency( "work" , 0.0 );
+	$borg_1_1_hibernate.setnodeid( 3 );
+	$borg_1_1_hibernate.groupdeaththread( "borgGroup1Dead" );
+	
+	$powerCoupling2.contents( "+shootable" );
+	*/
+	
+
+	globalCoop_armory_putAwayWeapon($attrexianFriend);
+	thread globalCoop_level_onUse($attrexianFriend,"coop_attrexianFriend");
+	
+	//in alcove
+	setupActor($klingon2,"");
+	$klingon2.flags( "-notarget" );
+	
+	setupActor($klingonSeller,"bar_sitting_forward");
+	setupActor($klingonBarkeep,"");
+	setupActor($omag,"bar_sitting_left");
+	setupActor($klingonAndorianOmag,"bar_sitting_left");
+	setupActor($klingonRomBar0,"bar_sitting_left");
+	setupActor($klingonRomBar1,"bar_sitting_right");
+	setupActor($klingonDrone0,"assimilate_hold");
+	setupActor($klingonDrone1,"idle_armup.ska");
+	setupActor($klingonDrone2,"idle_armup.ska");
+	setupActor($klingonDrone3,"assimilate_hold");
+	
+	setupActor($klingonDrone6,"alcove_idle");
+	$klingonDrone6.setactorflag ( "inalcove" , 1 );
+	$klingonDrone6.settendency( "hibernate" , 1.0 );
+	
+	//needs to be executed in this order
+	globalCoop_armory_putAwayWeapon($klingonFriend);
+	thread globalCoop_level_onUse($klingonFriend,"coop_klingonFriend");
+	setupActor($klingonFriend,"bar_standing");
+
+	entity eActor;
+	float fNum;
+	for(fNum=0;fNum<6;fNum++){
+		eActor = getEntity("klingonChat"+fNum);
+		setupActor(eActor,"");
+	}
+}
+
+void setupArrays()
+//PUT TOGETHER THE ARRAYS FROM THEIR PARTS
+{
+	float iArray,iWing,iAngle;
+	entity eWing,eWingOrigin,eArrayOrigin;
+	for(iArray=1;iArray<=MAX_ARRAYS;iArray++){
+		for(iWing=0;iWing<MAX_ARRAY_WINGS;iWing++){
+			eWing		= getEntity("sensorArray"+iArray+"Wing"+iWing);
+			eWingOrigin	= getEntity("sensorArray"+iArray+"Wing"+iWing+"Origin");
+			eWing.bind(eWingOrigin);
+			eArrayOrigin= getEntity("sensorArray"+iArray+"Origin"+iWing);
+
+			if(iWing == 2){ iAngle = 180; }
+			else if(iWing == 1){ iAngle = 45; }
+			else{ iAngle = 315; }
+			
+			eWingOrigin.time(0.1);
+			eWingOrigin.moveto(eArrayOrigin);
+			eWingOrigin.rotateYdown(iAngle);
+			
+			//print("sensorArray"+iArray+"Wing"+iWing+" ("+iAngle+")\n");
+			//print("sensorArray"+iArray+"Wing"+iWing+"Origin ("+iAngle+")\n");
+			//print("sensorArray"+iArray+"Origin"+iWing+" ("+iAngle+")\n");
+			//print("----------------------\n");
+		}
+		wait(0.05);
+	}
+}
+
+void puzzleStart()
+{
+	entity ePuzz,ePlayer;
+	ePuzz = getCurrentEntity();
+	ePlayer = ePuzz.getLastActivatingEntity();
+	ePlayer.removehud("cooptimerred");
+	ePlayer.hudprint("remove cooptimerred\n");
+	ePlayer.setFloatVar("haltStats",1);
+}
+
+void puzzleAborted()
+{
+	entity ePuzz,ePlayer;
+	ePuzz = getCurrentEntity();
+	ePlayer = ePuzz.getLastActivatingEntity();
+	ePlayer.addhud("cooptimerred");
+	ePlayer.hudprint("add cooptimerred\n");
+	ePlayer.setFloatVar("haltStats",0);
+}
+
+void puzzleSolved()
+{
+	entity ePuzz,ePlayer;
+	ePuzz = getCurrentEntity();
+	ePlayer = ePuzz.getLastActivatingEntity();
+	ePlayer.addhud("cooptimerred");
+	ePlayer.hudprint("add cooptimerred\n");
+	ePlayer.setFloatVar("haltStats",0);
+}
+
+void puzzleFailed()
+{
+	entity ePuzz,ePlayer;
+	ePuzz = getCurrentEntity();
+	ePlayer = ePuzz.getLastActivatingEntity();
+	ePlayer.addhud("cooptimerred");
+	ePlayer.hudprint("add cooptimerred\n");
+	ePlayer.setFloatVar("haltStats",0);
+}
+
+void playerManageEvoSuit(entity ePlayer)
+//allowes player to sort of manouver in space with trusters up and down
+{
+	entity ePlayer;
+	vector vVelocity,vVelocityNew;
+	float iStatVal = 0;
+	float iLastStatVal = 123;
+	float iCoolDownTimmer = 0;
+	float iUpCost = 1.5;
+	float iForwardCost = 0.5;
+	float fRecharge = -0.5;
+	
+	float fAirSupplyLastHurt;
+	float iAirSupplyConsumptionRate = -0.025;
+	float iAirSupply = 100;
+	float iLastAirSupply = 123;
+	float bAirSupplyStopSound=1;
+	
+	ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+	ePlayer.addhud("cooptimerred");
+	ePlayer.addhud("cooptimerblue");
+	sendClientCommand(ePlayer,"set coop_timerRed Trusters Temp");
+	sendClientCommand(ePlayer,"set coop_timerBlue Air Supply");
+	
+	ePlayer.setFloatVar("endEvo",0);
+	ePlayer.gravity(0.35);
+	
+	while(doesEntityExist(ePlayer)){
+		MAX_FWD_SPEED = $world.getPhysicsVar("maxspeed");
+	
+		//GRAB CURRENT VELOCITY
+		vVelocity = ePlayer.getVelocity();
+		vVelocityNew = vVelocity;
+		
+		//test
+		if(ePlayer.checkReload()){	iAirSupply=100;	}
+		
+		float fHealth;
+		fHealth = ePlayer.getHealth();
+		
+		if(fHealth > 0 && ePlayer.getFloatVar("endEvo") != 1){
+			if(iAirSupply <= 0){
+				if((fAirSupplyLastHurt + 5) < getLevelTime()){
+					fHealth = (fHealth - 10);
+					if(ePlayer.getHealth() > fHealth){ ePlayer.pain(1,ePlayer,2); }
+					if(fHealth <= 0){
+						ePlayer.kill();
+						fHealth = 0;
+					}
+					ePlayer.health(fHealth);
+					
+					fAirSupplyLastHurt=getLevelTime();
+					ePlayer.stoploopsound();
+					bAirSupplyStopSound=1;
+				}
+			}else if(bAirSupplyStopSound){
+				fAirSupplyLastHurt=getLevelTime();
+ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+			}
+		}else{
+			ePlayer.removehud("cooptimerred");
+			ePlayer.removehud("cooptimerblue");
+			ePlayer.stoploopsound();
+			ePlayer.gravity(1);
+			return;
+		}
+		
+		//thrusters
+		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("haltStats") == 0){
+			ePlayer.setstat( "generic",iStatVal);
+		}
+		//air supply
+		if(iAirSupply != iLastAirSupply){
+			ePlayer.setstat( "mp_generic1",iAirSupply);
+		}
+		iLastStatVal = iStatVal;
+		iLastAirSupply = iAirSupply;
+		
+		if(iStatVal < 100 && ePlayer.isplayeronground() == 0){
+			if(ePlayer.checkJump()){
+				if(vVelocity_z < 600){ //cap max upwards velocity for thrusters
+					vVelocityNew_z += 50; 
+					iStatVal = (iStatVal + iUpCost);
+				}
+			}
+			else if(ePlayer.checkCrouch()){
+				if(vVelocity_z > -300){ //cap max downwards velocity for thrusters
+					if(vVelocity_z > 0 ){
+						vVelocityNew_z -= 50;
+						iStatVal = (iStatVal + iUpCost/2);
+					}else{
+						vVelocityNew_z -= 30;
+						iStatVal = (iStatVal + (iUpCost/1));
+					}
+				}
+				/*
+				float fPhy;
+				vector vAngles;
+				fPhy = $world.getPhysicsVar("gravity");
+				vAngles = ePlayer.getViewAngles();
+				ePlayer.hudprint("getPhysicsVar velocity: "+fPhy+" ("+vAngles+")\n");
+				*/
+			}
+			
+			if(ePlayer.checkForward()){
+				iStatVal = (iStatVal + iForwardCost);
+			}else if(ePlayer.checkBackward()){
+				iStatVal = (iStatVal + iForwardCost);
+			}
+			
+			if(ePlayer.checkLeft()){
+				iStatVal = (iStatVal + iForwardCost);
+			}else if(ePlayer.checkRight()){
+				iStatVal = (iStatVal + iForwardCost);
+			}
+		}
+		
+		//make sure we don't go out of bounds
+		if(iStatVal > 100){ iStatVal = 100;	}
+		else if(iStatVal < 0){ iStatVal = 0;}
+		if(iAirSupply < 0){iAirSupply = 0;}
+		else if(iAirSupply > 100){iAirSupply = 100;}
+
+		//no thrusters used - recharge
+		if(iLastStatVal == iStatVal){
+			//have cooldown on recharge, once it is empty
+			if(iStatVal == 100 && iCoolDownTimmer < 20){
+				if(iCoolDownTimmer == 0){
+					ePlayer.hudprint("Thrusters need to Cooldown!\n");
+				}
+				iCoolDownTimmer++;
+			}else{
+				iStatVal = (iStatVal + fRecharge);
+				iCoolDownTimmer = 0;
+			}
+		}		
+iAirSupply = (iAirSupply + iAirSupplyConsumptionRate);
+		
+		//SET NEW VELOCITY
+		if(vVelocityNew != vVelocity){
+			ePlayer.setVelocity(vVelocityNew);
+		}
+		wait(0.05);
+	}
+}
+
+void coop_spaceWalk()
+//detects if a player is comes from space or enters into space
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getSubclassName() == "Player"){
+				ePlayer.hudprint("Spacewalk: "+ePlayer.getVelocity()+"\n");
+				 
+//TEST
+//TEST
+//TEST
+//TEST - INCOMPLETE
+playerManageEvoSuit(ePlayer);
+				//IF Y SPEED positive player is stepping outside - check then distance/origin/other-all players touching or inside trigger
+				//IF Y SPEED negative, player is getting inside
+			}
+		}
+	}
+}
+
+void coop_klingonSeller()
+{
+	centerprint("Klingon Seller: Blah - buy batleth\n");
+}
+
+void coop_attrexianFriend()
+{
+	$attrexianFriend.nouse();
+	centerprint("Attr Friend: lets find that klingon...\n");
+	wait(1);
+	thread globalCoop_level_onUse($attrexianFriend,"coop_attrexianFriend");
+}
+
+void coop_klingonFriend()
+{
+	$klingonFriend.nouse();
+	centerprint("Friend: lets go to the bar...\n");
+	wait(1);
+	thread globalCoop_level_onUse($klingonFriend,"coop_klingonFriend");
+}
+
+void coop_klingonPowerCup()
+{
+	/*
+	//--- set the explosion spawner to spawn an explosion and trigger it
+	$dis_node1_spawn.modelname ( "fx/fx-explosion-distnode.tik" );
+	$dis_node1_spawn.spawntargetname ( "dis_node1_boom" );
+	trigger ( "$dis_node1_spawn" );
+	wait( .1 );
+	$dis_node1_spawn.remove();
+	*/
+	$klingonBorgFF.remove();
+
+	$klingonPowerCup.noDamage();
+	$klingonPowerCup.model("models/enviro/borg-sphere_powercup_powercup_damaged.tik");
+	
+	entity eEffect;
+	eEffect = spawn("Object","model","fx/fx-explosion-plasmacon-red.tik","scale","0.25","origin",""+$klingonPowerCup.getOrigin());
+	wait(2);
+	if(doesEntityExist(eEffect)){
+		eEffect.remove();
+	}
+}
+
+void coop_klingonDistNode()
+{
+	$klingonDistNode.noDamage();
+	$klingonDistNode.model("models/enviro/borg-sphere_distnode_distnode_damaged.tik");
+
+	entity eEffect;
+	eEffect = spawn("Object","model","fx/fx-explosion-distnode.tik","scale","0.25","origin",""+$klingonDistNode.getOrigin());
+	wait(2);
+	if(doesEntityExist(eEffect)){
+		eEffect.remove();
+	}
+	
+	//disable all borg on the klingon station
+	/*entity eActor;
+	float fNum;
+	for(fNum=0;fNum<7;fNum++){
+		eActor = getEntity("klingonDrone"+fNum);
+		if(doesEntityExist(eActor)){
+			//eActor.settendency("disable",1);
+			eActor.ai_on();
+		}
+	}*/
+	
+	//disable all borg on the klingon station
+	trigger("$klingonBorgGroupTrig_aion");
+	wait(0.1);
+	trigger("$klingonBorgGroupTrig_aggressive");
+	wait(0.3);
+	trigger("$klingonBorgGroupTrig_disable");	
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+//credits, and history of map
+	thread globalCoop_player_transmittToAll("exec cfg/maps/coop_rotec/cCredits.cfg\n");
+	globalCoop_huds_AddAll("coop_cCredits");
+	wait(10);
+	
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+		return;
+	}
+	
+//load next map
+	thread globalCoop_mission_completed("coop_aftermath1");
+}
