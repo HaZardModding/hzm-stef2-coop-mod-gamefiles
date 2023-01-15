@@ -1,0 +1,460 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2023.01.14
+// E-Mail:		chrissstrahl@yahoo.de
+//-----------------------------------------------------------------------------------
+// This script handles script based evosuit/spacewalk stuff
+//-----------------------------------------------------------------------------------
+
+void	coop_evosuit();
+void	coop_evosuit_pickup(entity eTrigger,entity ePlayer);
+void	coop_evosuit_playerOn(entity ePlayer);
+void	coop_evosuit_playerOff(entity ePlayer);
+void	coop_evosuit_playerSufficate(entity ePlayer);
+float	coop_evosuit_playerEquiped(entity ePlayer);
+void	coop_evosuit_airlockDecompress();
+void	coop_evosuit_playerDecompress(entity ePlayer);
+void	coop_evosuit_playerSetSpace(entity ePlayer,float fSpace);
+float	coop_evosuit_playerInSpace(entity ePlayer);
+void	coop_evosuit_airlockInside();
+void	coop_evosuit_airlockOutside();
+
+//these are global for this level script using __ as prefix so highligther shows them
+float		__EVOSUIT_FLT_SPACE_GRAVITY				= 0.15;
+float		__EVOSUIT_INT_SUFFICATE_HURT			= 10;
+float		__EVOSUIT_INT_SUFFICATE_WAIT			= 5;
+float		__EVOSUIT_INT_THRUSTER_COOLDOWN_TIME	= 10;
+float		__EVOSUIT_INT_THRUSTER_MOVE_COST		= 0.5;
+float		__EVOSUIT_INT_THRUSTER_MOVE_UP_COST		= 1.5;
+float		__EVOSUIT_INT_THRUSTER_MOVE_DOWN_COST	= 1;
+float		__EVOSUIT_INT_THRUSTER_MOVE_FORCE		= 50;
+vector		__EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH	= '0 0 0'; //x y z - can also be negative for each
+float		__EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION		= 0.025;
+string		__EVOSUIT_STR_HUD_AIRSUPPLY				= "cooptimerblue";
+string		__EVOSUIT_STR_HUD_AIRSUPPLY_STAT		= "mp_generic1";
+string		__EVOSUIT_STR_HUD_THRUSTER				= "cooptimerred";
+string		__EVOSUIT_STR_HUD_THRUSTER_STAT			= "generic";
+string		__EVOSUIT_STR_HUD_ICEING				= "coop_iceing";
+entity		__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER	= $NULL;
+
+
+void coop_evosuit()
+//------------------------------------------------------------------------------
+//Equip or Unequip Evosuit for player using this trigger
+//
+//This is to be called from a trigger on the level
+//------------------------------------------------------------------------------
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			if(coop_evosuit_playerEquiped(ePlayer)){				
+				thread coop_evosuit_playerOff(ePlayer);
+				
+			}else{
+				thread coop_evosuit_playerOn(ePlayer);
+				thread coop_evosuit_pickup(eTrigger,ePlayer);
+			}
+		}
+	}
+}
+
+void coop_evosuit_pickup(entity eTrigger,entity ePlayer)
+//------------------------------------------------------------------------------
+//picks up a evo suit for player - grab all of same targetname
+//------------------------------------------------------------------------------
+{
+	if(eTrigger.getFloatVar("coop_evosuit_taken") == 1){
+		return;
+	}
+	
+	eTrigger.setFloatVar("coop_evosuit_taken",1);
+	
+	entity eSuit;
+	eSuit = eTrigger.getTargetEntity();
+	while(doesEntityExist(eSuit)){
+		eSuit.hide();
+		
+		eSuit = getNextEntity(eSuit);
+	}
+	
+	wait(2);
+	
+	eSuit = eTrigger.getTargetEntity();
+	while(doesEntityExist(eSuit)){
+		eSuit.show();
+		eSuit.displayEffect("TransportIn","FederationWeapons");
+		
+		eSuit = getNextEntity(eSuit);
+	}
+	
+	eTrigger.setFloatVar("coop_evosuit_taken",0);
+}
+
+
+void coop_evosuit_playerOn(entity ePlayer)
+//------------------------------------------------------------------------------
+//put on evosuit
+//------------------------------------------------------------------------------
+{
+	float fHealth;
+	float fAirSupplyLastHurt;
+	float iAirSupply = 100;
+	float iLastAirSupply;
+	float bAirSupplyStopSound=1;
+	vector vVelocity,vVelocityNew; 
+	
+	float iStatVal = -1;
+	float iLastStatVal = 123;
+	float iCoolDownTimmer = 0;
+	float iCoolDownTime;
+	float iUpCost = 1.5;
+	float fRecharge = -0.5;
+	
+	
+	iCoolDownTime = ((1 / coop_float_oneFrameTime) * __EVOSUIT_INT_THRUSTER_COOLDOWN_TIME);
+	
+	//rename this thread so it can be killed from the outside
+	string sKillThread;
+	sKillThread = "coop_evosuitPlayerOnPlayer"+ePlayer.getEntNum();
+	threadname(sKillThread);
+	
+	ePlayer.setFloatVar("coop_evosuit_on",1);
+	
+	ePlayer.addhud("cooptimerblue");
+	
+	sendClientCommand(ePlayer,"set coop_timerBlue $$AirSupply$$");
+	sendClientCommand(ePlayer,"set coop_timerRed $$c#156$$");
+	
+	while(doesEntityExist(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0){
+		//this is here for testing and needs to be removed laterz
+		if(ePlayer.checkReload()){	iAirSupply=100;	}
+		
+		fHealth			= ePlayer.getHealth();
+		vVelocity		= ePlayer.getVelocity();
+		vVelocityNew 	= vVelocity;
+		
+		//player dead, unsuit
+		if(fHealth <= 0){
+			thread coop_evosuit_playerOff(ePlayer);
+			return;
+		}
+		
+		//sufficate
+		if(iAirSupply <= 0){
+			if(bAirSupplyStopSound){
+				bAirSupplyStopSound = 0;
+				ePlayer.stoploopsound();
+				ePlayer.hudprint("You ran out of Air!\n");
+			}
+			
+			if( (fAirSupplyLastHurt + __EVOSUIT_INT_SUFFICATE_WAIT) < getLevelTime()){
+				fAirSupplyLastHurt = getLevelTime();
+				thread coop_evosuit_playerSufficate(ePlayer);
+			}
+		}
+		//use air
+		else{
+			if(iLastAirSupply < iAirSupply){ //on refil or start
+				ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+			}
+		
+			fAirSupplyLastHurt = getLevelTime();
+			iAirSupply = (iAirSupply - __EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION);
+		}
+		
+		//thrusters
+		if(ePlayer.isplayeronground() == 0 && iStatVal < 100 && iCoolDownTimmer == 0){
+			if(coop_evosuit_playerInSpace(ePlayer)){
+				if(ePlayer.checkJump()){
+					if(vVelocity_z < 600){ //cap max upwards velocity for thrusters
+						vVelocityNew_z += __EVOSUIT_INT_THRUSTER_MOVE_FORCE; 
+						if(vVelocity_z < 0){
+							iStatVal = (iStatVal + (__EVOSUIT_INT_THRUSTER_MOVE_UP_COST * 2) ); //it costs more to deaccelerate
+						}else{
+							iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_UP_COST);
+						}
+					}
+				}
+				else if(ePlayer.checkCrouch()){
+					if(vVelocity_z > -300){ //cap max downwards velocity for thrusters
+						if(vVelocity_z > 0 ){
+							vVelocityNew_z -= __EVOSUIT_INT_THRUSTER_MOVE_FORCE;
+							iStatVal = ( iStatVal + (__EVOSUIT_INT_THRUSTER_MOVE_DOWN_COST * 2) ); //it costs more to deaccelerate
+						}else{
+							vVelocityNew_z -= (__EVOSUIT_INT_THRUSTER_MOVE_FORCE / 1.5);
+							iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_DOWN_COST);
+						}
+					}
+				}
+				
+				if(ePlayer.checkForward()){
+					iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_COST);
+				}else if(ePlayer.checkBackward()){
+					iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_COST);
+				}
+				
+				if(ePlayer.checkLeft()){
+					iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_COST);
+				}else if(ePlayer.checkRight()){
+					iStatVal = (iStatVal + __EVOSUIT_INT_THRUSTER_MOVE_COST);
+				}
+			}
+		}
+		
+		//set new velocity
+		if(vVelocityNew != vVelocity){
+			ePlayer.setVelocity(vVelocityNew);
+		}
+		
+		//make sure we don't go out of bounds
+		if(iStatVal > 100){ iStatVal = 100;	}
+		else if(iStatVal < 0){ iStatVal = 0;}
+		if(iAirSupply < 0){iAirSupply = 0;}
+		else if(iAirSupply > 100){iAirSupply = 100;}
+		
+		//thrusters
+		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
+			ePlayer.setstat(__EVOSUIT_STR_HUD_THRUSTER_STAT,iStatVal);
+			//sync last and current
+			iLastStatVal = iStatVal;			
+		}
+		
+		//air supply
+		if(iAirSupply != iLastAirSupply){
+			ePlayer.setstat(__EVOSUIT_STR_HUD_AIRSUPPLY_STAT,iAirSupply);
+		}
+		
+		//set cooldown timer
+		if(iStatVal == 100){
+			ePlayer.hudprint("Thrusters need to Cooldown!\n");
+			iCoolDownTimmer = iCoolDownTime;
+		}		
+
+		//no thrusters used - recharge
+		if(iLastStatVal == iStatVal){
+			iStatVal = (iStatVal + fRecharge);
+			
+			iCoolDownTimmer--;
+			if(iCoolDownTimmer < 0){
+				iCoolDownTimmer=0;
+			}else if(iCoolDownTimmer==1){
+				ePlayer.hudprint("Thrusters operational agaian!\n");
+			}
+		}
+		
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_evosuit_playerOff(entity ePlayer)
+//------------------------------------------------------------------------------
+//remove/takeoff evosuit
+//------------------------------------------------------------------------------
+{
+	if(ePlayer.getFloatVar("coop_evosuit_on")){
+		ePlayer.setFloatVar("coop_evosuit_on",0);
+		
+		string sKillThread;
+		sKillThread = "coop_evosuitPlayerOnPlayer"+ePlayer.getEntNum();
+		killthread(sKillThread);
+		
+		ePlayer.stoploopsound();
+		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);	
+		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);	
+	}
+	//DEBUG
+	else{
+		ePlayer.hudprint("Ain't no evo u have\n");
+	}
+}
+
+void coop_evosuit_playerSufficate(entity ePlayer)
+//------------------------------------------------------------------------------
+//if player has the suit on but no airz, killz thez bitchz
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		float fHealth;
+		fHealth = ePlayer.getHealth();
+		fHealth = (fHealth - __EVOSUIT_INT_SUFFICATE_HURT);
+
+		if((ePlayer.getHealth() - fHealth) > 0){
+			ePlayer.pain(1,ePlayer,2);
+			ePlayer.health(fHealth);
+		}
+		else{
+			ePlayer.kill();
+		}
+	}
+}
+
+float coop_evosuit_playerEquiped(entity ePlayer)
+//------------------------------------------------------------------------------
+//if player has the suit on but no airz, killz thez bitchz
+//------------------------------------------------------------------------------
+{
+	if(ePlayer.getFloatVar("coop_evosuit_on") == 1){
+		return 1;
+	}
+	return 0;
+}
+
+void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
+//------------------------------------------------------------------------------
+//sets if player is in space or not
+//------------------------------------------------------------------------------
+{
+	ePlayer.setFloatVar("coop_evosuit_inSpace",fSpace);
+	if(fSpace == 1){
+		thread coop_evosuit_playerDecompress(ePlayer);
+		ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
+		
+		if(coop_evosuit_playerEquiped(ePlayer)){
+			ePlayer.addhud(__EVOSUIT_STR_HUD_THRUSTER);
+		}
+		
+	}else{
+		ePlayer.gravity(1);
+		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+	}
+}
+
+float coop_evosuit_playerInSpace(entity ePlayer)
+//------------------------------------------------------------------------------
+//gets if player is in space or not
+//------------------------------------------------------------------------------
+{
+	float fSpace;
+	fSpace = ePlayer.getFloatVar("coop_evosuit_inSpace");
+	return fSpace;
+}
+
+void coop_evosuit_playerDecompress(entity ePlayer)
+//------------------------------------------------------------------------------
+//scales player and then kills player
+//------------------------------------------------------------------------------
+{
+	if(coop_evosuit_playerEquiped(ePlayer) == 1 || ePlayer.getFloatVar("coop_evosuit_decompressing") == 1){
+		return;
+	}
+	ePlayer.setFloatVar("coop_evosuit_decompressing",1);
+	
+	ePlayer.immobilize(1);
+	ePlayer.nodamage();
+	
+	float fScale=1;
+	while(doesEntityExist(ePlayer)){
+		fScale = (fScale + 0.01);
+		ePlayer.scale(fScale);
+		
+		if(fScale >= 1.3){
+			ePlayer.hide();
+			wait(0.05);
+			ePlayer.takedamage();
+			ePlayer.kill();
+			ePlayer.scale(1);
+			wait(2);
+			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			ePlayer.show();
+			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
+			return;
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_evosuit_airlockDecompress()
+//------------------------------------------------------------------------------
+//Handles decompressing of airlock
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER)){
+		print("coop_evosuitAirlockDecompress() - Airlock Inside Trigger is missing or not specified!\n");
+		centerprint("coop_evosuitAirlockDecompress() - Airlock Inside Trigger is missing or not specified!\n");
+		return;
+	}
+
+	entity ePlayer;
+	float fPlayerIdInUse;
+	vector vVel;
+	
+	//add icing hud, push players up and away decompress area, 
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			//check all players touching this trigger
+			if(ePlayer.isEntityInsideOfEntity(__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER)){
+				
+				//kill players that are inside without evo 
+				thread coop_evosuit_playerDecompress(ePlayer);
+				
+				vVel = ePlayer.getVelocity();
+				vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
+				ePlayer.setvelocity(vVel);
+				
+				ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+			}
+		}
+	}
+	
+	wait(2);
+	
+	//remove iceing hud from player with suit on
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		ePlayer = getentity("player"+ fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			if(coop_evosuit_playerEquiped(ePlayer) == 1){
+				ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			}
+		}
+	}
+}
+
+void coop_evosuit_airlockInside()
+//------------------------------------------------------------------------------
+// called if a player is inside the airlock trigger area
+//------------------------------------------------------------------------------
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger)){
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				//check all players touching this trigger
+				if(ePlayer.isEntityInsideOfEntity(eTrigger)){
+					coop_evosuit_playerSetSpace(ePlayer,0);
+				}
+			}
+		}	
+	}
+}
+
+void coop_evosuit_airlockOutside()
+//------------------------------------------------------------------------------
+// called if a player is outside the airlock, which means in space
+//------------------------------------------------------------------------------
+{
+	entity eTrigger,ePlayer;
+	eTrigger = getCurrentEntity();
+	
+	if(doesEntityExist(eTrigger)){
+		float fPlayerIdInUse;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				//check all players touching this trigger
+				if(ePlayer.isEntityInsideOfEntity(eTrigger)){
+					coop_evosuit_playerSetSpace(ePlayer,1);
+					
+					//thread coop_airlockCheckPlayer(ePlayer);
+				}
+			}
+		}
+	}
+}
