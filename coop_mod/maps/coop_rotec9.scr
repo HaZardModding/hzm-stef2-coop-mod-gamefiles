@@ -1,40 +1,89 @@
 void main ();
+void setupEvoSuit();
+void setupAirlock();
 void setupActor(entity eActor,string sAnim);
 void setupClips();
 void setupActors();
 void setupArrays();
-void playerManageEvoSuit(entity ePlayer);
-void coop_spaceWalk();
 void coop_klingonSeller();
 void coop_attrexianFriend();
 void coop_klingonFriend();
 void coop_klingonPowerCup();
 void coop_klingonDistNode();
+void coop_airlockInsideUse();
+void coop_airlockOutsideUse();
+void omagSpottet();
 
 float MAX_ARRAY_WINGS = 3;
 float MAX_ARRAYS = 6;
-float MAX_FWD_SPEED = 99999;
+//float MAX_FWD_SPEED = 99999;
+
+//ACTOR_FLAG_USE_GRAVITY
+//STEPMOVE_BLOCKED_BY_DOOR -> _isBlockedByDoor
+//STEPMOVE_BLOCKED_BY_FALL
+//STEPMOVE_STUCK
+//vectorleft( Vector vector ) -> Returns the left vector of the vector. 
 
 #include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/evosuit.scr"
 void	coop_endLevel();
+
 
 void main ()
 {
+	setupEvoSuit();
+	
+	setupAirlock();
+
 	//$world.physicsvar ( "gravity" , 250 );
 	$world.physicsvar ( "maxspeed" , 250 );
 	$world.physicsvar ( "airaccelerate" , 1.5 );
-	
-	waitForPlayer();
+	//MAX_FWD_SPEED = $world.getPhysicsVar("maxspeed");
 	
 	setupClips();
 	setupActors();
 	setupArrays();
+	
+	$klingonAirductAreaportal.closePortal();
 	
 	$klingonPowerCup.contents("+shootable");
 	$klingonDistNode.contents("+shootable");
 	thread globalCoop_level_onDamage($klingonPowerCup,"coop_klingonPowerCup");
 	thread globalCoop_level_onDamage($klingonDistNode,"coop_klingonDistNode");
 	
+	
+//REMOVE EM FOR EVO SUIT TESTING
+	$klingonAirlockActor0.remove();
+	$klingonAirlockActor1.remove();
+	$KlingonAirlockActPlayerClip.remove();
+	$coop_klingonAirlockActTrigger.remove();
+}
+
+void setupEvoSuit()
+{
+	/*SET VALUES FOR EVOSUIT SCRIPT SPECIFIC FOR THIS MAP*/
+	__EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH			= '0 500 150';
+	__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER			= $coop_evosuit_airlockInsideTrigger;
+	
+	__EVOSUIT_INT_SUFFICATE_WAIT					= 8;
+	__EVOSUIT_INT_SUFFICATE_HURT					= 7;
+	__EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION				= 0.01;
+	
+	__EVOSUIT_FLT_SPACE_GRAVITY						= 0.15;
+	
+	__EVOSUIT_INT_THRUSTER_COOLDOWN_TIME			= 10;
+	__EVOSUIT_INT_THRUSTER_MOVE_COST				= 0.5;
+	__EVOSUIT_INT_THRUSTER_MOVE_UP_COST				= 1.5;
+	__EVOSUIT_INT_THRUSTER_MOVE_DOWN_COST			= 1;
+	__EVOSUIT_INT_THRUSTER_MOVE_FORCE				= 50;
+}
+
+void setupAirlock()
+{
+	//open airlock so we can see the actor departing
+	$klingonAirlockDoorInside.open($world);
+	$klingonAirlockSteamTopEffect.hide();
+	$KlingonAirlockActPlayerClip.solid(); //prevents playa from blocking door
 }
 
 void setupActor(entity eActor,string sAnim)
@@ -78,6 +127,8 @@ void setupActors()
 
 	globalCoop_armory_putAwayWeapon($attrexianFriend);
 	thread globalCoop_level_onUse($attrexianFriend,"coop_attrexianFriend");
+	
+	$omag.anim("ent-table-laptop-gesture");
 	
 	//in alcove
 	setupActor($klingon2,"");
@@ -145,9 +196,7 @@ void puzzleStart()
 	entity ePuzz,ePlayer;
 	ePuzz = getCurrentEntity();
 	ePlayer = ePuzz.getLastActivatingEntity();
-	ePlayer.removehud("cooptimerred");
-	ePlayer.hudprint("remove cooptimerred\n");
-	ePlayer.setFloatVar("haltStats",1);
+	coop_evosuit_haltStat(ePlayer,1);
 }
 
 void puzzleAborted()
@@ -155,9 +204,8 @@ void puzzleAborted()
 	entity ePuzz,ePlayer;
 	ePuzz = getCurrentEntity();
 	ePlayer = ePuzz.getLastActivatingEntity();
-	ePlayer.addhud("cooptimerred");
-	ePlayer.hudprint("add cooptimerred\n");
-	ePlayer.setFloatVar("haltStats",0);
+	
+	coop_evosuit_haltStat(ePlayer,0);
 }
 
 void puzzleSolved()
@@ -165,9 +213,7 @@ void puzzleSolved()
 	entity ePuzz,ePlayer;
 	ePuzz = getCurrentEntity();
 	ePlayer = ePuzz.getLastActivatingEntity();
-	ePlayer.addhud("cooptimerred");
-	ePlayer.hudprint("add cooptimerred\n");
-	ePlayer.setFloatVar("haltStats",0);
+	coop_evosuit_haltStat(ePlayer,1);
 }
 
 void puzzleFailed()
@@ -177,45 +223,36 @@ void puzzleFailed()
 	ePlayer = ePuzz.getLastActivatingEntity();
 	ePlayer.addhud("cooptimerred");
 	ePlayer.hudprint("add cooptimerred\n");
-	ePlayer.setFloatVar("haltStats",0);
+	ePlayer.setFloatVar("coop_evosuit_haltStat",0);
 }
 
 void playerManageEvoSuit(entity ePlayer)
 //allowes player to sort of manouver in space with trusters up and down
 {
-	entity ePlayer;
+return;
+//ePlayer.hudprint("playerManageEvoSuit 1\n");
 	vector vVelocity,vVelocityNew;
-	float iStatVal = 0;
+	float iStatVal = -1;
 	float iLastStatVal = 123;
 	float iCoolDownTimmer = 0;
 	float iUpCost = 1.5;
 	float iForwardCost = 0.5;
 	float fRecharge = -0.5;
-	
-	float fAirSupplyLastHurt;
-	float iAirSupplyConsumptionRate = -0.025;
-	float iAirSupply = 100;
-	float iLastAirSupply = 123;
+	float iAirSupply,fAirSupplyLastHurt;
 	float bAirSupplyStopSound=1;
-	
-	ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+	float iLastAirSupply;
+	float iAirSupplyConsumptionRate;
+
 	ePlayer.addhud("cooptimerred");
-	ePlayer.addhud("cooptimerblue");
-	sendClientCommand(ePlayer,"set coop_timerRed Trusters Temp");
-	sendClientCommand(ePlayer,"set coop_timerBlue Air Supply");
+	sendClientCommand(ePlayer,"set coop_timerRed Thrusters Temp");
 	
 	ePlayer.setFloatVar("endEvo",0);
-	ePlayer.gravity(0.35);
+	ePlayer.gravity(0.15);
 	
-	while(doesEntityExist(ePlayer)){
-		MAX_FWD_SPEED = $world.getPhysicsVar("maxspeed");
-	
+	while(doesEntityExist(ePlayer)){	
 		//GRAB CURRENT VELOCITY
 		vVelocity = ePlayer.getVelocity();
 		vVelocityNew = vVelocity;
-		
-		//test
-		if(ePlayer.checkReload()){	iAirSupply=100;	}
 		
 		float fHealth;
 		fHealth = ePlayer.getHealth();
@@ -244,19 +281,9 @@ ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
 			ePlayer.removehud("cooptimerblue");
 			ePlayer.stoploopsound();
 			ePlayer.gravity(1);
+//ePlayer.hudprint("playerManageEvoSuit 2\n");
 			return;
 		}
-		
-		//thrusters
-		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("haltStats") == 0){
-			ePlayer.setstat( "generic",iStatVal);
-		}
-		//air supply
-		if(iAirSupply != iLastAirSupply){
-			ePlayer.setstat( "mp_generic1",iAirSupply);
-		}
-		iLastStatVal = iStatVal;
-		iLastAirSupply = iAirSupply;
 		
 		if(iStatVal < 100 && ePlayer.isplayeronground() == 0){
 			if(ePlayer.checkJump()){
@@ -302,6 +329,17 @@ ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
 		else if(iStatVal < 0){ iStatVal = 0;}
 		if(iAirSupply < 0){iAirSupply = 0;}
 		else if(iAirSupply > 100){iAirSupply = 100;}
+		
+		//thrusters
+		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
+			ePlayer.setstat( "generic",iStatVal);
+		}
+		//air supply
+		if(iAirSupply != iLastAirSupply){
+			ePlayer.setstat( "mp_generic1",iAirSupply);
+		}
+		iLastStatVal = iStatVal;
+		iLastAirSupply = iAirSupply;
 
 		//no thrusters used - recharge
 		if(iLastStatVal == iStatVal){
@@ -324,30 +362,184 @@ iAirSupply = (iAirSupply + iAirSupplyConsumptionRate);
 		}
 		wait(0.05);
 	}
-}
+}	
 
-void coop_spaceWalk()
-//detects if a player is comes from space or enters into space
+/*
+void coop_airlockCheckPlayer(entity ePlayer)
 {
-	entity eTrigger,ePlayer;
-	eTrigger = getCurrentEntity();
-	if(doesEntityExist(eTrigger)){
-		ePlayer = eTrigger.getLastActivatingEntity();
+	if(ePlayer.getFloatVar("coop_airlockCheckPlayer") == 1){
+//ePlayer.hudprint("coop_airlockCheckPlayer 0\n");
+		return;
+	}
+	
+	ePlayer.setFloatVar("coop_airlockCheckPlayer",1);
+	float fExit=0;
+	vector vPlayerOrigin;
+	
+	while(fExit == 0)
+	{
+		wait(0.05); //wait at the beginning to avoid blocking this to be started again
+		
+		fExit=1;
+		
 		if(doesEntityExist(ePlayer)){
-			if(ePlayer.getSubclassName() == "Player"){
-				ePlayer.hudprint("Spacewalk: "+ePlayer.getVelocity()+"\n");
-				 
-//TEST
-//TEST
-//TEST
-//TEST - INCOMPLETE
-playerManageEvoSuit(ePlayer);
-				//IF Y SPEED positive player is stepping outside - check then distance/origin/other-all players touching or inside trigger
-				//IF Y SPEED negative, player is getting inside
+//ePlayer.hudprint("coop_airlockCheckPlayer 1\n");
+			if(ePlayer.getHealth() > 0){
+//ePlayer.hudprint("coop_airlockCheckPlayer 2\n");
+				if(!globalCoop_check_playerSpectator(ePlayer)){
+					vPlayerOrigin = ePlayer.getOrigin();
+					//check if player is outside airlock height or below
+					if(vectorGetZ(vPlayerOrigin) < 16 || vectorGetZ(vPlayerOrigin) > 224 || vectorGetY(vPlayerOrigin) > 2800){
+
+//ePlayer.setFloatVar("endEvo",1);
+//ePlayer.hudprint("coop_airlockCheckPlayer 3\n");
+
+						coop_evosuit_playerSetSpace(ePlayer,1);
+						
+						
+						//ePlayer.gravity(0.25);
+						//playerManageEvoSuit(ePlayer);
+						//ePlayer.setFloatVar("coop_airlockCheckPlayer",0);
+						
+						
+//ePlayer.hudprint("coop_airlockCheckPlayer 4\n");
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("coop_airlockCheckPlayer",0);
+	}
+}
+*/
+
+void coop_klingonAirlockBoxes()
+{
+	if(doesEntityExist($klingonAirlockBoxes)){
+		if($klingonAirlockBoxes.getFloatVar("flownAway") == 0){
+			$klingonAirlockBoxes.setFloatVar("flownAway",1);
+			
+			$klingonAirlockBoxes.time(1);
+			$klingonAirlockBoxes.moveEast(-80);
+			$klingonAirlockBoxes.moveNorth(30);
+			$klingonAirlockBoxes.moveUp(20);
+			$klingonAirlockBoxes.rotateX(randomint(5));
+			$klingonAirlockBoxes.rotateY(randomint(5));
+			$klingonAirlockBoxes.rotateZ(randomint(5));
+			wait(0.95);
+			$klingonAirlockBoxes.time(1.5);
+			$klingonAirlockBoxes.moveNorth(151);
+			wait(1.45);
+			vector vVel;
+			vVel = $klingonAirlockBoxes.getVelocity();
+			
+			waitFor($klingonAirlockBoxes);
+			$klingonAirlockBoxes.setVelocity(vVel);
+			wait(120);
+			if(doesEntityExist($klingonAirlockBoxes)){
+				$klingonAirlockBoxes.remove();
 			}
 		}
 	}
 }
+
+void coop_airlockOutsideUse()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		eTrigger.notTriggerable();
+		
+		$klingonAirlockDoorInside.close();
+		
+		
+		$klingonPressureLightsWhite.hide();
+		$klingonPressureLightsRed.show();
+		$world.light_intensity("klingonPressureLightsWhite",0);
+		$world.light_intensity("klingonPressureLightsRed",1);
+		
+		//open=1,opening=2,closing=3,closed=4
+		while($klingonAirlockDoorInside.getDoorState() != 4){
+			wait(0.05);
+		}
+		$klingonAirlockDoorInside.lock();
+		
+		float fBlinkiBlink;
+		float fOn;
+		for(fBlinkiBlink=0;fBlinkiBlink<9;fBlinkiBlink++){
+			if(globalCoop_check_isPowerOfGiven(fBlinkiBlink,2)){
+				fOn = 1;
+			}
+			else{
+				fOn=0;
+			}
+			wait(0.25);
+			$world.light_intensity("klingonPressureLightsRed",fOn);
+		}
+		
+		$klingonAirlockDoorOutside.unlock();
+		$klingonAirlockDoorOutside.open($world);
+		$klingonAirlockDoorOutside.playsound( "sound/environment/wind/wind_vacuum.wav", 6, .6, 256 );
+		entity eDecompressionEffect;
+		eDecompressionEffect = spawn("fx/fx-explosion-ice-gas-large.tik","origin","833 2683 120","angle","90");
+		
+		thread coop_klingonAirlockBoxes();
+		
+//-------------------------------------
+//EVOSUIT DECOMPRESS EFFECTS
+//-------------------------------------
+thread coop_evosuit_airlockDecompress();
+//-------------------------------------
+		
+		wait(1);
+		
+		$KlingonAirlockInsideUse.triggerable();
+		
+		wait(2);
+		if(doesEntityExist(eDecompressionEffect)){ eDecompressionEffect.remove(); }
+	}
+}
+
+void coop_airlockInsideUse()
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		eTrigger.notTriggerable();
+		
+		$klingonAirlockDoorOutside.close();
+		
+		//open=1,opening=2,closing=3,closed=4
+		while($klingonAirlockDoorOutside.getDoorState() != 4){
+			wait(0.05);
+		}
+		$klingonAirlockDoorOutside.lock();
+		wait(0.5);
+		
+		//$klingonAirlockSteamTopEffect.scale(1.7);
+		$klingonAirlockSteamTopEffect.show();
+		
+		wait(2);
+		
+		$klingonAirlockSteamTopEffect.hide();
+		
+		$klingonPressureLightsRed.hide();
+		$klingonPressureLightsWhite.show();
+		$world.light_intensity("klingonPressureLightsRed",0);
+		$world.light_intensity("klingonPressureLightsWhite",1);
+		
+		wait(0.5);
+		
+		$klingonAirlockDoorInside.unlock();
+		$klingonAirlockDoorInside.open($world);
+		wait(1);
+		$KlingonAirlockOutsideUse.triggerable();
+	}
+}
+
 
 void coop_klingonSeller()
 {
@@ -370,6 +562,18 @@ void coop_klingonFriend()
 	thread globalCoop_level_onUse($klingonFriend,"coop_klingonFriend");
 }
 
+void coop_klingonAirlockAct()
+{
+	$klingonAirlockActor0.animateonce("cin-m3_pointing");
+	$klingonAirlockActor1.anim("walk_fast_armup");
+	wait(1.25);
+	$klingonAirlockDoorInside.close();
+	wait(3);
+	$KlingonAirlockActPlayerClip.remove(); //clip that prevents playa from blocking doorz
+	$klingonAirlockActor0.remove();
+	$klingonAirlockActor1.remove();
+}
+
 void coop_klingonPowerCup()
 {
 	/*
@@ -380,6 +584,11 @@ void coop_klingonPowerCup()
 	wait( .1 );
 	$dis_node1_spawn.remove();
 	*/
+	
+	trigger("$klingonBorgGroupTrig_aion");
+	wait(0.1);
+	trigger("$klingonBorgGroupTrig_aggressive");
+	
 	$klingonBorgFF.remove();
 
 	$klingonPowerCup.noDamage();
@@ -417,11 +626,38 @@ void coop_klingonDistNode()
 	}*/
 	
 	//disable all borg on the klingon station
-	trigger("$klingonBorgGroupTrig_aion");
-	wait(0.1);
-	trigger("$klingonBorgGroupTrig_aggressive");
 	wait(0.3);
 	trigger("$klingonBorgGroupTrig_disable");	
+}
+
+void omagSpottet()
+{
+	/*
+	$omag.anim("idle");
+	entity ePlayer;
+	ePlayer = globalCoop_return_playerClosestActive($omag);
+	$omag.turntowardsentity(ePlayer);
+	wait(0.25);
+	$omag.displayEffect("TransportOut","Idryll");
+	$omag.notsolid();
+	wait(2.5);
+	$omag.remove();
+	wait(7);
+	
+	*/
+	
+	$klingonFerengieShipMonsterclip.remove();
+	$klingonFerengieShip.bind($klingonFerengieShipOrigin);
+	$klingonFerengieShipClip.bind($klingonFerengieShipOrigin);
+	
+	$klingonFerengieShipOrigin.moveEast(-500);
+	//$klingonFerengieShipOrigin.moveNorth(30);
+	$klingonFerengieShipOrigin.time(10);
+	
+	wait(9.9);
+	$klingonFerengieShipOrigin.rotateXDown(90);
+	$klingonFerengieShipOrigin.moveEast(-200);
+	$klingonFerengieShipOrigin.time(5);
 }
 
 void coop_endLevel()
