@@ -1,11 +1,16 @@
-//Chrissstrahl 2021.12.06 GERMANY ULM - updated 2022.06.06
-//THIS IS USED TO STANDARIZE AND PROVIDE FEATURES ACCROSS SEVERAL MAPS
-
-//THIS FILE IS MEANT TO BE INCLUDED IN YOUR LEVEL SCRIPT
-
-//Virtually everything is ripped from the HZM Coop Mod
-
-//FUNCTIONS ENDING WITH _internal ARE NOT MEANT TO BE USED BY THE MAPPER
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2021.12.06
+// E-Mail:		chrissstrahl@yahoo.de
+//-----------------------------------------------------------------------------------
+//	THIS IS USED TO STANDARIZE AND PROVIDE FEATURES ACCROSS SEVERAL MAPS
+//	THIS FILE IS MEANT TO BE INCLUDED IN YOUR LEVEL SCRIPT
+//	Virtually everything is ripped from the HZM Coop Mod
+//	
+//	FUNCTIONS ENDING WITH _internal ARE NOT MEANT TO BE USED BY THE MAPPER
+//-----------------------------------------------------------------------------------
+// UPDATE[2] 2023.01.28 - Made sure is setupVariables_internal is always executed
+// UPDATE[3] 2023.01.28 - Added Func replaceWith
 
 //LEVEL VARS
 /////////////////////////////////////////////
@@ -62,6 +67,7 @@ void countDown(entity e,string sName);
 float countGet(entity e,string sName);
 void countSet(entity e,string sName,float iValue);
 void messagePlayer(entity e, string sMessage);
+void replaceWith(entity e,string sClass);
 
 void scritingToolsMain()
 //----------------------------------------------------------------------
@@ -76,6 +82,10 @@ void setupVariables_internal()
 //sets up variouse variables and collects data we need for scripts
 //----------------------------------------------------------------------
 {
+	if(float_oneFrameTime > 0){
+		return;
+	}
+
 	//these vars don't change until maprestart, so we don't bother updating em
 	integer_serverGametype		= getCvarInt("g_gametype");			//0=sp,1=mp,2=solomatch
 	integer_serverMpGametype	= getCvarInt("mp_gametype");	//0=dm,1=tdm,2=ctf,3=bomb
@@ -105,7 +115,8 @@ void waitFrameTime()
 //the levelobjects before using a new spawned object or doing another check
 //----------------------------------------------------------------------
 {
-	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	setupVariables_internal(); //update[2]
+	
 	wait(float_oneFrameTime);
 }
 
@@ -114,7 +125,8 @@ void printConsole(string sMessage)
 //prints a message to the console - yes even a simple thing like this can have issues
 //----------------------------------------------------------------------
 {
-	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	setupVariables_internal(); //update[2]
+	
 	sMessage = sMessage+"\n";
 	if(bool_serverIsLinux || bool_serverIsDedicated){
 		print(sMessage);
@@ -167,6 +179,8 @@ void waitForWarmupTime()
 //does not update if mp_warmUpTime changes
 //----------------------------------------------------------------------
 {
+	setupVariables_internal(); //update[2]
+	
 	if(integer_serverGametype){//Multiplayer
 		float fWaitTime;
 		fWaitTime = getCvarInt("mp_warmUpTime");
@@ -186,6 +200,8 @@ void callReliably(string sTreadName)
 		return;
 	}
 	
+	setupVariables_internal(); //update[2]
+	
 	entity eTrigger;
 	eTrigger = spawn("trigger_relay","thread",sTreadName);
 	waitFrameTime();
@@ -204,7 +220,7 @@ void npcSetup(entity eActor)
 	if(!doesEntityExist(eActor)){
 		printConsole("npcSetup was given a Entity that did not exist");
 		return;
-	}	
+	}
 	eActor.pushable(0);		//player can not push this char
 	eActor.mass(999999);	//can't be pushed by weapon explosion
 	eActor.immortal(1);		//can't be killed
@@ -370,6 +386,8 @@ void entityBeam(entity eActor,string sEffectType,string sEffectname)
 		return;
 	}
 	
+	setupVariables_internal(); //update[2]
+	
 	//CHECK IF PLAYER IS TO CLOSE
 	float fPlayerToClose=1;
 	while(fPlayerToClose){
@@ -401,7 +419,8 @@ entity playerReturnClosest(entity eOrigin)
 //----------------------------------------------------------------------
 // return closest player, prefer active players
 //----------------------------------------------------------------------
-	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	setupVariables_internal(); //update[2]
+	
 	if(integer_serverGametype == 0){
 		return $player;
 	}
@@ -422,7 +441,8 @@ entity playerReturnClosest_internal(
 // returns a player entity matching the given rules closest to the entity given
 //----------------------------------------------------------------------
 {
-	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	setupVariables_internal(); //update[2]
+	
 //Return player in Singleplayer
 	if(integer_serverGametype == 0){
 		return $player;
@@ -580,6 +600,7 @@ float entityIsInsideOfEntity(entity e1,entity e2,float fPadding)
 	vBBoxMaxs2 = e2.getMaxs();
 	
 //Not sure why this player correction is here, probably to prevent changed values when crouched or dead
+//it is save to leave it in
 	if(e1.getRawtargetname() == "player"){
 		vBBoxMins1 = '-22 -22 0';
 		vBBoxMaxs1 = '22 22 96';
@@ -898,7 +919,7 @@ void messagePlayer(entity e, string sMessage)
 // show message to player in singleplayer and multiplayer
 //----------------------------------------------------
 {
-	if(float_oneFrameTime == 0){ scritingToolsMain(); }
+	setupVariables_internal(); //update[2]
 	
 	if(!doesEntityExist(e)){
 		thread printConsole("messagePlayer failed - given entity was not found");
@@ -913,4 +934,45 @@ void messagePlayer(entity e, string sMessage)
 	}else{
 		centerPrint(sMessage+"\n");
 	}
+}
+
+void replaceWith(entity e,string sClass) //update[3]
+//----------------------------------------------------------------------
+// Replace the given entity with a entity of a nother class (spawn)
+//----------------------------------------------------------------------
+{
+//Exit if entiy is missing, or we are in singleplayer
+	if(!doesEntityExist(e)){return;}
+
+	string sModel;
+	string sTargetname;
+	string sTarget;
+	float fHealth;
+	float fAngle;
+	vector vOrigin;
+	vector vMins;
+	vector vMaxs;
+	vector vAngles;
+
+//Grap Data From Orginal
+	sModel			= e.getmodelname();
+	sTargetname		= e.getRawTargetname();
+	sTarget			= e.getTarget(); //gettargetentity()
+	vMins			= e.getMins();
+	vMaxs			= e.getMaxs();
+	vAngles			= e.getAngles();
+	vOrigin			= e.getOrigin();
+	
+
+//Remove Orginal
+	if(doesEntityExist(e)){ e.remove(); }
+//spawn the crap
+	e = spawn(sClass,"targetname",sTargetname,"origin",vectorToString(vOrigin));
+	wait(.15);
+//Applay attributes
+	if(fHealth != 0)		{e.health( fHealth );}
+	if(fAngle != 0)			{e.angle( fAngle );}
+	if(sModel != "")		{e.model( sModel );}
+	if( vAngles != '0 0 0')	{e.angles( vAngles );}
+	e.setSize( vMins , vMaxs );	
 }
