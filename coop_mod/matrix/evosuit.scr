@@ -39,7 +39,7 @@ string		__EVOSUIT_STR_HUD_THRUSTER				= "cooptimerred";
 string		__EVOSUIT_STR_HUD_THRUSTER_CVAR			= "coop_timerRed";
 string		__EVOSUIT_STR_HUD_THRUSTER_STAT			= "generic";
 string		__EVOSUIT_STR_HUD_ICEING				= "coop_iceing";
-entity		__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER	= $NULL;
+string		__EVOSUIT_STRING_AIRLOCK_INSIDE_TRIGGER	= "";
 string		__EVOSUIT_STR_HUD_THRUSTER_STRING		= "$$c#156$$";
 string		__EVOSUIT_STR_HUD_AIRSUPPLY_STRING		= "$$AirSupply$$";
 
@@ -287,8 +287,7 @@ void coop_evosuit_playerSufficate(entity ePlayer)
 {
 	if(doesEntityExist(ePlayer)){
 		float fHealth;
-		fHealth = ePlayer.getHealth();
-		fHealth = (fHealth - __EVOSUIT_INT_SUFFICATE_HURT);
+		fHealth = (ePlayer.getHealth() - __EVOSUIT_INT_SUFFICATE_HURT);
 
 		if((ePlayer.getHealth() - fHealth) > 0){
 			ePlayer.pain(1,ePlayer,2);
@@ -296,6 +295,7 @@ void coop_evosuit_playerSufficate(entity ePlayer)
 		}
 		else{
 			ePlayer.kill();
+			coop_evosuit_playerOff(ePlayer);
 		}
 	}
 }
@@ -351,27 +351,29 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 	}
 	ePlayer.setFloatVar("coop_evosuit_decompressing",1);
 	
-	ePlayer.immobilize(1);
-	ePlayer.nodamage();
+	ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+	ePlayer.setCustomShader("coop_iceing");
+	ePlayer.gravity(0);
+	ePlayer.setmovetype("bounce");
 	
-	float fScale=1;
-	while(doesEntityExist(ePlayer)){
-		fScale = (fScale + 0.01);
-		ePlayer.scale(fScale);
-		
-		if(fScale >= 1.3){
-			ePlayer.hide();
-			wait(0.05);
-			ePlayer.takedamage();
+	//ePlayer.immobilize(1);
+	
+	//make sure player respawns at spawn spot info_player_deathmatch
+	ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+
+	if(doesEntityExist(ePlayer)){
+		wait(2);
+		while(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
 			ePlayer.kill();
-			ePlayer.scale(1);
-			wait(2);
-			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
-			ePlayer.show();
-			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
-			return;
+			globalCoop_main_waitAFrame();
 		}
-		globalCoop_main_waitAFrame();
+		
+		if(doesEntityExist(ePlayer)){
+			ePlayer.setmovetype("walk");
+			ePlayer.gravity(1);
+			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
+		}
 	}
 }
 
@@ -380,7 +382,7 @@ void coop_evosuit_airlockDecompress()
 //Handles decompressing of airlock
 //------------------------------------------------------------------------------
 {
-	if(!doesEntityExist(__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER)){
+	if(!doesEntityExist(getEntity(__EVOSUIT_STRING_AIRLOCK_INSIDE_TRIGGER))){
 		print("coop_evosuitAirlockDecompress() - Airlock Inside Trigger is missing or not specified!\n");
 		centerprint("coop_evosuitAirlockDecompress() - Airlock Inside Trigger is missing or not specified!\n");
 		return;
@@ -390,30 +392,44 @@ void coop_evosuit_airlockDecompress()
 	float fPlayerIdInUse;
 	vector vVel;
 	
-	//add icing hud, push players up and away decompress area, 
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		ePlayer = getentity("player"+ fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			//check all players touching this trigger
-			if(ePlayer.isEntityInsideOfEntity(__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER)){
-				
-				//kill players that are inside without evo 
-				thread coop_evosuit_playerDecompress(ePlayer);
-				
-				vVel = ePlayer.getVelocity();
-				vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
-				ePlayer.setvelocity(vVel);
-				
-				ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+	//add icing hud, push players up and away decompress area
+	//manage actors that wandered into airlock
+	entity eAirLockInsideTrigger;
+	eAirLockInsideTrigger = getEntity(__EVOSUIT_STRING_AIRLOCK_INSIDE_TRIGGER);
+	while(doesEntityExist(eAirLockInsideTrigger)){
+	
+		//take care of actors and players inside
+		for(fPlayerIdInUse=coop_integer_maxPlayers;fPlayerIdInUse<getCvarInt("maxentities");fPlayerIdInUse++){
+			ePlayer = getentity("*"+ fPlayerIdInUse);
+			if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
+				//check all players touching this trigger
+				if(ePlayer.isEntityInsideOfEntity(eAirLockInsideTrigger) ){
+					if(ePlayer.getSubclassName() == "Player"){
+						//kill players that are inside without evo 
+						thread coop_evosuit_playerDecompress(ePlayer);
+						
+						vVel = ePlayer.getVelocity();
+						vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
+						ePlayer.setvelocity(vVel);
+						
+						ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+					}else if(ePlayer.getSubclassName() == "Actor"){
+						//ePlayer.immobilize(1);
+						ePlayer.gravity(0);
+						ePlayer.suicide();
+						ePlayer.setCustomShader("coop_iceing");			
+					}
+				}
 			}
 		}
+		eAirLockInsideTrigger = getNextEntity(eAirLockInsideTrigger);
 	}
 	
 	wait(2);
 	
 	//remove iceing hud from player with suit on
 	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		ePlayer = getentity("player"+ fPlayerIdInUse);
+		ePlayer = getentity("*"+ fPlayerIdInUse);
 		if(doesEntityExist(ePlayer)){
 			if(coop_evosuit_playerEquiped(ePlayer) == 1){
 				ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
@@ -449,8 +465,16 @@ void coop_evosuit_airlockOutside()
 // called if a player is outside the airlock, which means in space
 //------------------------------------------------------------------------------
 {
-	entity eTrigger,ePlayer;
+	entity eTrigger,ePlayer,eActivator;
 	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		eActivator = eTrigger.getLastActivatingEntity();
+		if(eActivator.getSubclassName() == "Actor"){
+			eActivator.immobilize(1);
+			eActivator.suicide();
+			eActivator.setCustomShader("coop_iceing");
+		}
+	}
 	
 	if(doesEntityExist(eTrigger)){
 		float fPlayerIdInUse;
