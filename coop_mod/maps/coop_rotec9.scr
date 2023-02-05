@@ -24,10 +24,53 @@ float MAX_ARRAYS = 6;
 //STEPMOVE_STUCK
 //vectorleft( Vector vector ) -> Returns the left vector of the vector. 
 
+//#include "maps/scrtools/scriptingtools.scr"
+//#include "maps/scrtools/noscript.scr"
+
 #include "coop_mod/matrix/main.scr"
 #include "coop_mod/matrix/evosuit.scr"
 void	coop_endLevel();
 
+
+void ffTouched()
+{
+	entity e;
+	e = getCurrentEntity();
+	if(doesEntityExist(e)){
+		e.noTouch(); //make stop calling this thread
+
+		float fTurnNonSol;
+		float fRunningWithScissors=1;
+		while(fRunningWithScissors){
+			fRunningWithScissors = 0;
+			if(doesEntityExist(e)){
+				entity ePlayer;
+				float fPlayerIdInUse;
+				for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+					ePlayer = getentity("*"+ fPlayerIdInUse);
+					if(doesEntityExist(ePlayer)){
+						//check all players touching this trigger
+						if(globalCoop_check_isEntityInsideOfEntity(ePlayer,e,1)){
+							fRunningWithScissors=1;
+							if(coop_evosuit_playerEquiped(ePlayer) == 1 && ePlayer.getHealth() > 0 && ePlayer.isSpectator() != 1){
+								e.notSolid();
+								print("NOT SOLID\n");
+							}
+						}
+					}
+				}
+			}
+			else{
+				print("ENTITY MISSING\n");
+				return;
+			}
+			globalCoop_main_waitAFrame();
+		}
+		thread globalCoop_level_onTouch(e,"ffTouched");
+		e.solid();
+		print("MADE SOLID\n");
+	}
+}
 
 void main ()
 {
@@ -57,13 +100,39 @@ void main ()
 	$klingonAirlockActor1.remove();
 	$KlingonAirlockActPlayerClip.remove();
 	$coop_klingonAirlockActTrigger.remove();
+	
+	
+	entity e;
+	string sForceFieldName;
+	float iForceFieldCurNum = 13;
+	
+	sForceFieldName = "forcefield0Collision";
+	print("ForceField: Running setup for "+sForceFieldName+"\n");
+	e = getEntity(sForceFieldName +""+ iForceFieldCurNum);
+	while(doesEntityExist(e)){
+		e.solid(); //makesolid - was notsolid to allow ai passing trough
+		thread globalCoop_level_onTouch(e,"ffTouched");
+		iForceFieldCurNum++;
+		e = getEntity(sForceFieldName +""+ iForceFieldCurNum);
+		
+		e.hide();
+	}
+	print("ForceField: SETUP - $"+sForceFieldName+""+iForceFieldCurNum+" not found, assuming setup is complete.\n");
+	
+	while(1)
+	{
+		$shuttleFederation2.shadow();
+		wait(1);
+		$shuttleFederation2.noshadow();
+		wait(1);
+	}
 }
 
 void setupEvoSuit()
 {
 	/*SET VALUES FOR EVOSUIT SCRIPT SPECIFIC FOR THIS MAP*/
 	__EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH			= '0 500 150';
-	__EVOSUIT_ENT_AIRLOCK_INSIDE_TRIGGER			= $coop_evosuit_airlockInsideTrigger;
+	__EVOSUIT_STRING_AIRLOCK_INSIDE_TRIGGER			= "coop_evosuit_airlockInsideTrigger";
 	
 	__EVOSUIT_INT_SUFFICATE_WAIT					= 8;
 	__EVOSUIT_INT_SUFFICATE_HURT					= 7;
@@ -449,20 +518,14 @@ void coop_airlockOutsideUse()
 	eTrigger = getCurrentEntity();
 	if(doesEntityExist(eTrigger)){
 		eTrigger.notTriggerable();
-		
-		$klingonAirlockDoorInside.close();
-		
-		
+
 		$klingonPressureLightsWhite.hide();
 		$klingonPressureLightsRed.show();
 		$world.light_intensity("klingonPressureLightsWhite",0);
 		$world.light_intensity("klingonPressureLightsRed",1);
 		
-		//open=1,opening=2,closing=3,closed=4
-		while($klingonAirlockDoorInside.getDoorState() != 4){
-			wait(0.05);
-		}
-		$klingonAirlockDoorInside.lock();
+		//wait for door to close and lock
+		globalCoop_level_waitForDoorToClose($klingonAirlockDoorInside,1);
 		
 		float fBlinkiBlink;
 		float fOn;
