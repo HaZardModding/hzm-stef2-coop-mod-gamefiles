@@ -31,6 +31,13 @@ float MAX_ARRAYS = 6;
 #include "coop_mod/matrix/evosuit.scr"
 void	coop_endLevel();
 
+void ffTouchedClearShader(entity ePlayer)
+{
+	wait(1);
+	if(doesEntityExist(ePlayer)){
+		ePlayer.clearcustomshader("electriclines");
+	}
+}
 
 void ffTouched()
 {
@@ -52,9 +59,13 @@ void ffTouched()
 						//check all players touching this trigger
 						if(globalCoop_check_isEntityInsideOfEntity(ePlayer,e,1)){
 							fRunningWithScissors=1;
-							if(coop_evosuit_playerEquiped(ePlayer) == 1 && ePlayer.getHealth() > 0 && ePlayer.isSpectator() != 1){
-								e.notSolid();
-								print("NOT SOLID\n");
+							if(ePlayer.getHealth() > 0 && ePlayer.isSpectator() != 1){
+								if(coop_evosuit_playerEquiped(ePlayer) == 1 || coop_evosuit_spaceWorthy(ePlayer)){
+									e.notSolid();
+									ePlayer.setcustomshader("electriclines");
+									thread ffTouchedClearShader(ePlayer);
+									print("NOT SOLID\n");
+								}
 							}
 						}
 					}
@@ -86,6 +97,9 @@ void main ()
 	setupClips();
 	setupActors();
 	setupArrays();
+	
+	//set forcefield frequency
+	$klingonForcefieldShuttlebay.setobjectparms(66.9,0);
 	
 	$klingonAirductAreaportal.closePortal();
 	
@@ -119,12 +133,15 @@ void main ()
 	}
 	print("ForceField: SETUP - $"+sForceFieldName+""+iForceFieldCurNum+" not found, assuming setup is complete.\n");
 	
+	return;
 	while(1)
 	{
-		$shuttleFederation2.shadow();
-		wait(1);
-		$shuttleFederation2.noshadow();
-		wait(1);
+		//$klingonForcefieldShuttlebay.setobjectparms(66.9,0);
+		$klingonForcefieldShuttlebay.mask("-weaponclip");
+		wait(4);
+		//$klingonForcefieldShuttlebay.setobjectparms(33,0);
+		$klingonForcefieldShuttlebay.mask("+weaponclip");
+		wait(4);
 	}
 }
 
@@ -132,7 +149,6 @@ void setupEvoSuit()
 {
 	/*SET VALUES FOR EVOSUIT SCRIPT SPECIFIC FOR THIS MAP*/
 	__EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH			= '0 500 150';
-	__EVOSUIT_STRING_AIRLOCK_INSIDE_TRIGGER			= "coop_evosuit_airlockInsideTrigger";
 	
 	__EVOSUIT_INT_SUFFICATE_WAIT					= 8;
 	__EVOSUIT_INT_SUFFICATE_HURT					= 7;
@@ -145,6 +161,7 @@ void setupEvoSuit()
 	__EVOSUIT_INT_THRUSTER_MOVE_UP_COST				= 1.5;
 	__EVOSUIT_INT_THRUSTER_MOVE_DOWN_COST			= 1;
 	__EVOSUIT_INT_THRUSTER_MOVE_FORCE				= 50;
+	__EVOSUIT_INT_THRUSTER_EMERGENCY_COST			= 40;
 }
 
 void setupAirlock()
@@ -551,7 +568,7 @@ void coop_airlockOutsideUse()
 //-------------------------------------
 //EVOSUIT DECOMPRESS EFFECTS
 //-------------------------------------
-thread coop_evosuit_airlockDecompress();
+thread coop_evosuit_airlockDecompress($coop_evosuit_airlockInsideTrigger);
 //-------------------------------------
 		
 		wait(1);
@@ -570,13 +587,7 @@ void coop_airlockInsideUse()
 	if(doesEntityExist(eTrigger)){
 		eTrigger.notTriggerable();
 		
-		$klingonAirlockDoorOutside.close();
-		
-		//open=1,opening=2,closing=3,closed=4
-		while($klingonAirlockDoorOutside.getDoorState() != 4){
-			wait(0.05);
-		}
-		$klingonAirlockDoorOutside.lock();
+		globalCoop_level_waitForDoorToClose($klingonAirlockDoorOutside,1);
 		wait(0.5);
 		
 		//$klingonAirlockSteamTopEffect.scale(1.7);
