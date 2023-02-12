@@ -329,7 +329,8 @@ float coop_evosuit_spaceWorthy(entity eSentity)
 	//check for models that validate for space usage
 	string sModelName;
 	sModelName = eSentity.getModelName();
-	if(	getIntStringFind(sModelName,"evosuit") > -1 ||
+	if(	eSentity.getFloatVar("coop_evosuit_pickedUp") == 1 ||
+		getIntStringFind(sModelName,"evosuit") > -1 ||
 		getIntStringFind(sModelName,"eb_gonzales") > -1 ||
 		getIntStringFind(sModelName,"spacesuit") > -1 ||
 		getIntStringFind(sModelName,"borg_") > -1 ||
@@ -350,16 +351,21 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 {
 	ePlayer.setFloatVar("coop_evosuit_inSpace",fSpace);	
 	if(fSpace == 1){
+		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+	
 		thread coop_evosuit_playerDecompress(ePlayer);
 		ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
 		
-		//player worthy of space eeven without picking suit up - auto put on
-		if(coop_evosuit_spaceWorthy(ePlayer) == 1 && coop_evosuit_playerEquiped(ePlayer) == 0){		
-			thread coop_evosuit_playerOn(ePlayer,0); //mark as not picked up
+		//player worthy of space even without picking suit up - auto put on
+		if(coop_evosuit_spaceWorthy(ePlayer) == 1){
+			ePlayer.addhud(__EVOSUIT_STR_HUD_THRUSTER);
+			if(coop_evosuit_playerEquiped(ePlayer) == 0){		
+				thread coop_evosuit_playerOn(ePlayer,0); //mark as not picked up
+			}
 		}
-		ePlayer.addhud(__EVOSUIT_STR_HUD_THRUSTER);
-		
 	}else{
+		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",0);
+		
 		//leaving space - and did not pick up suit but was spaceworthy, take off the auto evo suit
 		if(ePlayer.getFloatVar("coop_evosuit_pickedUp") == 0 && coop_evosuit_playerEquiped(ePlayer) == 1){
 			thread coop_evosuit_playerOff(ePlayer);
@@ -384,10 +390,20 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 //scales player and then kills player
 //------------------------------------------------------------------------------
 {
-	if(	coop_evosuit_spaceWorthy(ePlayer) == 1 ||	ePlayer.getFloatVar("coop_evosuit_decompressing") == 1){
+	if(ePlayer.getFloatVar("coop_evosuit_decompressing") == 1){
 		return;
 	}
 	ePlayer.setFloatVar("coop_evosuit_decompressing",1);
+	
+	if(coop_evosuit_spaceWorthy(ePlayer) == 1){
+		wait(2);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
+		}
+		return;
+	}
+	
 	
 	ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
 	ePlayer.setCustomShader("coop_iceing");
@@ -415,6 +431,20 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 	}
 }
 
+void coop_evosuit_airlockCompress(entity eAirLock)
+//------------------------------------------------------------------------------
+//Handles decompressing of airlock
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eAirLock)){
+		print("coop_evosuitAirlockCompress() - Airlock Inside Trigger is missing or not specified!\n");
+		centerprint("coop_evosuitAirlockCompress() - Airlock Inside Trigger is missing or not specified!\n");
+		return;
+	}
+	
+	eAirLock.setFloatVar("coop_evosuit_AirLockDecompressed",0);
+}
+
 void coop_evosuit_airlockDecompress(entity eAirLock)
 //------------------------------------------------------------------------------
 //Handles decompressing of airlock
@@ -430,15 +460,20 @@ void coop_evosuit_airlockDecompress(entity eAirLock)
 	float fPlayerIdInUse;
 	vector vVel;
 	
+	eAirLock.setFloatVar("coop_evosuit_AirLockDecompressed",1);
+	
 	//add icing hud, push players up and away decompress area
 	//manage actors that wandered into airlock
 	//take care of actors and players inside
-	for(fPlayerIdInUse=coop_integer_maxPlayers;fPlayerIdInUse<getCvarInt("maxentities");fPlayerIdInUse++){
+	for(fPlayerIdInUse=0;fPlayerIdInUse<getCvarInt("maxentities");fPlayerIdInUse++){
 		ePlayer = getentity("*"+ fPlayerIdInUse);
 		if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
 			//check all players touching this trigger
-			if(ePlayer.isEntityInsideOfEntity(eAirLock) ){
+			if(ePlayer.isEntityInsideOfEntity(eAirLock) == 1){
 				if(ePlayer.getSubclassName() == "Player"){
+					//make sure player respawns at spawn spot info_player_deathmatch
+					ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+				
 					//kill players that are inside without evo 
 					thread coop_evosuit_playerDecompress(ePlayer);
 					
@@ -456,6 +491,10 @@ void coop_evosuit_airlockDecompress(entity eAirLock)
 					}						
 				}
 			}
+			//BUGSPRAY
+			//else{
+				//print("coop_evosuit_airlockDecompress ("+ePlayer.getTargetname()+")NOT-INSIDE: "+eAirLock.getTargetname()+"\n");
+			//}
 		}
 	}
 }
@@ -471,11 +510,15 @@ void coop_evosuit_airlockInside()
 	if(doesEntityExist(eTrigger)){
 		float fPlayerIdInUse;
 		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+ fPlayerIdInUse);
+			ePlayer = getentity("*"+ fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
 				//check all players touching this trigger
-				if(ePlayer.isEntityInsideOfEntity(eTrigger)){
-					coop_evosuit_playerSetSpace(ePlayer,0);
+				if(ePlayer.isEntityInsideOfEntity(eTrigger) == 1){
+					if(eTrigger.getFloatVar("coop_evosuit_AirLockDecompressed") == 0){
+						coop_evosuit_playerSetSpace(ePlayer,0);
+					}else{
+						coop_evosuit_playerSetSpace(ePlayer,1);
+					}
 				}
 			}
 		}	
@@ -503,7 +546,7 @@ void coop_evosuit_airlockOutside()
 	if(doesEntityExist(eTrigger)){
 		float fPlayerIdInUse;
 		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+ fPlayerIdInUse);
+			ePlayer = getentity("*"+ fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
 				//check all players touching this trigger
 				if(ePlayer.isEntityInsideOfEntity(eTrigger)){
