@@ -13,6 +13,7 @@ void	coop_evosuit_playerOff(entity ePlayer);
 void	coop_evosuit_playerSufficate(entity ePlayer);
 float	coop_evosuit_playerEquiped(entity ePlayer);
 float	coop_evosuit_spaceWorthy(entity eSentity);
+void	coop_evosuit_airlockCompress(entity eAirLock);
 void	coop_evosuit_airlockDecompress(entity eAirLock);
 void	coop_evosuit_playerDecompress(entity ePlayer);
 void	coop_evosuit_playerSetSpace(entity ePlayer,float fSpace);
@@ -20,9 +21,15 @@ float	coop_evosuit_playerInSpace(entity ePlayer);
 void	coop_evosuit_airlockInside();
 void	coop_evosuit_airlockOutside();
 void	coop_evosuit_haltStat(entity ePlayer,float fHalt);
+void	coop_evosuit_attachSuit(entity ePlayer);
+void	coop_evosuit_deattachSuit(entity ePlayer);
+void	coop_evosuit_modelChanged(entity ePlayer);
+void	coop_evosuit_3rdPerson(entity ePlayer);
+float	coop_evosuit_helmetHud(entity ePlayer);
 
 //these are global for this level script using __ as prefix so highligther shows them
 //USE THEM IN YOUR SCRIPT FOR CONFIGURATION, SO YOU DONT HAVE TO EDIT THE EVOSUIT SCRIPT
+float		__EVOSUIT_INT_EXO_FREEZE_TIME			= 5; //time until stalker player freezes in space for not using thrusters
 float		__EVOSUIT_FLT_SPACE_GRAVITY				= 0.15;
 float		__EVOSUIT_INT_SUFFICATE_HURT			= 10;
 float		__EVOSUIT_INT_SUFFICATE_WAIT			= 5;
@@ -41,6 +48,7 @@ string		__EVOSUIT_STR_HUD_THRUSTER				= "cooptimerred";
 string		__EVOSUIT_STR_HUD_THRUSTER_CVAR			= "coop_timerRed";
 string		__EVOSUIT_STR_HUD_THRUSTER_STAT			= "generic";
 string		__EVOSUIT_STR_HUD_ICEING				= "coop_iceing";
+string		__EVOSUIT_STR_HUD_HELMET				= "coop_evoHelmet";
 string		__EVOSUIT_STR_HUD_THRUSTER_STRING		= "$$c#156$$";
 string		__EVOSUIT_STR_HUD_AIRSUPPLY_STRING		= "$$AirSupply$$";
 
@@ -119,7 +127,14 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 	float iUpCost = 1.5;
 	float fRecharge = -0.5;
 	
+	float iTrusersInactiveTime;
+	float iLastFreezeHurt;
+	float iFreezing;
+	string sPlayerModel;
 	
+	sPlayerModel	= ePlayer.getModelName();
+	
+	iTrusersInactiveTime  = ((1 / coop_float_oneFrameTime) * __EVOSUIT_INT_EXO_FREEZE_TIME);	
 	iCoolDownTime = ((1 / coop_float_oneFrameTime) * __EVOSUIT_INT_THRUSTER_COOLDOWN_TIME);
 	
 	//rename this thread so it can be killed from the outside
@@ -129,13 +144,15 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 	
 	ePlayer.setFloatVar("coop_evosuit_on",1);
 	if(fPickedUp){
+		coop_evosuit_attachSuit(ePlayer);
 		ePlayer.setFloatVar("coop_evosuit_pickedUp",1);
 	}
 	
-	ePlayer.addhud("cooptimerblue");
-	
-	if(__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR != ""){
-		thread globalCoop_player_transmitter(ePlayer,"set "+__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR+" "+__EVOSUIT_STR_HUD_AIRSUPPLY_STRING);
+	if(sPlayerModel != "models/char/dm_stalker.tik"){
+		ePlayer.addhud(__EVOSUIT_STR_HUD_AIRSUPPLY);
+		if(__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR != ""){
+			thread globalCoop_player_transmitter(ePlayer,"set "+__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR+" "+__EVOSUIT_STR_HUD_AIRSUPPLY_STRING);
+		}
 	}
 	if(__EVOSUIT_STR_HUD_THRUSTER_CVAR != ""){
 		thread globalCoop_player_transmitter(ePlayer,"set "+__EVOSUIT_STR_HUD_THRUSTER_CVAR+" "+__EVOSUIT_STR_HUD_THRUSTER_STRING);
@@ -143,7 +160,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 	
 	while(doesEntityExist(ePlayer) == 1 && globalCoop_check_playerSpectator(ePlayer) == 0){
 		//this is here for testing and needs to be removed laterz
-		if(ePlayer.checkReload()){	iAirSupply=100;	}
+		//if(ePlayer.checkReload()){	iAirSupply=100;	}
 		
 		fHealth			= ePlayer.getHealth();
 		vVelocity		= ePlayer.getVelocity();
@@ -151,38 +168,42 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 		
 		//player dead, unsuit
 		if(fHealth <= 0){
+			ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
 			thread coop_evosuit_playerOff(ePlayer);
+			thread coop_evosuit_playerSetSpace(ePlayer,0);
 			return;
 		}
 		
 		//sufficate
-		if(iAirSupply <= 0){
-			if(bAirSupplyStopSound){
-				bAirSupplyStopSound = 0;
-				ePlayer.stoploopsound();
-				ePlayer.hudprint("You ran out of Air!\n");
+		if(sPlayerModel != "models/char/dm_stalker.tik"){
+			if(iAirSupply <= 0){
+				if(bAirSupplyStopSound){
+					bAirSupplyStopSound = 0;
+					ePlayer.stoploopsound();
+					ePlayer.hudprint("You ran out of Air!\n");
+				}
+				
+				if( (fAirSupplyLastHurt + __EVOSUIT_INT_SUFFICATE_WAIT) < getLevelTime()){
+					fAirSupplyLastHurt = getLevelTime();
+					thread coop_evosuit_playerSufficate(ePlayer);
+				}
 			}
+			//use air
+			else{
+				if(iLastAirSupply < iAirSupply){ //on refil or start
+					ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+				}
 			
-			if( (fAirSupplyLastHurt + __EVOSUIT_INT_SUFFICATE_WAIT) < getLevelTime()){
 				fAirSupplyLastHurt = getLevelTime();
-				thread coop_evosuit_playerSufficate(ePlayer);
+				iAirSupply = (iAirSupply - __EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION);
 			}
-		}
-		//use air
-		else{
-			if(iLastAirSupply < iAirSupply){ //on refil or start
-				ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
-			}
-		
-			fAirSupplyLastHurt = getLevelTime();
-			iAirSupply = (iAirSupply - __EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION);
 		}
 		
 		//thrusters
 		if(ePlayer.isplayeronground() == 0 && iStatVal < 100 && iCoolDownTimmer == 0){
 			if(coop_evosuit_playerInSpace(ePlayer)){
 				if(ePlayer.checkJump()){
-					if(vVelocity_z < 600){ //cap max upwards velocity for thrusters
+					if(vVelocity_z < 700){ //cap max upwards velocity for thrusters
 						vVelocityNew_z += __EVOSUIT_INT_THRUSTER_MOVE_FORCE; 
 						if(vVelocity_z < 0){
 							iStatVal = (iStatVal + (__EVOSUIT_INT_THRUSTER_MOVE_UP_COST * 2) ); //it costs more to deaccelerate
@@ -228,15 +249,8 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 		if(iAirSupply < 0){iAirSupply = 0;}
 		else if(iAirSupply > 100){iAirSupply = 100;}
 		
-		//thrusters
-		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
-			ePlayer.setstat(__EVOSUIT_STR_HUD_THRUSTER_STAT,iStatVal);
-			//sync last and current
-			iLastStatVal = iStatVal;			
-		}
-		
 		//air supply
-		if(iAirSupply != iLastAirSupply){
+		if(iAirSupply != iLastAirSupply && sPlayerModel != "models/char/dm_stalker.tik"){
 			ePlayer.setstat(__EVOSUIT_STR_HUD_AIRSUPPLY_STAT,iAirSupply);
 		}
 		
@@ -248,8 +262,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 
 		//no thrusters used - recharge
 		if(iLastStatVal == iStatVal){
-			iStatVal = (iStatVal + fRecharge);
-			
+			iStatVal = (iStatVal + fRecharge);			
 			iCoolDownTimmer--;
 			if(iCoolDownTimmer < 0){
 				iCoolDownTimmer=0;
@@ -257,13 +270,53 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 				ePlayer.hudprint("Thrusters operational agaian!\n");
 				
 				//if player is falling - fire emergency stabilisation boosters - but they are expansive
-				if(ePlayer.isplayeronground() == 0 && vVelocity_z < -300){ //player could be on a lift, so check for ground
-					ePlayer.hudprint("== Emercency Stabilisation ==\n");
-					vVelocityNew = '0 0 75';
-					iStatVal = __EVOSUIT_INT_THRUSTER_EMERGENCY_COST;
-					ePlayer.setVelocity(vVelocityNew);
+				if(sPlayerModel != "models/char/dm_stalker.tik"){
+					if(ePlayer.isplayeronground() == 0 && vVelocity_z < -300){ //player could be on a lift, so check for ground
+						ePlayer.hudprint("== Emercency Stabilisation ==\n");
+						vVelocityNew = '0 0 75';
+						iStatVal = __EVOSUIT_INT_THRUSTER_EMERGENCY_COST;
+						ePlayer.setVelocity(vVelocityNew);
+					}
 				}
 			}
+		}
+		
+		//stalker freeze if thrusters are cold
+		if(coop_evosuit_playerInSpace(ePlayer)){
+			if(iStatVal <= 0){
+				if(sPlayerModel == "models/char/dm_stalker.tik"){
+					iTrusersInactiveTime--;
+					if(iTrusersInactiveTime <= 0){
+						if(iFreezing == 0){
+							iFreezing=1;
+							iLastFreezeHurt = getLevelTime();
+							ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+						}
+						if((iLastFreezeHurt + 5) < getLevelTime()){
+							iLastFreezeHurt = getLevelTime();
+							coop_evosuit_playerSufficate(ePlayer);
+						}
+					}
+				}
+			}else{
+				if(iFreezing == 1){
+					iFreezing=0;
+					ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+				}
+				iTrusersInactiveTime  = ((1 / coop_float_oneFrameTime) * __EVOSUIT_INT_EXO_FREEZE_TIME);
+			}
+		}
+
+		//thrusters
+		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
+			ePlayer.setstat(__EVOSUIT_STR_HUD_THRUSTER_STAT,iStatVal);
+			
+			if(iStatVal < 0){
+				iStatVal=0;
+			}
+			
+			//sync last and current
+			iLastStatVal = iStatVal;	
 		}
 		
 		globalCoop_main_waitAFrame();
@@ -286,7 +339,23 @@ void coop_evosuit_playerOff(entity ePlayer)
 		
 		ePlayer.stoploopsound();
 		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);	
-		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);	
+		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+		
+		//REMOVE HELMET HUD
+		
+		string sModelName;
+		sModelName = ePlayer.getModelName();
+		if(	getIntStringFind(sModelName,"dm_attrexian_security-male.tik") == -1 &&
+			getIntStringFind(sModelName,"evosuit") == -1 &&
+			getIntStringFind(sModelName,"eb_gonzales") == -1 &&
+			getIntStringFind(sModelName,"eb_idryll") == -1 &&
+			getIntStringFind(sModelName,"spacesuit") == -1 )
+		{
+			ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+		}
+		//ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
+		
+		coop_evosuit_deattachSuit(ePlayer);
 	//}
 }
 
@@ -295,17 +364,18 @@ void coop_evosuit_playerSufficate(entity ePlayer)
 //if player has the suit on but no airz, killz thez bitchz
 //------------------------------------------------------------------------------
 {
-	if(doesEntityExist(ePlayer)){
-		float fHealth;
-		fHealth = (ePlayer.getHealth() - __EVOSUIT_INT_SUFFICATE_HURT);
+	$world.setStringVar("uservar1","killmessage  did ^2sufficate...");
+	$world.setStringVar("uservar2","killmessage_de  ist ^2erstickt...");
 
-		if((ePlayer.getHealth() - fHealth) > 0){
-			ePlayer.pain(1,ePlayer,2);
-			ePlayer.health(fHealth);
-		}
-		else{
-			ePlayer.kill();
+	if(doesEntityExist(ePlayer)){
+		ePlayer.hurt(__EVOSUIT_INT_SUFFICATE_HURT);
+
+		if(ePlayer.getHealth() <= 0){
+			//ePlayer.kill();
 			coop_evosuit_playerOff(ePlayer);
+			ePlayer.setFloatVar("coop_evosuit_inSpace",0);
+			ePlayer.setFloatVar("coop_evosuit_on",0);
+			ePlayer.setFloatVar("coop_evosuit_pickedUp",0);
 		}
 	}
 }
@@ -330,8 +400,10 @@ float coop_evosuit_spaceWorthy(entity eSentity)
 	string sModelName;
 	sModelName = eSentity.getModelName();
 	if(	eSentity.getFloatVar("coop_evosuit_pickedUp") == 1 ||
+		getIntStringFind(sModelName,"dm_attrexian_security-male.tik") > -1 ||
 		getIntStringFind(sModelName,"evosuit") > -1 ||
 		getIntStringFind(sModelName,"eb_gonzales") > -1 ||
+		getIntStringFind(sModelName,"eb_idryll") > -1 ||
 		getIntStringFind(sModelName,"spacesuit") > -1 ||
 		getIntStringFind(sModelName,"borg_") > -1 ||
 		getIntStringFind(sModelName,"alien-type") > -1 ||
@@ -420,6 +492,11 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 		while(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
 			ePlayer.kill();
 			globalCoop_main_waitAFrame();
+			
+			if(doesEntityExist(ePlayer)){
+				thread coop_evosuit_playerSetSpace(ePlayer,0);
+				thread coop_evosuit_playerOff(ePlayer);
+			}
 		}
 		
 		if(doesEntityExist(ePlayer)){
@@ -551,8 +628,6 @@ void coop_evosuit_airlockOutside()
 				//check all players touching this trigger
 				if(ePlayer.isEntityInsideOfEntity(eTrigger)){
 					coop_evosuit_playerSetSpace(ePlayer,1);
-					
-					//thread coop_airlockCheckPlayer(ePlayer);
 				}
 			}
 		}
@@ -572,5 +647,216 @@ void coop_evosuit_haltStat(entity ePlayer,float fHalt)
 			ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
 		}
 		ePlayer.setFloatVar("coop_evosuit_haltStat",fHalt);
+	}
+}
+
+void coop_evosuit_attachSuit(entity ePlayer)
+//------------------------------------------------------------------------------
+// attaches evosuit model to player model
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(!coop_evosuit_spaceWorthy(ePlayer)){
+		
+			if(!ePlayer.checkThirdperson()){
+				thread coop_evosuit_helmetHud(ePlayer);
+			}
+			
+			float fScale=1.15;
+			float fScaleBooster=1;
+			vector v1,v2,vBackPack1,vBackPack2;
+			//vBackPack1 = ePlayer.getBackpackAttachOffset();
+			vBackPack2 = ePlayer.getBackpackAttachAngles();
+			v1='-3 0 10';
+			v2='0 0 180';
+			vBackPack1 = '5 0 0';
+			string sPlayerModel;
+			sPlayerModel=ePlayer.getModelName();
+			if(	sPlayerModel == "models/char/dm_munro.tik" ||
+				sPlayerModel == "models/char/munro.tik" ||
+				sPlayerModel == "models/char/sf_munro.tik"||
+				sPlayerModel == "models/char/dm_chell.tik" ||
+				sPlayerModel == "models/char/dm_chang.tik" ||
+				sPlayerModel == "models/char/dm_barclay.tik" ||
+				sPlayerModel == "models/char/dm_drull_krindo.tik" ||
+				sPlayerModel == "models/char/dm_tuvok.tik" ||
+				sPlayerModel == "models/char/dm_picard.tik")
+			{
+				v1='-3 0 11';
+				fScale=1.1;
+				fScaleBooster = 1.0;
+				
+				if(sPlayerModel == "models/char/dm_chang.tik"){
+					vBackPack1 = '6 0 0';
+				}
+			}
+			else if(sPlayerModel == "models/char/dm_klingon_merc-female.tik"){
+				v1='-3 0 11';
+				fScale=1.3;
+			}
+			else if(	sPlayerModel == "models/char/dm_kourban.tik" ||
+						sPlayerModel == "models/char/dm_attrexian_command-female.tik")
+			{
+				v1='-5 0 12';
+				fScale=1.2;
+				fScaleBooster=1.1;
+				if(sPlayerModel == "models/char/dm_kourban.tik"){
+					vBackPack1 = '6.5 0 0';
+				}
+			}
+			else if(sPlayerModel == "models/char/dm_nausicaan_male-merc.tik")
+			{
+				v1='-2 -.5 13';
+				fScale=1.45;
+			}
+			else if(	sPlayerModel == "models/char/dm_klingon_merc-boss.tik" ||
+						sPlayerModel == "models/char/dm_nausicaan_male-merc.tik")
+			{
+				v1='-5 -.5 13';
+				fScale=1.65;
+			}
+			else if(	sPlayerModel == "models/char/gbs_dm_illia.tik" ||
+						sPlayerModel == "models/char/dm_jurot.tik" ||
+						sPlayerModel == "models/char/dm_drull_Kleeya.tik" ||
+						sPlayerModel == "models/char/dm_romulan_informant-boss.tik" ||
+						sPlayerModel == "models/char/dm_romulan_stx-female.tik" ||
+						sPlayerModel == "models/char/dm_telsia.tik" )
+			{
+				v1='-3 0 10';
+				fScale=1;
+				fScaleBooster=0.9;
+			}
+			else if(	sPlayerModel == "models/char/dm_andorian_merc-male.tik" ||
+						sPlayerModel == "models/char/dm_romulan_rebel-commander.tik")
+			{
+				v1='-3 0 9';
+				fScale=1.15;
+			}
+
+			else if(	sPlayerModel == "models/char/dm_ferengi_oolpax.tik")
+			{
+				v1='-1 0 10';
+				fScale=1.3;
+			}
+			//HELMET MODEL
+			//Bip01 Head
+			//tag_head
+			ePlayer.attachmodel("models/enviro/enterprise_clothing_evo_helmet.tik","tag_head",fScale,"evo-helmet"+ePlayer.getEntNum(),0,-1,-1,-1,-1,v1,v2);
+			//BOOSTERPACK MODEL
+			//Bip01 spine1
+			//Bip01 spine2
+			ePlayer.attachmodel("models/enviro/enterprise_clothing_evo_suit.tik","Bip01 spine1",fScaleBooster,"evo-booster"+ePlayer.getEntNum(),0,-1,-1,-1,-1,vBackPack1,vBackPack2);
+		/*attachEvent->AddString( attachModelName.c_str() );
+		attachEvent->AddString( tagName );
+		attachEvent->AddFloat( 1.0f );
+		attachEvent->AddString( "attachedSpecialityBackpack" );
+		attachEvent->AddInteger( 0 );
+		attachEvent->AddFloat( -1.0f );
+		attachEvent->AddFloat( 0.0f );
+		attachEvent->AddFloat( -1.0f );
+		attachEvent->AddFloat( -1.0f );
+		attachEvent->AddVector( player->getBackpackAttachOffset() );
+		attachEvent->AddVector( player->getBackpackAttachAngles() );
+		*/
+		}
+	}
+}
+
+void coop_evosuit_deattachSuit(entity ePlayer)
+//------------------------------------------------------------------------------
+// attaches evosuit model to player model
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		//if(!coop_evosuit_spaceWorthy(ePlayer)){
+			//ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+		//}
+		ePlayer.removeAttachedModelByTargetname("evo-helmet"+ePlayer.getEntNum());
+		ePlayer.removeAttachedModelByTargetname("evo-booster"+ePlayer.getEntNum());
+	}
+}
+
+float coop_evosuit_helmetHud(entity ePlayer)
+//------------------------------------------------------------------------------
+// adds helmet hud if needed
+//------------------------------------------------------------------------------
+{
+	string sModelName;
+	sModelName = ePlayer.getModelName();
+	if(	ePlayer.getFloatVar("coop_evosuit_pickedUp") == 0 && coop_evosuit_spaceWorthy(ePlayer) == 0 ||
+		getIntStringFind(sModelName,"dm_attrexian_security-male.tik") > -1 ||
+		//getIntStringFind(sModelName,"eb_gonzales") > -1 ||
+		//getIntStringFind(sModelName,"eb_idryll") > -1 ||
+		getIntStringFind(sModelName,"borg_") > -1 ||
+		getIntStringFind(sModelName,"_stalker") > -1)
+	{
+		return 0;
+	}
+	ePlayer.addHud(__EVOSUIT_STR_HUD_HELMET);
+	return 1;
+}
+
+void coop_evosuit_3rdPerson(entity ePlayer)
+//------------------------------------------------------------------------------
+// takes care of 3rd person view - cg_3rd_person
+//------------------------------------------------------------------------------
+{
+	if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") != 0){
+		return;
+	}
+	ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
+	
+	while(doesEntityExist(ePlayer)){
+		if(ePlayer.checkThirdperson()){
+			if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") != 2){
+				ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",2);
+				ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+			}
+		}else{
+			if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") != 3){
+				if(coop_evosuit_helmetHud(ePlayer)){
+					ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",3);
+				}
+			}
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_evosuit_modelChanged(entity ePlayer)
+//------------------------------------------------------------------------------
+// attaches evosuit model to player model - needs to be called from: coop_justChangedModel() in main level script
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		float fInSpace;
+		float fSuitOn;
+		float fPickedUp;
+		fInSpace = coop_evosuit_playerInSpace(ePlayer);
+		fSuitOn = ePlayer.getFloatVar("coop_evosuit_on");
+		fPickedUp = ePlayer.getFloatVar("coop_evosuit_pickedUp");
+		
+		if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") > 0){
+			ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
+		}
+		
+		coop_evosuit_playerOff(ePlayer);
+		
+		if(fInSpace){
+			if(doesEntityExist(ePlayer)){
+				ePlayer.health(0);
+				coop_evosuit_playerSufficate(ePlayer);
+			}
+		}
+	}
+}
+
+void coop_evosuit_justEntered(entity ePlayer)
+//------------------------------------------------------------------------------
+// player just entered level - needs to be called from: coop_justEntered() in main level script
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		thread coop_evosuit_3rdPerson(ePlayer);
 	}
 }
