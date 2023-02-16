@@ -104,6 +104,12 @@ textures/klingon/fire
 {
     qer_editorimage textures/shaderfx/flame_red1.tga
     surfaceparm nolightmap
+	//[b60013] chrissstrahl - fix issues with shader
+	surfaceparm nomarks
+    surfaceparm trans
+	surfaceparm detail
+	surfaceparm nonsolid
+	
     cull disable
     {
         animMap 10 textures/shaderfx/flame_red1.tga textures/shaderfx/flame_red2.tga textures/shaderfx/flame_red3.tga textures/shaderfx/flame_red4.tga textures/shaderfx/flame_red5.tga textures/shaderfx/flame_red6.tga textures/shaderfx/flame_red7.tga textures/shaderfx/flame_red8.tga 
