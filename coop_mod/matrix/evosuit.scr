@@ -23,6 +23,8 @@ void	coop_evosuit_airlockOutside();
 void	coop_evosuit_haltStat(entity ePlayer,float fHalt);
 void	coop_evosuit_attachSuit(entity ePlayer);
 void	coop_evosuit_deattachSuit(entity ePlayer);
+void	coop_evosuit_justBecameSpectator(entity ePlayer);
+void	coop_evosuit_classChanged(entity ePlayer);
 void	coop_evosuit_modelChanged(entity ePlayer);
 void	coop_evosuit_3rdPerson(entity ePlayer);
 float	coop_evosuit_helmetHud(entity ePlayer);
@@ -169,8 +171,8 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 		//player dead, unsuit
 		if(fHealth <= 0){
 			ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
-			thread coop_evosuit_playerOff(ePlayer);
-			thread coop_evosuit_playerSetSpace(ePlayer,0);
+			coop_evosuit_playerSetSpace(ePlayer,0);
+			coop_evosuit_playerOff(ePlayer);
 			return;
 		}
 		
@@ -372,7 +374,8 @@ void coop_evosuit_playerSufficate(entity ePlayer)
 		fHealth = ePlayer.getHealth();
 		
 		if(fHealth < __EVOSUIT_INT_SUFFICATE_HURT){
-			ePlayer.kill();
+			ePlayer.health(1);
+			ePlayer.killed($world,99999, $world, 0 );
 			coop_evosuit_playerOff(ePlayer);
 			ePlayer.setFloatVar("coop_evosuit_inSpace",0);
 			ePlayer.setFloatVar("coop_evosuit_on",0);
@@ -827,6 +830,37 @@ void coop_evosuit_3rdPerson(entity ePlayer)
 			}
 		}
 		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_evosuit_justBecameSpectator(entity ePlayer)
+//------------------------------------------------------------------------------
+// removes evosuit model from player model - needs to be called from: coop_justBecameSpectator() in main level script
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+		coop_evosuit_playerSetSpace(ePlayer,0);
+		coop_evosuit_playerOff(ePlayer);
+		if(doesEntityExist(ePlayer)){
+			ePlayer.setFloatVar("coop_evosuit_on",0);
+			ePlayer.setFloatVar("coop_evosuit_pickedUp",0);
+			//ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+			//ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);
+			//ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+		}
+	}
+}
+void coop_evosuit_classChanged(entity ePlayer)
+//------------------------------------------------------------------------------
+// reattaches evosuit model to player model - needs to be called from: coop_justChangedClass() in main level script
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		coop_evosuit_deattachSuit(ePlayer);
+		globalCoop_main_waitAFrame();
+		coop_evosuit_attachSuit(ePlayer);
 	}
 }
 
