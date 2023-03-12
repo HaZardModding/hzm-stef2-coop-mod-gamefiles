@@ -7943,6 +7943,14 @@ OBJECT TransportOutRomulanCinematic		DisplayEffects
 }
 
 
+//[b60013] chrissstrahl - coop global archetype
+OBJECT FFScanable		GlobalEnvironments
+{
+    string InteractiveType		TricorderUsable
+	string Description1			FFScanableDesc1
+	string Description2			FFScanableDesc2
+	string RadarDescription		FFScanableRadar
+}
 
 //coop mod archetypes
 OBJECT UseSecurity		GlobalEnvironments
