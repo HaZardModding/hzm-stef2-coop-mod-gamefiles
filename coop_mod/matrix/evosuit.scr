@@ -16,6 +16,7 @@ float	coop_evosuit_spaceWorthy(entity eSentity);
 void	coop_evosuit_airlockCompress(entity eAirLock);
 void	coop_evosuit_airlockDecompress(entity eAirLock);
 void	coop_evosuit_playerDecompress(entity ePlayer);
+void	coop_evosuit_playerSetSpaceGravity(entity ePlayer,float fYes);
 void	coop_evosuit_playerSetSpace(entity ePlayer,float fSpace);
 float	coop_evosuit_playerInSpace(entity ePlayer);
 void	coop_evosuit_airlockInside();
@@ -44,9 +45,11 @@ float		__EVOSUIT_INT_THRUSTER_MOVE_FORCE		= 50;
 vector		__EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH	= '0 0 0'; //x y z - can also be negative for each
 float		__EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION		= 0.025;
 string		__EVOSUIT_STR_HUD_AIRSUPPLY				= "cooptimerblue";
+string		__EVOSUIT_STR_HUD_AIRSUPPLY_WARNING		= "coop_evosuitair";
 string		__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR		= "coop_timerBlue";
 string		__EVOSUIT_STR_HUD_AIRSUPPLY_STAT		= "mp_generic1";
 string		__EVOSUIT_STR_HUD_THRUSTER				= "cooptimerred";
+string		__EVOSUIT_STR_HUD_THRUSTER_WARNING		= "coop_evosuitthrusters";
 string		__EVOSUIT_STR_HUD_THRUSTER_CVAR			= "coop_timerRed";
 string		__EVOSUIT_STR_HUD_THRUSTER_STAT			= "generic";
 string		__EVOSUIT_STR_HUD_ICEING				= "coop_iceing";
@@ -119,6 +122,8 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 	float fAirSupplyLastHurt;
 	float iAirSupply = 100;
 	float iLastAirSupply;
+	float iLastAirSupplyWarning;
+	float iThrusterWarning;
 	float bAirSupplyStopSound=1;
 	vector vVelocity,vVelocityNew; 
 	
@@ -194,10 +199,27 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 			else{
 				if(iLastAirSupply < iAirSupply){ //on refil or start
 					ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
+					
+					ePlayer.hudprint("airsupply loopsound\n");
+					
+					//AIRSUPPLY WARNING HUD RESET
+					if(iLastAirSupplyWarning){
+						iLastAirSupplyWarning = 0;
+						ePlayer.removeHud(__EVOSUIT_STR_HUD_AIRSUPPLY_WARNING);
+					}
 				}
+				
+				iLastAirSupply = iAirSupply;
 			
 				fAirSupplyLastHurt = getLevelTime();
 				iAirSupply = (iAirSupply - __EVOSUIT_FLT_AIRSUPPLY_CONSUMPTION);
+				
+				//AIRSUPPLY WARNING HUD - AT OR UNDER 15%
+				if(iLastAirSupplyWarning == 0 && iAirSupply <= 15){
+					ePlayer.hudprint("airsupply\n");
+					iLastAirSupplyWarning = 1;
+					ePlayer.addHud(__EVOSUIT_STR_HUD_AIRSUPPLY_WARNING);
+				}
 			}
 		}
 		
@@ -254,6 +276,21 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 		//air supply
 		if(iAirSupply != iLastAirSupply && sPlayerModel != "models/char/dm_stalker.tik"){
 			ePlayer.setstat(__EVOSUIT_STR_HUD_AIRSUPPLY_STAT,iAirSupply);
+		}
+		
+		//THRUSTER WARNING HUD - AT OR OVER 75%
+		if(iThrusterWarning == 0){
+			if(iStatVal >= 75){
+				iThrusterWarning = 1;
+				ePlayer.addHud(__EVOSUIT_STR_HUD_THRUSTER_WARNING);
+			}
+		}
+		else{
+			//THRUSTER WARNING HUD - REMOVE
+			if(iStatVal <= 55 && iCoolDownTimmer <= 0){
+				iThrusterWarning = 0;
+				ePlayer.removeHud(__EVOSUIT_STR_HUD_THRUSTER_WARNING);
+			}
 		}
 		
 		//set cooldown timer
@@ -341,7 +378,9 @@ void coop_evosuit_playerOff(entity ePlayer)
 		
 		ePlayer.stoploopsound();
 		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);	
+		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY_WARNING);
 		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER_WARNING);
 		
 		//REMOVE HELMET HUD
 		
@@ -423,6 +462,35 @@ float coop_evosuit_spaceWorthy(entity eSentity)
 	return 0;
 }
 
+void coop_evosuit_playerSetSpaceGravity(entity ePlayer,float fYes)
+//------------------------------------------------------------------------------
+//sets space or no space gravity for player
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(fYes == 1){
+			ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
+		}
+		else{
+			string sClass;
+			float fGravity;
+			fGravity = 1;
+			
+			sClass = ePlayer.getCoopClass();
+			if(sClass == "HeavyWeapons"){
+				fGravity=1;
+			}
+			else if(sClass == "Medic"){
+				fGravity=0.85;
+			}
+			else{ //"Technician"
+				fGravity=0.9;
+			}
+			ePlayer.gravity(fGravity);
+		}
+	}
+}
+
 void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 //------------------------------------------------------------------------------
 //sets if player is in space or not
@@ -433,7 +501,7 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
 	
 		thread coop_evosuit_playerDecompress(ePlayer);
-		ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
+		coop_evosuit_playerSetSpaceGravity(ePlayer,1);
 		
 		//player worthy of space even without picking suit up - auto put on
 		if(coop_evosuit_spaceWorthy(ePlayer) == 1){
@@ -449,7 +517,7 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 		if(ePlayer.getFloatVar("coop_evosuit_pickedUp") == 0 && coop_evosuit_playerEquiped(ePlayer) == 1){
 			thread coop_evosuit_playerOff(ePlayer);
 		}
-		ePlayer.gravity(1);
+		coop_evosuit_playerSetSpaceGravity(ePlayer,0);
 		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
 	}
 }
@@ -671,7 +739,7 @@ void coop_evosuit_attachSuit(entity ePlayer)
 			if(!ePlayer.checkThirdperson()){
 				thread coop_evosuit_helmetHud(ePlayer);
 			}
-			
+
 			float fScale=1.15;
 			float fScaleBooster=1;
 			vector v1,v2,vBackPack1,vBackPack2;
@@ -748,6 +816,7 @@ void coop_evosuit_attachSuit(entity ePlayer)
 				v1='-1 0 10';
 				fScale=1.3;
 			}
+			
 			//HELMET MODEL
 			//Bip01 Head
 			//tag_head
@@ -778,9 +847,6 @@ void coop_evosuit_deattachSuit(entity ePlayer)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		//if(!coop_evosuit_spaceWorthy(ePlayer)){
-			//ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
-		//}
 		ePlayer.removeAttachedModelByTargetname("evo-helmet"+ePlayer.getEntNum());
 		ePlayer.removeAttachedModelByTargetname("evo-booster"+ePlayer.getEntNum());
 	}
@@ -843,6 +909,7 @@ void coop_evosuit_justBecameSpectator(entity ePlayer)
 		coop_evosuit_playerSetSpace(ePlayer,0);
 		coop_evosuit_playerOff(ePlayer);
 		if(doesEntityExist(ePlayer)){
+			ePlayer.stoploopsound();
 			ePlayer.setFloatVar("coop_evosuit_on",0);
 			ePlayer.setFloatVar("coop_evosuit_pickedUp",0);
 			//ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
@@ -858,9 +925,9 @@ void coop_evosuit_classChanged(entity ePlayer)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		coop_evosuit_deattachSuit(ePlayer);
-		globalCoop_main_waitAFrame();
-		coop_evosuit_attachSuit(ePlayer);
+		float fInSpace;
+		fInSpace = coop_evosuit_playerInSpace(ePlayer);
+		coop_evosuit_playerSetSpaceGravity(ePlayer,fInSpace);
 	}
 }
 
@@ -881,12 +948,14 @@ void coop_evosuit_modelChanged(entity ePlayer)
 			ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
 		}
 		
-		coop_evosuit_playerOff(ePlayer);
-		
-		if(fInSpace){
+		if(fPickedUp){
+			coop_evosuit_deattachSuit(ePlayer);
+			ePlayer.setFloatVar("coop_evosuit_pickedUp",0);
+			
+			globalCoop_main_waitAFrame();
 			if(doesEntityExist(ePlayer)){
-				ePlayer.health(0);
-				coop_evosuit_playerSufficate(ePlayer);
+				coop_evosuit_attachSuit(ePlayer);
+				ePlayer.setFloatVar("coop_evosuit_pickedUp",1);
 			}
 		}
 	}
