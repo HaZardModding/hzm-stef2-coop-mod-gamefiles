@@ -302,17 +302,30 @@ state ASSIMILATE_END
 		}
 	}
 
-//---------------------------------------------------------
+//-------------------------------------------------[b60013]
+//Chrissstrahl - adds option to disable ranged attack
 state NO_PATH_ATTACK
 //---------------------------------------------------------
-	{
-	Behavior DoAttack ( "attack_photonblast" )
-  
+	{ 
+	
 	states
 		{
-		NO_PATH_ATTACK_PAUSE : BEHAVIOR_DONE	
+		NO_PATH_ATTACK_RANGED : !SHOULD_DO_ACTION ( "norangedattack" )
+		NO_PATH_ATTACK_PAUSE : default	
 		}  	
 	}
+	
+//---------------------------------------------------------
+state NO_PATH_ATTACK_RANGED
+//---------------------------------------------------------
+{
+Behavior DoAttack ( "attack_photonblast" )
+
+states
+	{
+	NO_PATH_ATTACK_PAUSE : BEHAVIOR_DONE	
+	}  	
+}
   
 //---------------------------------------------------------
 state NO_PATH_ATTACK_PAUSE
