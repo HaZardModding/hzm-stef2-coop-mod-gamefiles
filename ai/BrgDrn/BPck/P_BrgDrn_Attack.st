@@ -232,8 +232,23 @@ state ATTACK_DISRUPTOR
 		}	
 	}
   
-//---------------------------------------------------------
+//-------------------------------------------------[b60013]
+//Chrissstrahl - adds option to disable ranged attack
 state ATTACK_PHOTONBLAST
+//---------------------------------------------------------
+	{  
+	time ( .25 , .5 )
+  
+	states
+		{
+		ATTACK_PHOTONBLAST_ATTACK	: !SHOULD_DO_ACTION ( "norangedattack" )
+		ASSIMILATE					: RANGE  ( $MELEE_RANGE$ )	
+		THINK						: TIME_DONE	
+		}  	
+	}
+	
+//---------------------------------------------------------
+state ATTACK_PHOTONBLAST_ATTACK
 //---------------------------------------------------------
 	{  
 	Behavior DoAttack ( "attack_photonblast" )
