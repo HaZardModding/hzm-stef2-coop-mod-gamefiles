@@ -1,4 +1,4 @@
-//Co-Op Related, remove the missionobjectives hud before showing the loading hud
+//Co-Op Related, remove the missionobjectives hud before showing the timer hud
 showcommand	"ui_removehud coop_objectives;\n"
 
 resource
