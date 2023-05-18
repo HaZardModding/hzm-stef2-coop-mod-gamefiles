@@ -1,0 +1,466 @@
+//------------------------------------------------------------------------------
+// This file enables to recrate a Bridge Commander like Bridge control when 
+// aiming at crewmates. See prf_bCommander coop example map for more details
+// requires the HZM Coop Mod to work
+//------------------------------------------------------------------------------
+// - 14.05.2023 moved functions into this global file
+// - 14.05.2023 renamed functions and variables for global file usage
+// - 14.05.2023 [bCommander_captain] added check for other player being captain
+
+
+void	bCommander_setupTargetable(entity e);
+void	bCommander_actorTalk(entity eActor,string sDialog);
+void	bCommander_actorReset(entity eActor);
+float	bCommander_isSameEntity(entity eTarget, entity eTargetLast);
+float	bCommander_isValidTarget(entity eTarget);
+void	bCommander_addValidTarget(string sNewTargetname);
+void	bCommander_playerExit(entity ePlayer,string sLastHud);
+void	bCommander_actorTimer(entity eActor,string sDialog);
+void	bCommander_captain();
+
+
+float bCommander_max_bridgeTargets = 10;
+
+
+void bCommander_setupTargetable(entity e)
+//------------------------------------------------------------------------------
+// allow this entity to be targeted by the player and still have no collision
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(e)){
+		globalCoop_main_printTimeAndString("func: bCommander_setupTargetable - given entity was not found");
+		return;
+	}
+	e.hide();
+	e.notsolid();
+	e.notouch();
+	e.contents( "targetable" );
+	bCommander_addValidTarget(e.getRawTargetname());
+}
+
+void bCommander_actorTalk(entity eActor,string sDialog)
+//------------------------------------------------------------------------------
+// makes actor talk and takes care or all the rest
+//------------------------------------------------------------------------------
+{
+	eActor.stopDialog();
+	eActor.headwatch($bCommander_headwatchMarker,33);
+	eActor.setFloatVar("talking",1);
+	eActor.playdialog(sDialog, 1, 300, 0);
+	thread bCommander_actorTimer(eActor,sDialog);
+}
+
+void bCommander_actorReset(entity eActor)
+//------------------------------------------------------------------------------
+// rest actor head and silence the actor
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+		
+			//stop talking
+			eActor.stopDialog();
+			eActor.setFloatVar("talking",0);
+			
+			//reset head
+			eActor.headwatchTarget("none",55);
+			
+			//terminate dialog wait function for this specific actor
+			killthread("bCommander_actorTimer"+eActor.getRawTargetname());
+		}
+	}
+}
+
+float bCommander_isSameEntity(entity eTarget, entity eTargetLast)
+//------------------------------------------------------------------------------
+// check if it is the same entity
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eTarget)){
+		if(doesEntityExist(eTargetLast)){
+			if(eTargetLast == eTarget){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+float bCommander_isValidTarget(entity eTarget)
+//------------------------------------------------------------------------------
+// check if the given entity is a valid target from the list
+//------------------------------------------------------------------------------
+{
+	float iTargetInList;
+	if(doesEntityExist(eTarget)){
+		if(eTarget != $world){
+			string sTargetname;
+			sTargetname = eTarget.getRawTargetName();			
+			if(sTargetname != ""){
+				float i;
+				string sListTargetname;
+				for(i=0;i<bCommander_max_bridgeTargets;i++){
+					sListTargetname = $world.getStringVar("bCommander_bridgeTargets"+i);
+					if(sListTargetname == sTargetname){
+						iTargetInList = 1;
+						i=bCommander_max_bridgeTargets;
+					}
+				}
+			}
+		}
+	}
+	return iTargetInList;
+}
+
+void bCommander_addValidTarget(string sNewTargetname)
+//------------------------------------------------------------------------------
+// adds a valid target to the list, can even add targets that are not yet spawned
+//------------------------------------------------------------------------------
+{
+	if(sNewTargetname == ""){
+		globalCoop_main_printTimeAndString("func: bCommander_addValidTarget - Given targetname was empty - rejected");
+		return;
+	}
+
+	if(sNewTargetname == "world" || sNewTargetname == "World" || sNewTargetname == "WORLD"){
+		globalCoop_main_printTimeAndString("func: bCommander_addValidTarget - Given targetname was WORLD - rejected");
+		return;
+	}
+
+	float i;
+	float iFirstEmpty = -1;
+	for(i=0;i<bCommander_max_bridgeTargets;i++){
+		string sStationTargetname;
+		sStationTargetname = $world.getStringVar("bCommander_bridgeTargets"+i);		
+		if(sStationTargetname == "" && iFirstEmpty == -1){
+			iFirstEmpty = i;
+		}
+		
+		if(sStationTargetname == sNewTargetname){
+			globalCoop_main_printTimeAndString("func: bCommander_addValidTarget - "+sNewTargetname+" already in the list");
+			return;
+		}
+	}
+	
+	if(iFirstEmpty >= bCommander_max_bridgeTargets){
+		globalCoop_main_printTimeAndString("func: bCommander_addValidTarget - "+sNewTargetname+" could not be added max number reached");
+		return;
+	}
+	$world.setStringVar("bCommander_bridgeTargets"+iFirstEmpty,sNewTargetname);
+	globalCoop_main_printTimeAndString("func: bCommander_addValidTarget - "+sNewTargetname+" successfully added to list");
+}
+
+void bCommander_playerExit(entity ePlayer,string sLastHud)
+//------------------------------------------------------------------------------
+//resets the actor looking at the player once the dialog has stopped
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		//Print message if player used the trigger again to exit
+		//if(ePlayer.getFloatVar("bCommander_doExit") == 1 || globalCoop_check_playerSpectator(ePlayer) == 1)
+		ePlayer.hudprint("^5You are no longer the ^2Captain^5...\n");
+	
+		//reset marker
+		ePlayer.setFloatVar("bCommander_isCaptain",0);
+		ePlayer.setFloatVar("bCommander_inMenu",0);
+		ePlayer.setFloatVar("bCommander_showingTT",0);
+		ePlayer.setFloatVar("bCommander_isZooming",0);
+		ePlayer.setFloatVar("bCommander_doExit",0);	
+		
+		//remove hud/menu
+		if(sLastHud != ""){
+			ePlayer.removehud(sLastHud);
+		}
+		
+		//remove tooltip hud
+		ePlayer.removehud("coop_fireUse");
+		
+		//reset fov
+		ePlayer.fov(ePlayer.getUserFov());
+	}
+}
+
+void bCommander_actorTimer(entity eActor,string sDialog)
+//------------------------------------------------------------------------------
+//resets the actor looking at the player once the dialog has stopped
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor) != 1 || sDialog == ""){
+		return;
+	}
+
+	//rename this function so it can be killed else where by name reference
+	threadname("bCommander_actorTimer"+eActor.getRawTargetName());
+	
+	waitDialogLength(sDialog);
+	if(doesEntityExist(eActor)){
+		thread bCommander_actorReset(eActor);
+	}
+}
+
+void bCommander_captain()
+//------------------------------------------------------------------------------
+// started by trigger - handles the player using the captains chair
+//------------------------------------------------------------------------------
+{
+	//grab trigger that started this function
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		globalCoop_main_printTimeAndString("func: bridgeCommanderCaptain - can not be used from console");
+		return; //exit
+	}
+	
+	//grab player that last used this trigger
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	if(!doesEntityExist(ePlayer)){
+		globalCoop_main_printTimeAndString("func: bridgeCommanderCaptain - could not grab player from trigger");
+		return; //exit
+	}
+	
+	//check if player already is handled
+	if(ePlayer.getFloatVar("bCommander_isCaptain") == 1){
+		ePlayer.setFloatVar("bCommander_doExit",1);	
+		return; //exit
+	}
+	
+	//check if any other player already is captain
+	float i;
+	entity ePlayerOther;
+	float iSvMaxClients;
+	iSvMaxClients = getCvarInt("sv_maxClients");
+	for(i=0;i<iSvMaxClients;i++){
+		ePlayerOther = getEntity("*"+i);
+		if(doesEntityExist(ePlayerOther)){
+			if(ePlayerOther.getFloatVar("bCommander_isCaptain") == 1){
+				ePlayer.hudprint("^5Somone else ^2already^5 is the ^2Captain^5...!\n");
+				return; //exit
+			}
+		}
+	}
+	
+	//print info to player, mark player as handled
+	ePlayer.hudprint("^5You have now the ^2Conn^5, ^2Captain^5!\n");
+	
+	ePlayer.setFloatVar("bCommander_isCaptain",1);
+	ePlayer.setFloatVar("bCommander_inMenu",0);
+	ePlayer.setFloatVar("bCommander_showingTT",0);
+	ePlayer.setFloatVar("bCommander_isZooming",0);
+	ePlayer.setFloatVar("bCommander_doExit",0);
+	ePlayer.setFloatVar("bCommander_doUnzoom",0);
+	
+	//spawn entity for the actors to look at, to fix headoffset while a sitting animation is played
+	if(!doesEntityExist($bCommander_headwatchMarker)){
+		spawn("trigger_relay","targetname","bCommander_headwatchMarker");
+	}
+	
+	//variables used in the loop
+	entity eActorLast;
+	entity eTargetLast;
+	float iToolTipDelay;
+	vector vPlayerOrigin;
+	vector vPlayerOriginLast;
+	float fMenuEnteredAt;
+	string sPlayerLastActiveWeapon;
+	float fPlayerLastActiveWeaponTime;
+	
+	while(1){
+		//wait a server frame time
+		globalCoop_main_waitAFrame();
+		
+		entity eActor;
+		string sHud;
+		string sHudMenuLast;
+		
+		//player does not exist
+		if(!doesEntityExist(ePlayer)){
+			return; //exit
+		}
+		
+		//player is dead, reset marker, remove menu, reset fov and end function
+		if(ePlayer.getHealth() <= 0 || ePlayer.getFloatVar("bCommander_doExit") == 1 || globalCoop_check_playerSpectator(ePlayer) == 1){
+			//handle player
+			thread bCommander_playerExit(ePlayer,sHudMenuLast);
+			
+			//exit
+			return;
+		}
+		
+		//check for marker
+		if(!doesEntityExist($bCommander_headwatchMarker)){
+			ePlayer.hudprint("^1FATAL ERROR: ^5Marker could not be spawned^8, server might have issues!\n");
+			return;
+		}
+		
+		//update marker location, to the current player location
+		vPlayerOrigin = ePlayer.getOrigin();
+		if(vPlayerOriginLast == '0 0 0' || vPlayerOriginLast != vPlayerOrigin ){
+			vPlayerOrigin_z -= 27;
+			$bCommander_headwatchMarker.origin(vPlayerOrigin);
+			vPlayerOriginLast=vPlayerOrigin;
+		}
+
+		//grab entity player is currently amiming at
+		entity eTarget;
+		eTarget = ePlayer.getTargetedEntity();
+		
+		//player holding left MB(pressing fire)
+		if(ePlayer.checkFire()){	
+			if(doesEntityExist(eTarget)){
+				if(bCommander_isValidTarget(eTarget)){
+					
+					//grab menu/hud from target
+					sHud = eTarget.getStringVar("uservar3");
+					
+					//if target/station/actor has changed
+					//if(bCommander_isSameEntity(eTarget,eTargetLast) == 0 || ePlayer.getFloatVar("bCommander_inMenu") == 0){
+					if(bCommander_isSameEntity(eTarget,eTargetLast) == 0 || ePlayer.getFloatVar("bCommander_isZooming") == 0){
+
+						//previous actor stop dialog, reset head and end wait function
+						bCommander_actorReset(eActorLast);
+					
+						//make player zoom in max dist 1320 units
+						float fDistance;
+						float iMinimumDistForZoom = 150;
+						vector vTargetOrigin,vPlayerOriginCorrected;
+						vTargetOrigin	= eTarget.getOrigin();
+						
+						//fix z origin differences, this should not be a factor at this distance
+						vector vDist;
+						vDist = vTargetOrigin;
+						vDist_z = vPlayerOrigin_z;
+						vPlayerOriginCorrected = vPlayerOrigin;
+						if(vectorLength(vTargetOrigin - vDist) < iMinimumDistForZoom){
+							vPlayerOriginCorrected_z = vTargetOrigin_z;
+						}
+
+						//get player fov correct if out of bounds
+						float fPlayerFov;						
+						fPlayerFov = ePlayer.getUserFov();
+						if(fPlayerFov < 1){ fPlayerFov = 1; }
+						if(fPlayerFov > 160){ fPlayerFov = 160; }
+						
+						fDistance	= vectorLength(vTargetOrigin - vPlayerOriginCorrected);
+						
+						//start zooming in if player is further away then but closer than
+						if(fDistance > iMinimumDistForZoom ){
+							//set new temp fov
+							fPlayerFov = ((fPlayerFov/100)*30);
+							ePlayer.fov(fPlayerFov);
+						}
+
+						ePlayer.setFloatVar("bCommander_isZooming",1);
+						
+						//debug
+						//ePlayer.hudprint("fPlayerFov: "+fPlayerFov+" fDistance: "+fDistance+"\n");
+						
+						iToolTipDelay=0;
+						if(ePlayer.getFloatVar("bCommander_showingTT") == 1){
+							ePlayer.removehud("coop_fireUse");
+							ePlayer.setFloatVar("bCommander_showingTT",0);
+						}
+						
+						//close previous menu/hud
+						if(ePlayer.getFloatVar("bCommander_inMenu")){
+							if(sHudMenuLast != ""){
+								ePlayer.removeHud(""+sHudMenuLast);
+								wait(0.1);
+							}
+						}
+						
+						//exit if player is no longer on the server
+						if(!doesEntityExist(ePlayer)){
+							return;
+						}
+							
+						//if there is a menu specified add to player screen
+						if(sHud != ""){
+							fMenuEnteredAt = getLevelTime();
+							ePlayer.setFloatVar("bCommander_inMenu",1);
+							ePlayer.addHud(""+sHud);
+							sHudMenuLast = sHud;
+						}
+						
+						//grab actor if specified
+						string sActorTargetname;
+						sActorTargetname = eTarget.getStringVar("uservar1");
+						if(sActorTargetname != ""){
+							eActor = getEntity(""+sActorTargetname);
+							
+							//check if actor exists and is alive
+							if(doesEntityExist(eActor)){
+								if(eActor.getHealth() > 0){
+								
+									//play dialog if specified and watch player and start timer
+									string sDialog;
+									sDialog = eTarget.getStringVar("uservar2");
+									if(sDialog != ""){
+										bCommander_actorTalk(eActor,"localization/sound/dialog/"+sDialog);
+										thread bCommander_actorTimer(eActor,"localization/sound/dialog/"+sDialog);
+										eActorLast = eActor;
+									}
+								}
+							}
+						}
+						eTargetLast = eTarget;
+					}
+				}
+			}
+		}
+		//player just looking around
+		//managed interact tooltip hud
+		else{
+			if(ePlayer.getFloatVar("bCommander_inMenu") == 0){
+				if(bCommander_isValidTarget(eTarget)){
+					if(eTarget.getStringVar("uservar3") != "" || ePlayer.getFloatVar("bCommander_isZooming") == 0){
+						if(ePlayer.getFloatVar("bCommander_showingTT") == 0){
+							if( iToolTipDelay >= 6){
+								ePlayer.addhud("coop_fireUse");
+								ePlayer.setFloatVar("bCommander_showingTT",1);
+							}
+							iToolTipDelay++;
+						}
+					}
+				}else{
+					iToolTipDelay=0;
+					if(ePlayer.getFloatVar("bCommander_showingTT") == 1){
+						ePlayer.removehud("coop_fireUse");
+						ePlayer.setFloatVar("bCommander_showingTT",0);
+					}
+				}
+			}
+		}
+
+		//debug
+		//ePlayer.hudprint(""+ePlayer.checkFireAlt()+":"+ePlayer.checkForward()+":"+ePlayer.checkBackward()+"\n");
+		
+		//player holding right MB(pressing alternative fire) - added compatibility for mom-menus
+		if(ePlayer.checkFireAlt() == 1 || ePlayer.getFloatVar("bCommander_doUnzoom") == 1 ){
+			
+			//debug
+			/*if(ePlayer.checkFireAlt() == 1){
+				ePlayer.hudprint("R-Click\n");
+			}
+			if(ePlayer.getFloatVar("bCommander_doUnzoom") == 1){
+				ePlayer.hudprint("MOM UNZOOM\n");
+			}*/
+		
+			//player remove menu and reset fov
+			if(sHudMenuLast != ""){
+				ePlayer.removeHud(""+sHudMenuLast);
+				ePlayer.setFloatVar("bCommander_inMenu",0);
+			}
+			
+			//reset fov
+			ePlayer.fov(ePlayer.getUserFov());
+			ePlayer.setFloatVar("bCommander_isZooming",0);
+			ePlayer.setFloatVar("bCommander_doUnzoom",0);
+			
+			//previous actor stop dialog, reset head and end wait function
+			bCommander_actorReset(eActorLast);
+		}
+		
+		sPlayerLastActiveWeapon = ePlayer.getActiveWeaponName();
+	}
+}
