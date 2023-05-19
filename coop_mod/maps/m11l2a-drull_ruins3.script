@@ -4,6 +4,10 @@
 void coop_setNewSpawnForPlayer(float fPlayerId,vector vNew,float fAngle, float Stage);
 void coop_makeThisLessFrustrating();
 entity	coop_returnMeARandomPlayer();
+
+//[b60014] chrissstrahl - make sure player don't fall off the map
+void coop_fallingProtection();
+
 void	coop_endLevel();
 
 entity	entityPlayerGlobal;
@@ -222,16 +226,22 @@ void cinematicIntroEnd()
 	wait ( .5 );
 	cam_fadein( .5, 0, 0, 0, 1, 0 ) ;
 	
+	//[b60014] chrissstrahl - moving the first 3 player onto the lift - because I can
+	float fPlayerz;
 	entity ePlayer;
 	float fPlayerIdInUse;
 	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
 		ePlayer = getentity("player"+fPlayerIdInUse);
-		if(doesEntityExist(ePlayer)){
-			if(globalCoop_check_playerSpectator(ePlayer) == 0){
-				ePlayer.origin($fakeplayer.getOrigin());
-				ePlayer.playerviewangles ( '0 270 0' );
-				fPlayerIdInUse=999;
-			}
+		if(doesEntityExist(ePlayer) == 1 && fPlayerz < 3){
+			vector vPlayerOrigin;
+			if		(fPlayerz==0)	{vPlayerOrigin='5 -44 0';}
+			else if	(fPlayerz==1)	{vPlayerOrigin='46 30 0';}
+			else					{vPlayerOrigin='-13 30 0';fPlayerIdInUse=999;}
+			vPlayerOrigin_z = vectorGetZ($startLift.getOrigin());
+			vPlayerOrigin_z += 10;
+			fPlayerz++;
+			ePlayer.origin(vPlayerOrigin);
+			ePlayer.playerviewangles ( '0 270 0' );
 		}
 	}
 	
@@ -255,7 +265,7 @@ void romulanLine2 ()
 
 //hzm coop mod chrissstrahl - move spawnpoints closer
 //so if a player dies and can't respawn at position, he will be spawning at that location
-//move the locations closer, so that teh players do not spawn to far away from current mission progress
+//move the locations closer, so that the players do not spawn to far away from current mission progress
 	vector v;
 	float i;
 	float fOffset;
@@ -707,6 +717,9 @@ void startLiftMove()
 	thread startLiftDoor1OpenRight();
 	thread startLiftDoor2OpenLeft();
 	thread startLiftDoor2OpenRight();
+	
+	//[b60014] chrissstrahl - make sure player don't fall off the map
+	thread coop_fallingProtection();
 }
 
 void startLiftDoor1OpenLeft()
@@ -1039,6 +1052,29 @@ void coop_makeThisLessFrustrating()
 		if(fRustrationReducerActive == 1){
 			wait(0.1);
 		}
+	}
+}
+
+//[b60014] chrissstrahl - make sure player don't fall off the map
+void coop_fallingProtection()
+//------------------------------------------------------------------------------
+//check every player if they are falling (can happen when using the lift down)
+//------------------------------------------------------------------------------
+{
+	while(1){
+		float fPlayerIdInUse;
+		entity ePlayer;
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+ fPlayerIdInUse);
+			if(globalCoop_check_existingLivingEntity(ePlayer)){
+				if(vectorGetZ(ePlayer.getVelocity()) < -2000){
+					ePlayer.setVelocity('0 0 0');
+					globalCoop_main_waitAFrame();
+					thread globalCoop_player_warpToSpawn(ePlayer);
+				}
+			}	
+		}
+		wait(2);
 	}
 }
 
