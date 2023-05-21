@@ -256,46 +256,6 @@ coop_objective
 	 rgbGen wave sin 0.85 0.25 0 0.225
    }
 }
-
-//--------------------------------------------------------------------
-coop_Technician
-{
-   nomipmaps
-   nopicmip
-   cull none
-   {
-		map sysimg/hud/coop_3.tga
-		blendfunc blend
-		alphaFunc GT0
-		alphaGen global
-   }
-}
-//--------------------------------------------------------------------
-coop_Medic
-{
-   nomipmaps
-   nopicmip
-   cull none
-   {
-		map sysimg/hud/coop_1.tga
-		blendfunc blend
-		alphaFunc GT0
-		alphaGen global
-   }
-}
-//--------------------------------------------------------------------
-coop_HeavyWeapons
-{
-   nomipmaps
-   nopicmip
-   cull none
-   {
-		map sysimg/hud/coop_2.tga
-		blendfunc blend
-		alphaFunc GT0
-		alphaGen global
-   }
-}
 //--------------------------------------------------------------------
 coop_story
 {
@@ -308,23 +268,6 @@ coop_story
 		alphaFunc GT0
 		alphaGen global
    }
-}
-
-//--------------------------------------------------------------------
-// Advanced Mint Health Hud
-//--------------------------------------------------------------------
-hud/advanced_mint_health_hud
-{
-	nomipmaps
-	nopicmip
-	cull none
-	{
-		map sysimg/hud/hud_health_v2green_bg.tga
-		blendfunc blend
-		alphaFunc GT0
-		alphaGen global
-		rgbGen wave sin 0.85 0.25 0 0.425
-	}
 }
 //--------------------------------------------------------------------
 // server is loading hud
