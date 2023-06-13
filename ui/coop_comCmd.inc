@@ -14,6 +14,7 @@ Label
 	bgcolor 1 0 0 0
 	cvarvisibility "coop_comL" "12"
 }
+
 resource
 Button
 {
@@ -34,6 +35,7 @@ Button
 	cvarvisibility "coop_comL" "12"
 	stuffcommand "set coop_comL 10"
 }
+
 resource
 Button
 {
@@ -523,6 +525,7 @@ Button
 	cvarvisibility "coop_comL" "11"
 	stuffcommand "set coop_comL 10"
 }
+
 resource
 Button
 {
@@ -538,6 +541,7 @@ Button
 	cvarvisibility "coop_comL" "12"
 	stuffcommand "set coop_comL 11"
 }
+
 resource
 Button
 {
@@ -553,6 +557,7 @@ Button
 	cvarvisibility "coop_comL" "10"
 	stuffcommand "set coop_comL 11"
 }
+
 resource
 Button
 {
