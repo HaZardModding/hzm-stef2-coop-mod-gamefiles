@@ -245,7 +245,7 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "10"
-	stuffcommand "!login"
+	stuffcommand "popmenu coop_com;!login"
 }
 
 resource
