@@ -230,48 +230,6 @@ Button
 resource
 Button
 {
-	title "!login"
-	rect 12 110 128 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/holo_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
-	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Login in to the Server\""
-	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
-
-	cvarvisibility "coop_comL" "10"
-	stuffcommand "popmenu coop_com;!login"
-}
-
-resource
-Button
-{
-	title "!logout"
-	rect 12 130 128 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/holo_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
-	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Logs you out\""
-	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
-
-	cvarvisibility "coop_comL" "10"
-	stuffcommand "!logout"
-}
-
-resource
-Button
-{
 	title "!kill"
 	rect 200 124 128 18
 	borderstyle "NONE"
@@ -315,7 +273,7 @@ resource
 Button
 {
 	title "3rd Person"
-	rect 12 150 128 18
+	rect 12 110 128 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -336,7 +294,7 @@ resource
 Button
 {
 	title "$$c#097$$"
-	rect 12 190 320 18
+	rect 12 202 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -481,7 +439,7 @@ resource
 Label
 {
 	title "Admin Options - Require Login on the Server!\n^3 !thread starts fuc, with you as activator..."
-	rect 6 140 360 64
+	rect 6 155 360 64
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -493,8 +451,50 @@ Label
 resource
 Button
 {
+	title "!login"
+	rect 12 130 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Login in to the Server\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "11"
+	stuffcommand "popmenu coop_com;!login"
+}
+
+resource
+Button
+{
+	title "!logout"
+	rect 200 130 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Logs you out\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "11"
+	stuffcommand "!logout"
+}
+
+resource
+Button
+{
 	title "$$Back$$"
-	rect 12 190 320 18
+	rect 12 202 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
