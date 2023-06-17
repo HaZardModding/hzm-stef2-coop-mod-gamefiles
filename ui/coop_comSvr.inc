@@ -19,7 +19,7 @@ Field
 {
 	linkcvar "rconPassword"
 	maxcharacters   64
-	rect 12 50 360 24
+	rect 12 50 220 24
 	fgcolor .7 .9 .8 1
 	bgcolor 0.22 0.25 0.35 0.5
 	borderstyle "INDENT_BORDER"
@@ -28,6 +28,27 @@ Field
 	horizontaljustify left
 	verticaljustify top
 	cvarvisibility "coop_comL" "30"
+}
+
+resource
+Button
+{
+	title "$$Apply$$"
+	rect 234 53 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars015.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Restarts the current Map\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "30"
+	stuffcommand "rcon restart"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,6 +133,27 @@ Button
 	stuffcommand "set coop_comL 32"
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows a list of console commands\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+	
+	shader textures/xxx/coopLcars012.tga
+	hovershader textures/xxx/coopLcars016.tga
+}
+
+resource
+Button
+{
+	title "Print coop_admin (login) Cvar to console"
+	rect 12 170 320 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/lcars_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	cvarvisibility "coop_comL" "30"
+	stuffcommand "rcon coop_admin"
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows the coop_admin !login Cvar in console\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 	
 	shader textures/xxx/coopLcars012.tga
