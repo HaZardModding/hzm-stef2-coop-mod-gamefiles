@@ -48,7 +48,6 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "30"
-	stuffcommand "rcon restart"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +78,27 @@ Button
 resource
 Button
 {
+	title "Quit Server"
+	rect 12 120 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars023.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Quits the Remote Game Server\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "30"
+	stuffcommand "rcon quit"
+}
+
+resource
+Button
+{
 	title "Status"
 	rect 200 90 128 18
 	borderstyle "NONE"
@@ -101,7 +121,7 @@ resource
 Button
 {
 	title "Console Commands List"
-	rect 12 130 320 18
+	rect 12 150 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -122,7 +142,7 @@ resource
 Button
 {
 	title "United Server CFG Collection"
-	rect 12 150 320 18
+	rect 12 170 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -143,7 +163,7 @@ resource
 Button
 {
 	title "Print coop_admin (login) Cvar to console"
-	rect 12 170 320 18
+	rect 12 190 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -153,7 +173,7 @@ Button
 	cvarvisibility "coop_comL" "30"
 	stuffcommand "rcon coop_admin"
 	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows the coop_admin !login Cvar in console\""
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows the coop_admin !login Cvar in Console\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 	
 	shader textures/xxx/coopLcars012.tga
