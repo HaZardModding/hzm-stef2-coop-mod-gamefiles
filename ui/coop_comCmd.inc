@@ -283,11 +283,32 @@ Button
 	shader textures/xxx/coopLcars015.tga
 	hovershader textures/xxx/coopLcars017.tga
 	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"\""
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Toggles 3rd Person viewmode\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "10"
 	stuffcommand "toggle cg_3rd_person"
+}
+
+resource
+Button
+{
+	title "!notransport"
+	rect 12 130 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars015.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Activates a Transport Inhibitor\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!notransport"
 }
 
 resource
@@ -466,7 +487,7 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "11"
-	stuffcommand "popmenu coop_com;!login"
+	stuffcommand "!login;seta coop_comL 19"
 }
 
 resource
@@ -505,6 +526,287 @@ Button
 	stuffcommand "set coop_comL 10"
 	shader textures/xxx/coopLcars012.tga
 	hovershader textures/xxx/coopLcars016.tga
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//CODEPANNEL LOGIN - ADMIN !LOGIN
+////////////////////////////////////////////////////////////////////////////////
+resource
+Button
+{
+	title "1"
+	rect 12 30 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 1"
+}
+
+resource
+Button
+{
+	title "2"
+	rect 54 30 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 2"
+}
+
+resource
+Button
+{
+	title "3"
+	rect 96 30 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 3"
+}
+
+resource
+Button
+{
+	title "4"
+	rect 138 30 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 4"
+}
+
+resource
+Button
+{
+	title "5"
+	rect 180 30 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 5"
+}
+
+resource
+Button
+{
+	title "6"
+	rect 12 72 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 6"
+}
+
+resource
+Button
+{
+	title "7"
+	rect 54 72 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 7"
+}
+
+resource
+Button
+{
+	title "8"
+	rect 96 72 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 8"
+}
+
+resource
+Button
+{
+	title "9"
+	rect 138 72 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 9"
+}
+
+resource
+Button
+{
+	title "0"
+	rect 180 72 32 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput 0"
+}
+
+resource
+Button
+{
+	title "Reset"
+	rect 222 30 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars021.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Reset\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "coopinput clear"
+}
+
+resource
+Button
+{
+	title "$$Back$$"
+	rect 222 72 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/lcars_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars013.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"$$Back$$\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "19"
+	stuffcommand "set coop_comL 11"
+}
+
+resource
+Label
+{
+	name "coop_comCmdLoginCode"
+	rect 12 114 360 32
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	fgcolor 1 1 1 1
+	bgcolor 1 0 0 0
+	cvarvisibility "coop_comL" "19"
+}
+
+resource
+Label
+{
+	name "coop_comCmdLoginMsg"
+	rect 12 148 360 64
+	borderstyle "NONE"
+	font serpentinemedium-14
+	verticaljustify top
+	fgcolor 1 1 1 1
+	bgcolor 0 1 0 0
+	cvarvisibility "coop_comL" "19"
 }
 
 ////////////////////////////////////////////////////////////////////////////////
