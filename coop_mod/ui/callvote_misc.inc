@@ -169,7 +169,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#020$$"
-	name 	"coopOptionsAdditionalBtn"
+	name 	"coopOptionsGameplayBtn"
 	rect	275 190 328 20
 	font serpentinemedium-10
 	fgcolor 		0.000 1.000 1.000 1.000
@@ -192,7 +192,7 @@ Button
 {
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#035$$"
-	name 	"coopOptionsLvlTriningBtn"
+	name 	"coopOptionsLvlTrainingBtn"
 	rect	275 222 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
@@ -205,7 +205,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 6;set coop_ui_sm -1"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop Singleplayer Campaign
@@ -227,7 +227,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 7;set coop_ui_smn $$mission-m1$$;set coop_ui_sm 1"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop custom maps
@@ -249,7 +249,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 13;set coop_ui_smn Custom_Maps;set coop_ui_sm 13"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop a gate two birds mod
@@ -271,7 +271,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 14;set coop_ui_smn Custom_Maps;set coop_ui_sm 14"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop return of the emptry crow
@@ -293,7 +293,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 15;set coop_ui_smn Custom_Maps;set coop_ui_sm 15"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop Aftermath Mod
@@ -315,7 +315,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 16;set coop_ui_smn Custom_Maps;set coop_ui_sm 16"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 //coop Example and test maps
@@ -337,7 +337,7 @@ Button
 	clicksound sound/misc/menu/click.wav
  
 	stuffcommand "set coop_ui_vt 20;set coop_ui_smn Test_Maps;set coop_ui_sm 13"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#112$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 
