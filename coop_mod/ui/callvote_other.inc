@@ -39,6 +39,7 @@ Label
 resource
 SwitchBox
 {
+	disable
 	name "Default"
 	//rect 50 200 219 36
 	rect 34 200 219 36
@@ -84,6 +85,7 @@ SwitchBox
 resource
 PulldownMenuContainer
 {
+	disable
 	title "$$list$$"
 	name "coopGpoSkillSelect"
 	rect 254 200 20 36
