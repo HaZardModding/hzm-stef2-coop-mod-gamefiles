@@ -435,11 +435,12 @@ Button
 	stuffcommand "!levelend"
 }
 
+
 resource
 Button
 {
 	title "!reboot"
-	rect 200 70 128 18
+	rect 200 50 128 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -454,6 +455,27 @@ Button
 
 	cvarvisibility "coop_comL" "11"
 	stuffcommand "!reboot"
+}
+
+resource
+Button
+{
+	title "!flushtikis"
+	rect 200 90 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars019.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Clears server Models cache right now\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "11"
+	stuffcommand "!flushtikis"
 }
 
 resource
