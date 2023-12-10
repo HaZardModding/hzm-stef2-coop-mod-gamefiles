@@ -15,17 +15,20 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2-----------------------------------setup.cfg
+echo -2-----------------------detect.cfg--setup.cfg
 echo Check Coop Version Commands
 echo seta coop_ver 6xx
 echo seta coop_verInfo "coopinstalled 6xx"
+echo.
+echo coopinstalled 6xxxx
 echo ----------------------------------------------
 start coop_mod\cfg\setup.cfg
+start coop_mod\cfg\detect.cfg
 pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo Check Build version in Gamecode, game.h
 echo #define COOP_BUILD 6xx
@@ -37,7 +40,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo Check if INI-Files need updating.
@@ -51,7 +54,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -64,7 +67,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -77,7 +80,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -92,7 +95,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -108,7 +111,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -125,7 +128,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
@@ -149,7 +152,7 @@ pause
 
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
-echo -2----------------------coop_mod\cfg\setup.cfg
+echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
 echo -4--------------------------------INI-FILES---
 echo -5------------------------globalstrings.loc---
