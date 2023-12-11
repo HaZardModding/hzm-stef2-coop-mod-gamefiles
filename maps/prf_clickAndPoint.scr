@@ -1,0 +1,332 @@
+//Chrissstrahl - 23.05.2023 - Proof of Concept - Click and Point
+
+//------------------------------------------------------------------------------
+// DECLARATIONS
+//------------------------------------------------------------------------------
+void main();
+void setupCamera();
+void cameraFollow(entity eCam,entity eFollow,entity eWatch);
+//void setupLevel();
+//void setupActors();
+void coop_displaySelected(entity ePlayer);
+void coop_endLevel();
+
+
+
+float	worldnum = -1;
+void	coop_pcaJustEntered(entity ePlayer);
+void	coop_pcaActorGoTo(entity ePlayer);
+string	coop_pcaGetIcon(entity eCurrent);
+void	coop_pcaHandleSelect(entity ePlayer,entity eCurrent);
+void	coop_pcaHandleHover(entity ePlayer,entity eCurrent);
+
+
+//pacSelector_player0
+
+
+//------------------------------------------------------------------------------
+// INCLUDES
+// - this requires the inclusion of the hzm coop mod main script first
+//------------------------------------------------------------------------------
+#include "coop_mod/matrix/main.scr"
+
+void main()
+//------------------------------------------------------------------------------
+// inizial function, started by the game
+//------------------------------------------------------------------------------
+{
+	worldnum = $world.getEntityNumber();
+
+	setupCamera();
+	
+	
+	$patternEnhancher.contents( "targetable" );
+	$bridge.contents( "targetable" );
+	$fountain.contents( "targetable" );
+	$plant1.contents( "targetable" );
+	$plant2.contents( "targetable" );
+	$plant3.contents( "targetable" );
+	$controls.contents( "targetable" );
+	
+	waitForPlayer();
+
+	
+	globalCoop_main_waitAFrame();
+	//cuecamera($cam_munro);
+	$cam_munro.angle(90);
+	wait(2);
+	cameraFollow($cam_munro,$cam1_origin,$munro);
+	
+	float fDistance;
+	float fBaseScale = 4;
+	float fNewScale;
+	float fNewScaleFraction;
+	vector vLast,vV;
+	entity eT;
+	//eT = spawn("script_model","model","coop_use.spr","notsolid","1");
+	eT = spawn("script_model","model","sysimg/icons/mp/team_blue.spr","notsolid","1");
+	wait(0.5);
+	eT.rendereffects("+depthhack");
+	eT.targetname("selPlayer0");
+	
+	return;
+	
+	fNewScale = (fBaseScale / 2);
+	fNewScaleFraction = (fNewScale / 1000);
+	
+	while(1){
+		wait(0.05);
+		vV = $player0.getViewtraceEndpos();
+		vV_z += 20;
+		if(vLast != vV){
+			vLast = vV;
+			fDistance = vectorLength(vV - ($player0.getOrigin()));
+			//$player0.hudprint("ENDPOS: "+vV+"\n");
+			//$player0.hudprint("dist: "+fDistance+"\n");
+			eT.origin(vV);
+			//eT.scale((fNewScaleFraction*fDistance) + 2);
+		}
+	}
+}
+
+void setupCamera()
+//------------------------------------------------------------------------------
+// setup camera for level
+//------------------------------------------------------------------------------
+{
+	entity eCam;
+	eCam = spawn("camera","targetname","cam_munro");
+	globalCoop_main_waitAFrame();
+	
+	eCam.origin($cam1_origin.getOrigin());
+	globalCoop_main_waitAFrame();
+}
+
+void cameraFollow(entity eCam,entity eFollow,entity eWatch)
+//------------------------------------------------------------------------------
+// make camera watch
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eCam)){
+		globalCoop_main_print("cameraWatch: Camera in paramater1 not found");
+		return;
+	}
+	if(!doesEntityExist(eFollow)){
+		globalCoop_main_print("cameraWatch: Entity to follow in paramater2 not found");
+		return;
+	}
+	if(!doesEntityExist(eWatch)){
+		globalCoop_main_print("cameraWatch: Entity to watch in paramater3 not found");
+		return;
+	}
+	eCam.follow(eFollow,eWatch);
+}
+
+void coop_displaySelected(entity ePlayer)
+//------------------------------------------------------------------------------
+//show selected entity
+//------------------------------------------------------------------------------
+{
+	float entnum,lastPressedTime,lastPressedAcceptedTime;
+	entity eCurrent,eLastSelected,eWorld;
+	string sCurrentClass,sLastPressed;
+	
+	while(doesEntityExist(ePlayer)){
+		eCurrent = ePlayer.getTargetedEntity();
+		
+		//handle hover
+		coop_pcaHandleHover(ePlayer,eCurrent);		
+		
+		
+		
+		
+		//selection changed
+		if(eLastSelected != eCurrent){
+			//grab data from entity
+			sCurrentClass = eCurrent.getSubclassName();
+			entnum = eCurrent.getEntityNumber();
+			
+			//if not world/player
+			if(entnum != worldnum && sCurrentClass != "Player"){ eLastSelected = eCurrent; }
+		}
+		//check for actions
+		else{
+			string sPressed;sPressed = ""; //needs to be reset or it retains its value in the next iteration of loop even tho it should not //WTF???!!!
+			lastPressedTime = getLevelTime();
+			
+			//player pressed fire
+			if(ePlayer.checkFire()){
+				sPressed = "fire";
+			}
+			//player pressed use
+			else if(ePlayer.checkFirealt()){
+				sPressed = "fire alt";
+			}
+			//player pressed use
+			else if(ePlayer.checkUse()){
+				sPressed = "use";
+			}
+			
+			//print dev message
+			if(sPressed != ""){
+				if((lastPressedAcceptedTime + 0.2) < getLevelTime() || sPressed != sLastPressed){
+					lastPressedAcceptedTime = getLevelTime();
+					//ePlayer.hudprint("#pressed "+sPressed+"\n");
+					
+					//pressed fire, assume selection
+					if(sPressed == "fire"){
+						if(ePlayer.getFloatVar("_pointAndClick_entitySelected") != entnum){
+							float entnumHover;
+							//entnumHover = ePlayer.getFloatVar("_pointAndClick_entityHover");
+							
+							//select current entity - if it is not world
+							if(/*entnumHover == entnum &&*/ entnum != worldnum){
+								ePlayer.hudprint("select\n\n");
+								coop_pcaHandleSelect(ePlayer,eCurrent);
+							}
+						}else{
+							ePlayer.hudprint("ent already selected\n\n");
+						}
+					}
+					//pressed alt fire, assume goto command
+					else if(sPressed == "fire alt"){
+						coop_pcaActorGoTo(ePlayer);
+					}
+				}
+				sLastPressed = sPressed;
+			}
+		}
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void coop_pcaActorGoTo(entity ePlayer)
+//------------------------------------------------------------------------------
+//make actor go to a place
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		float fCurrent;
+		fCurrent = ePlayer.getFloatVar("_pointAndClick_entitySelected");
+		if(fCurrent <= 0){
+			return;
+		}
+		
+		entity eActor;
+		eActor = getEntity("*"+fCurrent);
+		if(eActor.getSubclassName() != "Actor"){
+			return;
+		}
+		
+		//eActor.selfdetonate();
+		thread globalCoop_actor_walkToVector(eActor,ePlayer.getViewtraceEndpos(),"run");
+		wait(1);
+	}
+}
+
+string coop_pcaGetIcon(entity eCurrent)
+//------------------------------------------------------------------------------
+//returns icon for entity
+//------------------------------------------------------------------------------
+{
+	string sIcon;
+	if(doesEntityExist(eCurrent)){
+		if(eCurrent.doesVarExist("uservar10")){
+			
+			sIcon = eCurrent.getStringVar("uservar10");
+		}
+	}
+	
+	//clear shader
+	if(sIcon == ""){
+		sIcon = "weapons/empty";
+	}
+	
+	return ""+sIcon; //needs to be done this way or it will return a empty string
+}
+
+void coop_pcaHandleSelect(entity ePlayer,entity eCurrent)
+//------------------------------------------------------------------------------
+//handle ui for when player is hovering and then selecting(fire) on something
+//------------------------------------------------------------------------------
+{
+	ePlayer.setFloatVar("_pointAndClick_entitySelected",eCurrent.getEntityNumber());	
+	ePlayer.widgetCmd("pacActiveSel","shader "+coop_pcaGetIcon(eCurrent)+"");
+}
+
+void coop_pcaHandleHover(entity ePlayer,entity eCurrent)
+//------------------------------------------------------------------------------
+//handle ui for when player is hovering/targeting on something
+//------------------------------------------------------------------------------
+{
+	//float entnum;
+	//entnum = eCurrent.getEntityNumber();
+	//ePlayer.setFloatVar("_pointAndClick_entityHover",entnum);
+	ePlayer.widgetCmd("pacActiveHov","shader "+coop_pcaGetIcon(eCurrent)+"");
+	
+	//place on top of current entity bbox
+	if(doesEntityExist(eCurrent) == 1 && doesEntityExist($selPlayer0)){
+		if(eCurrent.getRawTargetname() != "world"){
+			vector vOrigin,vMax;
+			vMax	= eCurrent.getMaxs();
+			vOrigin = eCurrent.getOrigin();
+			vOrigin_z += (vMax_z + 50);
+			$selPlayer0.origin(vOrigin);
+			$selPlayer0.show();
+		}else{
+			$selPlayer0.hide();
+		}
+	}
+	
+	//ePlayer.hudprint("new entity: "+eCurrent.getRawTargetname()+" "+sCurrentClass+" ("+entnum+") @["+eCurrent.getOrigin()+"]\n");
+}
+
+void coop_pcaJustEntered(entity ePlayer)
+//------------------------------------------------------------------------------
+//manage huds and other stuff
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		SendClientCommand(ePlayer,"ui_removehud coop_radar");
+		SendClientCommand(ePlayer,"ui_removehud coop_class");
+		ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
+		ePlayer.addhud("coop_pacActive");
+		
+		thread coop_displaySelected(ePlayer);
+	}
+}
+
+void coop_justEntered()
+//------------------------------------------------------------------------------
+//executed by coop if player enters map/server
+//------------------------------------------------------------------------------
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	wait(0.5);
+	if(!doesEntityExist(ePlayer)){ return; }
+	coop_pcaJustEntered(ePlayer);
+}
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+	wait(3);
+
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+		return;
+	}
+	
+//load next map
+	thread globalCoop_mission_completed("prf_clickAndPoint");
+}
