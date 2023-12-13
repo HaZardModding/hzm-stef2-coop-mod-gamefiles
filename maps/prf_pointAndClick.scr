@@ -1,0 +1,292 @@
+//Chrissstrahl - 23.05.2023 - Proof of Concept - Click and Point
+
+//------------------------------------------------------------------------------
+// DECLARATIONS
+//------------------------------------------------------------------------------
+void main();
+void lurkerKilled();
+void activateTeamMates();
+void teamKilled();
+void fountain();
+void fishHitNode();
+void lurkerKilled();
+
+
+void coop_justBecameSpectator();
+void coop_justDied();
+void coop_justLeft();
+void coop_justSpawned();
+void coop_endLevel();
+
+//pacSelector_player0
+//movementmode -> actor/player?
+
+float fFountainStatus = 1;
+float fFishChangeSpeed = 0;
+float lurkersKilled = 0;
+
+
+//------------------------------------------------------------------------------
+// INCLUDES
+// - this requires the inclusion of the hzm coop mod main script first
+//------------------------------------------------------------------------------
+#include "coop_mod/matrix/main.scr"
+#include "coop_mod/matrix/pointAndClick.scr"
+
+void main()
+//------------------------------------------------------------------------------
+// inizial function, started by the game
+//------------------------------------------------------------------------------
+{
+	coop_bool_showMissionSucessHud	= 1;
+	coop_string_objectiveItem1 = "Kill all Lurkers";
+	coop_string_objectiveItem2 = "Picard Must not die";
+	coop_string_objectiveItem3 = "Civilians must not die";
+	
+	coop_string_objectiveTacticalInfo1	= "You can have Civilians beamed out a location";
+
+
+	//------------------------------------------------------------------------------
+	// WAIT FOR ANY PLAYER TO ENTER THE GAME
+	//------------------------------------------------------------------------------
+	waitForPlayer();
+
+	//------------------------------------------------------------------------------
+	// SETUP INTERACTIVE ENTITIES - player can select them to obtein more info - actors can walk to them
+	//------------------------------------------------------------------------------
+	coop_pcaInteractive($patternEnhancher);
+	coop_pcaInteractive($bridge);
+	coop_pcaInteractive($fountain);
+	coop_pcaInteractive($plant1);
+	coop_pcaInteractive($plant2);
+	coop_pcaInteractive($plant3);
+	coop_pcaInteractive($controls);
+	coop_pcaInteractive($burstRiffle);
+	coop_pcaInteractive($klingonBox);
+	
+	//------------------------------------------------------------------------------
+	// SETUP SELECTABLE ENTITIES
+	//------------------------------------------------------------------------------
+	coop_pcaSelectable($tuvok);
+	coop_pcaSelectable($picard);
+	coop_pcaSelectable($munro);
+	coop_pcaSelectable($lurker1);
+	coop_pcaSelectable($lurker2);
+	coop_pcaSelectable($lurker3);
+	coop_pcaSelectable($lurker4);
+	coop_pcaSelectable($lurker5);
+	coop_pcaSelectable($lurker6);
+	
+	coop_pcaSelectable($civilian1);
+	coop_pcaSelectable($civilian2);
+	globalCoop_main_waitAFrame();
+	
+	//------------------------------------------------------------------------------
+	// MAKE SURE THESE ACTORS ARE IGNORED AT THE START
+	//------------------------------------------------------------------------------
+	coop_pcaSetValidTarget($tuvok,0);
+	coop_pcaSetValidTarget($munro,0);
+	coop_pcaSetValidTarget($picard,0);
+	
+	//------------------------------------------------------------------------------
+	// FAIL MISSION IF THEY GET KILLED
+	//------------------------------------------------------------------------------	
+	coop_pcaFailOnDeath($civilian1,1,"$$YouLostCivilian$$");
+	coop_pcaFailOnDeath($civilian2,1,"$$YouLostCivilian$$");
+	
+	//------------------------------------------------------------------------------
+	// SET HEALTH FOR ACTORS
+	//------------------------------------------------------------------------------
+	$picard.health(75);
+	$munro.health(75);
+	$tuvok.health(75);
+	
+	
+	//also ignore the monsters
+	float fMonster;
+	entity eMonster;
+	for(fMonster = 1;fMonster<7;fMonster++){
+		eMonster = getEntity("lurker"+fMonster);
+		if(doesEntityExist(eMonster)){			
+			//TEST - team ai does not attack animals
+			//eMonster.actortype("animal"); }
+			//END TEST
+			coop_pcaSetValidTarget(eMonster,1);
+		}
+	}
+
+	//---------------------
+	// make fish swim
+	//---------------------
+	$fish.notsolid();
+	$fish.anim( "idle" );
+	$fish.followpath( $t13 , "loop" , "normalangles" );
+	
+	//------------------------------------------------------------------------------
+	// SET OBJECTIVES - to active/incomplete
+	//------------------------------------------------------------------------------
+	globalCoop_objectives_set("Kill all Lurkers","incomplete",1,1);
+	globalCoop_objectives_set("Picard Must not die","incomplete",2,1);
+	globalCoop_objectives_set("Civilians must not die","incomplete",3,1);
+
+
+	
+	
+	//------------------------------------------------------------------------------
+	// TEST STUFF - THIS SHOULD BE REMOVED WHEN DONE
+	//------------------------------------------------------------------------------	
+	//$picard.health(1);
+	//coop_pcaSetValidTarget($picard,1);
+	$lurker4.health(1);
+	coop_pcaSetValidTarget($lurker4,0);
+	//coop_pcaFailOnDeath($lurker4,1,"You Monster you killed a Monster");
+	
+	
+	$civilian1.actortype("teammate");
+	$civilian2.actortype("teammate");
+}
+
+void activateTeamMates()
+//------------------------------------------------------------------------------
+//executed by trigger, activates teammates ai
+//------------------------------------------------------------------------------
+{
+	coop_pcaActivateUnit($munro);
+	coop_pcaActivateUnit($picard);
+	coop_pcaActivateUnit($tuvok);
+}
+
+void teamKilled()
+//------------------------------------------------------------------------------
+//executed each time a teammember is killed (if it has this as set in radiant killthread)
+//------------------------------------------------------------------------------
+{
+	thread globalCoop_mission_failWithReason("$$YouLostTeamMate$$");
+}
+
+void lurkerKilled()
+//------------------------------------------------------------------------------
+//executed each time a lurker is killed (if it has this as set in radiant killthread)
+//------------------------------------------------------------------------------
+{
+	lurkersKilled++;
+	if(lurkersKilled > 5){
+		globalCoop_objectives_set(coop_string_objectiveItem1,"complete",1,1);
+		globalCoop_objectives_set(coop_string_objectiveItem2,"complete",2,1);
+		
+		coop_endLevel();
+	}
+}
+
+void fountain()
+//------------------------------------------------------------------------------
+//toggles fountain
+//------------------------------------------------------------------------------
+{
+	float fSpeed;
+	//toggle
+	if(fFountainStatus == 1){
+		$fountainEffect.scale(0.2);
+		fSpeed = 0.2;
+		fFountainStatus=0;
+	}else{
+		$fountainEffect.scale(1);
+		fSpeed = 1;
+		fFountainStatus=1;
+	}
+
+	//-----------------------
+	// change fish speed
+	//-----------------------
+	entity ePath;
+	entity ePathTarget;
+	string sTargetname;
+	string sTargetnameStart;
+	float fItterations;
+	sTargetnameStart = "t2";
+	ePath = getEntity("t2");
+	while(doesEntityExist(ePath)){
+		ePath.speed(fSpeed);
+		ePathTarget = ePath.getTargetEntity();
+		sTargetname = ePath.getTarget();
+		//ePath.selfdetonate();
+		ePath = $NULL;
+		if(doesEntityExist(ePathTarget)){
+			if(sTargetname != sTargetnameStart || fItterations == 0 ){
+				ePath = ePathTarget;
+			}
+		}
+		fItterations++;
+	}
+	//give go signal for function fishHitNode()
+	fFishChangeSpeed=1;
+}
+
+void fishHitNode()
+//------------------------------------------------------------------------------
+//is fired by the fish if it passes a node - restart fish loop to applay the new speeds of the path
+//------------------------------------------------------------------------------
+{
+	entity eActivator;
+	eActivator = getCurrentEntity();
+	if(fFishChangeSpeed == 1){
+		fFishChangeSpeed=0;
+		entity eNode;
+		eNode = globalCoop_return_closestNodeFromPath(eActivator,$t13);
+		eActivator.followpath( eNode , "loop" , "normalangles" );
+	}
+}
+
+void coop_justBecameSpectator()
+//------------------------------------------------------------------------------
+//executed by coop if player enters spectator
+//------------------------------------------------------------------------------
+{
+	coop_pcaJustLeft(getCurrentEntity());
+}
+
+void coop_justDied()
+//------------------------------------------------------------------------------
+//executed by coop if player just died
+//------------------------------------------------------------------------------
+{
+	coop_pcaJustLeft(getCurrentEntity());
+}
+
+void coop_justLeft()
+//------------------------------------------------------------------------------
+//executed by coop if player just left
+//------------------------------------------------------------------------------
+{
+	coop_pcaJustLeft(getCurrentEntity());
+}
+
+void coop_justSpawned()
+//------------------------------------------------------------------------------
+//executed by coop if player enters map/server
+//------------------------------------------------------------------------------
+{
+	coop_pcaJustEntered(getCurrentEntity());
+}
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+	wait(3);
+
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+		return;
+	}
+	
+//load next map
+	thread globalCoop_mission_completed("prf_clickAndPoint");
+}
