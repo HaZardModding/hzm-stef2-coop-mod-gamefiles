@@ -496,6 +496,7 @@ void coop_pcaSelectable(entity eSelectable)
 		eSelectable.setFloatVar("_pointAndClick_inAnimation",0);
 		eSelectable.updatebosshealth( 0,0); //disable bosshealth bars
 		eSelectable.immortal(0); //allow to get killed
+		eSelectable.flags("-notarget"); //be a target for other ai
 		if(eSelectable.getSubclassName() != "Actor"){
 			eSelectable.contents( "targetable" );
 		}
@@ -517,13 +518,15 @@ void coop_pcaSelectableRemove(entity eSelectable)
 		float fPlayer;
 		entity ePlayer;
 		fPlayer = coop_pcaActorControlledByPlayerEntnum(eSelectable);
-		ePlayer = getEntity("*"+fPlayer);
-		if(doesEntityExist(ePlayer)){
-			float fActNum;
-			fActNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
-			if(fActNum == eSelectable.getEntityNumber()){
-				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-				ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+		if(fPlayer > -1){
+			ePlayer = getEntity("*"+fPlayer);
+			if(doesEntityExist(ePlayer)){
+				float fActNum;
+				fActNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+				if(fActNum == eSelectable.getEntityNumber()){
+					ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
+					ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+				}
 			}
 		}
 		
@@ -568,6 +571,7 @@ float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim)
 //------------------------------------------------------------------------------
 {
 	vector vOffset;
+	vector vCurrent;
 	vOffset = vOrigin;
 	vOffset_z = (vOffset_z + 20);
 	entity eWalkto;
@@ -586,19 +590,25 @@ float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim)
 	//eWalkto.droptoFloor();
 	//globalCoop_main_waitAFrame();
 	
+	vCurrent = eActor.getOrigin();
 	
 	globalCoop_actor_walkToVector(eActor,vOrigin,sAnim);
-	if(doesEntityExist(eWalkto)){
-		eWalkto.remove();
-	}
 	
 	if(doesEntityExist(eActor)){
-		
-		//globalCoop_main_waitAFrame();
+		//if walked distance is very short, assume player wants them to turn
+		if(doesEntityExist(eWalkto)){
+			if(vectorLength( (vCurrent - eActor.getOrigin()) ) < 20){
+				eActor.turntowardsEntity(eWalkto);
+				wait(0.5);
+			}
+		}		
 		if(doesEntityExist(eActor)){
 			eActor.ai_on();
 		}
 	}
+	if(doesEntityExist(eWalkto)){
+		eWalkto.remove();
+	}	
 }
 
 float coop_pcaActorGoTo(entity ePlayer,entity eCurrent)
@@ -886,7 +896,14 @@ void coop_pcaJustLeft(entity ePlayer)
 		ePlayer.widgetCmd("pacActiveHov","shader weapons/empty");
 		ePlayer.removehud("coop_pacActive");
 		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
-		coop_pcaSelectedMarkerClear(ePlayer);
+		entity eActor;
+		eActor = coop_pcaSelectedReturnEntity(ePlayer);
+		if(doesEntityExist(eActor)){
+			coop_pcaSelectedMarkerClear(ePlayer,eActor);
+			if(coop_pcaActorControlledByPlayerEntnum(eActor) == ePlayer.getEntityNumber()){
+				eActor.setFloatVar("_pointAndClick_controlledByPlayer",-1);
+			}
+		}
 		ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
 	}
 }
@@ -910,7 +927,7 @@ void coop_pcaJustEntered(entity ePlayer)
 		
 		wait(0.5);
 		if(doesEntityExist(ePlayer)){
-			ePlayer.notarget();
+			ePlayer.flags("+notarget");
 		}
 	}
 }
