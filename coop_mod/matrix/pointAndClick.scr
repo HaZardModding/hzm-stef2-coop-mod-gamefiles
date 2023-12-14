@@ -89,7 +89,7 @@ long_death
 
 
 //.enemytype("anyname");	//if enemies of different actortype are of the same enemytype (name) they will not attack each other 
-//.actortype("monster");	//monster,enemy,civilian,friend,animal,teammate" ) )
+//.actortype("monster");	//monster,enemy,civilian,friend,animal,teammate
 //.addcustomthread( String threadType, String threadName ) //meleehit,damaged
 */
 
@@ -127,6 +127,8 @@ void	coop_pcaFailOnDeathLoop(entity eCurrent,float fFail,string sReason);
 void	coop_pcaMissionFailure(string sReason);
 void	coop_pcaDamaged();
 void	coop_pcaActivateUnit(entity eUnit);
+float	coop_pcSetBeamOutCapable(entity eActor,float fAllow);
+float	coop_pcaCheckBeamOut(entity eActor);
 
 
 void coop_pcaSelectionManager(entity ePlayer)
@@ -190,7 +192,23 @@ void coop_pcaSelectionManager(entity ePlayer)
 			//only respond if button state has changed
 			if(sCurrentBtn != sLastBtn){
 				//---------------------------------
-				//if a entity is tarteted
+				//regardless of whats being targeted
+				//---------------------------------
+				if(sCurrentBtn == "use"){
+					entity eActor;
+					eActor = coop_pcaSelectedReturnEntity(ePlayer);
+					if(doesEntityExist(eActor)){			
+						if(eActor.getSubclassName() == "Actor"){
+							//useentity( Entity entity ) //makes player use the passed in entity 
+							//triggerentity( $attrex_unlocker_door );
+							//eActor.
+							float f;	
+						}
+					}
+				}
+				
+				//---------------------------------
+				//if a entity is targeted
 				//---------------------------------
 				if(sCurrentClass != "World"){
 					//fire is pressed, try select entity
@@ -318,6 +336,31 @@ void coop_pcaActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay)
 	}
 }
 
+float coop_pcSetBeamOutCapable(entity eActor,float fAllow)
+//------------------------------------------------------------------------------
+//started by trigger - beams out actor
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.setFloatVar("_pointAndClick_canBeamOut",fAllow);
+	}
+}
+
+float coop_pcaCheckBeamOut(entity eActor)
+//------------------------------------------------------------------------------
+//started by trigger - beams out actor
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_canBeamOut")){
+			if(eActor.getFloatVar("_pointAndClick_canBeamOut") == 1){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 void coop_pcaBeamOut()
 //------------------------------------------------------------------------------
 //started by trigger - beams out actor
@@ -329,16 +372,33 @@ void coop_pcaBeamOut()
 		entity eActivator;
 		eActivator = eTrigger.getLastActivatingEntity();
 		if(doesEntityExist(eActivator)){
-			//make actor stop first and turn off ai  before it gets removed or the waitFor(ent) function will get stuck
-			eActivator.ai_on();
-			coop_pcaSelectableRemove(eActivator);
-			globalCoop_main_waitAFrame();
-			eActivator.displayEffect("TransportOut","Federation");
-			wait(1.4);
-			if(doesEntityExist(eActivator)){
-				eActivator.remove();
+			//check if we are allowed to beam out
+			if(coop_pcaCheckBeamOut(eActivator) == 0){
+				return;
 			}
-		}	
+			
+			//make sure this triggers only once
+			coop_pcSetBeamOutCapable(eActivator,0);
+			eActivator.touchTriggers(0);
+			
+			//wait for actor to stop moving
+			vector vVelocity;
+			vVelocity = eActivator.getVelocity();
+			while(doesEntityExist(eActivator) == 1 && vectorLength(vVelocity) > 2){
+				globalCoop_main_waitAFrame();
+			}
+			if(doesEntityExist(eActivator)){
+				//make actor stop first and turn off ai  before it gets removed or the waitFor(ent) function will get stuck
+				eActivator.ai_on();
+				coop_pcaSelectableRemove(eActivator);
+				globalCoop_main_waitAFrame();
+				eActivator.displayEffect("TransportOut","Federation");
+				wait(1.4);
+				if(doesEntityExist(eActivator)){
+					eActivator.remove();
+				}
+			}
+		}
 	}
 }
 
@@ -615,11 +675,13 @@ float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarg
 	vector vOffset;
 	vector vCurrent;
 	vOffset = vOrigin;
-	vOffset_z = (vOffset_z + 20);
+	vOffset_z = (vOffset_z + 30);
+	
 	entity eWalkto;
 	//eWalkto = spawn("script_model","model","models/fx/fx-blueplasma.tik","notsolid","1");
 	//eWalkto = spawn("script_model","model","sysimg/icons/mp/specialty_sniper.spr","notsolid","1");
-	eWalkto = spawn("script_model","model","sysimg/icons/items/rune_armorpiercing.spr","scale","1","notsolid","1","origin",""+vOffset);
+//eWalkto = spawn("script_model","model","sysimg/icons/items/rune_armorpiercing.spr","scale","1","notsolid","1","origin",""+vOffset);
+	eWalkto = spawn("script_model","model","sysimg/icons/items/powerup_speed.spr","scale","1","notsolid","1","origin",""+vOffset);
 	globalCoop_main_waitAFrame();
 	//eWalkto.rendereffects("+depthhack");
 	//eWalkto.scale(1.5);
@@ -634,7 +696,17 @@ float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarg
 	
 	vCurrent = eActor.getOrigin();
 	
-	globalCoop_actor_walkToVector(eActor,vOrigin,sAnim);
+	//check if this entity has a pathnode that has the same targetname, we want to go to it instead.
+	vector vPathnode;
+	float fPathPathnode;
+	vPathnode = getPathnodeOrigin(eTarget.getRawTargetName());
+	if(vectorLength(vPathnode) > 0){
+		fPathPathnode = 1;
+		globalCoop_actor_walkTo(eActor,eTarget.getRawTargetName(),sAnim);
+	}else{
+		fPathPathnode = 0;
+		globalCoop_actor_walkToVector(eActor,vOrigin,sAnim);
+	}
 	
 	if(doesEntityExist(eActor)){
 		//$player0.hudprint("target ent:"+eTarget.getTargetName()+"\n");
@@ -644,9 +716,14 @@ eTraget = eCurrent.getTargetEntity();
 if(doesEntityExist(eTraget)){
 vTarget = eTraget.getOrigin();
 }*/
+
+		//make sure it is always deleted for sure
+		if(doesEntityExist(eWalkto)){
+			eWalkto.remove();
+		}
 	
 		//if walked distance is very short, assume player wants them to turn
-		if(doesEntityExist(eWalkto)){
+		if(doesEntityExist(eWalkto) == 1 && fPathPathnode != 1){
 			if(vectorLength( (vCurrent - eActor.getOrigin()) ) < 30 || eTarget.getSubclassName() != "World"){
 				//turn towards beakon if player clicked on world
 				if(eTarget.getSubclassName() == "World"){
@@ -660,11 +737,34 @@ vTarget = eTraget.getOrigin();
 				}
 				wait(0.5);
 			}
-		}		
+		}
+		//try to use what ever the current target is targeting
+		
+		float fPlayerNum;
+		fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
+		if(fPlayerNum > -1){
+			entity ePlayer;
+			ePlayer = getEntity("*"+fPlayerNum);
+			if(doesEntityExist(ePlayer)){
+				if(ePlayer.getHealth() > 0){
+					entity eTargetOfTarget;
+					eTargetOfTarget = eTarget.getTargetEntity();
+					if(doesEntityExist(eTargetOfTarget)){
+						string sAnimation;
+						sAnimation	= "conv-fingerup-warning";
+						eActor.anim(sAnimation);
+						waitForAnimation(eActor,sAnimation,-0.1);
+						ePlayer.useentity(eTargetOfTarget);
+					}
+				}
+			}
+		}
+		
 		if(doesEntityExist(eActor)){
 			eActor.ai_on();
 		}
 	}
+	//make sure it is always deleted for sure
 	if(doesEntityExist(eWalkto)){
 		eWalkto.remove();
 	}	
@@ -698,7 +798,14 @@ float coop_pcaActorGoTo(entity ePlayer,entity eCurrent)
 		if(doesEntityExist(eCurrent) == 0 || eCurrent.getSubclassName() == "World" || coop_pcaIsInteractive(eCurrent) != 1){
 			thread coop_pcaActorWalkto(eActor,ePlayer.getViewtraceEndpos(),sAnim,$world);
 		}else{
-			thread coop_pcaActorWalkto(eActor,eCurrent.getOrigin(),sAnim,eCurrent);
+			//check if there is a pathnode with the same name, if so grab that location
+			vector vLocation;
+			vLocation = getPathnodeOrigin(eCurrent.getRawTargetName());
+			//no pathnode, origin from object player is pointing on
+			if(vLocation == '0 0 0'){
+				eCurrent.getOrigin();
+			}
+			thread coop_pcaActorWalkto(eActor,vLocation,sAnim,eCurrent);
 			
 		}
 		return 1;
@@ -988,8 +1095,13 @@ void coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker)
 			vOrigin_z += (vMax_z + 50);
 			eMarker.warp(vOrigin);
 			
-			
 			if(coop_pcaCheckEntityLocked(eCurrent) == 0 || eCurrent.getEntNum() == ePlayer.getFloatVar("_pointAndClick_entitySelected")){
+				//has a target (usually a trigger)
+				if(eCurrent.getTargetEntity()){
+					eMarker.model("sysimg/icons/items/powerup_strength.spr");
+				}else{
+					eMarker.model("sysimg/icons/mp/team_blue.spr");
+				}
 				eMarker.show();
 			}
 		}else{
