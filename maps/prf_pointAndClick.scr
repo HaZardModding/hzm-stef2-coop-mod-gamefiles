@@ -38,6 +38,9 @@ void main()
 // inizial function, started by the game
 //------------------------------------------------------------------------------
 {
+	//------------------------------------------------------------------------------
+	// SET COOP OBJECTIVES AND STUFF
+	//------------------------------------------------------------------------------
 	coop_bool_showMissionSucessHud	= 1;
 	coop_string_objectiveItem1 = "Kill all Lurkers";
 	coop_string_objectiveItem2 = "Picard Must not die";
@@ -54,7 +57,10 @@ void main()
 	//------------------------------------------------------------------------------
 	// SETUP INTERACTIVE ENTITIES - player can select them to obtein more info - actors can walk to them
 	//------------------------------------------------------------------------------
-	coop_pcaInteractive($patternEnhancher);
+	coop_pcaInteractive($patternEnhancher0);
+	coop_pcaInteractive($patternEnhancher1);
+	coop_pcaInteractive($patternEnhancher2);
+	coop_pcaInteractive($patternEnhancher3);
 	coop_pcaInteractive($bridge);
 	coop_pcaInteractive($fountain);
 	coop_pcaInteractive($plant1);
@@ -62,7 +68,15 @@ void main()
 	coop_pcaInteractive($plant3);
 	coop_pcaInteractive($controls);
 	coop_pcaInteractive($burstRiffle);
+	
+	
+	//allow setting waypoint to box easier
 	coop_pcaInteractive($klingonBox);
+	coop_pcaInteractive($klingonBox1);
+	
+	//allow to enter the building easier
+	coop_pcaInteractive($enterHelper0);
+	coop_pcaInteractive($enterHelper1);
 	
 	//------------------------------------------------------------------------------
 	// SETUP SELECTABLE ENTITIES
@@ -82,11 +96,25 @@ void main()
 	globalCoop_main_waitAFrame();
 	
 	//------------------------------------------------------------------------------
+	// ALLOW TO BEAM OUT
+	//------------------------------------------------------------------------------	
+	coop_pcSetBeamOutCapable($civilian1,1);
+	coop_pcSetBeamOutCapable($civilian2,1);
+	
+	
+	//------------------------------------------------------------------------------
 	// MAKE SURE THESE ACTORS ARE IGNORED AT THE START
 	//------------------------------------------------------------------------------
 	coop_pcaSetValidTarget($tuvok,0);
 	coop_pcaSetValidTarget($munro,0);
 	coop_pcaSetValidTarget($picard,0);
+	
+	//------------------------------------------------------------------------------
+	// SETUP ACTOR TYPES - if they are not already setup by default as we need them
+	////monster,enemy,civilian,friend,animal,teammate
+	//------------------------------------------------------------------------------
+	$civilian1.actortype("teammate");
+	$civilian2.actortype("teammate");
 	
 	//------------------------------------------------------------------------------
 	// FAIL MISSION IF THEY GET KILLED
@@ -129,8 +157,10 @@ void main()
 	globalCoop_objectives_set("Picard Must not die","incomplete",2,1);
 	globalCoop_objectives_set("Civilians must not die","incomplete",3,1);
 
-
-	
+	//------------------------------------------------------------------------------
+	// SET MOVEMENT SPEED FOR PLAYERS
+	//------------------------------------------------------------------------------
+	$world.physicsVar("maxSpeed",600);	
 	
 	//------------------------------------------------------------------------------
 	// TEST STUFF - THIS SHOULD BE REMOVED WHEN DONE
@@ -138,22 +168,33 @@ void main()
 	//$picard.health(1);
 	//coop_pcaSetValidTarget($picard,1);
 	$lurker4.health(1);
+	coop_pcSetBeamOutCapable($lurker4,1);
 	coop_pcaSetValidTarget($lurker4,0);
 	//coop_pcaFailOnDeath($lurker4,1,"You Monster you killed a Monster");
-	
-	
-	$civilian1.actortype("teammate");
-	$civilian2.actortype("teammate");
 }
 
 void activateTeamMates()
 //------------------------------------------------------------------------------
-//executed by trigger, activates teammates ai
+//executed by trigger, activates teammates ai if it is and other actor than one of them self stepping into the trigger
 //------------------------------------------------------------------------------
 {
-	coop_pcaActivateUnit($munro);
-	coop_pcaActivateUnit($picard);
-	coop_pcaActivateUnit($tuvok);
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity eActivator;
+		eActivator = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(eActivator)){
+			string sTargetname;
+			sTargetname = eActivator.getTargetname();
+			if(sTargetname != "$munro" && sTargetname != "$tuvok" && sTargetname != "$picard"){
+				coop_pcaActivateUnit($munro);
+				coop_pcaActivateUnit($picard);
+				coop_pcaActivateUnit($tuvok);
+				eTrigger.remove();
+				//$player0.hudprint("ai activated\n");
+			}
+		}
+	}
 }
 
 void teamKilled()
