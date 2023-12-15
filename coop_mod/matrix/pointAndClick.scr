@@ -129,6 +129,8 @@ void	coop_pcaDamaged();
 void	coop_pcaActivateUnit(entity eUnit);
 float	coop_pcSetBeamOutCapable(entity eActor,float fAllow);
 float	coop_pcaCheckBeamOut(entity eActor);
+void	coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation);
+string	coop_pcaGetAnimationFor(entity eActor,string sAction);
 
 
 void coop_pcaSelectionManager(entity ePlayer)
@@ -255,6 +257,51 @@ void coop_pcaSelectionManager(entity ePlayer)
 	}
 }
 
+void coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation)
+//------------------------------------------------------------------------------
+//set animation for a ocation/action
+//Example "use","conv-fingerup-warning"
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		while(sAction != "use" && sAction != "pickup" && sAction != "crouch" && sAction != "scared" && sAction != "look"){
+			centerprint("unknown action:("+sAction+") - Valid: use,pickup,crouch,scared,look\n");
+			wait(3);
+		}
+		eActor.setStringVar("_pointAndClick_action_"+sAction,sAnimation);
+	}
+}
+
+string coop_pcaGetAnimationFor(entity eActor,string sAction)
+//------------------------------------------------------------------------------
+//play animation for a ocation/action
+//Example "use"
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		while(sAction != "use" && sAction != "pickup" && sAction != "crouch" && sAction != "scared" && sAction != "look"){
+			centerprint("unknown action:("+sAction+") - Valid: use,pickup,crouch,scared,look\n");
+			wait(3);
+		}
+		
+		string sAnim;		
+		if(eActor.doesVarExist("_pointAndClick_action_"+sAction)){
+			sAnim = eActor.getStringVar("_pointAndClick_action_"+sAction);
+		}else{
+			if(sAction == "use"){ sAnim="conv-fingerup-warning"; } //conv-fingerup-warning, push-button-open,conv-overthere
+			else if(sAction == "pickup"){ sAnim="detpack_plant"; }
+			else if(sAction == "crouch"){ sAnim="crouch_idle"; } //from_crouch,crouch_idle,to_crouch,sit_down_idle
+			else if(sAction == "scared"){ sAnim="startled"; } //scared,startled
+			else if(sAction == "look"){ sAnim="conv-look"; } //conv-look,conv-scratchingchin-thinking,conv-gesture1
+			//laying_down,laying,laying_getup,laying_idle,laying_talk
+			//sit_down_start,sit_down_idle,sit_down_end
+			//twitch
+			//gesture_come
+		}
+	}
+	return ""+sAnim;
+}
+
 string coop_pcaButtonDetect(entity ePlayer)
 //------------------------------------------------------------------------------
 //detect butten pressed by player
@@ -318,7 +365,7 @@ void coop_pcaActorMonitor(entity eActor)
 
 void coop_pcaActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay)
 //------------------------------------------------------------------------------
-//started by trigger - makes actor pickup specified item
+//handle animation
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eCurrent)){
@@ -488,10 +535,11 @@ void coop_pcaPickupItem()
 				sItem = eItem.getModelName();
 				if(eActivator.getSubclassName() == "Actor"){
 					string sAnim;
-					sAnim = coop_pcaGetDataFor(eTrigger,"animation");
+					sAnim = coop_pcaGetAnimationFor(eActivator,"pickup");
 					eActivator.animateonce(sAnim); //detpack_plant_duck
 					coop_pcaActorWaitForAnimation(eActivator,sAnim,-0.05 );
-					eActivator.anim("idle");
+//$player0.hudprint(sAnim+"\n");
+					eActivator.anim("idle"); //if it is not a actor, make sure we force idle afterwards
 				}
 				if(doesEntityExist(eItem)){eItem.remove();}
 			}else{
@@ -515,6 +563,7 @@ string coop_pcaGetDataFor(entity eCurrent,string sData)
 		else if(sData == "item")				{fVarNum=8;}
 		else if(sData == "animation")			{fVarNum=7;}
 		else if(sData == "time")				{fVarNum=6;}
+		else if(sData == "action")				{fVarNum=5;}
 		else if(sData == "descriptionGerman")	{fVarNum=2;}
 		else if(sData == "descriptionEnglish")	{fVarNum=1;}
 		else{
@@ -738,28 +787,42 @@ vTarget = eTraget.getOrigin();
 				wait(0.5);
 			}
 		}
-		//try to use what ever the current target is targeting
 		
-		float fPlayerNum;
-		fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
-		if(fPlayerNum > -1){
-			entity ePlayer;
-			ePlayer = getEntity("*"+fPlayerNum);
-			if(doesEntityExist(ePlayer)){
-				if(ePlayer.getHealth() > 0){
-					entity eTargetOfTarget;
-					eTargetOfTarget = eTarget.getTargetEntity();
-					if(doesEntityExist(eTargetOfTarget)){
-						string sAnimation;
-						sAnimation	= "conv-fingerup-warning";
-						eActor.anim(sAnimation);
-						waitForAnimation(eActor,sAnimation,-0.1);
-						ePlayer.useentity(eTargetOfTarget);
+		//play animation if a action is set
+		if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+			string sAction;
+			sAction = coop_pcaGetDataFor(eTarget,"action");
+			if(sAction != ""){
+				string sAnim;
+				sAnim	= coop_pcaGetAnimationFor(eActor,sAction);
+				eActor.anim(sAnim);
+				coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
+//$player0.hudprint(sAnim+"\n");
+				
+				//try to use what ever the current target is targeting
+				if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+					float fPlayerNum;
+					fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
+					if(fPlayerNum > -1){
+						entity ePlayer;
+						ePlayer = getEntity("*"+fPlayerNum);
+						if(doesEntityExist(ePlayer)){
+							if(ePlayer.getHealth() > 0){
+								entity eTargetOfTarget;
+								eTargetOfTarget = eTarget.getTargetEntity();
+								if(doesEntityExist(eTargetOfTarget)){
+									ePlayer.useentity(eTargetOfTarget);
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 		
+
+		
+		//make sure ai is always turned back on afterwards
 		if(doesEntityExist(eActor)){
 			eActor.ai_on();
 		}
