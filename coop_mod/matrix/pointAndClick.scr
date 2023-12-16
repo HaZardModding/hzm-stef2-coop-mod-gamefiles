@@ -88,7 +88,7 @@ livelong
 long_death
 
 
-//.enemytype("anyname");	//if enemies of different actortype are of the same enemytype (name) they will not attack each other 
+//.enemytype("anyname");	//if enemies of different actortype are of the same enemytype (name) they will not attack other 
 //.actortype("monster");	//monster,enemy,civilian,friend,animal,teammate
 //.addcustomthread( String threadType, String threadName ) //meleehit,damaged
 */
@@ -119,6 +119,7 @@ void	coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker);
 void	coop_pcaHideTarget();
 void	coop_pcaShowTarget();
 float	coop_pcaIsInteractive(entity eCurrent);
+entity	coop_pcaActorReturnControllingPlayer(entity eActor);
 float	coop_pcaActorControlledByPlayerEntnum(entity eActor);
 void	coop_pcaActorMonitor(entity eActor);
 void	coop_pcaSetValidTarget(entity eCurrent,float fValid);
@@ -131,6 +132,17 @@ float	coop_pcSetBeamOutCapable(entity eActor,float fAllow);
 float	coop_pcaCheckBeamOut(entity eActor);
 void	coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation);
 string	coop_pcaGetAnimationFor(entity eActor,string sAction);
+void	coop_pcaSetDialogSelect(entity eActor, string sDialog);
+string	coop_pcaGetDialogSelect(entity eActor);
+void	coop_pcaSetDialogHeal(entity eActor, string sDialog);
+string	coop_pcaGetDialogHeal(entity eActor);
+void	coop_pcaDialogPlay(entity eActor,string sDialog);
+float	coop_pcaCheckValidAction(string sAction);
+float	coop_pcaCheckValidAbility(string sAbility);
+void	coop_pcaSetAbility(entity eActor,string sAbility,float fHas);
+float	coop_pcaHasAbility(entity eActor,string sAbility);
+float	coop_pcaGetStartHealth(entity eActor);
+void	coop_pcaSetStartHealth(entity eActor, float fHealth);
 
 
 void coop_pcaSelectionManager(entity ePlayer)
@@ -145,6 +157,7 @@ void coop_pcaSelectionManager(entity ePlayer)
 	entity eCurrent;
 	entity eLast;
 	entity eSelected;
+	entity eActor;
 	
 	sLastBtn = "NIL";
 	
@@ -171,8 +184,20 @@ void coop_pcaSelectionManager(entity ePlayer)
 			ePlayer.pointofview();
 		}
 		
+		entity eActor;
+		eActor = coop_pcaSelectedReturnEntity(ePlayer);		
 		eCurrent = ePlayer.getTargetedEntity();
-		
+		if(doesEntityExist(eActor)){
+			if(eActor.getSubclassName() == "Actor"){
+				float f100Percent;
+				float f1Percent;
+				float fCurrentHealth;
+				f100Percent = coop_pcaGetStartHealth(eActor);
+				fCurrentHealth = eActor.getHealth();
+				f1Percent = (f100Percent / 100);
+				ePlayer.setstat( "generic", (fCurrentHealth / f1Percent));
+			}
+		}
 		
 		if(doesEntityExist(eCurrent)){
 			//grab current targeted class
@@ -197,16 +222,7 @@ void coop_pcaSelectionManager(entity ePlayer)
 				//regardless of whats being targeted
 				//---------------------------------
 				if(sCurrentBtn == "use"){
-					entity eActor;
-					eActor = coop_pcaSelectedReturnEntity(ePlayer);
-					if(doesEntityExist(eActor)){			
-						if(eActor.getSubclassName() == "Actor"){
-							//useentity( Entity entity ) //makes player use the passed in entity 
-							//triggerentity( $attrex_unlocker_door );
-							//eActor.
-							float f;	
-						}
-					}
+					ePlayer.hudprint("use button does not do anything right now (unfinished)\n");
 				}
 				
 				//---------------------------------
@@ -257,6 +273,166 @@ void coop_pcaSelectionManager(entity ePlayer)
 	}
 }
 
+float coop_pcaGetStartHealth(entity eActor)
+//------------------------------------------------------------------------------
+//GET HEALTH THIS ACTOR STARTED WITH
+//------------------------------------------------------------------------------
+{
+	float fStartHealth;
+	fStartHealth = 75;
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			if(eActor.doesVarExist("_pointAndClick_healthStart")){
+				fStartHealth = eActor.getFloatVar("_pointAndClick_healthStart");
+			}
+		}
+	}
+	return fStartHealth;
+}
+
+void coop_pcaSetStartHealth(entity eActor, float fHealth)
+//------------------------------------------------------------------------------
+//SET HEALTH THIS ACTOR SHOULD HAVE FROM THE START
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.setStringVar("_pointAndClick_healthStart",fHealth);
+		eActor.health(fHealth);
+	}
+}
+
+void coop_pcaSetDialogHeal(entity eActor, string sDialog)
+//------------------------------------------------------------------------------
+//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS HEALING
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.setStringVar("_pointAndClick_soundHeal",sDialog);
+	}
+}
+
+string coop_pcaGetDialogHeal(entity eActor)
+//------------------------------------------------------------------------------
+//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING HEALING
+//------------------------------------------------------------------------------
+{
+	string sDialog;
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_soundHeal")){
+			sDialog = eActor.getStringVar("_pointAndClick_soundHeal");
+		}
+	}
+	return ""+sDialog;
+}
+
+void coop_pcaSetDialogSelect(entity eActor, string sDialog)
+//------------------------------------------------------------------------------
+//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING SELECTED
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.setStringVar("_pointAndClick_soundSelect",sDialog);
+	}
+}
+
+string coop_pcaGetDialogSelect(entity eActor)
+//------------------------------------------------------------------------------
+//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING SELECTED
+//------------------------------------------------------------------------------
+{
+	string sDialog;
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_soundSelect")){
+			sDialog = eActor.getStringVar("_pointAndClick_soundSelect");
+		}
+	}
+	return ""+sDialog;
+}
+
+void coop_pcaDialogPlay(entity eActor,string sDialog)
+//------------------------------------------------------------------------------
+//PLAY SOUND ON ACTOR
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			float fPlaying;
+			fPlaying = eActor.getFloatVar("_pointAndClick_soundPlaying");
+			sDialog = eActor.getStringVar("_pointAndClick_soundSelect");
+			if(sDialog != ""){
+				eActor.setFloatVar("_pointAndClick_soundPlaying",1);
+				eActor.simplePlayDialog(sDialog,1,2048);
+				waitDialogLength(sDialog);
+				wait(1);
+				if(doesEntityExist(eActor)){
+					eActor.setFloatVar("_pointAndClick_soundPlaying",0);
+				}
+			}else{
+				wait(1);
+			}
+		}
+	}
+}
+
+float coop_pcaCheckValidAbility(string sAbility)
+//------------------------------------------------------------------------------
+// CHECK IF ABILITY IS VALID
+//------------------------------------------------------------------------------
+{
+	if(sAbility == "heal"){ return 1;}
+	print("P.a.Click: Invalid ability: "+sAbility+"- valid: heal\n");
+	return 0;
+}
+
+void coop_pcaSetAbility(entity eActor,string sAbility,float fHas)
+//------------------------------------------------------------------------------
+// SET IF THIS ACTOR HAS A SPECIFIC ABILITY OR NOT
+//------------------------------------------------------------------------------
+{
+	if(coop_pcaCheckValidAbility(sAbility)){
+		if(doesEntityExist(eActor)){
+			eActor.setFloatVar("_pointAndClick_abiliy_"+sAbility,fHas);
+		}
+	}
+}
+
+float coop_pcaHasAbility(entity eActor,string sAbility)
+//------------------------------------------------------------------------------
+// CHECK IF ABILITY IS VALID
+//------------------------------------------------------------------------------
+{
+	if(coop_pcaCheckValidAbility(sAbility)){
+		if(doesEntityExist(eActor)){
+			if(eActor.getHealth() > 0){
+				if(eActor.doesVarExist("_pointAndClick_abiliy_"+sAbility)){
+					if(eActor.getFloatVar("_pointAndClick_abiliy_"+sAbility)){
+						return 1;
+					}
+				}
+			}
+		}
+	}
+	print("P.a.Click: "+eActor.getTargetName()+"does not have ability: "+sAbility+"\n");
+	return 0;
+}
+
+float coop_pcaCheckValidAction(string sAction)
+//------------------------------------------------------------------------------
+// CHECK IF ACTION IS VALID
+//------------------------------------------------------------------------------
+{
+	if(sAction == "walk"){ return 1;}
+	if(sAction == "idle"){ return 1;}
+	if(sAction == "use"){ return 1;}
+	if(sAction == "pickup"){ return 1;}
+	if(sAction == "crouch"){ return 1;}
+	if(sAction == "scared"){ return 1;}
+	if(sAction == "look"){ return 1;}
+	if(sAction == "heal"){ return 1;}
+	print("P.a.Click: Invalid action: "+sAction+"- valid: idle,walk,use,pickup,crouch,scared,look,heal\n");
+	return 0;
+}
+
 void coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation)
 //------------------------------------------------------------------------------
 //set animation for a ocation/action
@@ -264,11 +440,9 @@ void coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		while(sAction != "use" && sAction != "pickup" && sAction != "crouch" && sAction != "scared" && sAction != "look"){
-			centerprint("unknown action:("+sAction+") - Valid: use,pickup,crouch,scared,look\n");
-			wait(3);
+		if(coop_pcaCheckValidAction(sAction)){
+			eActor.setStringVar("_pointAndClick_action_"+sAction,sAnimation);
 		}
-		eActor.setStringVar("_pointAndClick_action_"+sAction,sAnimation);
 	}
 }
 
@@ -279,25 +453,35 @@ string coop_pcaGetAnimationFor(entity eActor,string sAction)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		while(sAction != "use" && sAction != "pickup" && sAction != "crouch" && sAction != "scared" && sAction != "look"){
-			centerprint("unknown action:("+sAction+") - Valid: use,pickup,crouch,scared,look\n");
-			wait(3);
+		if(coop_pcaCheckValidAction(sAction)){
+			string sAnim;		
+			if(eActor.doesVarExist("_pointAndClick_action_"+sAction)){
+				sAnim = eActor.getStringVar("_pointAndClick_action_"+sAction);
+			}else{
+				if(sAction == "walk"){ sAnim="run"; }
+				else if(sAction == "idle"){ sAnim="idle"; }
+				else if(sAction == "use"){ sAnim="conv-fingerup-warning"; } //conv-fingerup-warning, push-button-open,conv-overthere
+				else if(sAction == "pickup"){ sAnim="detpack_plant"; }
+				else if(sAction == "crouch"){ sAnim="crouch_idle"; } //from_crouch,crouch_idle,to_crouch,sit_down_idle
+				else if(sAction == "scared"){ sAnim="startled"; } //scared,startled,brace_impact_duck
+				else if(sAction == "look"){ sAnim="conv-look"; } //conv-look,conv-scratchingchin-thinking,conv-gesture1
+				else if(sAction == "heal"){ sAnim="idle"; }
+				//laying_down,laying,laying_getup,laying_idle,laying_talk
+				//sit_down_start,sit_down_idle,sit_down_end
+				//twitch
+				//gesture_come
+				//cin-m3_drop
+				//cin-m3_fromhunch,cin-m3_hunch,cin-m3_tohunch
+				//cin-m3_fromscan,cin-m3_scan,cin-m3_toscan
+				//cin-m3_greet
+				//cin-m3_lean
+				//cin-m3_staying
+				//communicator
+			}
 		}
-		
-		string sAnim;		
-		if(eActor.doesVarExist("_pointAndClick_action_"+sAction)){
-			sAnim = eActor.getStringVar("_pointAndClick_action_"+sAction);
-		}else{
-			if(sAction == "use"){ sAnim="conv-fingerup-warning"; } //conv-fingerup-warning, push-button-open,conv-overthere
-			else if(sAction == "pickup"){ sAnim="detpack_plant"; }
-			else if(sAction == "crouch"){ sAnim="crouch_idle"; } //from_crouch,crouch_idle,to_crouch,sit_down_idle
-			else if(sAction == "scared"){ sAnim="startled"; } //scared,startled
-			else if(sAction == "look"){ sAnim="conv-look"; } //conv-look,conv-scratchingchin-thinking,conv-gesture1
-			//laying_down,laying,laying_getup,laying_idle,laying_talk
-			//sit_down_start,sit_down_idle,sit_down_end
-			//twitch
-			//gesture_come
-		}
+	}
+	if(sAnim == ""){
+		print("P.a.Click: No Animation for action: "+sAction+"- valid: use,pickup,crouch,scared,look,walk\n");
 	}
 	return ""+sAnim;
 }
@@ -348,11 +532,9 @@ void coop_pcaActorMonitor(entity eActor)
 	//if(already handled)return;
 	while(doesEntityExist(eActor)){
 		if(eActor.getHealth() <= 0){
-			float fPlayerNum;
-			fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
-			if(fPlayerNum > -1){
-				entity ePlayer;
-				ePlayer = getEntity("*"+fPlayerNum);
+			entity ePlayer;
+			ePlayer = coop_pcaActorReturnControllingPlayer(eActor);
+			if(doesEntityExist(ePlayer)){
 				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
 			}
 			eActor.clearcustomshader(selectionShader);
@@ -476,7 +658,7 @@ void coop_pcaHideTarget()
 			}
 		}
 		else{
-			centerprint("coop_pcaHideTarget - Trigger has no target!\n");
+			print("P.a.Click: coop_pcaHideTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
 			eTrigger.selfdetonate();
 		}
 	}
@@ -509,7 +691,7 @@ void coop_pcaShowTarget()
 			}
 		}
 		else{
-			centerprint("coop_pcaShowTarget - Trigger has no target!\n");
+			print("P.a.Click: coop_pcaShowTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
 			eTrigger.selfdetonate();
 		}
 	}
@@ -539,7 +721,8 @@ void coop_pcaPickupItem()
 					eActivator.animateonce(sAnim); //detpack_plant_duck
 					coop_pcaActorWaitForAnimation(eActivator,sAnim,-0.05 );
 //$player0.hudprint(sAnim+"\n");
-					eActivator.anim("idle"); //if it is not a actor, make sure we force idle afterwards
+					sAnim = coop_pcaGetAnimationFor(eActivator,"idle");
+					eActivator.anim("sAnim"); //if it is not a actor, make sure we force idle afterwards
 				}
 				if(doesEntityExist(eItem)){eItem.remove();}
 			}else{
@@ -567,13 +750,11 @@ string coop_pcaGetDataFor(entity eCurrent,string sData)
 		else if(sData == "descriptionGerman")	{fVarNum=2;}
 		else if(sData == "descriptionEnglish")	{fVarNum=1;}
 		else{
-			centerprint("coop_pcaGetDataFor - invalid query: "+sData+"\n");
-			print("coop_pcaGetDataFor - invalid query: "+sData+"\n");
+			print("P.a.Click: coop_pcaGetDataFor - invalid query: "+sData+"\n");
 		}
 		
 		if(fVarNum < 1 || fVarNum > 10){
-			centerprint("coop_pcaGetDataFor - out of range with: "+fVarNum+"\n");
-			print("coop_pcaGetDataFor - out of range with: "+fVarNum+"\n");
+			print("P.a.Click: coop_pcaGetDataFor - out of range with: "+fVarNum+"\n");
 			return "";
 		}
 		
@@ -640,6 +821,13 @@ void coop_pcaSelectable(entity eSelectable)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eSelectable)){
+		//already setup - exit
+		if(eSelectable.doesVarExist("_pointAndClick_selectable")){
+			if(eSelectable.getFloatVar("_pointAndClick_selectable") == 1){
+				return;
+			}
+		}
+		
 		eSelectable.setFloatVar("_pointAndClick_selectable",1);
 		eSelectable.setFloatVar("_pointAndClick_inAnimation",0);
 		eSelectable.updatebosshealth( 0,0); //disable bosshealth bars
@@ -651,6 +839,7 @@ void coop_pcaSelectable(entity eSelectable)
 		}
 		//tunoff actor ai on default
 		else{
+			coop_pcaSetStartHealth(eSelectable,eSelectable.getHealth());
 			thread coop_pcaActorMonitor(eSelectable);
 			eSelectable.ai_off();
 			eSelectable.actorondamage("coop_pcaDamaged");
@@ -667,16 +856,13 @@ void coop_pcaSelectableRemove(entity eSelectable)
 		//clear data also from player
 		float fPlayer;
 		entity ePlayer;
-		fPlayer = coop_pcaActorControlledByPlayerEntnum(eSelectable);
-		if(fPlayer > -1){
-			ePlayer = getEntity("*"+fPlayer);
-			if(doesEntityExist(ePlayer)){
-				float fActNum;
-				fActNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
-				if(fActNum == eSelectable.getEntNum()){
-					ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-					ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
-				}
+		ePlayer = coop_pcaActorReturnControllingPlayer(eSelectable);
+		if(doesEntityExist(ePlayer)){
+			float fActNum;
+			fActNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+			if(fActNum == eSelectable.getEntNum()){
+				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
+				ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
 			}
 		}
 		
@@ -789,29 +975,65 @@ vTarget = eTraget.getOrigin();
 		}
 		
 		//play animation if a action is set
-		if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
-			string sAction;
-			sAction = coop_pcaGetDataFor(eTarget,"action");
-			if(sAction != ""){
-				string sAnim;
-				sAnim	= coop_pcaGetAnimationFor(eActor,sAction);
-				eActor.anim(sAnim);
-				coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
-//$player0.hudprint(sAnim+"\n");
-				
-				//try to use what ever the current target is targeting
-				if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
-					float fPlayerNum;
-					fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
-					if(fPlayerNum > -1){
-						entity ePlayer;
-						ePlayer = getEntity("*"+fPlayerNum);
-						if(doesEntityExist(ePlayer)){
-							if(ePlayer.getHealth() > 0){
-								entity eTargetOfTarget;
-								eTargetOfTarget = eTarget.getTargetEntity();
-								if(doesEntityExist(eTargetOfTarget)){
-									ePlayer.useentity(eTargetOfTarget);
+		if(doesEntityExist(eTarget)){
+			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+				if(eTarget.getSubclassName() == "Actor"){
+					if(eTarget.getHealth() > 0 && coop_pcaHasAbility(eActor,"heal") == 1){
+						vector vTarget;
+						vector vDoctor;
+						vTarget = eTarget.getOrigin();
+						vDoctor = eActor.getOrigin();
+						if(vectorLength(vTarget - vDoctor) < 150){
+							string sAnim;
+							sAnim	= coop_pcaGetAnimationFor(eActor,"heal");
+							if(sAnim != ""){
+								//play dialog
+								string sDialog;
+								sDialog = coop_pcaGetDialogHeal(eActor);
+								if(sDialog != ""){
+									coop_pcaDialogPlay(eActor,sDialog);
+								}
+								
+								//play animation and heal
+								eActor.anim(sAnim);
+								coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
+								if(eTarget.getHealth() > 0){
+									float fOldHealth;
+									fOldHealth = eTarget.getHealth();
+									float fNewHealth;
+									fNewHealth = coop_pcaGetStartHealth(eTarget);
+									eTarget.health(fNewHealth);
+									//string sTargetname;
+									//sTargetname = $eTarget.getTargetName();
+									//$player0.hudprint("healed "+sTargetname+" "+fOldHealth+" "+fNewHealth+" \n");
+								}
+							}
+						}else{
+							$player0.hudprint("Out of healing range\n");
+						}
+					}
+				}else{
+					string sAction;
+					sAction = coop_pcaGetDataFor(eTarget,"action");
+					if(sAction != ""){
+						string sAnim;
+						sAnim	= coop_pcaGetAnimationFor(eActor,sAction);
+						eActor.anim(sAnim);
+						coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
+						
+						if(doesEntityExist(eTarget)){
+							//try to use what ever the current target is targeting
+							if(doesEntityExist(eActor) == 1){
+								if(eActor.getHealth() > 0){
+									entity ePlayer;
+									ePlayer = coop_pcaActorReturnControllingPlayer(eActor);
+									if(doesEntityExist(ePlayer)){
+										entity eTargetOfTarget;
+										eTargetOfTarget = eTarget.getTargetEntity();
+										if(doesEntityExist(eTargetOfTarget)){
+											ePlayer.useentity(eTargetOfTarget);
+										}
+									}
 								}
 							}
 						}
@@ -819,8 +1041,6 @@ vTarget = eTraget.getOrigin();
 				}
 			}
 		}
-		
-
 		
 		//make sure ai is always turned back on afterwards
 		if(doesEntityExist(eActor)){
@@ -853,10 +1073,7 @@ float coop_pcaActorGoTo(entity ePlayer,entity eCurrent)
 		coop_pcaSetValidTarget(eActor,1);
 		
 		string sAnim;
-		sAnim = coop_pcaGetDataFor(eActor,"animation");
-		if(sAnim == ""){
-			sAnim = "run";
-		}
+		sAnim = coop_pcaGetAnimationFor(eActor,"walk");
 		
 		if(doesEntityExist(eCurrent) == 0 || eCurrent.getSubclassName() == "World" || coop_pcaIsInteractive(eCurrent) != 1){
 			thread coop_pcaActorWalkto(eActor,ePlayer.getViewtraceEndpos(),sAnim,$world);
@@ -993,6 +1210,7 @@ float coop_pcaSelectedMarker(entity ePlayer,entity eSelected)
 				eSelected.setFloatVar("_pointAndClick_entityLocked",1);
 				eSelected.setFloatVar("_pointAndClick_controlledByPlayer",ePlayer.getEntNum());
 				ePlayer.widgetCmd("pacActiveSel","shader "+coop_pcaGetIcon(eSelected));
+				ePlayer.widgetCmd("pacActiveSelDescr","labeltext "+eSelected.getStringVar("uservar1"));
 				return 1;
 			}else{
 				//ePlayer.hudprint("unsel:"+eSelected.getTargetName()+" ( "+f1+" ) ( "+f2+" ) \n");
@@ -1042,6 +1260,22 @@ float coop_pcaCheckEntityLocked(entity eCurrent)
 		fVar = 0;
 	}
 	return fVar;
+}
+
+entity coop_pcaActorReturnControllingPlayer(entity eActor)
+//------------------------------------------------------------------------------
+//returns player currently controlling this actor
+//------------------------------------------------------------------------------
+{
+	entity ePlayer;
+	if(doesEntityExist(eActor)){
+		float fPlayerNum;
+		fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
+		if(fPlayerNum > -1){
+			ePlayer = getEntity("*"+fPlayerNum);
+		}
+	}
+	return ePlayer;
 }
 
 float coop_pcaActorControlledByPlayerEntnum(entity eActor)
@@ -1131,9 +1365,18 @@ void coop_pcaHandleSelect(entity ePlayer,entity eCurrent)
 //------------------------------------------------------------------------------
 {
 	if(coop_pcaIsSelectable(eCurrent) == 1){
-		//if it is actually marked
-		if(coop_pcaSelectedMarker(ePlayer,eCurrent)){
-			ePlayer.setFloatVar("_pointAndClick_entitySelected",eCurrent.getEntNum());
+		if(doesEntityExist(eCurrent)){
+			//if it is actually marked
+			if(coop_pcaSelectedMarker(ePlayer,eCurrent)){
+				if(eCurrent.getSubclassName() == "Actor"){
+					string sDialog;
+					sDialog = coop_pcaGetDialogSelect(eCurrent);
+					if(sDialog != ""){
+						thread coop_pcaDialogPlay(eCurrent,sDialog);
+					}
+				}
+				ePlayer.setFloatVar("_pointAndClick_entitySelected",eCurrent.getEntNum());
+			}
 		}
 	}
 }
