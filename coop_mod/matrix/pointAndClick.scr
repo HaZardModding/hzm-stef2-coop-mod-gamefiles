@@ -14,6 +14,12 @@ electriclines-idryll
 electriclines-borgdisable
 stasis*/
 
+//sysimg/hud/coop_exl
+//sysimg/hud/radar/blip-select
+//sysimg/icons/mp/actionhero
+//sysimg/icons/mp/elimination_eliminated
+//
+
 //eWalkto = spawn("script_model","model","models/enviro/enterprise_clothing_evo_boots.tik","notsolid","1");
 //eWalkto = spawn("script_model","model","models/enviro/enterprise_clothing_boots-straight.tik","notsolid","1");	
 //eWalkto = spawn("script_model","model","models/fx/fx-sphere.tik","notsolid","1");
@@ -86,70 +92,122 @@ kneel_working_idle
 kneel_working_down
 livelong
 long_death
-
-
+idle_adjust
 //.enemytype("anyname");	//if enemies of different actortype are of the same enemytype (name) they will not attack other 
 //.actortype("monster");	//monster,enemy,civilian,friend,animal,teammate
 //.addcustomthread( String threadType, String threadName ) //meleehit,damaged
+//sound\dialog\m11l3\picard_makeitso.mp3
+*/
+
+
+/*	TODO
+- need to remove mindmeld from animation list, it is not used
+- add cancel/stop sound if a actor walkto has been canceled by a player
+- maybe have all selection and stop sounds play local on the player side only
+- fix selection marker staying when starting to use ability
+- fix selection marker dissapering when starting to use ability
+- show ability preview instead of selectionmarker for certain abilities
+- selection description does not reset properly if actor is killed
+- add missioncritical icon for each actor
+- allow selecting actors via numbers 1 to 8 ? Weaponsgroup ?
+- add area heal - check each entity within range -> actor -> health -> enemytype
+- action/normal/suspense/failure - music
+- add hud that shows target circle in center of screen if corshair is disabled
 */
 
 string	selectionShader = "photon_death";
+string	emptyShader = "weapons/empty";
+string	emptyString = "$$TriPuz_Default$$";		//TriPuz_Default->is a spacer " " string
+string	mindmeldShader = "disruptor_death";
 
-void	coop_pcaSelectionManager(entity ePlayer);
-float	coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget);
-void	coop_pcaActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay);
-string	coop_pcaGetDataFor(entity eCurrent,string sData);
-string	coop_pcaButtonDetect(entity ePlayer);
-float	coop_pcaSelectedMarker(entity ePlayer,entity sSelected);
-void	coop_pcaSelectedMarkerClear(entity ePlayer,entity sSelected);
-void	coop_pcaInteractive(entity eInteractive);
-void	coop_pcaNotInteractive(entity eInteractive);
-void	coop_pcaSelectable(entity eSelectable);
-float	coop_pcaIsSelectable(entity eSelectable);
-void	coop_pcaSelectableRemove(entity eSelectable);
-float	coop_pcaCheckEntityLocked(entity eCurrent);
-entity	coop_pcaSelectedReturnEntity(entity ePlayer);
-float	coop_pcaSelectedReturnEntityEntnum(entity ePlayer);
-void	coop_pcaJustLeft(entity ePlayer);
-void	coop_pcaJustEntered(entity ePlayer);
-float	coop_pcaActorGoTo(entity ePlayer,entity eCurrent);
-string	coop_pcaGetIcon(entity eCurrent);
-void	coop_pcaHandleSelect(entity ePlayer,entity eCurrent);
-void	coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker);
-void	coop_pcaHideTarget();
-void	coop_pcaShowTarget();
-float	coop_pcaIsInteractive(entity eCurrent);
-entity	coop_pcaActorReturnControllingPlayer(entity eActor);
-float	coop_pcaActorControlledByPlayerEntnum(entity eActor);
-void	coop_pcaActorMonitor(entity eActor);
-void	coop_pcaSetValidTarget(entity eCurrent,float fValid);
-void	coop_pcaFailOnDeath(entity eCurrent,float fFail,string sReason);
-void	coop_pcaFailOnDeathLoop(entity eCurrent,float fFail,string sReason);
-void	coop_pcaMissionFailure(string sReason);
-void	coop_pcaDamaged();
-void	coop_pcaActivateUnit(entity eUnit);
+float	healRestorePercentage = 25;
+float	healIntervals = 5;
+float	healIntervalTime = 2;
+float	healCoolDownTime = 10;
+float	awayteamMaxDistance = 1500;
+float	awayteamCoolDownTime = 90;
+float	awayteamLifeTime = 60;
+float	mindmeldCoolDownTime = 10;
+float	mindmeldLifeTime = 45;
+float	orbitalstrikeCoolDownTime = 60;
+float	orbitalstrikeMaxDistance = 3000;
+
+void	coop_pacSelectionManager(entity ePlayer);
+void	coop_pacActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget);
+void	coop_pacActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay);
+string	coop_pacGetDataFor(entity eCurrent,string sData);
+string	coop_pacButtonDetect(entity ePlayer);
+float	coop_pacSelectedMarker(entity ePlayer,entity sSelected);
+void	coop_pacSelectedMarkerClear(entity ePlayer,entity sSelected);
+void	coop_pacInteractive(entity eInteractive);
+void	coop_pacNotInteractive(entity eInteractive);
+void	coop_pacSelectable(entity eSelectable);
+float	coop_pacIsSelectable(entity eSelectable,entity ePlayer);
+void	coop_pacSelectableRemove(entity eSelectable);
+float	coop_pacCheckEntityLocked(entity eCurrent);
+entity	coop_pacSelectedReturnEntity(entity ePlayer);
+float	coop_pacSelectedReturnEntityEntnum(entity ePlayer);
+void	coop_pacJustLeft(entity ePlayer);
+void	coop_pacJustEntered(entity ePlayer);
+float	coop_pacActorGoTo(entity ePlayer,entity eCurrent);
+void	coop_pacActorGoToWait(entity ePlayer,entity eCurrent);
+string	coop_pacGetIcon(entity eCurrent);
+float	coop_pacHandleSelect(entity ePlayer,entity eCurrent);
+void	coop_pacHandleHover(entity ePlayer,entity eCurrent,entity eMarker,float fUseAbility);
+void	coop_pacHideTarget();
+void	coop_pacShowTarget();
+float	coop_pacIsInteractive(entity eCurrent);
+entity	coop_pacActorReturnControllingPlayer(entity eActor);
+float	coop_pacActorControlledByPlayerEntnum(entity eActor);
+void	coop_pacActorMonitor(entity eActor);
+void	coop_pacSetValidTarget(entity eCurrent,float fValid);
+void	coop_pacFailOnDeath(entity eCurrent,float fFail,string sReason);
+void	coop_pacFailOnDeathLoop(entity eCurrent,float fFail,string sReason);
+void	coop_pacMissionFailure(string sReason);
+void	coop_pacDamaged();
+void	coop_pacActivateUnit(entity eUnit);
 float	coop_pcSetBeamOutCapable(entity eActor,float fAllow);
-float	coop_pcaCheckBeamOut(entity eActor);
-void	coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation);
-string	coop_pcaGetAnimationFor(entity eActor,string sAction);
-void	coop_pcaSetDialogSelect(entity eActor, string sDialog);
-string	coop_pcaGetDialogSelect(entity eActor);
-void	coop_pcaSetDialogHeal(entity eActor, string sDialog);
-string	coop_pcaGetDialogHeal(entity eActor);
-void	coop_pcaDialogPlay(entity eActor,string sDialog);
-float	coop_pcaCheckValidAction(string sAction);
-float	coop_pcaCheckValidAbility(string sAbility);
-void	coop_pcaSetAbility(entity eActor,string sAbility,float fHas);
-float	coop_pcaHasAbility(entity eActor,string sAbility);
-float	coop_pcaGetStartHealth(entity eActor);
-void	coop_pcaSetStartHealth(entity eActor, float fHealth);
+float	coop_pacCheckBeamOut(entity eActor);
+void	coop_pacSetAnimationFor(entity eActor,string sAction, string sAnimation);
+string	coop_pacGetAnimationFor(entity eActor,string sAction);
+void	coop_pacSetDialog(entity eActor, string sDialog,string sAction);
+string	coop_pacGetDialog(entity eActor,string sAction);
+float	coop_pacCheckDialogPlaying(entity eActor);
+void	coop_pacDialogPlay(entity eActor,string sDialog);
+float	coop_pacCheckValidAction(string sAction);
+float	coop_pacCheckValidAbility(string sAbility);
+void	coop_pacSetAbility(entity eActor,string sAbility,float fHas);
+string	coop_pacGetAbility(entity eActor);
+float	coop_pacHasAbility(entity eActor,string sAbility);
+float	coop_pacGetStartHealth(entity eActor);
+void	coop_pacSetStartHealth(entity eActor, float fHealth);
+string	coop_pacGetDescr(entity eCurrent,entity ePlayer);
+void	coop_pacPerformAbility(entity ePlayer,entity eActor,entity eCurrent);
+float	coop_pacPlayerValid(entity ePlayer);
+void	coop_pacDeleteAfter(entity eDelete,float fTime);
+void	coop_pacAbilityHeal(entity ePlayer,entity eActor,entity eCurrent);
+void	coop_pacAbilityAwayTeam(entity ePlayer,entity eActor);
+void	coop_pacAbilityOrbitalstrike(entity ePlayer,entity eActor);
+void	coop_pacAbilitymindmeld(entity ePlayer,entity eActor,entity eCurrent);
+void	coop_pacAbilityAwayTeamBeamOut(entity eActor,float fTime);
+void	coop_pacAbilitymindmeldSuicide(entity eActor,float fTime);
+float	coop_pacAbilityGetCoolDown(entity eActor);
+void	coop_pacAbilitySetCoolDown(entity eActor,float fTime);
+string	coop_pacAbilityGetShader(entity eActor);
+float	coop_pacAbilityGetCoolDownRemaining(entity eActor);
+void	coop_pacAbilityShaderReset(entity ePlayer,entity eActor,string sShader);
+float	coop_pacGetDistanceXY(vector v1,vector v2);
+float	coop_pacIsFriendly(entity eActor);
+void	coop_pacAreaHeal(vector vOrigin,float fFriendly,float fRange);
+void	coop_pacSpawnModelAtAndRemove(vector vOrigin,string sModel,float fTime, float fScale,float fAngle);
 
 
-void coop_pcaSelectionManager(entity ePlayer)
+void coop_pacSelectionManager(entity ePlayer)
 //------------------------------------------------------------------------------
 //show selected entity
 //------------------------------------------------------------------------------
 {
+	string sAbility;
 	string sLastBtn;
 	string sCurrentBtn;
 	string sCurrentClass;
@@ -158,14 +216,23 @@ void coop_pcaSelectionManager(entity ePlayer)
 	entity eLast;
 	entity eSelected;
 	entity eActor;
+	float fUseAbility,fLastUpdate;
 	
 	sLastBtn = "NIL";
 	
+	if(!doesEntityExist(ePlayer)){ return; }
+	
 	//run only one instance
-	if(ePlayer.getFloatVar("_pointAndClick_selectorRunning")){return;}
+	if( ePlayer.getFloatVar("_pointAndClick_selectorRunning") ){
+		//ePlayer.hudprint("selectionManagerALLREADY RUNNING\n");
+		return;
+	}
+	
 	ePlayer.setFloatVar("_pointAndClick_selectorRunning",1);
 	ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
-	ePlayer.disableuseweapon(1);
+	//ePlayer.disableuseweapon(1);
+	ePlayer.nodamage();
+	ePlayer.flags("+notarget");
 	ePlayer.hide();
 	ePlayer.notsolid();
 	
@@ -176,81 +243,121 @@ void coop_pcaSelectionManager(entity ePlayer)
 	
 	while(doesEntityExist(ePlayer)){
 		if(ePlayer.getHealth() <= 0 || ePlayer.isSpectator()){
+			//ePlayer.hudprint("selectionManager Ended\n");
 			eMarker.remove();
 			return;
 		}	
 	
-		if(ePlayer.checkThirdperson()){
-			ePlayer.pointofview();
-		}
+		//if(ePlayer.checkThirdperson()){
+			//ePlayer.pointofview();
+		//}
 		
 		entity eActor;
-		eActor = coop_pcaSelectedReturnEntity(ePlayer);		
+		eActor = coop_pacSelectedReturnEntity(ePlayer);		
 		eCurrent = ePlayer.getTargetedEntity();
 		if(doesEntityExist(eActor)){
-			if(eActor.getSubclassName() == "Actor"){
+			if(eActor.getSubclassName() == "Actor" && (fLastUpdate + 0.95) < getLevelTime()){
+				fLastUpdate = getLevelTime();
 				float f100Percent;
 				float f1Percent;
 				float fCurrentHealth;
-				f100Percent = coop_pcaGetStartHealth(eActor);
+				f100Percent = coop_pacGetStartHealth(eActor);
 				fCurrentHealth = eActor.getHealth();
 				f1Percent = (f100Percent / 100);
 				ePlayer.setstat( "generic", (fCurrentHealth / f1Percent));
+				ePlayer.widgetCmd("pacAbilityTime","title "+coop_pacAbilityGetCoolDownRemaining(eActor));
 			}
 		}
+		//deselected actor, cancel ability
+		else{
+			fUseAbility = 0;
+			eMarker.hide();
+		}
+		
+		if(fUseAbility == 1 && eCurrent.getSubclassName() == "World"){
+			vector vPlayerEndPos;
+			vPlayerEndPos = ePlayer.getViewtraceEndpos();
+			vPlayerEndPos_z += 40;
+			eMarker.origin(vPlayerEndPos);	
+		}
+		
 		
 		if(doesEntityExist(eCurrent)){
 			//grab current targeted class
 			sCurrentClass = eCurrent.getSubclassName();
 			
 			//grab selected data
-			eSelected = coop_pcaSelectedReturnEntity(ePlayer);
+			eSelected = coop_pacSelectedReturnEntity(ePlayer);
 			if(doesEntityExist(eSelected)){ sSelectedClass=eSelected.getSubclassName(); }
 			else{sSelectedClass = "";}
 			
 			//handle hover
 			if(eLast != eCurrent){
-				coop_pcaHandleHover(ePlayer,eCurrent,eMarker);
+				coop_pacHandleHover(ePlayer,eCurrent,eMarker,fUseAbility);
 			}
 
 			//grab button
-			sCurrentBtn = coop_pcaButtonDetect(ePlayer);
+			sCurrentBtn = coop_pacButtonDetect(ePlayer);
 			
 			//only respond if button state has changed
 			if(sCurrentBtn != sLastBtn){
+				//ePlayer.hudprint("button: "+sCurrentBtn+"\n");
+			
 				//---------------------------------
 				//regardless of whats being targeted
 				//---------------------------------
 				if(sCurrentBtn == "use"){
-					ePlayer.hudprint("use button does not do anything right now (unfinished)\n");
+					if(fUseAbility==0){
+						sAbility = coop_pacGetAbility(eActor);
+						if(sAbility != ""){
+							float fCooldown;
+							fCooldown = coop_pacAbilityGetCoolDown(eActor);
+							fCooldown -= getLevelTime();
+							if(fCooldown > 0){
+								ePlayer.hudPrint("^5Info:^3 Ability still in Cool Down for:^5 "+fCooldown+"\n");
+							}else{
+								fUseAbility = 1;
+								if(sAbility == "heal"){
+									coop_pacPerformAbility(ePlayer,eActor,eCurrent);
+									fUseAbility = 0;
+								}else{
+									eMarker.show();
+									eMarker.model("sysimg/icons/mp/team_blue.spr");
+									ePlayer.widgetCmd("pacAbility","shader sysimg/icons/mp/specialty_sniper.spr");
+								}
+							}						
+						}
+					}else{
+						ePlayer.widgetCmd("pacAbility","shader "+coop_pacAbilityGetShader(eActor));
+						fUseAbility = 0;
+						eMarker.hide();
+					}
+					//ePlayer.hudprint("use ability: "+fUseAbility+"\n");
 				}
 				
-				//---------------------------------
-				//if a entity is targeted
-				//---------------------------------
-				if(sCurrentClass != "World"){
-					//fire is pressed, try select entity
-					if(sCurrentBtn == "fire"){
-						coop_pcaHandleSelect(ePlayer,eCurrent);
-					}
-					//alt
-					else if(sCurrentBtn == "alt"){
-						//we have actor selected, try go there
-						if(sSelectedClass == "Actor"){
-							if(coop_pcaActorGoTo(ePlayer,eCurrent)){
-								wait(0.2);
-							}
+				//ACTIONS - if FIRE is pressed
+				if(sCurrentBtn == "fire"){
+					if(sCurrentClass != "World"){
+						//if a entity is targeted, try selecting it
+						
+						if(coop_pacHandleSelect(ePlayer,eCurrent) == 1){
+							//possibly selected new actor, cancel ability
+							fUseAbility = 0;
+							eMarker.hide();
 						}
-					}
+					}			
 				}
-				//---------------------------------
-				//a object other than world is targeted
-				//---------------------------------
-				else{
-					if(sCurrentBtn == "alt"){
-						if(sSelectedClass == "Actor"){
-							if(coop_pcaActorGoTo(ePlayer,eCurrent)){
-								wait(0.2);
+				//ACTIONS - if ALT-FIRE is pressed
+				else if(sCurrentBtn == "alt"){
+					//we have actor selected
+					if(sSelectedClass == "Actor"){
+						if(fUseAbility == 1){
+							eMarker.hide();
+							coop_pacPerformAbility(ePlayer,eActor,eCurrent);
+							fUseAbility = 0;
+						}else{
+							if(coop_pacActorGoTo(ePlayer,eCurrent)){
+								wait(0.1);
 							}
 						}
 					}
@@ -259,6 +366,8 @@ void coop_pcaSelectionManager(entity ePlayer)
 			}
 			eLast = eCurrent;
 		}
+		
+		//centerprint("selectionManager\n");
 		
 		//---------------------------------
 		//keep track of last button
@@ -273,7 +382,665 @@ void coop_pcaSelectionManager(entity ePlayer)
 	}
 }
 
-float coop_pcaGetStartHealth(entity eActor)
+float coop_pacPlayerValid(entity ePlayer)
+//------------------------------------------------------------------------------
+//check if player is still valid
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getHealth() > 0){
+			if(ePlayer.isSpectator() != 1){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+void coop_pacAbilityShaderReset(entity ePlayer,entity eActor,string sShader)
+//------------------------------------------------------------------------------
+//GET HEALTH THIS ACTOR STARTED WITH
+//------------------------------------------------------------------------------
+{
+	//if player has this actor still selected change back icon
+	if(coop_pacPlayerValid(ePlayer)){
+		if(doesEntityExist(eActor)){
+			if(eActor.getHealth() > 0){
+				float fCurActNum,fLastActNum;
+				fLastActNum = coop_pacSelectedReturnEntityEntnum(ePlayer);
+				fCurActNum = eActor.getEntNum();
+				if(fLastActNum == fCurActNum ){
+					if(sShader == ""){
+						sShader = emptyShader;
+					}
+					ePlayer.widgetCmd("pacAbility","shader "+sShader);
+				}
+			}
+		}
+	}
+}
+
+void coop_pacPerformAbility(entity ePlayer,entity eActor,entity eCurrent)
+//------------------------------------------------------------------------------
+//GET HEALTH THIS ACTOR STARTED WITH
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer) == 1 && doesEntityExist(eActor) == 1){
+		if(coop_pacPlayerValid(ePlayer) == 1 && eActor.getHealth() > 0){
+			
+			string sAbility;
+			sAbility = coop_pacGetAbility(eActor);
+//ePlayer.hudprint("Useing ability "+sAbility+" now\n");
+			
+			if(sAbility == "heal"){
+				thread coop_pacAbilityHeal(ePlayer,eActor,eCurrent);
+			}else if(sAbility == "orbitalstrike"){
+				thread coop_pacAbilityOrbitalstrike(ePlayer,eActor);
+			}else if(sAbility == "awayteam"){
+				thread coop_pacAbilityAwayTeam(ePlayer,eActor);
+			}else if(sAbility == "mindmeld"){
+				thread coop_pacAbilitymindmeld(ePlayer,eActor,eCurrent);
+			}
+			wait(0.1);
+		}
+	}
+}
+
+void coop_pacAbilityAwayTeamBeamOut(entity eActor,float fTime)
+//------------------------------------------------------------------------------
+//HANDLES THE AWAYTEAM BEAMOUT after some time
+//------------------------------------------------------------------------------
+{
+	wait(fTime);
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			coop_pacSelectableRemove(eActor);
+			eActor.ai_off();
+			eActor.killattach(); //remove weapon
+			eActor.immortal(1);
+			eActor.anim("communicator");
+			waitForAnimation(eActor,"communicator",0.05);
+			eActor.displayEffect("TransportOut","Federation");
+			wait(1.7);
+			eActor.remove();
+		}
+	}
+}
+
+void coop_pacAbilitymindmeldSuicide(entity eActor,float fTime)
+//------------------------------------------------------------------------------
+//HANDLES mindmeld ACTOR TIMED SUICIDE
+//------------------------------------------------------------------------------
+{
+	wait(fTime);
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			coop_pacSelectableRemove(eActor);
+			eActor.ai_off();
+			eActor.immortal(0);
+			eActor.takedamage();
+			eActor.suicide();
+			wait(15);
+			if(doesEntityExist(eActor)){
+				eActor.remove();
+			}
+		}
+	}
+}
+
+void coop_pacAreaHeal(vector vOrigin,float fFriendly,float fRange)
+//------------------------------------------------------------------------------
+//HEALS ACTORS IN AREA: 0=enemy,1=friendly,2=friendly+animal,3=all
+//------------------------------------------------------------------------------
+{
+	entity e;
+	float fEntNum,svMaxClients,maxEntities;
+	svMaxClients = getCvarInt("sv_maxclients");
+	maxEntities = getCvarInt("maxentities");
+	e = getEntity("*"+fEntNum);
+	for(fEntNum=svMaxClients;fEntNum<maxEntities;fEntNum++){
+		e = getEntity("*"+fEntNum);
+		if(doesEntityExist(e)){
+			float fDistance;
+			vector vActor;
+			vActor = e.getOrigin();
+			fDistance = vectorLength(vActor - vOrigin);
+			if(fDistance <= fRange){
+				if(e.getSubclassName() == "Actor"){
+					float fValid;
+					fValid=0;
+					string sActorType;
+					sActorType = e.getActorType();
+					if(fFriendly == 0){
+						if(sActorType == "enemy" || sActorType == "monster"){
+							fValid=1;
+						}			
+					}				
+					else if(fFriendly == 1){
+						if(sActorType == "civilian" || sActorType == "friend" || sActorType == "teammate"){
+							fValid=1;
+						}
+					}
+					else if(fFriendly == 2){
+						if(sActorType == "animal" || sActorType == "civilian" || sActorType == "friend" || sActorType == "teammate"){
+							fValid=1;
+						}		
+					}else{
+						fValid=1;
+					}
+					
+					if(fValid){
+						float fStartHealth;
+						float fCurrentHealth;
+						float fNewHealth;
+						fStartHealth = coop_pacGetStartHealth(e);
+						fCurrentHealth = e.getHealth();
+						if(fStartHealth > fCurrentHealth){
+							fNewHealth = ((fStartHealth / 100) * (healRestorePercentage) + fCurrentHealth);
+							
+							if(fNewHealth > fStartHealth){
+								fNewHealth = fStartHealth;
+							}
+							e.health(fNewHealth);
+							//$player0.hudprint(e.getTargetName()+" "+fNewHealth+"\n");
+							//e.setcustomshader("phaser_death");
+							
+							vector vHealed,vHealedAngle;
+							vHealedAngle = e.getAngles();
+							vHealed = e.getOrigin();
+							vHealed_z += 20;
+							thread coop_pacSpawnModelAtAndRemove(vHealed,"models/coop/pac/healarea.tik",1,0.7,vHealedAngle_y);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void coop_pacAbilityHealIntervals(entity eActor,float fIntervals)
+//------------------------------------------------------------------------------
+//HANDLES THE HEALING INTERVALS
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		//attach model
+		string sModel;
+		sModel = "models/coop/pac/healarea.tik";
+		//eActor.attachmodel(sModel,"origin",2,"healAreaModel"+eActor.getEntNum(), 1 , 0 , 2 ,0.5,2,'0 40 0', '90 0 270' );
+		
+		//attachmodel( String modelname, String tagname, [ Float scale ], [ String targetname ], [ Boolean detach_at_death ], [ Float removetime ], [ Float fadeintime ], [ Float fadeoutdelay ], [ Float fadetime ], [ Vector offset ], [ Vector angles_offset ] )
+		
+		float fRounds;
+		for(fRounds=0;fRounds<fIntervals;fRounds++){
+			if(doesEntityExist(eActor)){
+				if(eActor.getHealth() > 0){
+					vector vActor,vAngle;
+					entity eMarker;
+					vAngle = eActor.getAngles();
+					//vAngle_x = 0;
+					//vAngle_z = 0;
+					vActor = eActor.getOrigin();
+					vActor_z += 20;
+					eMarker = spawn(sModel,"origin",""+vActor,"notsolid","1","angle",""+vAngle_y,"scale","2");
+					thread coop_pacAreaHeal(eActor.getOrigin(),1,300);
+					eActor.playsound("sound/misc/mp_healthshard.wav",0,1,512);
+					thread coop_pacDeleteAfter(eMarker,1.9);
+					wait(healIntervalTime);
+				}
+			}
+		}
+		if(doesEntityExist(eActor)){
+			coop_pacAbilitySetCoolDown(eActor,healCoolDownTime);
+		}
+	}
+}
+
+void coop_pacAbilityHeal(entity ePlayer,entity eActor,entity eCurrent)
+//------------------------------------------------------------------------------
+//HANDLES THE HEALING
+//------------------------------------------------------------------------------
+{
+	string sShader;
+	sShader = coop_pacAbilityGetShader(eActor);
+	/*
+	if(eCurrent.getSubclassName() != "Actor"){
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		ePlayer.hudprint("^5Info:^3 You can only heal Actors!\n");
+		return;
+	}
+	if(coop_pacIsFriendly(eCurrent) != 1){
+		ePlayer.hudprint("^5Info:^3 You can only heal Friendly units!\n");
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		return;
+	}*/
+	
+	float fCooldown;
+	fCooldown = (coop_pacAbilityGetCoolDown(eActor) - getLevelTime());
+	if(fCooldown > 0){
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		ePlayer.hudPrint("^5Info:^3 Ability Heal still in Cool Down for:^5 "+fCooldown+"\n");
+		return;
+	}
+	
+	float fCalcCoolDownTime;
+	fCalcCoolDownTime = ((healIntervals * healIntervalTime) + 0.5);
+	coop_pacAbilitySetCoolDown(eActor,fCalcCoolDownTime);
+	thread coop_pacAbilityHealIntervals(eActor,healIntervals);
+	coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+}
+
+void coop_pacAbilitymindmeld(entity ePlayer,entity eActor,entity eCurrent)
+//------------------------------------------------------------------------------
+//HANDLES THE mindmeld
+//------------------------------------------------------------------------------
+{
+	string sShader;
+	sShader = coop_pacAbilityGetShader(eActor);
+
+	if(eCurrent.getSubclassName() != "Actor"){
+		ePlayer.hudprint("^5Info:^3 You can only mindmeld Actors!\n");
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		return;
+	}
+	
+	float fCooldown;
+	fCooldown = (coop_pacAbilityGetCoolDown(eActor) - getLevelTime());
+	if(fCooldown > 0){
+		ePlayer.hudPrint("^5Info:^3 Ability mindmeld still in Cool Down for: "+fCooldown+"\n");
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		return;
+	}
+	
+	if(coop_pacIsFriendly(eCurrent) == 1){
+		ePlayer.hudprint("^5Info:^3 You can't mindmeld with Friendly units!\n");
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		return;
+	}
+	
+	float fAnimationWaitTime = 5;
+
+	//try running to target once
+	coop_pacActorWalkto(eActor,eCurrent.getOrigin(),"run",eCurrent);				
+	if(doesEntityExist(eActor) == 1 && doesEntityExist(eCurrent) == 1){
+		if(eActor.getHealth() > 0 && eCurrent.getHealth() > 0){
+			vector vActor,vTarget;
+			vActor = eActor.getOrigin();
+			vTarget = eCurrent.getOrigin();						
+			if(vectorLength(vActor - vTarget) < 300){
+				eActor.ai_off();
+				eActor.turntowardsEntity(eCurrent);
+				wait(0.4); //wait for turnto to finish
+				if(doesEntityExist(eActor) == 1 && doesEntityExist(eCurrent) == 1){
+					if(eActor.getHealth() > 0 && eCurrent.getHealth() > 0){
+						coop_pacAbilitySetCoolDown(eActor,fAnimationWaitTime + 1);
+						
+						//if player has this actor still selected change back icon
+						coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+
+						eActor.ai_off();							
+						eActor.anim("to_crouch");
+						coop_pacActorWaitForAnimation(eActor,"to_crouch",0 );
+						
+						if(doesEntityExist(eCurrent)){
+							eCurrent.ai_off();
+							eCurrent.anim("backpedal");
+							eCurrent.setValidTarget(0);
+						}
+						
+						if(!doesEntityExist(eActor)){ return; }
+						
+						eActor.ai_off();
+						eActor.anim("crouch_idle");
+						eActor.setFloatVar("_pointAndClick_inAnimation",1);
+						wait(3);
+						eCurrent.anim("idle");
+						wait(2);
+						
+						if(!doesEntityExist(eActor)){ return; }
+						
+						eActor.anim("from_crouch");
+						coop_pacActorWaitForAnimation(eActor,"from_crouch",0 );
+						
+						if(doesEntityExist(eCurrent) == 1 && doesEntityExist(eActor) == 1){
+							if(eCurrent.getHealth() > 0 && eActor.getHealth() > 0){
+								coop_pacAbilitySetCoolDown(eActor,mindmeldCoolDownTime);
+								
+								entity eSpawn;
+								vector vSpawnLocation;
+								vector vSpawnAngles;
+								string sModel;
+								string sTargetname;
+								string sUservar1,sUservar2,sUservar10;
+								sUservar1 = globalCoop_level_getStringVar(eCurrent,"uservar1");
+								sUservar2 = globalCoop_level_getStringVar(eCurrent,"uservar2");
+								sUservar10 = globalCoop_level_getStringVar(eCurrent,"uservar10");
+								vSpawnLocation = eCurrent.getOrigin();
+								vSpawnLocation_z += 2;
+								vSpawnAngles = eCurrent.getAngles();
+								sModel = eCurrent.getModelName();
+								sTargetname = eCurrent.getRawTargetname();
+								//dispose of the old actor
+								eCurrent.ai_off();
+								eCurrent.notsolid();
+								eCurrent.hide();
+								eCurrent.warp('-99999 -99999 -99999');
+								thread coop_pacDeleteAfter(eCurrent,1);
+								eCurrent.suicide();
+								//soawn new actor copy
+								eSpawn = spawn("Actor","model",""+sModel,"setValidTarget","0","origin",""+vSpawnLocation,"angles",""+vSpawnAngles);
+								globalCoop_main_waitAFrame();
+								thread globalCoop_player_makeSolidASAP(eSpawn);
+								eSpawn.targetname(""+sTargetname);
+								eSpawn.setcustomshader(mindmeldShader);
+								eSpawn.actortype("friend");
+								coop_pacAbilitySetCoolDown(eSpawn,(mindmeldLifeTime - 0.5));
+								coop_pacSetValidTarget(eSpawn,0); //make it notarget for a moment so it will be removed from active enemy list of teammates
+								coop_pacSetStartHealth(eSpawn,eSpawn.getHealth());								
+								coop_pacSelectable(eSpawn);
+								coop_pcSetBeamOutCapable(eSpawn,0);
+								eSpawn.setStringVar("uservar1",sUservar1+"~*!* Mind controlled");
+								eSpawn.setStringVar("uservar2",sUservar2+"~*!* Gedanken kontrolliert");
+								eSpawn.setStringVar("uservar10",sUservar10);
+								eSpawn.setValidTarget(1);
+								eSpawn.forgetenemies();
+								eSpawn.setvelocity('0 0 -100'); //make sure it touches the ground and does not get float-stucked
+								eSpawn.ai_on();
+								
+								if(doesEntityExist(eActor) && eActor.getHealth() > 0){
+									string sDialog;
+									sDialog = coop_pacGetDialog(eActor,"mindmeld");
+									if(sDialog != ""){
+										thread coop_pacDialogPlay(eActor,sDialog);
+									}
+								}
+								
+								wait(0.1);
+								
+								if(doesEntityExist(eSpawn)){
+									coop_pacSetValidTarget(eSpawn,1);
+									coop_pacAbilitymindmeldSuicide(eSpawn,mindmeldLifeTime);
+								}
+							}else{
+								coop_pacAbilitySetCoolDown(eActor,-1);
+							}
+						}
+							
+						if(doesEntityExist(eActor)){
+							if(eActor.getHealth() > 0){
+								eActor.ai_on();
+							}
+						}
+					}
+				}
+			}else{
+ePlayer.hudprint("^5Info:^3 Out of range for a ^2Mindmeld^3...\n");
+			}
+		}
+	}
+}
+
+void coop_pacAbilityAwayTeam(entity ePlayer,entity eActor)
+//------------------------------------------------------------------------------
+//HANDLES THE AWAYTEAM
+//------------------------------------------------------------------------------
+{
+	float fCooldown;
+	fCooldown = coop_pacAbilityGetCoolDown(eActor);
+	fCooldown -= getLevelTime();
+	if(fCooldown > 0){
+		ePlayer.hudPrint("Ability Away Team still in Cool Down for: "+fCooldown+"\n");
+		return;
+	}
+	
+	vector vActor,vTarget,vAngles,vPlayer;
+	float fPrefireTime;
+	entity eMarker,eStrike;
+	string sShader;
+	fPrefireTime = 5;
+	vPlayer = ePlayer.getOrigin();
+	vTarget = ePlayer.getViewtraceEndpos();
+	vAngles_y = vectorGetY(ePlayer.getViewangles());
+	vAngles_y -= 180;
+	vTarget_z += 22;
+	vActor = eActor.getOrigin();
+	
+	sShader = coop_pacAbilityGetShader(eActor);
+	
+	//if player has this actor still selected change back icon
+	coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+	
+	if(((vTarget_z + 200) > vPlayer_z) || coop_pacGetDistanceXY(vTarget,vActor) > awayteamMaxDistance){
+		ePlayer.hudprint("^5Info:^3 Out of range ^2Away Team^3...\n");
+		coop_pacAbilitySetCoolDown(eActor,2);
+		eMarker = spawn("script_model","model","models/coop/pac/invalid.tik","notsolid","1","origin",""+vTarget,"noshadow","1");
+		globalCoop_main_waitAFrame();
+		eMarker.simplePlayDialog("sound/environment/computer/access_denied.wav",1,2048);
+		thread coop_pacDeleteAfter(eMarker,2);
+		return;
+	}
+	
+	string sDialog;
+	sDialog = coop_pacGetDialog(eActor,"awayteam");
+	if(sDialog != ""){
+		thread coop_pacDialogPlay(eActor,sDialog);
+	}
+	
+	coop_pacAbilitySetCoolDown(eActor,(awayteamCoolDownTime + fPrefireTime));
+	eMarker = spawn("script_model","model","models/coop/pac/awayteam.tik","notsolid","1","origin",""+vTarget,"noshadow","1");
+	globalCoop_main_waitAFrame();
+	eMarker.angles(vAngles);
+	thread coop_pacDeleteAfter(eMarker,(fPrefireTime - 0.5));
+	wait(fPrefireTime);
+
+	
+	vTarget_z -= 21;
+	entity eActor2;
+	string sModel;
+	float fRandom;
+	fRandom = randomInt(7); //returns number from 0 to 6
+	if(fRandom > 1 && fRandom < 7){
+		sModel = fRandom;
+	}
+	eActor2 = spawn("models/char/hazardteam_redshirt"+sModel+".tik","origin",""+vTarget,"hide","1","ai_off","1","notsolid","1");	
+	globalCoop_main_waitAFrame();
+	vAngles_y -= 180;
+	thread globalCoop_player_makeSolidASAP(eActor2);
+	eActor2.angles(vAngles);
+	eActor2.setStringVar("uservar10","textures/coop_mod/pac/awayteam");
+	eActor2.setStringVar("uservar1","Redshirt~Hazard-Team Member~Crew of the USS Enterprise E~Ability: None.");
+	eActor2.setStringVar("uservar2","Redshirt~Hazard-Team Mitglied~Crewmitglied der USS Enterprise E~Faeigkeit: Keine.");
+	coop_pacAbilitySetCoolDown(eActor,(awayteamCoolDownTime + fPrefireTime));
+	eActor2.targetname("_pacAwayTeam"+eActor.getEntNum());
+	eActor2.immortal(1);
+	eActor2.pushable(1);
+	coop_pcSetBeamOutCapable(eActor2,0);
+	globalCoop_main_waitAFrame();
+	if(doesEntityExist(eActor2)){
+		eActor2.show();
+		eActor2.displayEffect("TransportIn","Federation");
+		wait(2.5);
+		thread globalCoop_player_makeSolidASAP(eActor2);
+		if(doesEntityExist(eActor2)){
+			eActor2.setcustomshader(mindmeldShader);
+			eActor2.setvelocity('0 0 -100'); //make sure it touches the ground and does not get float-stucked
+			coop_pacAbilitySetCoolDown(eActor2,(awayteamLifeTime - 0.5));
+			eActor2.killthread("");
+			eActor2.allowfall(1);
+			eActor2.immortal(0);
+			eActor2.actortype("teammate");
+			eActor2.ai_on();
+			coop_pacSetStartHealth(eActor2,150);
+			coop_pacSelectable(eActor2);
+			thread coop_pacAbilityAwayTeamBeamOut(eActor2,(awayteamLifeTime - 0.15));
+		}
+	}
+}
+
+void coop_pacAbilityOrbitalstrike(entity ePlayer,entity eActor)
+//------------------------------------------------------------------------------
+//HANDLES THE ORBITAL STRIKE
+//------------------------------------------------------------------------------
+{
+	float fCooldown;
+	fCooldown = coop_pacAbilityGetCoolDown(eActor);
+	fCooldown -= getLevelTime();
+	if(fCooldown > 0){
+		ePlayer.hudPrint("Ability Orbital Strike still in Cool Down for: "+fCooldown+"\n");
+		return;
+	}
+	
+	vector vPos,vTarget,vAngles,vPlayer;
+	entity eMarker,eStrike;
+	string sShader;
+	vPlayer = ePlayer.getOrigin();
+	vTarget = ePlayer.getViewtraceEndpos();
+	vAngles_y = vectorGetY(ePlayer.getViewangles());
+	vAngles_y -= 180;
+	vTarget_z += 30;
+	
+	sShader = coop_pacAbilityGetShader(eActor);
+	
+	eMarker = spawn("script_model","model","fx/fx-energybeam-romulan.tik","notsolid","1","origin",""+vTarget,"angles","270 0 0");
+	globalCoop_main_waitAFrame();
+	//eMarker.angle(-1);
+	//eMarker.angles('270 0 0');
+	vPos = eMarker.traceHitsSky ( "tag_horizontal" , 99999 );
+	thread coop_pacDeleteAfter(eMarker,0.2);
+	
+	float fOutOfRange;
+	if(coop_pacGetDistanceXY(eActor.getOrigin(),vTarget) < 600){
+		fOutOfRange = 1;
+		ePlayer.hudprint("^5Info:^3 To close for a^2 Orbital Strike^3...\n");
+	}
+	if(coop_pacGetDistanceXY(eActor.getOrigin(),vTarget) > orbitalstrikeMaxDistance){
+		fOutOfRange = 1;
+		ePlayer.hudprint("^5Info:^3 Out of range^2 Away Team^3...\n");
+	}
+	if(vPos == '0 0 0'){
+		fOutOfRange = 1;
+		ePlayer.hudprint("^5Info:^3 Clear line of sight needed for^2 Orbital Strike^3...\n");
+	}
+	
+	if(((vTarget_z + 200) > vPlayer_z) || fOutOfRange == 1)
+	{
+		coop_pacAbilitySetCoolDown(eActor,2);
+		eMarker = spawn("script_model","model","models/coop/pac/invalid.tik","notsolid","1","origin",""+vTarget,"noshadow","1");
+		globalCoop_main_waitAFrame();
+		eMarker.simplePlayDialog("sound/environment/computer/access_denied.wav",1,2048);
+		thread coop_pacDeleteAfter(eMarker,2);
+		
+		//if player has this actor still selected change back icon
+		coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+		return;
+	}	
+	
+	coop_pacAbilitySetCoolDown(eActor,6);
+	
+	eActor.ai_off();
+	eActor.anim("idle_adjust");
+	thread coop_pacActorWaitForAnimation(eActor,"idle_adjust",0.05 );
+	
+	//if player has this actor still selected change back icon
+	coop_pacAbilityShaderReset(ePlayer,eActor,sShader);
+	
+	//This is handled within coop_pacActorWaitForAnimation for the moment
+	//if(doesEntityExist(eActor)){ eActor.ai_on(); }
+	
+	if(vPos != '0 0 0'){
+		float fCountDown=5;
+		eMarker = spawn("script_model","model","models/coop/pac/orbitalstrike.tik","notsolid","1","origin",""+vTarget,"noshadow","1");
+		coop_pacAbilitySetCoolDown(eActor,((orbitalstrikeCoolDownTime + fCountDown) + 1.5));
+		globalCoop_main_waitAFrame();
+		eMarker.angles(vAngles);
+		//eMarker.simplePlayDialog("localization/sound/dialog/dm/comp_initprog.mp3",1,2048);
+		eMarker.simplePlayDialog("sound/environment/computer/alarm1.wav",1,2048);
+		wait(1.5);
+		
+		//countdown
+		for(fCountDown=fCountDown;fCountDown>0;fCountDown--){
+			if(doesEntityExist(eMarker)){
+				eMarker.simplePlayDialog("localization/sound/dialog/dm/comp_"+fCountDown+".mp3",1,2048);
+				wait(1);
+			}else{
+				return;
+			}
+		}
+		thread coop_pacDeleteAfter(eMarker,0.2);
+		
+		entity eStrike;
+		eStrike = spawn("Entity","model","models/weapons/projectile_airstrike.tik","origin",""+vPos,"angle","-2");
+		globalCoop_main_waitAFrame();
+		thread coop_pacDeleteAfter(eStrike,15);
+	}else{
+		eMarker.model("sysimg/icons/mp/elimination_eliminated.spr");
+		wait(1);
+	}
+	thread coop_pacDeleteAfter(eMarker,0.2);
+}
+
+float coop_pacAbilityGetCoolDownRemaining(entity eActor)
+//------------------------------------------------------------------------------
+//GETS COOLDOWN REMAINING TIME FOR ACTOR
+//------------------------------------------------------------------------------
+{
+	float fRemaining;
+	if(doesEntityExist(eActor)){
+		fRemaining = coop_pacAbilityGetCoolDown(eActor);
+		fRemaining -= getLevelTime();
+		fRemaining = ceil(fRemaining);
+		if(fRemaining <= 0){
+			fRemaining = 0;
+		}
+	}
+	return fRemaining;
+}
+
+float coop_pacAbilityGetCoolDown(entity eActor)
+//------------------------------------------------------------------------------
+//GETS COOLDOWN EXPIRE TIME FOR ACTOR
+//------------------------------------------------------------------------------
+{
+	float fCooldown;
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_coolDown")){
+			fCooldown = eActor.getFloatVar("_pointAndClick_coolDown");
+		}
+	}
+	return fCooldown;
+}
+
+void coop_pacAbilitySetCoolDown(entity eActor,float fTime)
+//------------------------------------------------------------------------------
+//SETS COOLDOWN EXPIRE TIME FOR ACTOR
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		float fCooldown;
+		fCooldown = getLevelTime();
+		fCooldown += fTime;
+		eActor.setFloatVar("_pointAndClick_coolDown",fCooldown);
+	}
+}
+
+void coop_pacDeleteAfter(entity eDelete,float fTime)
+//------------------------------------------------------------------------------
+//DELETES ENTITY AFTER TIME IF IT STILL EXISTS
+//------------------------------------------------------------------------------
+{
+	wait(fTime);
+	if(doesEntityExist(eDelete)){
+		eDelete.remove();
+	}
+}
+
+float coop_pacGetStartHealth(entity eActor)
 //------------------------------------------------------------------------------
 //GET HEALTH THIS ACTOR STARTED WITH
 //------------------------------------------------------------------------------
@@ -290,7 +1057,7 @@ float coop_pcaGetStartHealth(entity eActor)
 	return fStartHealth;
 }
 
-void coop_pcaSetStartHealth(entity eActor, float fHealth)
+void coop_pacSetStartHealth(entity eActor, float fHealth)
 //------------------------------------------------------------------------------
 //SET HEALTH THIS ACTOR SHOULD HAVE FROM THE START
 //------------------------------------------------------------------------------
@@ -301,64 +1068,52 @@ void coop_pcaSetStartHealth(entity eActor, float fHealth)
 	}
 }
 
-void coop_pcaSetDialogHeal(entity eActor, string sDialog)
+void coop_pacSetDialog(entity eActor, string sDialog,string sAction)
 //------------------------------------------------------------------------------
 //SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS HEALING
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		eActor.setStringVar("_pointAndClick_soundHeal",sDialog);
+		eActor.setStringVar("_pointAndClick_sound"+sAction,sDialog);
 	}
 }
 
-string coop_pcaGetDialogHeal(entity eActor)
+string coop_pacGetDialog(entity eActor,string sAction)
 //------------------------------------------------------------------------------
 //SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING HEALING
 //------------------------------------------------------------------------------
 {
 	string sDialog;
 	if(doesEntityExist(eActor)){
-		if(eActor.doesVarExist("_pointAndClick_soundHeal")){
-			sDialog = eActor.getStringVar("_pointAndClick_soundHeal");
+		if(eActor.doesVarExist("_pointAndClick_sound"+sAction) == 1){
+			sDialog = eActor.getStringVar("_pointAndClick_sound"+sAction);
 		}
 	}
 	return ""+sDialog;
 }
 
-void coop_pcaSetDialogSelect(entity eActor, string sDialog)
+float coop_pacCheckDialogPlaying(entity eActor)
 //------------------------------------------------------------------------------
-//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING SELECTED
+//CECKS IF A DIALOG IS CURRENTLY PLAYED
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		eActor.setStringVar("_pointAndClick_soundSelect",sDialog);
-	}
-}
-
-string coop_pcaGetDialogSelect(entity eActor)
-//------------------------------------------------------------------------------
-//SET SOUND THAT SHOULD BE PLAYED WHEN ACTOR IS BEING SELECTED
-//------------------------------------------------------------------------------
-{
-	string sDialog;
-	if(doesEntityExist(eActor)){
-		if(eActor.doesVarExist("_pointAndClick_soundSelect")){
-			sDialog = eActor.getStringVar("_pointAndClick_soundSelect");
+		if(eActor.doesVarExist("_pointAndClick_soundPlaying")){
+			float fPlaying;
+			fPlaying = eActor.getFloatVar("_pointAndClick_soundPlaying");
+			return fPlaying;
 		}
 	}
-	return ""+sDialog;
+	return 0;
 }
 
-void coop_pcaDialogPlay(entity eActor,string sDialog)
+void coop_pacDialogPlay(entity eActor,string sDialog)
 //------------------------------------------------------------------------------
 //PLAY SOUND ON ACTOR
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
 		if(eActor.getHealth() > 0){
-			float fPlaying;
-			fPlaying = eActor.getFloatVar("_pointAndClick_soundPlaying");
-			sDialog = eActor.getStringVar("_pointAndClick_soundSelect");
 			if(sDialog != ""){
 				eActor.setFloatVar("_pointAndClick_soundPlaying",1);
 				eActor.simplePlayDialog(sDialog,1,2048);
@@ -374,49 +1129,102 @@ void coop_pcaDialogPlay(entity eActor,string sDialog)
 	}
 }
 
-float coop_pcaCheckValidAbility(string sAbility)
+float coop_pacCheckValidAbility(string sAbility)
 //------------------------------------------------------------------------------
 // CHECK IF ABILITY IS VALID
 //------------------------------------------------------------------------------
 {
 	if(sAbility == "heal"){ return 1;}
-	print("P.a.Click: Invalid ability: "+sAbility+"- valid: heal\n");
+	if(sAbility == "orbitalstrike"){ return 1;}
+	if(sAbility == "awayteam"){ return 1;}
+	if(sAbility == "mindmeld"){ return 1;}
+	print("P.a.Click: Invalid ability: "+sAbility+"- valid: heal,orbitalstrike,awayteam,mindmeld\n");
 	return 0;
 }
 
-void coop_pcaSetAbility(entity eActor,string sAbility,float fHas)
+string coop_pacAbilityGetShader(entity eActor)
+//------------------------------------------------------------------------------
+// GETs ACTOR ABILITY SHADER for the hud
+//------------------------------------------------------------------------------
+{
+	string sShader;
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_abiliy")){
+			sShader = eActor.getStringVar("_pointAndClick_abiliy");
+			if(sShader == "orbitalstrike"){
+				sShader = "textures/coop_mod/pac/orbitalstrike";
+			}else if(sShader == "heal"){
+				sShader = "textures/coop_mod/pac/healarea";
+			}else if(sShader == "awayteam"){
+				sShader = "textures/coop_mod/pac/awayteam";
+			}else if(sShader == "mindmeld"){
+				sShader = "textures/coop_mod/pac/mindmeld";
+			}else{
+				print("coop_pacAbilityGetShader: Unknown Ability "+sShader+", no Shader found!");
+			}
+		}
+	}
+	
+	if(sShader == ""){
+		sShader = emptyShader;
+	}
+	
+	return ""+sShader; //needs to be done this way or you get a empty string
+}
+
+void coop_pacSetAbility(entity eActor,string sAbility,float fHas)
 //------------------------------------------------------------------------------
 // SET IF THIS ACTOR HAS A SPECIFIC ABILITY OR NOT
 //------------------------------------------------------------------------------
 {
-	if(coop_pcaCheckValidAbility(sAbility)){
+	if(coop_pacCheckValidAbility(sAbility)){
 		if(doesEntityExist(eActor)){
-			eActor.setFloatVar("_pointAndClick_abiliy_"+sAbility,fHas);
+			if(fHas){
+				eActor.setStringVar("_pointAndClick_abiliy",sAbility);
+			}else{
+				eActor.setStringVar("_pointAndClick_abiliy","");
+			}
 		}
 	}
 }
 
-float coop_pcaHasAbility(entity eActor,string sAbility)
+string coop_pacGetAbility(entity eActor)
+//------------------------------------------------------------------------------
+// GETs ACTOR ABILITY NAME
+//------------------------------------------------------------------------------
+{
+	string sAbility;
+	if(doesEntityExist(eActor)){
+		if(eActor.doesVarExist("_pointAndClick_abiliy")){
+			sAbility = eActor.getStringVar("_pointAndClick_abiliy");
+		}
+	}
+	return ""+sAbility; //needs to be done this way or you get a empty string
+}
+
+float coop_pacHasAbility(entity eActor,string sAbility)
 //------------------------------------------------------------------------------
 // CHECK IF ABILITY IS VALID
 //------------------------------------------------------------------------------
 {
-	if(coop_pcaCheckValidAbility(sAbility)){
+	if(coop_pacCheckValidAbility(sAbility)){
 		if(doesEntityExist(eActor)){
 			if(eActor.getHealth() > 0){
-				if(eActor.doesVarExist("_pointAndClick_abiliy_"+sAbility)){
-					if(eActor.getFloatVar("_pointAndClick_abiliy_"+sAbility)){
+				if(eActor.doesVarExist("_pointAndClick_abiliy")){
+					string sHas;
+					sHas = eActor.getStringVar("_pointAndClick_abiliy");
+					if(sHas == sAbility){
 						return 1;
 					}
 				}
 			}
 		}
 	}
-	print("P.a.Click: "+eActor.getTargetName()+"does not have ability: "+sAbility+"\n");
+	//print("P.a.Click: "+eActor.getTargetName()+" does not have ability: "+sAbility+"\n");
 	return 0;
 }
 
-float coop_pcaCheckValidAction(string sAction)
+float coop_pacCheckValidAction(string sAction)
 //------------------------------------------------------------------------------
 // CHECK IF ACTION IS VALID
 //------------------------------------------------------------------------------
@@ -433,27 +1241,27 @@ float coop_pcaCheckValidAction(string sAction)
 	return 0;
 }
 
-void coop_pcaSetAnimationFor(entity eActor,string sAction, string sAnimation)
+void coop_pacSetAnimationFor(entity eActor,string sAction, string sAnimation)
 //------------------------------------------------------------------------------
 //set animation for a ocation/action
 //Example "use","conv-fingerup-warning"
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		if(coop_pcaCheckValidAction(sAction)){
+		if(coop_pacCheckValidAction(sAction)){
 			eActor.setStringVar("_pointAndClick_action_"+sAction,sAnimation);
 		}
 	}
 }
 
-string coop_pcaGetAnimationFor(entity eActor,string sAction)
+string coop_pacGetAnimationFor(entity eActor,string sAction)
 //------------------------------------------------------------------------------
 //play animation for a ocation/action
 //Example "use"
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eActor)){
-		if(coop_pcaCheckValidAction(sAction)){
+		if(coop_pacCheckValidAction(sAction)){		
 			string sAnim;		
 			if(eActor.doesVarExist("_pointAndClick_action_"+sAction)){
 				sAnim = eActor.getStringVar("_pointAndClick_action_"+sAction);
@@ -466,6 +1274,9 @@ string coop_pcaGetAnimationFor(entity eActor,string sAction)
 				else if(sAction == "scared"){ sAnim="startled"; } //scared,startled,brace_impact_duck
 				else if(sAction == "look"){ sAnim="conv-look"; } //conv-look,conv-scratchingchin-thinking,conv-gesture1
 				else if(sAction == "heal"){ sAnim="idle"; }
+				else if(sAction == "mindmeld"){ sAnim="livelong"; }
+				else if(sAction == "orbitalstrike"){ sAnim="communicator"; }
+				else if(sAction == "awayteam"){ sAnim="communicator"; }
 				//laying_down,laying,laying_getup,laying_idle,laying_talk
 				//sit_down_start,sit_down_idle,sit_down_end
 				//twitch
@@ -482,11 +1293,11 @@ string coop_pcaGetAnimationFor(entity eActor,string sAction)
 	}
 	if(sAnim == ""){
 		print("P.a.Click: No Animation for action: "+sAction+"- valid: use,pickup,crouch,scared,look,walk\n");
-	}
+	}	
 	return ""+sAnim;
 }
 
-string coop_pcaButtonDetect(entity ePlayer)
+string coop_pacButtonDetect(entity ePlayer)
 //------------------------------------------------------------------------------
 //detect butten pressed by player
 //------------------------------------------------------------------------------
@@ -524,28 +1335,42 @@ string coop_pcaButtonDetect(entity ePlayer)
 	return ""+sButton; //needs to be done this way or it will return a empty string
 }
 
-void coop_pcaActorMonitor(entity eActor)
+void coop_pacActorMonitor(entity eActor)
 //------------------------------------------------------------------------------
 //check if actor is still alive
 //------------------------------------------------------------------------------
 {
 	//if(already handled)return;
-	while(doesEntityExist(eActor)){
-		if(eActor.getHealth() <= 0){
-			entity ePlayer;
-			ePlayer = coop_pcaActorReturnControllingPlayer(eActor);
-			if(doesEntityExist(ePlayer)){
-				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-			}
-			eActor.clearcustomshader(selectionShader);
-			eActor.renderEffects("-depthhack");
-			return;
+	if(doesEntityExist(eActor)){
+		float fEntNum;
+		entity ePlayer;
+		ePlayer = coop_pacActorReturnControllingPlayer(eActor);
+		fEntNum = eActor.getEntNum();
+		
+		while(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
+			globalCoop_main_waitAFrame();
 		}
-		wait(0.1);
+		
+		if(doesEntityExist(ePlayer)){
+			float fPlayerActCurControl;
+			fPlayerActCurControl = coop_pacSelectedReturnEntityEntnum(ePlayer);
+			if(fEntNum == fPlayerActCurControl){
+				ePlayer.widgetCmd("pacSel","shader "+emptyShader);
+				ePlayer.widgetCmd("pacSelDescr","labeltext ~");
+				ePlayer.widgetCmd("pacAbility","shader "+emptyShader);
+				ePlayer.widgetCmd("pacAbilityTime","title $$None$$");
+			}
+		}
+		if(doesEntityExist(eActor)){
+			eActor.renderEffects("-depthhack");
+			eActor.clearcustomshader(selectionShader);
+			eActor.clearcustomshader(mindmeldShader);
+			coop_pacSelectableRemove(ePlayer);
+		}
 	}
 }
 
-void coop_pcaActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay)
+void coop_pacActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay)
 //------------------------------------------------------------------------------
 //handle animation
 //------------------------------------------------------------------------------
@@ -575,7 +1400,7 @@ float coop_pcSetBeamOutCapable(entity eActor,float fAllow)
 	}
 }
 
-float coop_pcaCheckBeamOut(entity eActor)
+float coop_pacCheckBeamOut(entity eActor)
 //------------------------------------------------------------------------------
 //started by trigger - beams out actor
 //------------------------------------------------------------------------------
@@ -590,7 +1415,9 @@ float coop_pcaCheckBeamOut(entity eActor)
 	return 0;
 }
 
-void coop_pcaBeamOut()
+void coop_pacBeamOut()
+//Borg,Federation,Idryll,Romulan,Multiplayer,Lurker,Chewer,Quad,Basher
+//FederationWeapons,FederationAttach,FederationNoAnim,BorgNoAnim,RomulanCinematic
 //------------------------------------------------------------------------------
 //started by trigger - beams out actor
 //------------------------------------------------------------------------------
@@ -600,9 +1427,17 @@ void coop_pcaBeamOut()
 	if(doesEntityExist(eTrigger)){
 		entity eActivator;
 		eActivator = eTrigger.getLastActivatingEntity();
+		
+		string sThread;
+		sThread = coop_pacGetDataFor(eTrigger,"action");
+		
+		string sEffect;
+		sEffect = coop_pacGetDataFor(eTrigger,"animation");
+		
+		
 		if(doesEntityExist(eActivator)){
-			//check if we are allowed to beam out
-			if(coop_pcaCheckBeamOut(eActivator) == 0){
+			//check if actor is allowed to beam out
+			if(coop_pacCheckBeamOut(eActivator) == 0){
 				return;
 			}
 			
@@ -616,12 +1451,24 @@ void coop_pcaBeamOut()
 			while(doesEntityExist(eActivator) == 1 && vectorLength(vVelocity) > 2){
 				globalCoop_main_waitAFrame();
 			}
+			eActivator.immortal(1);
+			
+			//wait for actor to turn/position
+			wait(0.4);
+			
 			if(doesEntityExist(eActivator)){
 				//make actor stop first and turn off ai  before it gets removed or the waitFor(ent) function will get stuck
-				eActivator.ai_on();
-				coop_pcaSelectableRemove(eActivator);
+				eActivator.anim("idle");
+				if(sThread != ""){
+					eActivator.runthread(sThread);
+				}
+				//if it is a selectable actor, do no loner allow to select it
+				coop_pacSelectableRemove(eActivator);
 				globalCoop_main_waitAFrame();
-				eActivator.displayEffect("TransportOut","Federation");
+				if(sEffect == ""){
+					sEffect = "Federation";
+				}
+				eActivator.displayEffect("TransportOut",sEffect);
 				wait(1.4);
 				if(doesEntityExist(eActivator)){
 					eActivator.remove();
@@ -631,7 +1478,7 @@ void coop_pcaBeamOut()
 	}
 }
 
-void coop_pcaHideTarget()
+void coop_pacHideTarget()
 //------------------------------------------------------------------------------
 //started by trigger - hides entity that is the trigger its target
 //------------------------------------------------------------------------------
@@ -648,7 +1495,7 @@ void coop_pcaHideTarget()
 			//entity eActivator;
 			//eActivator = eTrigger.getLastActivatingEntity();
 			//if(doesEntityExist(eActivator)){}
-			sTime = coop_pcaGetDataFor(eTrigger,"time");
+			sTime = coop_pacGetDataFor(eTrigger,"time");
 			if(sTime != ""){
 				fTime = getFloatFromString(sTime);
 				wait(fTime);
@@ -658,13 +1505,13 @@ void coop_pcaHideTarget()
 			}
 		}
 		else{
-			print("P.a.Click: coop_pcaHideTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
+			print("P.a.Click: coop_pacHideTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
 			eTrigger.selfdetonate();
 		}
 	}
 }
 
-void coop_pcaShowTarget()
+void coop_pacShowTarget()
 //------------------------------------------------------------------------------
 //started by trigger - shows entity that is the trigger its target
 //------------------------------------------------------------------------------
@@ -681,7 +1528,7 @@ void coop_pcaShowTarget()
 			//entity eActivator;
 			//eActivator = eTrigger.getLastActivatingEntity();
 			//if(doesEntityExist(eActivator)){}
-			sTime = coop_pcaGetDataFor(eTrigger,"time");
+			sTime = coop_pacGetDataFor(eTrigger,"time");
 			if(sTime != ""){
 				fTime = getFloatFromString(sTime);
 				wait(fTime);
@@ -691,14 +1538,14 @@ void coop_pcaShowTarget()
 			}
 		}
 		else{
-			print("P.a.Click: coop_pcaShowTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
+			print("P.a.Click: coop_pacShowTarget - Trigger("+eTrigger.getTargetName()+") has no target!\n");
 			eTrigger.selfdetonate();
 		}
 	}
 }
 
 
-void coop_pcaPickupItem()
+void coop_pacPickupItem()
 //------------------------------------------------------------------------------
 //started by trigger - makes actor pickup specified item
 //------------------------------------------------------------------------------
@@ -717,24 +1564,26 @@ void coop_pcaPickupItem()
 				sItem = eItem.getModelName();
 				if(eActivator.getSubclassName() == "Actor"){
 					string sAnim;
-					sAnim = coop_pcaGetAnimationFor(eActivator,"pickup");
-					eActivator.animateonce(sAnim); //detpack_plant_duck
-					coop_pcaActorWaitForAnimation(eActivator,sAnim,-0.05 );
+					sAnim = coop_pacGetAnimationFor(eActivator,"pickup");
+					eActivator.anim(sAnim); //detpack_plant_duck
+					coop_pacActorWaitForAnimation(eActivator,sAnim,0.05 );
 //$player0.hudprint(sAnim+"\n");
-					sAnim = coop_pcaGetAnimationFor(eActivator,"idle");
-					eActivator.anim("sAnim"); //if it is not a actor, make sure we force idle afterwards
+					if(doesEntityExist(eActivator)){
+						sAnim = coop_pacGetAnimationFor(eActivator,"idle");
+						eActivator.anim("sAnim"); //if it is not a actor, make sure we force idle afterwards
+					}
 				}
 				if(doesEntityExist(eItem)){eItem.remove();}
 			}else{
-				sItem = coop_pcaGetDataFor(eTrigger,"item");
+				sItem = coop_pacGetDataFor(eTrigger,"item");
 			}
-			//coop_pcaAddToInventory();
+			//coop_pacAddToInventory();
 			//centerprint("Added to inventory: "+sItem+"\n");
 		}
 	}
 }
 
-string coop_pcaGetDataFor(entity eCurrent,string sData)
+string coop_pacGetDataFor(entity eCurrent,string sData)
 //------------------------------------------------------------------------------
 //returns string data variable contens of given entity
 //------------------------------------------------------------------------------
@@ -750,11 +1599,11 @@ string coop_pcaGetDataFor(entity eCurrent,string sData)
 		else if(sData == "descriptionGerman")	{fVarNum=2;}
 		else if(sData == "descriptionEnglish")	{fVarNum=1;}
 		else{
-			print("P.a.Click: coop_pcaGetDataFor - invalid query: "+sData+"\n");
+			print("P.a.Click: coop_pacGetDataFor - invalid query: "+sData+"\n");
 		}
 		
 		if(fVarNum < 1 || fVarNum > 10){
-			print("P.a.Click: coop_pcaGetDataFor - out of range with: "+fVarNum+"\n");
+			print("P.a.Click: coop_pacGetDataFor - out of range with: "+fVarNum+"\n");
 			return "";
 		}
 		
@@ -770,7 +1619,7 @@ string coop_pcaGetDataFor(entity eCurrent,string sData)
 	}
 }
 
-void coop_pcaNotInteractive(entity eInteractive)
+void coop_pacNotInteractive(entity eInteractive)
 //------------------------------------------------------------------------------
 //disallow to be seleted
 //------------------------------------------------------------------------------
@@ -785,7 +1634,7 @@ void coop_pcaNotInteractive(entity eInteractive)
 	}
 }
 
-void coop_pcaInteractive(entity eInteractive)
+void coop_pacInteractive(entity eInteractive)
 //------------------------------------------------------------------------------
 //allow to be seleted
 //------------------------------------------------------------------------------
@@ -800,22 +1649,30 @@ void coop_pcaInteractive(entity eInteractive)
 	}
 }
 
-float coop_pcaIsSelectable(entity eSelectable)
+float coop_pacIsSelectable(entity eSelectable,entity ePlayer)
 //------------------------------------------------------------------------------
-//allow to be seleted
+//check if unit is currently selectable by this player/entity
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eSelectable)){
 		if(eSelectable.doesVarExist("_pointAndClick_selectable")){
 			if(eSelectable.getFloatVar("_pointAndClick_selectable")){
-				return 1;
+				if(coop_pacCheckEntityLocked(eSelectable) == 0){
+					return 1;
+				}else{
+					float fPlayerNum;
+					fPlayerNum = coop_pacActorControlledByPlayerEntnum(eSelectable);
+					if(fPlayerNum == ePlayer.getEntNum()){
+						return 1;
+					}
+				}
 			}
 		}
 	}
 	return 0;
 }
 
-void coop_pcaSelectable(entity eSelectable)
+void coop_pacSelectable(entity eSelectable)
 //------------------------------------------------------------------------------
 //allow to be seleted
 //------------------------------------------------------------------------------
@@ -837,17 +1694,17 @@ void coop_pcaSelectable(entity eSelectable)
 		if(eSelectable.getSubclassName() != "Actor"){
 			eSelectable.contents( "targetable" );
 		}
-		//tunoff actor ai on default
+		//tunoff actor ai, it is on at default
 		else{
-			coop_pcaSetStartHealth(eSelectable,eSelectable.getHealth());
-			thread coop_pcaActorMonitor(eSelectable);
+			coop_pacSetStartHealth(eSelectable,eSelectable.getHealth());
+			thread coop_pacActorMonitor(eSelectable);
 			eSelectable.ai_off();
-			eSelectable.actorondamage("coop_pcaDamaged");
+			eSelectable.actorondamage("coop_pacDamaged");
 		}
 	}
 }
 
-void coop_pcaSelectableRemove(entity eSelectable)
+void coop_pacSelectableRemove(entity eSelectable)
 //------------------------------------------------------------------------------
 //disallow to be seleted
 //------------------------------------------------------------------------------
@@ -856,12 +1713,15 @@ void coop_pcaSelectableRemove(entity eSelectable)
 		//clear data also from player
 		float fPlayer;
 		entity ePlayer;
-		ePlayer = coop_pcaActorReturnControllingPlayer(eSelectable);
+		ePlayer = coop_pacActorReturnControllingPlayer(eSelectable);
 		if(doesEntityExist(ePlayer)){
 			float fActNum;
-			fActNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+			fActNum = coop_pacSelectedReturnEntityEntnum(ePlayer);
 			if(fActNum == eSelectable.getEntNum()){
-				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
+				ePlayer.widgetCmd("pacAbility","shader weapons/empty");
+				ePlayer.widgetCmd("pacAbilityTime","title $$None$$");
+				ePlayer.widgetCmd("pacSelDescr","labeltext ~");
+				ePlayer.widgetCmd("pacSel","shader weapons/empty");
 				ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
 			}
 		}
@@ -875,7 +1735,7 @@ void coop_pcaSelectableRemove(entity eSelectable)
 	}
 }
 
-float coop_pcaIsInteractive(entity eCurrent)
+float coop_pacIsInteractive(entity eCurrent)
 //------------------------------------------------------------------------------
 //checks if object is interactive
 //------------------------------------------------------------------------------
@@ -902,21 +1762,35 @@ float coop_pcaIsInteractive(entity eCurrent)
 	return 0;
 }
 
-float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget)
+void coop_pacActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget)
 //------------------------------------------------------------------------------
 //make actor go to a place
 //------------------------------------------------------------------------------
 {
+	float fDropHeight = 30;
 	vector vOffset;
+	vector vBeforeDrop;
 	vector vCurrent;
+	entity ePlayer;
+	ePlayer = coop_pacActorReturnControllingPlayer(eActor);
+	vCurrent = eActor.getOrigin();
+	vBeforeDrop = vOrigin;
 	vOffset = vOrigin;
-	vOffset_z = (vOffset_z + 30);
+	vOffset_z = (vOffset_z + fDropHeight);
 	
 	entity eWalkto;
 	//eWalkto = spawn("script_model","model","models/fx/fx-blueplasma.tik","notsolid","1");
 	//eWalkto = spawn("script_model","model","sysimg/icons/mp/specialty_sniper.spr","notsolid","1");
-//eWalkto = spawn("script_model","model","sysimg/icons/items/rune_armorpiercing.spr","scale","1","notsolid","1","origin",""+vOffset);
-	eWalkto = spawn("script_model","model","sysimg/icons/items/powerup_speed.spr","scale","1","notsolid","1","origin",""+vOffset);
+	//eWalkto = spawn("script_model","model","sysimg/icons/items/rune_armorpiercing.spr","scale","1","notsolid","1","origin",""+vOffset);
+	//eWalkto = spawn("script_model","model","sysimg/icons/mp/specialty_infiltrator.spr","scale","1","notsolid","1","origin",""+vOffset);
+	eWalkto = spawn("script_model","model","sysimg/icons/items/powerup_speed.spr","notsolid","1","origin",""+vOffset);
+	//eWalkto = spawn("script_model","model","models/hud/radar_ground-plane.tik","scale","1","notsolid","1","origin",""+vOffset); //marker
+	//eWalkto = spawn("script_model","model","models/hud/radar_basic-ground-plane.tik","notsolid","1","origin",""+vOffset,"noshadow","1"); //marker
+	//eWalkto = spawn("script_model","model","models/coop/pac/orbitalstrike.tik","notsolid","1","origin",""+vOffset,"noshadow","1"); //marker
+	//eWalkto = spawn("script_model","model","models/hud/blip.tik","scale","1","notsolid","1","origin",""+vOffset); //marker
+	//eWalkto = spawn("script_model","model","models/item/mp_weapon-spawn.tik","scale","1","notsolid","1","origin",""+vOffset); //transporterplatform
+	//eWalkto = spawn("script_model","model","models/item/ctf_oneflagbase.tik","scale","1","notsolid","1","origin",""+vOffset); //transporterplatform
+	//eWalkto = spawn("script_model","model","models/item/holdable_transporter.tik","scale","1","notsolid","1","origin",""+vOffset); //transport
 	globalCoop_main_waitAFrame();
 	//eWalkto.rendereffects("+depthhack");
 	//eWalkto.scale(1.5);
@@ -926,118 +1800,107 @@ float coop_pcaActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarg
 	//eWalkto.forcealpha(1);
 	//eWalkto.fade(0.05,0.5);
 	//eWalkto.setSize('-4 -4 -70','4 4 0');
-	//eWalkto.droptoFloor();
+	eWalkto.droptoFloor();
+	eWalkto.angle((vectorGetY(ePlayer.getViewangles()) - 180)); //align with the player view
+	//eWalkto.setcustomshader(selectionShader);
 	//globalCoop_main_waitAFrame();
 	
-	vCurrent = eActor.getOrigin();
+	if(doesEntityExist(ePlayer) == 0 || doesEntityExist(eActor) == 0 ){
+		eWalkto.remove();
+		return;
+	}
 	
 	//check if this entity has a pathnode that has the same targetname, we want to go to it instead.
 	vector vPathnode;
 	float fPathPathnode;
 	vPathnode = getPathnodeOrigin(eTarget.getRawTargetName());
-	if(vectorLength(vPathnode) > 0){
+	if(vectorLength(vPathnode) > 0){	
+		//if right clicked to walk to another actor, grab the actor their origin
+		/*if(eTarget.getSubclassName() != ""){
+			vector vBBox;
+			vBBox = eTarget.getMaxs();
+			vOrigin = eTarget.getOrigin();
+			vOrigin_z += vBBox_z;
+		}*/
+		vOrigin_z = (vOrigin_z + 40);
+		eWalkto.warp(vOrigin);
+	
 		fPathPathnode = 1;
 		globalCoop_actor_walkTo(eActor,eTarget.getRawTargetName(),sAnim);
 	}else{
 		fPathPathnode = 0;
-		globalCoop_actor_walkToVector(eActor,vOrigin,sAnim);
+		vector vDropped;
+		vDropped = eWalkto.getOrigin();
+//ePlayer.hudprint("walkto: "+eTarget.getTargetName()+" "+vDropped+" vs "+vBeforeDrop+"\n");		
+		if(vectorLength(vBeforeDrop - vDropped) < fDropHeight){
+			//if right clicked to walk to another actor, grab the actor their origin
+			if(eTarget.getSubclassName() == "Actor"){
+				vector vBBox;
+				vBBox = eTarget.getMaxs();
+				vOrigin = eTarget.getOrigin();
+				vOrigin_z += (vBBox_z + 10);
+				//make sure this changes up a bit to get around actor being unreachable issues
+				float fRandom;
+				fRandom = randomint(10);
+				if(fRandom < 2){vOrigin_x += (vBBox_x + 30); }
+				else if(fRandom < 5){vOrigin_x -= (vBBox_x + 30);}
+				else if(fRandom < 7){vOrigin_y += (vBBox_y + 30);}
+				else{vOrigin_y -= (vBBox_y + 30);}
+				
+			}
+			vOrigin_z = (vOrigin_z + 40);
+			eWalkto.warp(vOrigin);
+			globalCoop_actor_walkToVector(eActor,vOrigin,sAnim);
+		}
 	}
 	
-	if(doesEntityExist(eActor)){
-		//$player0.hudprint("target ent:"+eTarget.getTargetName()+"\n");
-		
-/*entity eTraget;
-eTraget = eCurrent.getTargetEntity();
-if(doesEntityExist(eTraget)){
-vTarget = eTraget.getOrigin();
-}*/
-
-		//make sure it is always deleted for sure
-		if(doesEntityExist(eWalkto)){
-			eWalkto.remove();
-		}
-	
+	if(doesEntityExist(eActor)){	
 		//if walked distance is very short, assume player wants them to turn
 		if(doesEntityExist(eWalkto) == 1 && fPathPathnode != 1){
 			if(vectorLength( (vCurrent - eActor.getOrigin()) ) < 30 || eTarget.getSubclassName() != "World"){
 				//turn towards beakon if player clicked on world
 				if(eTarget.getSubclassName() == "World"){
 					eActor.turntowardsEntity(eWalkto);
-//$player0.hudprint("world\n");
 				}
 				//turn towards a object player clicked on
 				else{
 					eActor.turntowardsEntity(eTarget);
-//$player0.hudprint("target:"+eTarget.getTargetName()+"\n");
 				}
-				wait(0.5);
+				wait(0.4);
 			}
 		}
 		
-		//play animation if a action is set
+		//check if target still exists
+		//check if actor we send is still there and alive
 		if(doesEntityExist(eTarget)){
 			if(doesEntityExist(eActor) == 1 && eActor.getHealth() > 0){
-				if(eTarget.getSubclassName() == "Actor"){
-					if(eTarget.getHealth() > 0 && coop_pcaHasAbility(eActor,"heal") == 1){
-						vector vTarget;
-						vector vDoctor;
-						vTarget = eTarget.getOrigin();
-						vDoctor = eActor.getOrigin();
-						if(vectorLength(vTarget - vDoctor) < 150){
+				vector vActor,vTarget;
+				vTarget = eTarget.getOrigin();
+				vActor =  eActor.getOrigin();
+				//actor and target location within desired range
+				//now we can play a animation and perform a action
+				if(vectorLength(vTarget - vActor) < 100){
+					//target is not a Actor
+					if(eTarget.getSubclassName() != "Actor"){
+						//if a action is set, play the associated animation
+						string sAction;
+						sAction = coop_pacGetDataFor(eTarget,"action");
+						if(sAction != ""){
 							string sAnim;
-							sAnim	= coop_pcaGetAnimationFor(eActor,"heal");
-							if(sAnim != ""){
-								//play dialog
-								string sDialog;
-								sDialog = coop_pcaGetDialogHeal(eActor);
-								if(sDialog != ""){
-									coop_pcaDialogPlay(eActor,sDialog);
-								}
-								
-								//play animation and heal
-								eActor.anim(sAnim);
-								coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
-								if(eTarget.getHealth() > 0){
-									float fOldHealth;
-									fOldHealth = eTarget.getHealth();
-									float fNewHealth;
-									fNewHealth = coop_pcaGetStartHealth(eTarget);
-									eTarget.health(fNewHealth);
-									//string sTargetname;
-									//sTargetname = $eTarget.getTargetName();
-									//$player0.hudprint("healed "+sTargetname+" "+fOldHealth+" "+fNewHealth+" \n");
-								}
-							}
-						}else{
-							$player0.hudprint("Out of healing range\n");
-						}
-					}
-				}else{
-					string sAction;
-					sAction = coop_pcaGetDataFor(eTarget,"action");
-					if(sAction != ""){
-						string sAnim;
-						sAnim	= coop_pcaGetAnimationFor(eActor,sAction);
-						eActor.anim(sAnim);
-						coop_pcaActorWaitForAnimation(eActor,sAnim,0.05 );
-						
-						if(doesEntityExist(eTarget)){
-							//try to use what ever the current target is targeting
-							if(doesEntityExist(eActor) == 1){
+							sAnim	= coop_pacGetAnimationFor(eActor,sAction);
+							eActor.anim(sAnim);
+							coop_pacActorWaitForAnimation(eActor,sAnim,0.05 );
+							if(doesEntityExist(eActor) == 1 && doesEntityExist(ePlayer) == 1 && doesEntityExist(eTarget) == 1){
 								if(eActor.getHealth() > 0){
-									entity ePlayer;
-									ePlayer = coop_pcaActorReturnControllingPlayer(eActor);
-									if(doesEntityExist(ePlayer)){
-										entity eTargetOfTarget;
-										eTargetOfTarget = eTarget.getTargetEntity();
-										if(doesEntityExist(eTargetOfTarget)){
-											ePlayer.useentity(eTargetOfTarget);
-										}
+									entity eTargetOfTarget;
+									eTargetOfTarget = eTarget.getTargetEntity();
+									if(doesEntityExist(eTargetOfTarget)){
+										ePlayer.useentity(eTargetOfTarget);
 									}
 								}
 							}
 						}
-					}
+					}			
 				}
 			}
 		}
@@ -1053,14 +1916,14 @@ vTarget = eTraget.getOrigin();
 	}	
 }
 
-float coop_pcaActorGoTo(entity ePlayer,entity eCurrent)
+float coop_pacActorGoTo(entity ePlayer,entity eCurrent)
 //------------------------------------------------------------------------------
 //make actor go to a place
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
 		entity eActor;
-		eActor = coop_pcaSelectedReturnEntity(ePlayer);
+		eActor = coop_pacSelectedReturnEntity(ePlayer);
 		
 		if(	doesEntityExist(eActor) != 1 ||
 			eActor.getHealth() <= 0 ||
@@ -1070,29 +1933,66 @@ float coop_pcaActorGoTo(entity ePlayer,entity eCurrent)
 			return 0;
 		}
 		//as soon as the actor is issued a move command it will become a valid target
-		coop_pcaSetValidTarget(eActor,1);
+		coop_pacSetValidTarget(eActor,1);
 		
 		string sAnim;
-		sAnim = coop_pcaGetAnimationFor(eActor,"walk");
+		sAnim = coop_pacGetAnimationFor(eActor,"walk");
 		
-		if(doesEntityExist(eCurrent) == 0 || eCurrent.getSubclassName() == "World" || coop_pcaIsInteractive(eCurrent) != 1){
-			thread coop_pcaActorWalkto(eActor,ePlayer.getViewtraceEndpos(),sAnim,$world);
+		if(doesEntityExist(eCurrent) == 0 || eCurrent.getSubclassName() == "World" || coop_pacIsInteractive(eCurrent) != 1){
+			thread coop_pacActorWalkto(eActor,ePlayer.getViewtraceEndpos(),sAnim,$world);
 		}else{
 			//check if there is a pathnode with the same name, if so grab that location
 			vector vLocation;
 			vLocation = getPathnodeOrigin(eCurrent.getRawTargetName());
 			//no pathnode, origin from object player is pointing on
 			if(vLocation == '0 0 0'){
-				eCurrent.getOrigin();
+				vLocation = eCurrent.getOrigin();
 			}
-			thread coop_pcaActorWalkto(eActor,vLocation,sAnim,eCurrent);
+			thread coop_pacActorWalkto(eActor,vLocation,sAnim,eCurrent);
 			
 		}
 		return 1;
 	}
 }
 
-void coop_pcaMissionFailure(string sReason)
+void coop_pacActorGoToWait(entity ePlayer,entity eCurrent)
+//------------------------------------------------------------------------------
+//make actor go to a place and wait for it
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		entity eActor;
+		eActor = coop_pacSelectedReturnEntity(ePlayer);
+		
+		if(	doesEntityExist(eActor) != 1 ||
+			eActor.getHealth() <= 0 ||
+			eActor.getSubclassName() != "Actor" ||
+			eActor.getFloatVar("_pointAndClick_inAnimation") == 1
+		){
+			return;
+		}
+		//as soon as the actor is issued a move command it will become a valid target
+		coop_pacSetValidTarget(eActor,1);
+		
+		string sAnim;
+		sAnim = coop_pacGetAnimationFor(eActor,"walk");
+		
+		if(doesEntityExist(eCurrent) == 0 || eCurrent.getSubclassName() == "World" || coop_pacIsInteractive(eCurrent) != 1){
+			coop_pacActorWalkto(eActor,ePlayer.getViewtraceEndpos(),sAnim,$world);
+		}else{
+			//check if there is a pathnode with the same name, if so grab that location
+			vector vLocation;
+			vLocation = getPathnodeOrigin(eCurrent.getRawTargetName());
+			//no pathnode, origin from object player is pointing on
+			if(vLocation == '0 0 0'){
+				vLocation = eCurrent.getOrigin();
+			}
+			coop_pacActorWalkto(eActor,vLocation,sAnim,eCurrent);
+		}
+	}
+}
+
+void coop_pacMissionFailure(string sReason)
 //------------------------------------------------------------------------------
 //runs mission failure
 //------------------------------------------------------------------------------
@@ -1100,15 +2000,15 @@ void coop_pcaMissionFailure(string sReason)
 	thread globalCoop_mission_failWithReason(sReason);
 }
 
-void coop_pcaFailOnDeath(entity eCurrent,float fFail,string sReason)
+void coop_pacFailOnDeath(entity eCurrent,float fFail,string sReason)
 //------------------------------------------------------------------------------
 //returns size for icon for entity
 //------------------------------------------------------------------------------
 {
-	thread coop_pcaFailOnDeathLoop(eCurrent,fFail,sReason);
+	thread coop_pacFailOnDeathLoop(eCurrent,fFail,sReason);
 }
 
-void coop_pcaFailOnDeathLoop(entity eCurrent,float fFail,string sReason)
+void coop_pacFailOnDeathLoop(entity eCurrent,float fFail,string sReason)
 //------------------------------------------------------------------------------
 //returns size for icon for entity
 //------------------------------------------------------------------------------
@@ -1135,7 +2035,7 @@ void coop_pcaFailOnDeathLoop(entity eCurrent,float fFail,string sReason)
 			}
 
 			if( eCurrent.getHealth() <= 0){
-				coop_pcaMissionFailure(sReason+"\n");
+				coop_pacMissionFailure(sReason+"\n");
 				return;
 			}
 			wait(2);
@@ -1143,7 +2043,7 @@ void coop_pcaFailOnDeathLoop(entity eCurrent,float fFail,string sReason)
 	}
 }
 
-void coop_pcaSetValidTarget(entity eCurrent,float fValid)
+void coop_pacSetValidTarget(entity eCurrent,float fValid)
 //------------------------------------------------------------------------------
 //makes enemies ignore or attack this as a valid target
 //------------------------------------------------------------------------------
@@ -1153,7 +2053,7 @@ void coop_pcaSetValidTarget(entity eCurrent,float fValid)
 	}
 }
 
-string coop_pcaGetIconSize(entity eCurrent)
+string coop_pacGetIconSize(entity eCurrent)
 //------------------------------------------------------------------------------
 //returns size for icon for entity
 //------------------------------------------------------------------------------
@@ -1161,7 +2061,7 @@ string coop_pcaGetIconSize(entity eCurrent)
 	float fHeight = 82;
 	string sIconSize;
 	if(doesEntityExist(eCurrent)){
-		sIconSize = coop_pcaGetDataFor(eCurrent,"iconheight");
+		sIconSize = coop_pacGetDataFor(eCurrent,"iconheight");
 	}
 	//clear shader
 	if(sIconSize == ""){
@@ -1173,14 +2073,14 @@ string coop_pcaGetIconSize(entity eCurrent)
 	return ""+sIconSize; //needs to be done this way or it will return a empty string	
 }
 
-string coop_pcaGetIcon(entity eCurrent)
+string coop_pacGetIcon(entity eCurrent)
 //------------------------------------------------------------------------------
 //returns icon for entity
 //------------------------------------------------------------------------------
 {
 	string sIcon;
 	if(doesEntityExist(eCurrent)){
-		sIcon = coop_pcaGetDataFor(eCurrent,"icon");
+		sIcon = coop_pacGetDataFor(eCurrent,"icon");
 	}
 	
 	//clear shader
@@ -1191,17 +2091,48 @@ string coop_pcaGetIcon(entity eCurrent)
 	return ""+sIcon; //needs to be done this way or it will return a empty string
 }
 
-float coop_pcaSelectedMarker(entity ePlayer,entity eSelected)
+string coop_pacGetDescr(entity eCurrent,entity ePlayer)
+//------------------------------------------------------------------------------
+//returns decsription for entity
+//------------------------------------------------------------------------------
+{
+	string sDescr;
+	if(doesEntityExist(ePlayer) == 1 && doesEntityExist(eCurrent)){
+		//grab german for germans
+		if(ePlayer.hasLanguageGerman()){
+			if(eCurrent.doesVarExist("uservar2")){
+				sDescr = eCurrent.getStringVar("uservar2");
+			}
+		}
+		//grab english if german was not grabbed or empty
+		if(sDescr == ""){
+			if(eCurrent.doesVarExist("uservar1")){
+				sDescr = eCurrent.getStringVar("uservar1");
+			}
+		}
+	}
+	
+	//make sure to return a string that can be transmitted over network if no valid descr was given
+	if(sDescr == ""){
+		sDescr = eCurrent.getRawTargetName();
+	}
+	if(sDescr == ""){
+		sDescr = "$$Name$$";
+	}
+	return ""+sDescr;
+}
+
+float coop_pacSelectedMarker(entity ePlayer,entity eSelected)
 //------------------------------------------------------------------------------
 //marks as selected
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eSelected) == 1){
-		coop_pcaSelectedMarkerClear(ePlayer,eSelected);
+		coop_pacSelectedMarkerClear(ePlayer,eSelected);
 		//if it has a actual model we can applay the shader
 		if(getIntStringFind(eSelected.getModelName(),".tik")){
 			float f1,f2;
-			f1=coop_pcaSelectedReturnEntityEntnum(ePlayer);
+			f1=coop_pacSelectedReturnEntityEntnum(ePlayer);
 			f2=eSelected.getEntNum();
 			if(f1 != f2){
 				//ePlayer.hudprint("sel:"+eSelected.getTargetName()+" ( "+f1+" ) ( "+f2+" ) \n");
@@ -1209,13 +2140,18 @@ float coop_pcaSelectedMarker(entity ePlayer,entity eSelected)
 				eSelected.setcustomshader(selectionShader);
 				eSelected.setFloatVar("_pointAndClick_entityLocked",1);
 				eSelected.setFloatVar("_pointAndClick_controlledByPlayer",ePlayer.getEntNum());
-				ePlayer.widgetCmd("pacActiveSel","shader "+coop_pcaGetIcon(eSelected));
-				ePlayer.widgetCmd("pacActiveSelDescr","labeltext "+eSelected.getStringVar("uservar1"));
+				ePlayer.widgetCmd("pacSel","shader "+coop_pacGetIcon(eSelected));
+				ePlayer.widgetCmd("pacSelDescr","labeltext "+coop_pacGetDescr(eSelected,ePlayer));
+				ePlayer.widgetCmd("pacAbility","shader "+coop_pacAbilityGetShader(eSelected));
+				ePlayer.widgetCmd("pacAbilityTime","title $$None$$");
 				return 1;
 			}else{
 				//ePlayer.hudprint("unsel:"+eSelected.getTargetName()+" ( "+f1+" ) ( "+f2+" ) \n");
-				ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-				coop_pcaSelectedMarkerClear(ePlayer,eSelected);
+				ePlayer.widgetCmd("pacAbility","shader weapons/empty");
+				ePlayer.widgetCmd("pacSel","shader weapons/empty");
+				ePlayer.widgetCmd("pacSelDescr","labeltext ~");
+				ePlayer.widgetCmd("pacAbilityTime","title $$None$$");
+				coop_pacSelectedMarkerClear(ePlayer,eSelected);
 				ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
 				eSelected.setFloatVar("_pointAndClick_controlledByPlayer",-1);
 				return 0;
@@ -1225,7 +2161,7 @@ float coop_pcaSelectedMarker(entity ePlayer,entity eSelected)
 	return 0;
 }
 
-void coop_pcaSelectedMarkerClear(entity ePlayer,entity eSelected)
+void coop_pacSelectedMarkerClear(entity ePlayer,entity eSelected)
 //------------------------------------------------------------------------------
 //unmarks selected
 //------------------------------------------------------------------------------
@@ -1233,7 +2169,7 @@ void coop_pcaSelectedMarkerClear(entity ePlayer,entity eSelected)
 	if(doesEntityExist(ePlayer)){
 		float lastSelEntNum;
 		entity eLastSel;
-		lastSelEntNum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+		lastSelEntNum = coop_pacSelectedReturnEntityEntnum(ePlayer);
 		if(lastSelEntNum > -1){//make sure we don't grab bad last entity
 			//if(lastSelEntNum != eSelected.getEntNum()){
 				eLastSel = getEntity("*"+lastSelEntNum);
@@ -1248,7 +2184,7 @@ void coop_pcaSelectedMarkerClear(entity ePlayer,entity eSelected)
 	}	
 }
 
-float coop_pcaCheckEntityLocked(entity eCurrent)
+float coop_pacCheckEntityLocked(entity eCurrent)
 //------------------------------------------------------------------------------
 //checks if the entity is locked
 //------------------------------------------------------------------------------
@@ -1262,7 +2198,7 @@ float coop_pcaCheckEntityLocked(entity eCurrent)
 	return fVar;
 }
 
-entity coop_pcaActorReturnControllingPlayer(entity eActor)
+entity coop_pacActorReturnControllingPlayer(entity eActor)
 //------------------------------------------------------------------------------
 //returns player currently controlling this actor
 //------------------------------------------------------------------------------
@@ -1270,7 +2206,7 @@ entity coop_pcaActorReturnControllingPlayer(entity eActor)
 	entity ePlayer;
 	if(doesEntityExist(eActor)){
 		float fPlayerNum;
-		fPlayerNum = coop_pcaActorControlledByPlayerEntnum(eActor);
+		fPlayerNum = coop_pacActorControlledByPlayerEntnum(eActor);
 		if(fPlayerNum > -1){
 			ePlayer = getEntity("*"+fPlayerNum);
 		}
@@ -1278,7 +2214,7 @@ entity coop_pcaActorReturnControllingPlayer(entity eActor)
 	return ePlayer;
 }
 
-float coop_pcaActorControlledByPlayerEntnum(entity eActor)
+float coop_pacActorControlledByPlayerEntnum(entity eActor)
 //------------------------------------------------------------------------------
 //returns entity number of player this actor is controlled by
 //------------------------------------------------------------------------------
@@ -1292,7 +2228,7 @@ float coop_pcaActorControlledByPlayerEntnum(entity eActor)
 			ePlayer = getEntity("*"+fPlayer);
 			//make sure player is valid, player does still have this actor selected
 			if(doesEntityExist(ePlayer)){
-				fSelected = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+				fSelected = coop_pacSelectedReturnEntityEntnum(ePlayer);
 				if(ePlayer.getHealth() > 0 && ePlayer.isSpectator() != 1 && fSelected == eActor.getEntNum()){
 					return fPlayer;
 				}
@@ -1303,14 +2239,14 @@ float coop_pcaActorControlledByPlayerEntnum(entity eActor)
 	return -1;
 }
 
-entity coop_pcaSelectedReturnEntity(entity ePlayer)
+entity coop_pacSelectedReturnEntity(entity ePlayer)
 //------------------------------------------------------------------------------
 //returns entity of selected actor
 //------------------------------------------------------------------------------
 {
 	entity eSelected;
 	float entnum;
-	entnum = coop_pcaSelectedReturnEntityEntnum(ePlayer);
+	entnum = coop_pacSelectedReturnEntityEntnum(ePlayer);
 	if(entnum > -1){
 		eSelected = getEntity("*"+entnum);
 		if(doesEntityExist(eSelected)){
@@ -1320,7 +2256,7 @@ entity coop_pcaSelectedReturnEntity(entity ePlayer)
 	return eSelected;
 }
 
-float coop_pcaSelectedReturnEntityEntnum(entity ePlayer)
+float coop_pacSelectedReturnEntityEntnum(entity ePlayer)
 //------------------------------------------------------------------------------
 //returns entity number of selected actor
 //------------------------------------------------------------------------------
@@ -1335,7 +2271,7 @@ float coop_pcaSelectedReturnEntityEntnum(entity ePlayer)
 	return fVar;
 }
 
-string coop_pcaHandleGetDescr(entity ePlayer,entity eCurrent)
+string coop_pacHandleGetDescr(entity ePlayer,entity eCurrent)
 //------------------------------------------------------------------------------
 //return description of entity
 //------------------------------------------------------------------------------
@@ -1359,29 +2295,31 @@ string coop_pcaHandleGetDescr(entity ePlayer,entity eCurrent)
 	return ""+sPrintInfo; //needs to be done this way or it will return a empty string
 }
 
-void coop_pcaHandleSelect(entity ePlayer,entity eCurrent)
+float coop_pacHandleSelect(entity ePlayer,entity eCurrent)
 //------------------------------------------------------------------------------
 //handle ui for when player is hovering and then selecting(fire) on something
 //------------------------------------------------------------------------------
 {
-	if(coop_pcaIsSelectable(eCurrent) == 1){
+	if(coop_pacIsSelectable(eCurrent,ePlayer) == 1){
 		if(doesEntityExist(eCurrent)){
 			//if it is actually marked
-			if(coop_pcaSelectedMarker(ePlayer,eCurrent)){
+			if(coop_pacSelectedMarker(ePlayer,eCurrent)){
 				if(eCurrent.getSubclassName() == "Actor"){
 					string sDialog;
-					sDialog = coop_pcaGetDialogSelect(eCurrent);
-					if(sDialog != ""){
-						thread coop_pcaDialogPlay(eCurrent,sDialog);
+					sDialog = coop_pacGetDialog(eCurrent,"select");
+					if(sDialog != "" && coop_pacCheckDialogPlaying(eCurrent) != 1){
+						thread coop_pacDialogPlay(eCurrent,sDialog);
 					}
 				}
 				ePlayer.setFloatVar("_pointAndClick_entitySelected",eCurrent.getEntNum());
+				return 1;
 			}
 		}
 	}
+	return 0;
 }
 
-void coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker)
+void coop_pacHandleHover(entity ePlayer,entity eCurrent,entity eMarker,float fUseAbility)
 //------------------------------------------------------------------------------
 //handle ui for when player is hovering/targeting on something
 //------------------------------------------------------------------------------
@@ -1389,21 +2327,21 @@ void coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker)
 	//float entnum;
 	//entnum = eCurrent.getEntNum();
 	//ePlayer.setFloatVar("_pointAndClick_entityHover",entnum);
-	ePlayer.widgetCmd("pacActiveHov","shader "+coop_pcaGetIcon(eCurrent));
-	//ePlayer.widgetCmd("pacActiveHov","rect "+coop_pcaGetIconSize(eCurrent));
+	ePlayer.widgetCmd("pacHov","shader "+coop_pacGetIcon(eCurrent));
+	//ePlayer.widgetCmd("pacHov","rect "+coop_pacGetIconSize(eCurrent));
 		
 	//place on top of current entity bbox
 	if(doesEntityExist(eCurrent) == 1 && doesEntityExist(eMarker) == 1){
-		if(eCurrent.getSubclassName() != "World" && coop_pcaIsInteractive(eCurrent) == 1){
+		if(eCurrent.getSubclassName() != "World" && coop_pacIsInteractive(eCurrent) == 1){
 			vector vOrigin,vMax;
 			vMax	= eCurrent.getMaxs();
 			vOrigin = eCurrent.getOrigin();
-			vOrigin_z += (vMax_z + 50);
+			vOrigin_z += (vMax_z + 60);
 			eMarker.warp(vOrigin);
 			
-			if(coop_pcaCheckEntityLocked(eCurrent) == 0 || eCurrent.getEntNum() == ePlayer.getFloatVar("_pointAndClick_entitySelected")){
+			if(coop_pacCheckEntityLocked(eCurrent) == 0 || eCurrent.getEntNum() == ePlayer.getFloatVar("_pointAndClick_entitySelected")){
 				//has a target (usually a trigger)
-				if(eCurrent.getTargetEntity()){
+				if(doesEntityExist(eCurrent.getTargetEntity()) == 1 && fUseAbility != 1){
 					eMarker.model("sysimg/icons/items/powerup_strength.spr");
 				}else{
 					eMarker.model("sysimg/icons/mp/team_blue.spr");
@@ -1411,37 +2349,71 @@ void coop_pcaHandleHover(entity ePlayer,entity eCurrent,entity eMarker)
 				eMarker.show();
 			}
 		}else{
-			eMarker.hide();
+			//don't hide if ability is enabled, so the player can see where he is aiming at
+			if(fUseAbility != 1){
+				eMarker.hide();
+			}
 		}
 	}
 	
-	//ePlayer.hudprint("new entity: "+eCurrent.getRawTargetname()+" "+sCurrentClass+" ("+entnum+") @["+eCurrent.getOrigin()+"]\n");
+	//ePlayer.hudprint("new entity: "+eCurrent.getRawTargetName()+" "+sCurrentClass+" ("+entnum+") @["+eCurrent.getOrigin()+"]\n");
 }
 
-void coop_pcaActivateUnit(entity eUnit)
+void coop_pacSpawnModelAtAndRemove(vector vOrigin,string sModel,float fTime, float fScale,float fAngle)
+//------------------------------------------------------------------------------
+//SPAWNS A MODEL AND REMOVES IT AGAIN
+//------------------------------------------------------------------------------
+{
+	entity eSpawn;
+	eSpawn = spawn(sModel,"origin",""+vOrigin,"notsolid","1","angle",""+fAngle,"scale",""+fScale);
+	globalCoop_main_waitAFrame();
+	thread coop_pacDeleteAfter(eSpawn,(fTime - 0.05));
+}
+
+float coop_pacIsFriendly(entity eActor)
+//------------------------------------------------------------------------------
+//CHECKS IF ACTOR IS FRIENDLY
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		string sActorType;
+		sActorType = eActor.getActorType();
+		if(sActorType == "civilian" || sActorType == "friend" || sActorType == "teammate"){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+float coop_pacGetDistanceXY(vector v1,vector v2)
+//------------------------------------------------------------------------------
+//RETURNS DISTANCE, IGNORING Z-AXIS
+//------------------------------------------------------------------------------
+{
+	float fDistance;
+	vector vLength1,vLength2;
+	vLength1 = v1;
+	vLength2 = v2;
+	vLength1_z = 0;
+	vLength2_z = 0;
+	fDistance = vectorLength((vLength1 - vLength2));
+	return fDistance;
+}
+
+void coop_pacActivateUnit(entity eUnit)
 //------------------------------------------------------------------------------
 //activates unit if not currenly in use by player
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(eUnit)){
-		float fActivate;
-		fActivate=0;
-		if(coop_pcaIsSelectable(eUnit) == 1){
-			fActivate = 1;
-			if(coop_pcaCheckEntityLocked(eUnit) == 1){
-				fActivate = 0;
-			}
-		}
-		
-		//activate ai and allow to be attacked
-		if(fActivate == 1){
+		if(coop_pacIsSelectable(eUnit,$world) == 1){
 			eUnit.ai_on();
-			coop_pcaSetValidTarget(eUnit,1);				
+			coop_pacSetValidTarget(eUnit,1);			
 		}
 	}
 }
 
-void coop_pcaDamaged()
+void coop_pacDamaged()
 //------------------------------------------------------------------------------
 //executed when actor takes damage - used to turn on ai if it is being attacked
 //------------------------------------------------------------------------------
@@ -1452,32 +2424,35 @@ void coop_pcaDamaged()
 		if(eActivator.getSubclassName() == "Actor"){
 			eActivator.actorondamage("");
 			//globalCoop_main_waitAFrame();
-			coop_pcaActivateUnit(eActivator);
+			coop_pacActivateUnit(eActivator);
 			
 			wait(2);
-			eActivator.actorondamage("coop_pcaDamaged");	
+			eActivator.actorondamage("coop_pacDamaged");	
 		}
 	}
 }
 
-void coop_pcaJustLeft(entity ePlayer)
+void coop_pacJustLeft(entity ePlayer)
 //------------------------------------------------------------------------------
 //manage huds and other stuff
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		SendClientCommand(ePlayer,"ui_addhud coop_radar");
-		SendClientCommand(ePlayer,"ui_addhud coop_class");
-		ePlayer.widgetCmd("pacActiveHovDescr","labeltext ~");
-		ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-		ePlayer.widgetCmd("pacActiveHov","shader weapons/empty");
-		ePlayer.removehud("coop_pacActive");
+		//SendClientCommand(ePlayer,"ui_addhud coop_radar");
+		//SendClientCommand(ePlayer,"ui_addhud coop_class");
+		//done in cfg file from within hud
+		//ePlayer.widgetCmd("pacSelDescr","labeltext "+emptyString);
+		//ePlayer.widgetCmd("pacSel","shader "+emptyShader);
+		//ePlayer.widgetCmd("pacHov","shader "+emptyShader);
+		ePlayer.hudprint("left\n");
+		ePlayer.disableuseweapon(0);
+		ePlayer.removehud("coop_pac");
 		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
 		entity eActor;
-		eActor = coop_pcaSelectedReturnEntity(ePlayer);
+		eActor = coop_pacSelectedReturnEntity(ePlayer);
 		if(doesEntityExist(eActor)){
-			coop_pcaSelectedMarkerClear(ePlayer,eActor);
-			if(coop_pcaActorControlledByPlayerEntnum(eActor) == ePlayer.getEntNum()){
+			coop_pacSelectedMarkerClear(ePlayer,eActor);
+			if(coop_pacActorControlledByPlayerEntnum(eActor) == ePlayer.getEntNum()){
 				eActor.setFloatVar("_pointAndClick_controlledByPlayer",-1);
 			}
 		}
@@ -1485,21 +2460,25 @@ void coop_pcaJustLeft(entity ePlayer)
 	}
 }
 
-void coop_pcaJustEntered(entity ePlayer)
+void coop_pacJustEntered(entity ePlayer)
 //------------------------------------------------------------------------------
 //manage huds and other stuff
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		ePlayer.widgetCmd("pacActiveHovDescr","labeltext ~");
-		ePlayer.widgetCmd("pacActiveSel","shader weapons/empty");
-		ePlayer.flags("+notarget");
-		thread coop_pcaSelectionManager(ePlayer);
+		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
+		ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+		globalCoop_main_waitAFrame();
+		thread coop_pacSelectionManager(ePlayer);
 		wait(0.25);
 		if(doesEntityExist(ePlayer)){
-			ePlayer.addhud("coop_pacActive");
-			SendClientCommand(ePlayer,"ui_removehud coop_radar");
-			SendClientCommand(ePlayer,"ui_removehud coop_class");	
+			if(ePlayer.isSpectator() != 1){
+				ePlayer.hide();
+				ePlayer.notsolid();
+				ePlayer.addhud("coop_pac");
+				SendClientCommand(ePlayer,"ui_removehud coop_radar");
+				SendClientCommand(ePlayer,"ui_removehud coop_class");				
+			}
 		}
 	}
 }

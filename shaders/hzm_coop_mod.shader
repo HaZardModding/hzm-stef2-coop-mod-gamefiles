@@ -1,3 +1,79 @@
+textures/coop_mod/pac/healarea
+{
+	qer_editorimage textures/coop_mod/pac/healarea.tga
+	surfaceparm nonsolid
+	surfaceparm trans
+	cull disable
+	nopicmip
+	{
+		clampmap textures/coop_mod/pac/healarea.tga
+		blendfunc blend
+		alphaFunc GT0
+		//rgbGen wave sin 0.85 0.25 0.5 3
+	}
+}
+
+textures/coop_mod/pac/invalid
+{
+	qer_editorimage sysimg/icons/mp/elimination_eliminated.tga
+	surfaceparm nonsolid
+	surfaceparm trans
+	cull disable
+	nopicmip
+	{
+		clampmap sysimg/icons/mp/elimination_eliminated.tga
+		blendfunc blend
+		alphaFunc GT0
+		//rgbGen wave sin 0.85 0.25 0.5 3
+	}
+}
+
+textures/coop_mod/pac/mindmeld
+{
+	qer_editorimage textures/coop_mod/pac/mindmeld.tga
+	surfaceparm nonsolid
+	surfaceparm trans
+	cull disable
+	nopicmip
+	{
+		clampmap textures/coop_mod/pac/mindmeld.tga
+		blendfunc blend
+		alphaFunc GT0
+		//rgbGen wave sin 0.85 0.25 0.5 3
+	}
+}
+
+textures/coop_mod/pac/awayteam
+{
+	qer_editorimage textures/coop_mod/pac/awayteam.tga
+	surfaceparm nonsolid
+	surfaceparm trans
+	cull disable
+	nopicmip
+	{
+		clampmap textures/coop_mod/pac/awayteam.tga
+		blendfunc blend
+		alphaFunc GT0
+		//rgbGen wave sin 0.85 0.25 0.5 3
+	}
+}
+
+textures/coop_mod/pac/orbitalstrike
+{
+	qer_editorimage textures/coop_mod/pac/orbitalstrike.tga
+	surfaceparm nonsolid
+	surfaceparm trans
+	cull disable
+	nopicmip
+	{
+		clampmap textures/coop_mod/pac/orbitalstrike.tga
+		blendfunc blend
+		alphaFunc GT0
+		//rgbGen wave sin 0.85 0.25 0.5 3
+	}
+}
+
+
 textures/coop_mod/nature/vine
 
 {
