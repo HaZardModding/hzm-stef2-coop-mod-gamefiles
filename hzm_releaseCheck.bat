@@ -34,8 +34,8 @@ echo Check Build version in Gamecode, game.h
 echo #define COOP_BUILD 6xx
 echo ----------------------------------------------
 cd ../
-start GAMECODE\code\dlls\game\game.h
-cd GAMEFILES
+start _GAMECODE\code\dlls\game\game.h
+cd _GAMEFILES
 pause
 
 cls
@@ -92,7 +92,6 @@ echo ----------------------------------------------
 start coop_mod\ui
 pause
 
-
 cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
 echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
@@ -106,7 +105,7 @@ echo Check changelog again, is there something missing
 echo can you find any obvious typos ?
 echo ----------------------------------------------
 cd ../
-start RELASE
+start _RELASE
 pause
 
 cls
@@ -122,7 +121,7 @@ echo -9---------------------------hcm_readme.pdf---
 echo Check changelog if the Readme file needs update.
 echo Verify readme to be latest version.
 echo ----------------------------------------------
-cd GAMEFILES
+cd _GAMEFILES
 start hcm_readme.pdf
 pause
 
@@ -143,10 +142,11 @@ echo Create and copy all needed pk3 files.
 echo Upload to HZM Updater Web Folder.
 echo ----------------------------------------------
 cd ../
-start RELASE
-start GAMEFILES
-start GAMECODE\coop_game.sln
-cd ../../../../games/COOP EF2/
+start _RELASE
+start _GAMEFILES
+start _GAMECODE\coop_game.sln
+cd ../../../
+cd games/COOP EF2/
 start base
 pause
 
