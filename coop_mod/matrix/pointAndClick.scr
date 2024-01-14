@@ -131,6 +131,9 @@ float	mindmeldCoolDownTime = 10;
 float	mindmeldLifeTime = 45;
 float	orbitalstrikeCoolDownTime = 60;
 float	orbitalstrikeMaxDistance = 3000;
+float	zoomMinimumDistance = 400;
+float	zoomMaximumDistance = 1800; //do not zoom in any stronger bejond this distance
+float	zoomMaxZoomPercentage = 15; //the lower this number the stronger the zoom will be
 
 void	coop_pacSelectionManager(entity ePlayer);
 void	coop_pacActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget);
@@ -200,6 +203,7 @@ float	coop_pacGetDistanceXY(vector v1,vector v2);
 float	coop_pacIsFriendly(entity eActor);
 void	coop_pacAreaHeal(vector vOrigin,float fFriendly,float fRange);
 void	coop_pacSpawnModelAtAndRemove(vector vOrigin,string sModel,float fTime, float fScale,float fAngle);
+void	coop_pacPlayerZoom(entity ePlayer,vector vTarget);
 
 
 void coop_pacSelectionManager(entity ePlayer)
@@ -306,6 +310,12 @@ void coop_pacSelectionManager(entity ePlayer)
 				//---------------------------------
 				//regardless of whats being targeted
 				//---------------------------------
+				if(sCurrentBtn == "reload"){
+					vector vPlayerEndPos;
+					vPlayerEndPos = ePlayer.getViewtraceEndpos();
+					coop_pacPlayerZoom(ePlayer,vPlayerEndPos);
+				}
+				
 				if(sCurrentBtn == "use"){
 					if(fUseAbility==0){
 						sAbility = coop_pacGetAbility(eActor);
@@ -356,13 +366,13 @@ void coop_pacSelectionManager(entity ePlayer)
 							coop_pacPerformAbility(ePlayer,eActor,eCurrent);
 							fUseAbility = 0;
 						}else{
-							if(coop_pacActorGoTo(ePlayer,eCurrent)){
-								wait(0.1);
-							}
+							thread coop_pacActorGoTo(ePlayer,eCurrent);
+							//if(coop_pacActorGoTo(ePlayer,eCurrent)){wait(0.1);}
 						}
 					}
 				}
-				wait(0.1);
+				//wait(0.1);
+				//globalCoop_main_waitAFrame();
 			}
 			eLast = eCurrent;
 		}
@@ -395,6 +405,26 @@ float coop_pacPlayerValid(entity ePlayer)
 		}
 	}
 	return 0;
+}
+
+void coop_pacPlayerZoom(entity ePlayer,vector vTarget)
+//------------------------------------------------------------------------------
+//ZOOM PLAYER VIEW
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(globalCoop_level_getFloatVar(ePlayer,"_pacIsZooming") == 1){
+			ePlayer.setFloatVar("_pacIsZooming",0);
+			//reset fov
+			ePlayer.fov(ePlayer.getUserFov());
+		}else{
+			ePlayer.setFloatVar("_pacIsZooming",1);
+			//set new fov (zoomed)
+			float fNewZoomedFov;
+			 fNewZoomedFov = globalCoop_player_getZoomFovForDistance(ePlayer,vTarget,zoomMinimumDistance,zoomMaximumDistance,zoomMaxZoomPercentage);
+			 ePlayer.fov(fNewZoomedFov);
+		}
+	}
 }
 
 void coop_pacAbilityShaderReset(entity ePlayer,entity eActor,string sShader)
@@ -1304,8 +1334,12 @@ string coop_pacButtonDetect(entity ePlayer)
 {
 	string sButton;
 	sButton = "";
+	//player pressed reload
+	if(ePlayer.checkReload()){
+		sButton = "reload";
+	}
 	//player pressed fire
-	if(ePlayer.checkFire()){
+	else if(ePlayer.checkFire()){
 		sButton = "fire";
 	}
 	//player pressed use
@@ -2444,7 +2478,8 @@ void coop_pacJustLeft(entity ePlayer)
 		//ePlayer.widgetCmd("pacSelDescr","labeltext "+emptyString);
 		//ePlayer.widgetCmd("pacSel","shader "+emptyShader);
 		//ePlayer.widgetCmd("pacHov","shader "+emptyShader);
-		ePlayer.hudprint("left\n");
+		ePlayer.setFloatVar("_pacIsZooming",0);
+		ePlayer.fov(ePlayer.getUserFov());
 		ePlayer.disableuseweapon(0);
 		ePlayer.removehud("coop_pac");
 		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
@@ -2468,6 +2503,8 @@ void coop_pacJustEntered(entity ePlayer)
 	if(doesEntityExist(ePlayer)){
 		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
 		ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+		ePlayer.setFloatVar("_pacIsZooming",0);
+		ePlayer.fov(ePlayer.getUserFov());
 		globalCoop_main_waitAFrame();
 		thread coop_pacSelectionManager(ePlayer);
 		wait(0.25);
