@@ -136,6 +136,7 @@ float	zoomMaximumDistance = 1800; //do not zoom in any stronger bejond this dist
 float	zoomMaxZoomPercentage = 15; //the lower this number the stronger the zoom will be
 
 void	coop_pacSelectionManager(entity ePlayer);
+void	coop_pacDeselectCurrent(entity ePlayer);
 void	coop_pacActorWalkto(entity eActor,vector vOrigin,string sAnim,entity eTarget);
 void	coop_pacActorWaitForAnimation(entity eCurrent,string sAnim,float fDelay);
 string	coop_pacGetDataFor(entity eCurrent,string sData);
@@ -2350,6 +2351,34 @@ float coop_pacHandleSelect(entity ePlayer,entity eCurrent)
 			}
 		}
 	}
+	//if it is selectable but currently selected by a different player, update ui
+	else{
+		if(eCurrent.doesVarExist("_pointAndClick_selectable")){
+			if(eCurrent.getFloatVar("_pointAndClick_selectable")){		
+				if(coop_pacCheckEntityLocked(eCurrent) == 1){				
+					float fPlayerNum;
+					fPlayerNum = coop_pacActorControlledByPlayerEntnum(eCurrent);
+					if(fPlayerNum != ePlayer.getEntNum()){					
+						//deselect currently selected Actor - so we can use the ui to show data of locked actor
+						coop_pacDeselectCurrent(ePlayer);
+					
+						//show details to locked actor
+						entity eCurrentController;
+						string sCurrentControllerName;
+						eCurrentController = getEntity("*"+fPlayerNum);
+						if(doesEntityExist(eCurrentController)){
+							sCurrentControllerName = eCurrentController.getName();
+						}
+						ePlayer.widgetCmd("pacHov","shader "+coop_pacGetIcon(eCurrent));
+						ePlayer.widgetCmd("pacSelDescr","labeltext "+"Currently^selected^by~"+sCurrentControllerName+"~");
+						ePlayer.widgetCmd("pacAbility","shader "+coop_pacAbilityGetShader(eCurrent));
+						ePlayer.widgetCmd("pacSel","shader "+coop_pacGetIcon(eCurrent));
+						ePlayer.widgetCmd("pacAbilityTime","title $$None$$");	
+					}					
+				}
+			}
+		}
+	}
 	return 0;
 }
 
@@ -2391,6 +2420,24 @@ void coop_pacHandleHover(entity ePlayer,entity eCurrent,entity eMarker,float fUs
 	}
 	
 	//ePlayer.hudprint("new entity: "+eCurrent.getRawTargetName()+" "+sCurrentClass+" ("+entnum+") @["+eCurrent.getOrigin()+"]\n");
+}
+
+void coop_pacDeselectCurrent(entity ePlayer)
+//------------------------------------------------------------------------------
+//deselects/unselects currently selected/controlled actor of player
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		entity eActor;
+		eActor = coop_pacSelectedReturnEntity(ePlayer);
+		if(doesEntityExist(eActor)){
+			if(coop_pacActorControlledByPlayerEntnum(eActor) == ePlayer.getEntNum()){
+				coop_pacSelectedMarkerClear(ePlayer,eActor);
+				eActor.setFloatVar("_pointAndClick_controlledByPlayer",-1);
+			}
+		}
+		ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+	}
 }
 
 void coop_pacSpawnModelAtAndRemove(vector vOrigin,string sModel,float fTime, float fScale,float fAngle)
@@ -2483,15 +2530,8 @@ void coop_pacJustLeft(entity ePlayer)
 		ePlayer.disableuseweapon(0);
 		ePlayer.removehud("coop_pac");
 		ePlayer.setFloatVar("_pointAndClick_selectorRunning",0);
-		entity eActor;
-		eActor = coop_pacSelectedReturnEntity(ePlayer);
-		if(doesEntityExist(eActor)){
-			coop_pacSelectedMarkerClear(ePlayer,eActor);
-			if(coop_pacActorControlledByPlayerEntnum(eActor) == ePlayer.getEntNum()){
-				eActor.setFloatVar("_pointAndClick_controlledByPlayer",-1);
-			}
-		}
-		ePlayer.setFloatVar("_pointAndClick_entitySelected",-1);
+		
+		coop_pacDeselectCurrent(ePlayer);
 	}
 }
 
