@@ -6,6 +6,65 @@
 // CONTAINING PLAYER HANDLING RELATED FUNCTIONS FOR THE HZM CO-OP MOD
 //-----------------------------------------------------------------------------------
 
+
+float globalCoop_player_getZoomFovForDistance(entity ePlayer,vector vTarget,float fMinDist,float fMaxDist,float fFovPercentageRemainder)
+//------------------------------------------------------------------------------
+//returns calculated fov that makes player zoom based on their distance within the given parameters
+//fMinDist->Minimum Distance before Zooming starts
+//fMaxDist->Maximum Distance until zooming stops
+//fFovPercentageRemainder->Remainder of FULL-FOV % that will remain, Example:
+//If remainder is 20 it means that the player fov lets say 100 will stop at 20
+//This represents 20% remainder of the full 100% Fov the player has
+//This will be calculated based on the actual fov a player has set in their cfg
+//------------------------------------------------------------------------------
+{
+	float fNewFov;
+	fNewFov = -1;
+	if(doesEntityExist(ePlayer)){
+		float fDistance,fPlayerFov,fPlayerFov1Percent;						
+		fPlayerFov = ePlayer.getUserFov();
+		if(fPlayerFov == 0){ fPlayerFov = 80; }
+		if(fPlayerFov < 1){ fPlayerFov = 1; }
+		if(fPlayerFov > 160){ fPlayerFov = 160; }
+		fPlayerFov1Percent = (fPlayerFov / 100);
+		fNewFov = fPlayerFov;
+		
+		vector vPlayerOrigin;
+		vPlayerOrigin = ePlayer.getOrigin();
+		
+		vPlayerOrigin_z += vectorGetZ(ePlayer.getMaxs()); //add bbxox to compensate for head location
+		fDistance = vectorLength(vPlayerOrigin - vTarget);
+		if(fDistance > fMinDist){
+			//cap max zoomable distance
+			if(fDistance > fMaxDist ){
+				fDistance = fMaxDist;
+			}
+			
+			float fFov100PercentOfZoom,fFov1PercentOfZoom,fDistance1Percent,fDistanceZoomedPercentage,fDistanceSpectrum,fDistanceSpectrum1Percent;
+			//get 1 percent of the actual max-length/zoom-maximum
+			fDistance1Percent = (fDistance / 100);
+			//get the maximum of distance differance there can be
+			fDistanceSpectrum = (fMaxDist);
+			//get 1% of the maximum distance differance
+			fDistanceSpectrum1Percent = (fDistanceSpectrum / 100);
+			//get 100% of actual zoomable fov (Bounds are 100%Fov and fFovPercentageRemainder (20% of 100% userfov) )
+			fFov100PercentOfZoom = (fPlayerFov - (fPlayerFov1Percent * fFovPercentageRemainder));
+			fFov1PercentOfZoom = (fFov100PercentOfZoom / 100);
+			//get percentage of the maximumzoom player is currently in
+			fDistanceZoomedPercentage = ( fDistance/fDistanceSpectrum1Percent );
+			//get the new fov based of (fDistanceSpectrum - fDistance)
+			fNewFov = (fPlayerFov - (fFov1PercentOfZoom * fDistanceZoomedPercentage));
+			//cap minimum fov for maximum zoom
+			float fMinimumActualPlayerFov;
+			fMinimumActualPlayerFov = (fPlayerFov1Percent * fFovPercentageRemainder);
+			if( fNewFov < fMinimumActualPlayerFov){
+				fNewFov = fMinimumActualPlayerFov;
+			}
+		}
+	}
+	return fNewFov;
+}
+
 float globalCoop_player_getCoopVersion(entity ePlayer)
 //------------------------------------------------------------------------------
 //returns coop version the player is using
