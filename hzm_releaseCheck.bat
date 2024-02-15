@@ -17,10 +17,8 @@ cls
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
 echo -2-----------------------detect.cfg--setup.cfg
 echo Check Coop Version Commands
-echo seta coop_ver 6xx
-echo seta coop_verInfo "coopinstalled 6xx"
-echo.
-echo coopinstalled 6xxxx
+echo seta coop_ver 600xx - setup.cfg
+echo coopinstalled 600xx - detect.cfg
 echo ----------------------------------------------
 start coop_mod\cfg\setup.cfg
 start coop_mod\cfg\detect.cfg
