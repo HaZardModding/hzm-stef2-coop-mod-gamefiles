@@ -368,8 +368,8 @@ Label
     borderstyle "3D_BORDER"
     font serpentinemedium-10
     horizontaljustify right
-    hovercommand "globalwidgetcommand videoCostumResSwitchBox bgcolor 0 1 0.5 0.5;globalwidgetcommand tooltip_video title \"$$SetVideoResolution$$\""
-    hoverexitcommand "globalwidgetcommand videoCostumResSwitchBox bgcolor 0.00 0.00 0.00 0.85;globalwidgetcommand tooltip_video title \"\""
+    hovercommand "globalwidgetcommand videoResActualSwitchBoxMode bgcolor 0 1 0.5 0.5;globalwidgetcommand tooltip_video title \"$$SetVideoResolution$$\""
+    hoverexitcommand "globalwidgetcommand videoResActualSwitchBoxMode bgcolor 0.00 0.00 0.00 0.85;globalwidgetcommand tooltip_video title \"\""
 	verticaljustify top
 }
 
@@ -484,12 +484,107 @@ Button
 	cvarvisibility cg_gametype -1 !=
 }
 
+resource 
+Label
+{
+	//used as bg for the actual real resolution
+    name	"Default"
+	rect 382 122 222 36
+	bgcolor 0.122 0.157 0.251 1.000
+	borderstyle "3D_BORDER"
+}
+	
+resource
+SwitchBox
+{
+    name "Default"
+	rect 382 122 170 36
+    fgcolor 1 1 1 1
+    bgcolor 0.000 0.000 0.000 0
+    borderstyle "NONE"
+    bordercolor 0.122 0.157 0.251 1.000
+	verticaljustify top
+    
+    linkcvar "r_mode"
+	option "320 x 240" "" 0
+	option "400 x 300" "" 1
+	option "512 x 380" "" 2
+	option "640 x 480" "" 3
+	option "800 x 600" "" 4
+	option "960 x 720" "" 5	
+	option "1024 x 768" "" 6
+	option "1152 x 864" "" 7
+	option "1280 x 1024" "" 8
+	option "1600 x 1200" "" 9	
+	option "2048 x 1536" "" 10
+	option "856 x 480" "" 11
+    
+    font serpentinemedium-12	
+	cvarvisibility "r_mode" -1 !=
+}
+
+resource 
+Label
+{
+    name	"Default"
+    rect 382 122 70 36
+    fgcolor 1 1 1 1
+    bgcolor 0.122 0.157 0.251 0
+    borderstyle "NONE"
+    font serpentinemedium-12
+    horizontaljustify right
+	verticaljustify top
+	linkcvar "r_customwidth"
+	cvarvisibility "r_mode" -1 ==
+}
+
+resource 
+Label
+{
+	title "X"
+    name	"Default"
+    rect 454 122 26 36
+    fgcolor 1 1 1 1
+    bgcolor 0.122 0.157 0.251 0
+    borderstyle "NONE"
+    font serpentinemedium-12
+    horizontaljustify center
+	verticaljustify top
+	cvarvisibility "r_mode" -1 ==
+}
+
+resource 
+Label
+{
+    name	"Default"
+    rect 482 122 70 36
+    fgcolor 1 1 1 1
+    bgcolor 0.122 0.157 0.251 0
+    borderstyle "NONE"
+    font serpentinemedium-12
+    horizontaljustify left
+	verticaljustify top
+	linkcvar "r_customheight"
+	cvarvisibility "r_mode" -1 ==
+}
+
+resource 
+Label
+{
+	//used to cover the switchbox of the actual resolution, to prevent clicking on it
+    name	"Default"
+	rect 382 122 170 36
+	bgcolor 0 0 0 0	
+    hovercommand "globalwidgetcommand tooltip_video title \"$$c#034$$\""
+    hoverexitcommand "globalwidgetcommand tooltip_video title \"\""
+}
+
 resource
 CheckBox
 {
 	title "$$FullScreen$$"
 	name "Default"
-	rect 474 122 120 34
+	rect 474 162 120 34
 	fgcolor 1.00 1.00 1.00 1.00
 	bgcolor 0.50 0.50 0.50 0.00
 
