@@ -1,12 +1,14 @@
 ///////////////////////////////////////////////////////////
 //
 //          EMPTY, not drawn
+//			//[b]60020 chrissstrahl - this is still visible in nightvision, swaped with a actual fully transparend texture
 //
 ///////////////////////////////////////////////////////////
 weapons/empty
 {
 	{
-		map models/weapons/phaser/viewmodel/phaserspark.tga
+		//map models/weapons/phaser/viewmodel/phaserspark.tga
+		map textures/coop_mod/misc/coop_empty.tga
 		alphagen const 0.0
 		blendfunc blend
 	}	
