@@ -9,6 +9,7 @@
 //-----------------------------------------------------------------
 
 void coop_turboliftChoice();
+void entDeck1IGM8BranchingDialog_failsafe();
 
 void setupMission8Deck1();
 void justLoadedDeckThreadIGM8();
@@ -963,9 +964,28 @@ void strattonDialog8_2()
 //---------------------
 void checkForDeckChangeIGM8()
 {
+	entity ePlayer,eTrigger;
+	eTrigger = $elevatorButton;
+	if(doesEntityExist(eTrigger)){
+		//[b60021] chrissstrahl - prevent multiuse/multicall 
+		/*while(doesEntityExist(eTrigger)){
+			eTrigger.nouse();
+			eTrigger = getnextentity(eTrigger);
+		}*/
+	
+		eTrigger.nouse();
+		ePlayer = eTrigger.getLastActivatingEntity();
+	}
+
 	//centerprint( "Room " + getfloatvar( "game.checkEntMission8RoomsVisited" ) + " " );
 	if( getfloatvar( "game.checkEntMission8RoomsVisited" ) == 2 )
 	{
+		//[b60021] chrissstrahl - fix selection not working due to multicalls (nouse did not work)
+		if($world.getFloatVar("coopTurboUsed") == 1){
+			return;
+		}
+		$world.setFloatVar("coopTurboUsed",1);
+	
 		//do this because the pause would break the function
 		thread dialogChoiceChooseDeckIGM8();
 		while( appropriateDeckChoiceIsMade == 0 )
@@ -978,15 +998,31 @@ void checkForDeckChangeIGM8()
 			
 			//hzm coop mod chrissstrahl - allow overwrite from global igm_common script
 			$elevatorButton.setFloatVar("coopNoOverWrite",0);
-			wait(0.5);
+			wait(0.05); //[b60021]
 		
 			thread turboLiftDeckChangeWait();
-			wait(0.5);
+			wait(0.15);
 			
-			//hzm coop mod chrissstrahl - get player closest to 
-			entity ePlayer;
-			ePlayer = globalCoop_return_playerClosestPreferActive($elevatorButton);
-			ePlayer.useentity( $elevatorButton );
+			//[b60021] chrissstrahl - grab player
+			if(!doesEntityExist(ePlayer)){
+				ePlayer = globalCoop_return_playerClosestPreferActive($elevatorButton);
+			}
+			
+			//[b60021] chrissstrahl - fix this not working
+			while(doesEntityExist(eTrigger)){
+				if(doesEntityExist(ePlayer)){
+					//ePlayer.hudprint("use button\n");
+					ePlayer.useentity( eTrigger );					
+				}else{
+					thread entDeck1IGM8BranchingDialog_failsafe();
+				}
+				eTrigger.nouse();
+				eTrigger = getnextentity(eTrigger);
+				wait(0.15);
+			}
+		
+			//ePlayer.hudprint("use button\n");
+			//ePlayer.useentity( $elevatorButton );
 		}		
 		wait(0.1);	
 	}
@@ -999,7 +1035,7 @@ void checkForDeckChangeIGM8()
 void dialogChoiceChooseDeckIGM8()
 {
 	$telsia.branchdialog( "entDeck1IGM8BranchingDialog" );
-	pause();
+	//pause(); //[b60021] chrissstrahl - fix this not working
 }
 
 //---------------------
