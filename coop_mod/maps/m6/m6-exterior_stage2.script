@@ -95,6 +95,9 @@ void componentDestroyed ( )
 
 	if ( e.gethealth() > 0 )
 	{
+		//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
+		e.nodamage();
+		
 		coop_capShipDamage("damaged");
 		globalCommon_OnDamage ( e , "componentDestroyed" );
 		return;
@@ -348,7 +351,7 @@ void runCapShip ()
 	//hzm coop mod Chrissstrahl - set the objective
 	globalCoop_objectives_set("$$DisableIdryllCommandShip$$","complete",2,1);
 	
-	//hzm coop mod Chrissstrahl - show munro again
+	//hzm coop mod Chrissstrahl - show munro again for end cinematic
 	$munro.show();
 	
 /*	$capShipOrigin.time ( 60 );
@@ -378,7 +381,11 @@ entity choosePath ()
 				toReturn = getentity ( "fighterPath" + i );
 
 			globalCommon_AssertEntity ( toReturn , "choosePath: ASSERT failed\n" );
-			pathAlreadyChosen = toReturn.getfloatvar ( "inuse" );
+			pathAlreadyChosen = 0;
+			//[b60021] chrissstrahl - fix warning spam
+			if(toReturn.doesVarExist("inuse")){
+				pathAlreadyChosen = toReturn.getfloatvar ( "inuse" );
+			}
 		}
 		wait ( .05 );
 	}
@@ -395,13 +402,19 @@ void doFighterFollowPath ( entity fighter , entity path )
 	lastLife = fighter.getfloatvar ( "lives" );
 	thePath = path;
 
-	while(lastLife == fighter.getfloatvar ( "lives" ))
+	//[b60021] chrissstrahl - added null check
+	while(doesEntityExist(fighter) == 1 && lastLife == globalCoop_level_getFloatVar(fighter,"lives"))
 	{
 		fighter.followpath ( thePath , "normalangles" );
 		fighter.playsound ( "sound/ships/drull/drull_flyby1.wav" , 2 , 1.5 , 1384 );
 		wait ( 2 + randomfloat ( .5 ) );
 
 		//do attacks for a couple of seconds
+		//[b60021] chrissstrahl - added null check
+		if(!doesEntityExist(fighter)){
+			return;
+		}
+		
 		fighter.projectileAttackEntity ( "models/projectile/projectile-photonball-idryll.tik" , "$entSurface" , 5 ,20 );
 
 		waitfor ( fighter );
@@ -439,6 +452,9 @@ void fighterHit ( )	//ship ondamage thread
 		}
 		else		//just fake the explosion and reset the ship
 		{
+			//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
+			e.nodamage();
+		
 			e.setfloatvar ( "lives" , c );
 
 			entity p,oldP;
@@ -476,7 +492,12 @@ void fighterHit ( )	//ship ondamage thread
 	{
 		e.anim ( "damaged" );	//flash the shields on
 		e.playsound ( "sound/ships/enterprise/ent_impact2.wav" , 4 , 3 , 4384 );
-		waitforanimation ( e , "damaged" );
+		
+		//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag here
+		//waitforanimation ( e , "damaged" );
+		e.nodamage();
+		wait(.5);
+		
 		e.anim ( "idle" );
 		thread globalCommon_OnDamage ( e , "fighterHit" );
 	}
@@ -490,6 +511,10 @@ void capShipHit ()
 //$player0.hudprint("capShipHit - "+shipHealth+"\n");
 //[b60011] chrissstrahl - make sure theere will be no overlapping
 //e.nodamage();
+
+	//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
+	e.nodamage();
+		
 	coop_capShipDamage("shielded");
 
 	shipHealth -= ( 10000 - e.gethealth());	//hurt the capship appropriately	

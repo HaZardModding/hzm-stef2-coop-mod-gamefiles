@@ -85,6 +85,42 @@ void	autodisabledevices(); //debug helper
 #include "coop_mod/maps/m6/m6-exterior_stage2.script"
 #include "coop_mod/maps/m6/m6-exterior_forceStage2.script"
 
+//[b60021] chrissstrahl - simulate stage2 like a player would have played the level
+void dev_step1()
+{
+	float fEntity;
+	entity e;
+	for(fEntity=0;fEntity<1024;fEntity++){
+		e=getEntity("*"+fEntity);
+		if(doesEntityExist(e)){
+			if(	e.getModelName() == "models/char/idryll-m6-saboteur-gauntlet-m1.tik"){
+				e.suicide();
+			}
+		}
+	}
+	thread autodisabledevices();
+}
+void dev_stage2(){thread dev_step1();}
+//[b60021] chrissstrahl - simulate stage2 like a player would have played the level
+void dev_complete()
+{
+	componentsDestroyed++;
+	componentsDestroyed++;
+	componentsDestroyed++;
+	
+	killthread ( "damageSurface" );
+	$entSurface.handlesdamage ( 0 );
+	
+	levelComplete = 1;
+	killthread ( "runCapShip" );
+	removeclass ( "projectile" );
+
+	wait ( 2 );
+
+	endStage2Cinematic();
+}
+
+
 //----------------------------------------------------------------------
 //----------------------------------------------------------------------
 //	Function Implementations
@@ -212,7 +248,7 @@ void autodisabledevices()
 		globalLoadout_TakeWeapon( "models/weapons/worldmodel-sniperrifle.tik" );
 		globalLoadout_TakeWeapon( "models/weapons/worldmodel-imod.tik" );
 		globalLoadout_TakeWeapon( "models/weapons/worldmodel-drull-staff.tik" );
-		globalLoadout_TakeWeapon( "models/weapons/worldmodel-rom-radgun.tik" );		
+		globalLoadout_TakeWeapon( "models/weapons/worldmodel-rom-radgun.tik" );
 		
 		//killthread ( "stage1Timer" );
 		wait ( 2 );
@@ -349,8 +385,10 @@ void main()
 	$deathTelsia.morph( "exp_Serious" );
 	$deathSydney.morph( "exp_Fear" );
 	
-	//hzm coop mod chrissstrahl - needs to be done very early or players spawn with no weapon in their hands
-	thread globalLoadout_AssignWeapons( "m6_exterior" );
+	//[b60021] chrissstrahl - don't give if map is loadad with stage 2 - needs to be done very early or players spawn with no weapon in their hands
+	if( !coop_fForceStage2 ){
+		thread globalLoadout_AssignWeapons( "m6_exterior" );
+	}
 	
 	globalCommon_AiDummy( $deathIdryllGuard1, "idle" );
 	globalCommon_AiDummy( $deathIdryllGuard2, "idle" );
@@ -377,8 +415,9 @@ void main()
 	//$group1Target.groupdeaththread ( "incrementGroupDeaths" );
 	//$group2Target.groupdeaththread ( "incrementGroupDeaths" );
 
-	$group1Target.sendeventtogroup ( "health" , 150 );
-	$group2Target.sendeventtogroup ( "health" , 150 );
+	//[b60021] chrissstrahl - added null check
+	if(doesEntityExist($group1Target)){$group1Target.sendeventtogroup ( "health" , 150 );}
+	if(doesEntityExist($group2Target)){$group2Target.sendeventtogroup ( "health" , 150 );}
 
 	//--- intro cinematic
 	thread cinematicIntro();
@@ -573,13 +612,14 @@ void playerRangeCheck ()
 		{
 			ePlayer = getentity("player"+ fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
-				if(ePlayer.getFloatVar("coop_floatingInSpace") != 1){
+				if(globalCoop_level_getFloatVar(ePlayer,"coop_floatingInSpace") != 1){
 					vPlayer = ePlayer.getOrigin();
 					dist = (vPlayer_z - vCheker_z);
 					if (globalMath_GetXYDistance ( ePlayer.getorigin () , $playableRangeOrigin.getorigin()) >= 4800 && dist < 3000)
 					{
 						if(vPlayer_z > 860){//840
-							if(!ePlayer.getFloatVar("coop_exteriorWarningHudAdded")){
+							//[b60021] Chrissstrahl - added var exist check to stop spam
+							if(globalCoop_level_getFloatVar(ePlayer,"coop_exteriorWarningHudAdded") != 1){
 								ePlayer.setFloatVar("coop_exteriorWarningHudAdded",1);
 								thread globalCoop_huds_Add(ePlayer,"m6BoundaryWarning");
 							}
@@ -588,7 +628,8 @@ void playerRangeCheck ()
 							thread coop_playerDeionize(ePlayer);
 						}
 					}
-					else if(ePlayer.getFloatVar("coop_exteriorWarningHudAdded") == 1){
+					//[b60021] Chrissstrahl - added var exist check to stop spam
+					else if(globalCoop_level_getFloatVar(ePlayer,"coop_exteriorWarningHudAdded") == 1){
 						ePlayer.setFloatVar("coop_exteriorWarningHudAdded",0);
 						ePlayer.setFloatVar("coop_exteriorDeisonized",0);
 						thread globalCoop_huds_Remove(ePlayer,"m6BoundaryWarning");
@@ -731,7 +772,7 @@ void coop_playerFloatIntoSpace(entity ePlayer)
 //----------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		if(ePlayer.getFloatVar("coop_floatingInSpace") == 1){
+		if(globalCoop_level_getFloatVar(ePlayer,"coop_floatingInSpace") == 1){
 			return;
 		}
 		ePlayer.setFloatVar("coop_floatingInSpace",1);
