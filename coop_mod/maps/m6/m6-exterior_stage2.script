@@ -5,6 +5,7 @@ float CAPITAL_SHIP_COMPONENT_HEALTH = 1000;
 float CAPITAL_SHIP_HEALTH = 8000;
 
 float shipHealth;
+float coop_shipCanBeAttacked;
 
 float warpDriveDestroyed = 0;
 float enginesDestroyed = 0;
@@ -92,13 +93,17 @@ void componentDestroyed ( )
 {
 	entity e;
 	e=getcurrententity();
-
+	
+	//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
+	e.nodamage();
+		
 	if ( e.gethealth() > 0 )
 	{
-		//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
-		e.nodamage();
+		//[b60021] chrissstrahl - do not have such long pauses
+		thread coop_capShipDamage("damaged");
+//$player0.hudprint("componentDestroyed "+e.gettargetname()+": "+getLevelTime()+"\n");
+		wait(0.1);
 		
-		coop_capShipDamage("damaged");
 		globalCommon_OnDamage ( e , "componentDestroyed" );
 		return;
 	}
@@ -225,6 +230,10 @@ void beginStage2 ( )
 	cam_fadein( .5, 0, 0, 0, 1, 0 );
 
 	waitfor ( $capShipOrigin );
+	
+	//[b60021] chrissstrahl - allow ship to be attacked now
+	coop_shipCanBeAttacked = 0;
+	$capital_ship.hide();
 
 	thread initFighter ( $f1 , "fighterPath1" );
 	thread initFighter ( $f2 , "fighterPath2" );
@@ -290,7 +299,11 @@ void runCapShip ()
 	thread coop_updateStats();
 	
 	while ( !done )
-	{		
+	{
+		//[b60021] chrissstrahl - allow ship to be attacked now
+		coop_shipCanBeAttacked = 1;
+		$capital_ship.show();
+		
 		if ( !weaponsDestroyed )
 		{
 			$idryll_weapons.show ();
@@ -300,10 +313,18 @@ void runCapShip ()
 			fireBattery ( $weaponsBattery1,$weaponsBattery2 );
 			waitfor ( $capShipOrigin );
 			$idryll_weapons.hide ();
+			
+			//[b60021] chrissstrahl - allow ship to be attacked now
+			coop_shipCanBeAttacked = 0;
+			$capital_ship.hide();
 
 			thread enterpriseManuever1 ( );
 			wait ( 5 );
 		}
+		
+		//[b60021] chrissstrahl - allow ship to be attacked now
+		coop_shipCanBeAttacked = 1;
+		$capital_ship.show();
 
 		if ( !warpDriveDestroyed )
 		{
@@ -315,9 +336,17 @@ void runCapShip ()
 			waitfor ( $capShipOrigin );
 			$idryll_warpdrive.hide ();
 			
+			//[b60021] chrissstrahl - allow ship to be attacked now
+			coop_shipCanBeAttacked = 0;
+			$capital_ship.hide();
+			
 			thread enterpriseManuever3 ( );
 			wait ( 5 );
 		}
+		
+		//[b60021] chrissstrahl - allow ship to be attacked now
+		coop_shipCanBeAttacked = 1;
+		$capital_ship.show();
 
 		if ( !enginesDestroyed )
 		{
@@ -328,6 +357,10 @@ void runCapShip ()
 			fireBattery ( $warpDriveBattery1,$warpDriveBattery2 );
 			waitfor ( $capShipOrigin );
 			$idryll_engines.hide ();
+			
+			//[b60021] chrissstrahl - allow ship to be attacked now
+			coop_shipCanBeAttacked = 0;
+			$capital_ship.hide();
 			
 			thread enterpriseManuever2 ( );
 			wait ( 5 );
@@ -341,6 +374,8 @@ void runCapShip ()
 		}
 	}
 	
+	//[b60021] chrissstrahl - allow ship to be attacked now
+	$capital_ship.show();
 
 	
 	killthread("coop_stage2ForceRulesOnPlayers");
@@ -452,7 +487,7 @@ void fighterHit ( )	//ship ondamage thread
 		}
 		else		//just fake the explosion and reset the ship
 		{
-			//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
+			//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag here
 			e.nodamage();
 		
 			e.setfloatvar ( "lives" , c );
@@ -507,38 +542,45 @@ void capShipHit ()
 {
 	entity e;
 	e= getCurrentEntity ();
-	
-//$player0.hudprint("capShipHit - "+shipHealth+"\n");
-//[b60011] chrissstrahl - make sure theere will be no overlapping
-//e.nodamage();
 
 	//[b60021] chrissstrahl - changed, based on secret2 example - because we get massive lag her
 	e.nodamage();
-		
-	coop_capShipDamage("shielded");
+	
+	
+	//[b60021] chrissstrahl - do not handle damage before tuvok had his dialog
+	//also do not allow to be attacked while ship is "hidden"
+	if(coop_shipCanBeAttacked){
+		shipHealth -= ( 10000 - e.gethealth());	//hurt the capship appropriately
+			
+		//[b60021] chrissstrahl - do not have such long pauses
+//$player0.hudprint("coop_capShipDamage "+e.gettargetname()+": "+getLevelTime()+"\n");
+		thread coop_capShipDamage("shielded");
+		wait(0.1);
 
-	shipHealth -= ( 10000 - e.gethealth());	//hurt the capship appropriately	
+	//$player0.hudprint("capShipHit - "+shipHealth+"\n");
 
-//$player0.hudprint("capShipHit - "+shipHealth+"\n");
+		//print ( "Capship: " +shipHealth+"\n" );
+		if ( shipHealth <= 0 )		//failed
+		{
+			//hzm coop mod chrissstrahl - remove timmer hud
+			thread globalCoop_huds_manageAll("m6CapitalShipHealth",0,1);
 
-	//print ( "Capship: " +shipHealth+"\n" );
-	if ( shipHealth <= 0 )		//failed
-	{
-		//hzm coop mod chrissstrahl - remove timmer hud
-		thread globalCoop_huds_manageAll("m6CapitalShipHealth",0,1);
+			$capital_ship.model ( "models/fx/fx-drull-ship-explode.tik" );
+			$capital_ship.playsound ( "sound/ships/drull/drull_capitalshiphit.wav" , 3 , 2 , 4384 );
+			$capital_ship.scale ( 36.0 );
 
-		$capital_ship.model ( "models/fx/fx-drull-ship-explode.tik" );
-		$capital_ship.playsound ( "sound/ships/drull/drull_capitalshiphit.wav" , 3 , 2 , 4384 );
-		$capital_ship.scale ( 36.0 );
-
-		$idryll_weapons.remove();
-		$idryll_warpdrive.remove();
-		$idryll_engines.remove();
-		wait ( 5 );
-		
-		globalCoop_mission_failWithReason("YouDestroyedCapitalShip");
-		return;
+			$idryll_weapons.remove();
+			$idryll_warpdrive.remove();
+			$idryll_engines.remove();
+			wait ( 5 );
+			
+			globalCoop_mission_failWithReason("YouDestroyedCapitalShip");
+			return;
+		}
+	}else{
+		wait(0.2);
 	}
+	
 	e.health ( 10000 );
 	thread globalCommon_OnDamage ( e , "capShipHit" );
 }
