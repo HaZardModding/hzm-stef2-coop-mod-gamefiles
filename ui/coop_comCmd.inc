@@ -314,6 +314,27 @@ Button
 resource
 Button
 {
+	title "!transferlive"
+	rect 12 150 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars019.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Transfers one of your lives to a dead player\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!transferlive"
+}
+
+resource
+Button
+{
 	title "$$c#097$$"
 	rect 12 202 320 18
 	borderstyle "NONE"
