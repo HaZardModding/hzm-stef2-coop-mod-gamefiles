@@ -139,7 +139,6 @@ float boolPlayerFailed = 0;
 float	float_cinematic_commandCore_started;
 float	coop_fForceStage2;
 void	coop_endLevel();
-void	coop_updateSpawns();
 entity	entityPlayerGlobal;
 
 #include "coop_mod/matrix/main.scr"
@@ -154,6 +153,47 @@ entity	entityPlayerGlobal;
 #include "maps/global_scripts/global_cinematicFX.scr"
 #include "maps/global_scripts/global_archetype.scr"
 #include "maps/m4/m4l1b_dialog.scr"
+
+
+//[b60021] chrissstrahl - as long as lift is moving, respawn players at predefined spawnlocations or they end up under the lift falling to death
+//this stuff fixes players falling through lift on spawn
+//getting this to work is a pure show of Prestige, it serves no actual other purpose or value
+float coop_spawnLiftIsMoving = 1;
+void coop_justDied()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	wait(0.1);
+	if(coop_spawnLiftIsMoving){
+		if(doesEntityExist(ePlayer)){
+			ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+		}
+	}
+}
+void coop_justSpawned()
+{
+	entity ePlayer;
+	ePlayer = getCurrentEntity();
+	if(coop_spawnLiftIsMoving){
+		float fLift;
+		vector v;
+		v=$arch_lift1.getOrigin();
+		fLift = vectorGetZ(v);
+		fLift -= 10; //[b60021] chrissstrahl - moved up +10 units to avoid players falling trough lift on early respawn
+		
+		float fEntNum;
+		vector vSpawnNew;
+		fEntNum = ePlayer.getEntNum();
+		vSpawnNew = globalCoop_return_vectorPlayerSpawnOrigin(fEntNum);
+		vSpawnNew_z = fLift;
+		fEntNum++;
+		setVectorScriptVariable("coop_vector_spawnOrigin"+fEntNum,vSpawnNew);
+		setVectorScriptVariable("coop_vector_respawnOrigin"+fEntNum,vSpawnNew);
+		
+		globalCoop_level_warpEntityToVectorSafty(ePlayer,vSpawnNew);
+	}
+	//ePlayer.hudprint(ePlayer.getOrigin()+"\n"+vSpawnNew+"\n"+$arch_lift1.getOrigin()+"\n");
+}
 
 //---------------------
 // Main Function
@@ -185,16 +225,18 @@ void main()
 	
 	//hzm coop mod chrissstrahl - Set spawnangles for this level
 	if(!coop_fForceStage2){
-		thread coop_updateSpawns(); //chrissstrahl - [b607] align z agis of the spawnlocation to the moving lift
 		coop_float_spawnAngle0 				= 170;	
-		coop_vector_spawnOrigin8 			= '5972 1550 2220';
-		coop_vector_spawnOrigin7 			= '5972 1620 2220';
-		coop_vector_spawnOrigin6 			= '5972 1690 2220';
-		coop_vector_spawnOrigin5 			= '5972 1760 2220';
-		coop_vector_spawnOrigin4 			= '5872 1760 2220';
-		coop_vector_spawnOrigin3 			= '5872 1690 2220';
-		coop_vector_spawnOrigin2 			= '5872 1620 2220';
-		coop_vector_spawnOrigin1 			= '5872 1550 2220';
+		coop_vector_spawnOrigin8 			= '5972 1550 1100';
+		coop_vector_spawnOrigin7 			= '5972 1620 1100';
+		coop_vector_spawnOrigin6 			= '5972 1690 1100';
+		coop_vector_spawnOrigin5 			= '5972 1760 1100';
+		coop_vector_spawnOrigin4 			= '5872 1760 1100';
+		coop_vector_spawnOrigin3 			= '5872 1690 1100';
+		coop_vector_spawnOrigin2 			= '5872 1620 1100';
+		coop_vector_spawnOrigin1 			= '5872 1550 1100';
+		
+		//coop_float_spawnAngle1 = 90;	//test
+		//coop_vector_spawnOrigin1 			= '5872 1620 1100'; //test
 	}
 	
 	soundtrack( "music/m4l1b-attrexian_station.mus" );
@@ -380,9 +422,21 @@ void levelStartSequence()
 		$elevatorLevelStart.time( 0.5 );
 		$elevatorLevelStart.moveup( 1184 );
 		trigger( "$doorLevelStart" );
+		
+		//[b60021] Chrissstrahl - lift has stopped, notify other functions
+		coop_spawnLiftIsMoving = 0;
+		
+		//[b60021] chrissstrahl - make sure we always have a backup
+		coop_vector_spawnOrigin8 			= '5972 1550 2220';
+		coop_vector_spawnOrigin7 			= '5972 1620 2220';
+		coop_vector_spawnOrigin6 			= '5972 1690 2220';
+		coop_vector_spawnOrigin5 			= '5972 1760 2220';
+		coop_vector_spawnOrigin4 			= '5872 1760 2220';
+		coop_vector_spawnOrigin3 			= '5872 1690 2220';
+		coop_vector_spawnOrigin2 			= '5872 1620 2220';
+		coop_vector_spawnOrigin1 			= '5872 1550 2220';
 		return;
 	}
-	//eof hzm
 	
 	// start elevator up
 	$elevatorLevelStart.playsound( "sound/environment/machine/lift4.wav", 9, 1, 250 );
@@ -390,6 +444,20 @@ void levelStartSequence()
 	$elevatorLevelStart.moveup( 1184 );
 	waitfor( $elevatorLevelStart );
 	$elevatorLevelStart.playsound( "sound/environment/machine/lift4stop.wav", 9, 1, 250 );
+	
+	//[b60021] Chrissstrahl - lift has stopped, notify other functions
+	coop_spawnLiftIsMoving = 0;
+
+	//[b60021] chrissstrahl - make sure we always have a backup
+	coop_vector_spawnOrigin8 			= '5972 1550 2220';
+	coop_vector_spawnOrigin7 			= '5972 1620 2220';
+	coop_vector_spawnOrigin6 			= '5972 1690 2220';
+	coop_vector_spawnOrigin5 			= '5972 1760 2220';
+	coop_vector_spawnOrigin4 			= '5872 1760 2220';
+	coop_vector_spawnOrigin3 			= '5872 1690 2220';
+	coop_vector_spawnOrigin2 			= '5872 1620 2220';
+	coop_vector_spawnOrigin1 			= '5872 1550 2220';
+	
 	wait( 1 );
 
 	$doorLevelStart.playsound( "sound/doors/attrex_door_short1.wav", 10, 1, 250 );
@@ -3149,38 +3217,6 @@ void commonPositionObject( entity entObject, entity entDestination )
 	wait( .1 );
 
 	entObject.angles( entDestination.getAngles() );
-}
-
-void coop_updateSpawns()
-{
-	vector v;
-	vector v2;
-	float fLift;
-	v2='1 1 1' ;
-	while(v != v2)
-	{//1130
-		//hzm coop mod chrissstrahl - wait for the entity to be spawned and prevent error message
-		while(!doesEntityExist($arch_lift1)){
-			globalCoop_main_waitAFrame();
-		}
-		v=$arch_lift1.getOrigin();
-		fLift = vectorGetZ(v);
-		fLift += 10;
-		coop_vector_spawnOrigin1_z=fLift;
-		coop_vector_spawnOrigin2_z=fLift;
-		coop_vector_spawnOrigin3_z=fLift;
-		coop_vector_spawnOrigin4_z=fLift;
-		coop_vector_spawnOrigin5_z=fLift;
-		coop_vector_spawnOrigin6_z=fLift;
-		coop_vector_spawnOrigin7_z=fLift;
-		coop_vector_spawnOrigin8_z=fLift;
-		while(v == $arch_lift1.getOrigin())
-		{
-			globalCoop_main_waitAFrame();
-		}
-		globalCoop_main_waitAFrame();
-		v2=$arch_lift1.getOrigin();
-	}
 }
 
 void end_level()
