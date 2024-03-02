@@ -164,9 +164,12 @@ void coop_justDied()
 	entity ePlayer;
 	ePlayer = getCurrentEntity();
 	if(coop_spawnLiftIsMoving){
-		wait(0.1);
-		if(doesEntityExist(ePlayer)){
-			ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+		globalCoop_main_waitAFrame();
+		if(coop_spawnLiftIsMoving){
+			if(doesEntityExist(ePlayer)){
+				ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
+			}
 		}
 	}
 }
@@ -190,9 +193,45 @@ void coop_justSpawned()
 		setVectorScriptVariable("coop_vector_spawnOrigin"+fEntNum,vSpawnNew);
 		setVectorScriptVariable("coop_vector_respawnOrigin"+fEntNum,vSpawnNew);
 		
+		ePlayer.setVelocity('0 0 0');
 		globalCoop_level_warpEntityToVectorSafty(ePlayer,vSpawnNew);
 	}
 	//ePlayer.hudprint(ePlayer.getOrigin()+"\n"+vSpawnNew+"\n"+$arch_lift1.getOrigin()+"\n");
+}
+void coop_spawnFailsaveDropTrigger()
+{
+	entity eTrigger;
+	eTrigger = spawn("trigger_multiple","origin","5888 1696 -1728","wait","0.01","thread","coop_spawnFailsave");
+	globalCoop_main_waitAFrame();
+	eTrigger.setSize('-176 -176 -50','176 176 150');
+}
+void coop_spawnFailsave()
+{
+	entity ePlayer;
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	ePlayer = eTrigger.getLastActivatingEntity();
+	
+	if(doesEntityExist(ePlayer)){
+		vector vSpawnNew;
+		float fEntNum;
+		fEntNum = ePlayer.getEntNum();
+		vSpawnNew = globalCoop_return_vectorPlayerSpawnOrigin(fEntNum);
+		
+		if(coop_spawnLiftIsMoving){
+			float fLift;
+			vector v;
+			v=$arch_lift1.getOrigin();
+			fLift = vectorGetZ(v);
+			fLift -= 10; //[b60021] chrissstrahl - moved up +10 units to avoid players falling trough lift on early respawn
+			vSpawnNew_z = fLift;
+			fEntNum++;
+			setVectorScriptVariable("coop_vector_spawnOrigin"+fEntNum,vSpawnNew);
+			setVectorScriptVariable("coop_vector_respawnOrigin"+fEntNum,vSpawnNew);
+		}
+		ePlayer.setVelocity('0 0 0');
+		globalCoop_level_warpEntityToVectorSafty(ePlayer,vSpawnNew);
+	}
 }
 
 //---------------------
@@ -201,6 +240,9 @@ void coop_justSpawned()
 //---------------------
 void main()
 {
+	thread coop_spawnFailsaveDropTrigger();
+
+
 	thread cinematics_setup();
 	thread cinematic_commandCore_setup();
 	
