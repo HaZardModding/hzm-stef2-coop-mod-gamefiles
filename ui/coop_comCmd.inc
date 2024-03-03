@@ -335,6 +335,27 @@ Button
 resource
 Button
 {
+	title "!ability"
+	rect 12 170 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars015.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Activate Coop Class Special ability\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!ability"
+}
+
+resource
+Button
+{
 	title "$$c#097$$"
 	rect 12 202 320 18
 	borderstyle "NONE"
