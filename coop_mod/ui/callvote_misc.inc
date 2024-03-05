@@ -46,7 +46,7 @@ Label
 	bordercolor 0.12 0.15 0.25 1.00
 	
 	horizontaljustify left
-	verticaljustify center
+	verticaljustify top
 	font 	serpentinemedium-10
 }
 
@@ -69,28 +69,6 @@ Label
 	// font 	serpentinemedium-10
 // }
 
-//restart
-resource
-Button
-{
-	cvarvisibility coop_ui_vt 4 ==
-	title "$$c#012$$"
-	name 	"restart_map"
-	rect	275 114 328 20
-	font serpentinemedium-10
-	fgcolor 		1.000 1.000 1.000 0.800
-	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
-	
-	verticaljustify top
-	verticaljustify top
-
-	clicksound sound/misc/menu/click.wav
- 
-	stuffcommand "callvote restart\n"
-	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#013$$\""
-    hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
-}
 //skip cinematic
 resource
 Button
@@ -98,13 +76,12 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#018$$"
 	name 	"skip_cinematic"
-	rect	275 136 328 20
+	rect	275 114 203 20
 	font serpentinemedium-10
 	fgcolor 		1.000 1.000 1.000 0.800
 	bgcolor 		0.12 0.15 0.25 0.7
 	hoverbgcolor 	0.22 0.25 0.35 1.0
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -114,8 +91,54 @@ Button
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 
+//restart
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 4 ==
+	title "$$c#012$$"
+	name 	"restart_map"
+	rect	482 114 120 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.80 0.25 0.35 1.0
+	
+	verticaljustify top
+
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "callvote restart\n"
+	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#013$$\""
+    hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
+}
+
+
 ////////////////////////////////////////////////////////////// COOPMAP OPTIONS
 ////////////////////////////////////////////////////////////// COOPMAP OPTIONS
+//coop gameplay Options
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 4 ==
+	title "$$c#020$$"
+	name 	"coopOptionsGameplayBtn"
+	rect	275 136 328 24
+	font serpentinemedium-10
+	fgcolor 		0.000 1.000 1.000 1.000
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
+	
+	verticaljustify top
+	
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "seta coop_ui_vt 5;set coop_ui_sm 0\n"
+    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+    hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
+}
+
 //next map
 resource
 Button
@@ -123,14 +146,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#014$$"
 	name 	"next_map"
-	rect	441 168 162 20
+	rect	441 162 162 20
 	
 	font serpentinemedium-10
 	fgcolor 		0.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
 	hoverbgcolor 	0.22 0.25 0.35 1.0
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -146,14 +168,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#016$$"
 	name 	"previous_map"
-	rect	275 168 162 20
+	rect	275 162 162 20
 	
 	font serpentinemedium-10
 	fgcolor 		0.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
 	hoverbgcolor 	0.22 0.25 0.35 1.0
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -163,43 +184,43 @@ Button
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 
-//coop gameplay Options
-resource
-Button
+
+////////////////////////////////////////////////////////////// COOP MISSION SELECTION
+////////////////////////////////////////////////////////////// COOP MISSION SELECTION
+resource 
+Label
 {
 	cvarvisibility coop_ui_vt 4 ==
-	title "$$c#020$$"
-	name 	"coopOptionsGameplayBtn"
-	rect	275 190 328 20
-	font serpentinemedium-10
-	fgcolor 		0.000 1.000 1.000 1.000
-	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
 	
-	verticaljustify top
-	verticaljustify top
+	title "$$ChangeMap$$"
+	name "coopOptionsCurrentMapTitle"
+	rect		274 210 330 24
+	fgcolor 0 1 1 1
+	bgcolor 0.12 0.15 0.25 1.00
 	
-	clicksound sound/misc/menu/click.wav
- 
-	stuffcommand "seta coop_ui_vt 5;set coop_ui_sm 0\n"
-    hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#009$$\""
+	borderstyle "3D_BORDER"
+	
+	horizontaljustify left
+	verticaljustify top
+	font 	serpentinemedium-10
+	
+	hovercommand "globalwidgetcommand tooltip_callvote title \"$$c#008$$\""
     hoverexitcommand "globalwidgetcommand tooltip_callvote title \"\""
 }
 
-//coop Training and Secret Maps
 resource
 Button
 {
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#035$$"
 	name 	"coopOptionsLvlTrainingBtn"
-	rect	275 222 328 20
+	rect	275 234 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -215,13 +236,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#036$$"
 	name 	"coopOptionsLvlCampaignBtn"
-	rect	275 244 328 20
+	rect	275 256 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -237,13 +258,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#037$$"
 	name 	"coopOptionsLvlCommunityBtn"
-	rect	275 266 328 20
+	rect	275 278 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -259,13 +280,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#038$$"
 	name 	"coopOptionsLvlGbsBtn"
-	rect	275 288 328 20
+	rect	275 300 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -281,13 +302,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#039$$"
 	name 	"coopOptionsLvlRotecBtn"
-	rect	275 310 328 20
+	rect	275 322 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -303,13 +324,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#040$$"
 	name 	"coopOptionsLvlAftermathBtn"
-	rect	275 332 328 20
+	rect	275 344 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav
@@ -325,13 +346,13 @@ Button
 	cvarvisibility coop_ui_vt 4 ==
 	title "$$c#041$$"
 	name 	"coopOptionsLvlTestBtn"
-	rect	275 354 328 20
+	rect	275 366 328 20
 	font serpentinemedium-10
 	fgcolor 		0.953 0.667 0.271 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.22 0.80 0.35 1.0
+	hoverfgcolor 		0.000 0.000 0.000 1.000
 	
-	verticaljustify top
 	verticaljustify top
 	
 	clicksound sound/misc/menu/click.wav

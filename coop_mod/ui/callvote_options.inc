@@ -630,4 +630,24 @@ PulldownMenuContainer
 }
 //end of new airaccellerate option [b607]
 
+resource
+Button
+{
+	title "$$back$$"
+
+	rect	533 90 70 22
+	font serpentinemedium-10
+	fgcolor			0.937 0.643 0.129 1.000
+	bgcolor			0.125 0.157 0.251 1.000
+	hoverbgcolor	0.278 0.365 0.510 1.000
+	hoverfgcolor	1.000 1.000 1.000 1.000
+	borderstyle "3D_BORDER"
+	hovershader menu/generic/button-hover
+	pressedshader menu/generic/button-press
+    clicksound sound/misc/menu/click.wav
+	stuffcommand "set coop_ui_vt 4;set coop_ui_sm 0"
+    verticaljustify top	
+	cvarvisibility coop_ui_vt 5 ==
+}
+
 end.
