@@ -2412,8 +2412,9 @@ void cinematicArm_MeetOmag_ArmEnd()
 	waitForDialog( $munro );
 	wait( .2 );
 
-	$gonzales.playdialog("localization/sound/dialog/m9l1/gonz_cleanup.mp3", 1, 500, 1); //Aye sir! And I'll help clean up this mess!
-	waitForDialog( $gonzales );
+	//[b60021] Chrissstrahl - this is unnessary and anyway the wrong dialog
+	//$gonzales.playdialog("localization/sound/dialog/m9l1/gonz_cleanup.mp3", 1, 500, 1); //Aye sir! And I'll help clean up this mess!
+	//waitForDialog( $gonzales );
 }
 
 void coop_nicolasCagePlayer(entity ePlayer)
@@ -2424,6 +2425,17 @@ void coop_nicolasCagePlayer(entity ePlayer)
 	if(coop_itIsAllOverNow){
 		return;
 	}
+	
+	//[b60021] Chrissstrahl - wait until there are living players
+	if(!doesEntityExist(ePlayer)){
+		
+		while(globalCoop_return_integerPlayersQuantity(1)){
+			wait(3);
+		}
+		thread coop_nicolasCagePlayer(coop_returnMeARandomPlayer());
+		return;
+	}
+	
 	$krindo.headwatch( ePlayer );
 	$gonzales.headwatch( ePlayer );
 	$humanMale1.headwatch( ePlayer );
@@ -2434,25 +2446,27 @@ void coop_nicolasCagePlayer(entity ePlayer)
 	
 	ePlayer.origin( '0 -448 0' );
 	ePlayer.playerviewangles( '-5 -1439 0' );
-	
-	globalCoop_player_makeSolidASAP($bonesaw);
-	
 	ePlayer.giveweapon ( "models/weapons/worldmodel-batleth.tik" );
-	ePlayer.disableuseweapon( 0 );
-	wait( .35 );
-	ePlayer.use ( "Batleth" );
-	wait( .35 );
-	ePlayer.disableuseweapon( 1 );
+	
+	thread globalCoop_player_makeSolidASAP($bonesaw);
+	
+	wait( .25 );
+	
+	//[b60021] Chrissstrahl - removed code that would disallow player to use any other weapons unless they reconnects
+	if(doesEntityExist(ePlayer)){
+		ePlayer.use ( "models/weapons/worldmodel-batleth.tik" );
+		wait(0.4);
+	}
 	
 	$bonesaw.health( 300 );
 	$bonesaw.ai_on ();
 	$bonesaw.attack(ePlayer);
 	$bonesaw.headwatch(ePlayer);
 	
-	while(doesEntityExist(ePlayer))
-	{
-		if(ePlayer.getHealth() < 1 || globalCoop_check_playerSpectator(ePlayer) || ePlayer.getActiveWeaponName() != "Batleth" ) {
+	while(doesEntityExist(ePlayer)){
+		if(ePlayer.getHealth() <= 0 || globalCoop_check_playerSpectator(ePlayer) || ePlayer.getActiveWeaponName() != "Batleth" ) {
 			coop_unarmPlayer(entityPlayerGlobal);
+			wait(2);
 			thread coop_nicolasCagePlayer(coop_returnMeARandomPlayer());
 			return;
 		}
@@ -2471,11 +2485,17 @@ void coop_unarmPlayer(entity ePlayer)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		ePlayer.deactivateweapon ( "dual" );	//hide batleth viewmodel from player
-		ePlayer.take( "models/weapons/worldmodel-batleth.tik" ); //[b60021] chrissstrahl - Fix: Player retaining batleth
-		wait( .25 );
-		//ePlayer.disableuseweapon( 1 ); //[b60021] chrissstrahl - Fix: Weapons staying deactivated for player that fought the Bouncer (Wylverine)
-		ePlayer.health( 100 );
+		//[b60021] chrissstrahl - Fix: Player unable to change back to any weapons any more
+		//ePlayer.deactivateweapon ( "dual" );
+		ePlayer.safeholster(1);
+		
+		globalCoop_main_waitZeroDotZero5();//wait for the player model animation to change
+		
+		if(doesEntityExist(ePlayer)){
+			ePlayer.take( "models/weapons/worldmodel-batleth.tik" ); //[b60021] chrissstrahl - Fix: Player retaining batleth
+			//ePlayer.disableuseweapon( 1 ); //[b60021] chrissstrahl - Fix: Weapons staying deactivated for player that fought the Bouncer (Wylverine)
+			ePlayer.health( 100 );			
+		}
 	}
 }
 
