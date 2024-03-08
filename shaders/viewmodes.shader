@@ -21,14 +21,16 @@ hud/nightvision
 		map sysimg/hud/nightvision/scan-lines-noalpha2.tga
 		blendFunc GL_DST_COLOR GL_SRC_COLOR
 		rgbGen const 0.5 0.9 0.5
-		tcMod scroll 0 -0.005
-		alphagen const 0.5
+		tcMod scroll 0 -0.025 //[b60021] chrissstrahl - made it move faster
+		alphagen const 0.15
 	}
-	// {
-		// map sysimg/hud/nightvision/round-border.tga
-		// blendfunc blend
-		// alphaFunc GT0
-	// }
+	
+	//[b60021] chrissstrahl - reactivated - to discourage player form abusing nightvision
+	{
+		map sysimg/hud/nightvision/round-border.tga
+		blendfunc blend
+		alphaFunc GT0
+	}
 }
 
 hud/tracegas
