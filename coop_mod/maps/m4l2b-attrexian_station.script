@@ -93,7 +93,8 @@ entity cinematicArm_MeetGonzales;
 void	coop_endLevel();
 void	coop_findAndTargetnameEntities();
 entity	entityPlayerGlobal;
-string	sLevelTooken;
+string	sLevelToken;
+void	coop_beamToSpawnIfAbove(float fZAxis);
 
 #include "coop_mod/matrix/main.scr"
 #include "coop_mod/maps/m4/m4l2b_forceStage2.script"
@@ -118,7 +119,7 @@ void main()
 	cam_fadeout( .1, 0, 0, 0, 1, 0 );
 		
 	//hzm coop mod chrissstrahl - [b607] get paramaters
-	sLevelTooken = getLevelParamaterValue("load");
+	sLevelToken = getLevelParamaterValue("load");
 
 	
 	//hzm coop mod chrissstrahl - default overwrite - show sucess hud
@@ -142,7 +143,7 @@ void main()
 	thread coop_findAndTargetnameEntities();
 	
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loadad with/without parameter
-	if( sLevelTooken != "defend" && sLevelTooken != "debuglift"){
+	if( sLevelToken != "defend" && sLevelToken != "debuglift"){
 		
 		//hzm coop mod chrissstrahl - Set spawnangles for this level
 		coop_float_spawnAngle0 				= 270;
@@ -224,7 +225,7 @@ void main()
 	waitForPlayer();
 
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loadad with/without parameter
-	if( sLevelTooken != "defend" && sLevelTooken != "debuglift"){
+	if( sLevelToken != "defend" && sLevelToken != "debuglift"){
 		thread cinematic_intro();
 	}else{
 		$sequence2Trigger.setsize('-99999 -99999 -99999','99999 99999 0');//players shall not miss this trigger!!!
@@ -324,7 +325,7 @@ void init()
 	
 	//hzm coop mod chrissstrahl, make sure nobody can possibly miss that trigger
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loadad with/without parameter
-	if( sLevelTooken != "defend"){
+	if( sLevelToken != "defend"){
 		$coop_liftJumpdownMurder.setSize('-1000 -1000 0','1000 1000 50');
 		$coop_liftJumpdownMurder.damage(10000);
 	}
@@ -371,7 +372,7 @@ void cinematics_setup()
 
 	
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loadad with/without parameter
-	if( sLevelTooken != "defend" && sLevelTooken != "debuglift"){
+	if( sLevelToken != "defend" && sLevelToken != "debuglift"){
 		//--- load camera paths
 		cam.load( "m4l2b_intro_adam1" );
 		cam.load( "m4l2b_intro_adam2" );
@@ -395,7 +396,7 @@ void cinematics_setup()
 
 	
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loadad with/without parameter
-	if( sLevelTooken != "defend" && sLevelTooken != "debuglift"){
+	if( sLevelToken != "defend" && sLevelToken != "debuglift"){
 		//--- armature setup
 		cinematicArm_MeetGonzales = createCinematic( "m4l2-gonz" );
 		cinematicArm_MeetGonzales.setendthread( "cinematicArm_MeetGonzales_ArmEnd" );
@@ -1115,7 +1116,7 @@ void CoreLift_MoveDown()
 	globalCoop_mission_setCheckpoint("load=defend");
 	
 	//hzm coop mod chrissstrahl - [b607] handle if map has been loaded with/without parameter
-	if( sLevelTooken != "defend"){
+	if( sLevelToken != "defend"){
 		//hzm coop mod chrissstrahl - failsafe
 		globalCoop_level_warpEntityToVectorSafty($Engineer,'720 -3424 -400');//$lift_node1.getOrigin()
 		$Engineer.turntoangle( 360 );
@@ -1177,19 +1178,7 @@ void CoreLift_MoveDown()
 		waitfor( $CoreLift );
 		$CoreLift.playsound( "sound/environment/machine/lift4stop.wav", 5, 1, 150 );
 		
-		//[b60021] Chrissstrahl - beam all players that are still up there down
-		float fPlayerIdInUse;
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			entity ePlayer;
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(globalCoop_check_existingLivingEntity(ePlayer)){
-				vector vPlayerOrigin;
-				vPlayerOrigin = ePlayer.getOrigin();
-				if( vPlayerOrigin_z > -3200){
-					globalCoop_player_transportToSpawn(ePlayer);
-				}
-			}			
-		}
+		thread coop_beamToSpawnIfAbove(-3200);
 	}
 		
 	wait ( 1 );
@@ -1273,18 +1262,7 @@ void PowerCoreLift_MoveDown()
 	globalCoop_applaySpawnOriginOnReSpwanOrigin();
 	
 	//[b60021] Chrissstrahl - beam all players that are still up there down
-	float fPlayerIdInUse;
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		entity ePlayer;
-		ePlayer = getentity("player"+fPlayerIdInUse);
-		if(globalCoop_check_existingLivingEntity(ePlayer)){
-			vector vPlayerOrigin;
-			vPlayerOrigin = ePlayer.getOrigin();
-			if( vPlayerOrigin_z > -3896){
-				globalCoop_player_transportToSpawn(ePlayer);
-			}
-		}			
-	}
+	thread coop_beamToSpawnIfAbove(-3896);
 
 	$PowerCoreLift.playsound( "sound/environment/machine/lift4stop.wav", 4, 1, 550 );
 
@@ -1354,7 +1332,7 @@ void SequenceEngineerWalkToControls()
 	globalCoop_main_waitForWarmupTime();
 
 	//hzm coop mod chrissstrahl - set checkpoint, to load this level in stage 2 if the mission if failed from now on
-	globalCoop_mission_setCheckpoint("stage=2");
+	globalCoop_mission_setCheckpoint("load=defend");
 
 	$Engineer.playdialog( "localization/sound/dialog/m4l2/vorchov_burnout.mp3", 1, 800, 1);
 
@@ -1944,6 +1922,24 @@ void coop_findAndTargetnameEntities()
 				return;
 			}
 		}
+	}
+}
+
+void coop_beamToSpawnIfAbove(float fZAxis)
+//[b60021] chrissstrahl - move players that are to far away from team
+{
+	//[b60021] Chrissstrahl - beam all players that are still up there down
+	float fPlayerIdInUse;
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		entity ePlayer;
+		ePlayer = getentity("player"+fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			vector vPlayerOrigin;
+			vPlayerOrigin = ePlayer.getOrigin();
+			if( vPlayerOrigin_z > fZAxis){
+				globalCoop_player_transportToSpawn(ePlayer);
+			}
+		}			
 	}
 }
 
