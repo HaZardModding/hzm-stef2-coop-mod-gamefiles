@@ -156,8 +156,8 @@ void fire_ff_01 ()
 	wait( 3 );
 	
 	//hzm coop mod chrissstrahl - set marker on radar
-	$coop_symbol4.missionobjective(0);
-	$coop_symbol0.missionobjective(1);
+	if(doesEntityExist($coop_symbol4)){$coop_symbol4.missionobjective(0);} //[b60021] chrissstrahl - check exists
+	if(doesEntityExist($coop_symbol0)){$coop_symbol0.missionobjective(1);} //[b60021] chrissstrahl - check exists
 }
 
 
@@ -265,9 +265,6 @@ void setupWorld()
 	thread globalArchetype_Setup( $console_1, "RomulanSecurityUsableConsole");
 	thread globalArchetype_Setup( $console_2, "RomulanGenericUsableConsole");
 	thread globalArchetype_Setup( $console_3, "RomulanSecurityUsableConsole");
-	
-	//Setup The OnUse Threads
-	thread globalCommon_OnUse( $trigger_fire_lift_01, "lift_01_romulaner" ); 
 	
 	//Loop Sounds
 	$stammheim_forcefield.loopsound( "sound/ships/enterprise/ent_forcefield.wav" , 1, 125 );
@@ -506,7 +503,7 @@ void secret_dancer1()
 void t15_attack()
 {
 	//hzm coop mod chrissstrahl - set marker on radar
-	$15_attackTrigger.missionobjective(0);
+	if(doesEntityExist($15_attackTrigger)){$15_attackTrigger.missionobjective(0);} //[b60021] chrissstrahl - check exists
 	$grp_hall_door_lockTrigger.missionobjective(1);
 }
 
@@ -525,7 +522,7 @@ void grp_hall_door()
 
 	//hzm coop mod chrissstrahl - set marker on radar
 	$coop_symbol0.missionobjective(0);
-	$15_attackTrigger.missionobjective(1);
+	if(doesEntityExist($15_attackTrigger)){$15_attackTrigger.missionobjective(1);} //[b60021] chrissstrahl - check exists
 	
 	cam_fadeout( 0.1, 0, 0, 0, 1, 0 );	 
 	$cam2.follow( $entrance );	 
@@ -538,9 +535,9 @@ void grp_hall_door()
 	cam_fadein( 1, 0, 0, 0, 1, 0 );	 
 	wait( 0.1 );	 
 	cuecamera($cam2);
-	$trigger_grp_hall_door.nottriggerable();
+	if(doesEntityExist($trigger_grp_hall_door)){$trigger_grp_hall_door.nottriggerable();} //[b60021] chrissstrahl - check exists
 	$grp_hall_door.unlock();
-	$grp_hall_door.open( $trigger_grp_hall_door );
+	$grp_hall_door.open( $world );
 	triggerentity($door_sound);	 
 	wait(3);	 
 	noncinematic();	 
@@ -604,6 +601,30 @@ void unlock_cells()
 	//hzm coop mod chrissstrahl - make ai patrol
 	$romulan3.settendency("patrol",1);
 }
+
+//[b60021] chrissstrahl - handle actors that are still alive
+void cin_cell_actorManager(float fShow)
+{	
+	float fNum;
+	entity e;
+	for(fNum=3;fNum<9;fNum++){
+		e=getEntity("romulan"+fNum);
+		if(doesEntityExist(e)){
+			if(e.getHealth() > 0){
+				if(fShow){
+					e.ai_on();
+					e.show();
+					globalCoop_player_makeSolidASAP(e);
+				}else{
+					e.ai_off();
+					e.hide();
+					e.notsolid();
+				}
+			}
+		}
+	}
+}
+
 //CINEMATIC FUNCTIONS 
 void cin_cells() 
 {
@@ -617,6 +638,10 @@ void cin_cells()
 
 	cam_fadeout( 1, 0, 0, 0, 1, 0 ); 
 	wait(1);
+	
+	//[b60021] chrissstrahl - make sure they do not interfier with the cinematics
+	thread cin_cell_actorManager(0);
+	
 	freezeplayer();
 	
 	//Make Illia holster any weapon she might have acquired 
@@ -647,8 +672,8 @@ void cin_cells()
 	cam_fadein( 1, 0, 0, 0, 1, 0 );
 	wait( 1 );
 	
-	$chell_door.open($world);
-	$chell_door.open($world);
+	//[b60021] chrissstrahl - fixed typo
+	$cell_door.open($world);
 	
 	skipthread( "cin_cells_skip" );	
 
@@ -852,7 +877,7 @@ void cin_cells_skip()
 	wait( 1 ); 
 
 	//Remove all evidence of before the cin 
-	$stammheim_forcefield.remove(); 
+	if(doesEntityExist($stammheim_forcefield)){$stammheim_forcefield.remove();} //[b60021] chrissstrahl - check exists
 	
 	//hzm coop mod chrissstrahl - we reuse that actor, wap illia to shuttle bay
 	$illia_cockpit.hide();
@@ -860,6 +885,9 @@ void cin_cells_skip()
 	$illia_cockpit.origin('192 -2416 16');
 	$illia_cockpit.resethead();
 	$stammheim.resethead();
+
+	//[b60021] chrissstrahl - make sure they do not interfier with the cinematics
+	thread cin_cell_actorManager(1);
 
 	//End the cinematic 
 	noncinematic(); 
