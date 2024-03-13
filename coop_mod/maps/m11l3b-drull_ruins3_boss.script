@@ -101,7 +101,11 @@ void main()
 	$world.farplane( 15000 );
 	$world.farplane_cull ( 1 );
 	$world.farplane_fog ( 1 );
-	stuffcmd ( "r_light_emphasize 100\n" );
+	
+	//[b60021] chrissstrahl
+	if(getCvarInt("dedicated") == 0){
+		stuffcmd ( "r_light_emphasize 100\n" );
+	}
 
 	soundtrack ( "music/m11l3b-drull_ruins3_boss.mus" );
 	$finalboss.ai_off();
@@ -115,47 +119,38 @@ void main()
 	cam.load ( "m11l3b_commanderzoomcam" );
 //	cam.load ( "m11l3b_commanderdeathcam" );
 	cam.load ( "m11l3b_munroentrancecam" );
-
-	cam.load ( "m11l3b_cmdrShot1" );
-	cam.load ( "m11l3b_cmdrShot2" );
-	cam.load ( "m11l3b_cmdrShot3" );
 	
-	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
-	wait(0.05);
-
+	//[b60021] chrissstrahl - moved loading of paths here - so we do not have all of them at once on the level
 	cam.load ( "m11l3b_archShot1" );
 	cam.load ( "m11l3b_archShot2" );
 	cam.load ( "m11l3b_archShot3" );
 	cam.load ( "m11l3b_archShot4" );
 	cam.load ( "m11l3b_archShot5" );
 	cam.load ( "m11l3b_archShot6" );
-	
-	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
-	wait(0.05);
-
-	cam.load ( "m11l3b_archDeathShot1" );
-	cam.load ( "m11l3b_archDeathShot2" );
-	cam.load ( "m11l3b_archDeathShot3" );
 
 	cam.load ( "m11l3b_transitioncam1" );
 	cam.load ( "m11l3b_transitioncam2" );
 	cam.load ( "m11l3b_transitioncam3" );
 	
-	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
-	wait(0.05);
-
-	cam.load ( "m11l3b_bossintrocam1" );
-	cam.load ( "m11l3b_munrobossintrocam1" );
-	cam.load ( "m11l3b_munrobossintrocam2" );
+	cam.load ( "m11l3b_cmdrShot1" );
+	cam.load ( "m11l3b_cmdrShot2" );
+	cam.load ( "m11l3b_cmdrShot3" );
 
 	cam.load( "m11l3b_stage4death" );
 	cam.load( "m11l3b_stage4death_2" );
 	cam.load( "m11l3b_stage4death_3" );
 	cam.load( "m11l3b_stage4death_4" );
 	
-	//hzm coop mod chrissstrahl - server needs more pause cycles in multi
-	wait(0.05);
+	//[b60021] chrissstrahl - moved here
+	//cam.load ( "m11l3b_bossintrocam1" ); //disabled, was not in use
+	cam.load ( "m11l3b_munrobossintrocam1" );
+	cam.load ( "m11l3b_munrobossintrocam2" );
+	cam.load ( "m11l3b_archDeathShot1" );
+	cam.load ( "m11l3b_archDeathShot2" );
+	cam.load ( "m11l3b_archDeathShot3" );
 
+	spawn ( "Camera" , "targetname" , "transitionCam" );
+	spawn ( "Camera" , "targetname" , "munroCam" );
 	spawn ( "Camera" , "targetname" , "commanderZoomCam" );
 	spawn ( "Camera" , "targetname" , "cmdrDeath1" );
 	spawn ( "Camera" , "targetname" , "cmdrDeath2" );
@@ -189,14 +184,15 @@ void main()
 	$munro.notsolid ();
 	$munro.notarget ();
 
-	$t6.nottriggerable ();
-	$t8.nottriggerable ();
+	/* //[b60021] Chrissstrahl - disabled NULL Entity
+	$t6.nottriggerable ();$t8.nottriggerable (); */
 
 	//--- loadout the player
 	waitForPlayer();
 
 	thread earthquakes ();
 
+	/* //[b60021] Chrissstrahl - disabled NULL Entity
 	$commanderPanel1.time ( 10 );
 	$commanderPanel1.rotateY ( 4 );
 
@@ -204,7 +200,7 @@ void main()
 	$commanderPanel2.rotateY ( 3 );
 
 	$commanderPanel2.time ( 10 );
-	$commanderPanel2.rotateY ( 5 );
+	$commanderPanel2.rotateY ( 5 );	*/
 
 	$renegade_romulan.anim ( "suldok_sit" );
 	$renegade_romulan.removeactorweapon ( "RomulanDisruptor" );
@@ -369,9 +365,13 @@ void finalBoss_arriveRandomNode()
 	{
 		nodenum = 1 + randomint( TOTAL_NODES );
 		shooternode = getentity( "bossnode" + nodenum );
-		if ( shooternode.getstringvar ( "bridgeExploded" ) != "true" )
+		string s;
+		s = globalCoop_level_getStringVar(shooternode,"bridgeExploded");
+		//$player0.hudprint("finalBoss_arriveRandomNode: "+s+"\n");
+		if ( s != "true" ){ //[b60021] chrissstrahl - changed to prevent spam
 			shooternode = lastNodeChosen;	//try again if there's a bridge over the node
-		wait ( .05 );
+		}
+		globalCoop_main_waitAFrame();
 	}
 
 	$lavashooter.warp( shooternode.getorigin() );
@@ -513,7 +513,10 @@ void finalBoss_gotoRandomNode()
 	bridgeName = thenode.getstringvar ( "uservar1" );	//holds the basename of the bridge that this is under
 
 	//give the player some warning before the bridge explodes
-	if ( bridgeName!="" && thenode.getstringvar ( "bridgeExploded" ) != "true")
+	string s2;
+	s2 = globalCoop_level_getStringVar(thenode,"bridgeExploded");
+	//$player0.hudprint("finalBoss_gotoRandomNode: "+s2+"\n"); //debug
+	if ( bridgeName!="" && s2 != "true") //[b60021] chrissstrahl - changed to prevent spam 
 	{
 		explodeBridge ( bridgeName );
 		thenode.setstringvar ( "bridgeExploded" , "true" );	//mark it as exploded
@@ -561,7 +564,7 @@ void explodeBridge ( string bridge )
 	triggerEntity ( lavaBurst4 );
 
 	wait ( 1 );
-	$finalBoss.notsolid ();
+	$finalboss.notsolid ();
 	safetyTrigger.triggerable ();	//throw the player free
 	triggerEntity ( quake );
 	triggerEntity ( bridgeEnt );		//func_explodeobject
@@ -573,7 +576,7 @@ void explodeBridge ( string bridge )
 	lavaBurst4.remove ();
 
 	wait ( .3 );
-	$finalBoss.solid ();
+	$finalboss.solid ();
 	safetyTrigger.remove ();
 
 
@@ -597,7 +600,11 @@ void introCinematic ()		//called from trigger_once
 	//hzm coop mod chrissstrahl - get player that activated this sequence, for later reference
 	entity eTrigger;
 	eTrigger			= getCurrentEntity();
-	entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	if(doesEntityExist(eTrigger)){
+		entityPlayerGlobal	= eTrigger.getLastActivatingEntity();
+	}else{
+		entityPlayerGlobal = $NULL;
+	}
 
 	cam_fadeout( .5, 0, 0, 0, 1, 0 );
 	threadname ( "introCinematic" );
@@ -607,39 +614,41 @@ void introCinematic ()		//called from trigger_once
 
 	freezeplayer ();
 	
+	//[b60021] chrissstrahl - reuse Munro
 	//fakeplayer ();//hzm coop mod chrissstrahl - will not work
 	//hzm coop mod chrissstrahl - spawn a actor, because fakeplayer does not work right
-	spawn ( "Actor" , "model" , "models/char/hazardteam_munro.tik" , "ai_off" , "1" , "targetname" , "$MunroAlternative" );
-	wait ( .1 );
-	$MunroAlternative.notsolid();
-	$MunroAlternative.notarget();
-	$MunroAlternative.killattach();
+	//spawn ( "Actor" , "model" , "models/char/hazardteam_munro.tik" , "ai_off" , "1" , "targetname" , "Munro" );
+	//wait ( .1 );
+	$munro.show();
+	$munro.notsolid();
+	$munro.notarget();
+	$munro.killattach();
 	
 	
 	letterbox ( .1 );
 	skipthread ( "endIntroCinematic" );
 
-	$MunroAlternative.warpto ( "$fakeplayerEntranceNode" );
+	$munro.warpto ( "$fakeplayerEntranceNodeStart" );
 	
 	wait ( .1 );
 	vector v;
-	v = $MunroAlternative.getorigin ();
+	v = $munro.getorigin ();
 	v_y = v_y - 16;
 	v_z = v_z + 8;
-	$MunroAlternative.origin ( v );
+	$munro.origin ( v );
 
 	$munroEntranceCam.follow ( $m11l3b_munroentrancecam );
-	$munroEntranceCam.watch ( "$MunroAlternative" );
+	$munroEntranceCam.watch ( "$munro" );
 	$munroEntranceCam.fov ( 50 );
 	$munroEntranceCam.cut ();
 
 	cuecamera ( $munroEntranceCam );
 	cam_fadein( .5, 0, 0, 0, 1, 0 );
 
-	$MunroAlternative.playdialog("localization/sound/dialog/m11l3/munro_itsover.mp3", 1, 10000, 0); //End of the line for the Empty Crown. It's over!
-	$MunroAlternative.walkto ( "$fakeplayerEntranceNode" , "make_it_work_walk" );
+	$munro.playdialog("localization/sound/dialog/m11l3/munro_itsover.mp3", 1, 10000, 0); //End of the line for the Empty Crown. It's over!
+	$munro.walkto ( "$fakeplayerEntranceNode" , "walk" ); //[b60021] chrissstrahl - we are no longer using fakeplayer - use right anim for Actor
 
-	waitForDialog( $MunroAlternative );
+	waitForDialog( $munro );
 
 	$commanderZoomCam.follow ( $m11l3b_commanderzoomcam );
 
@@ -649,7 +658,7 @@ void introCinematic ()		//called from trigger_once
 
 	wait ( .5 );
 
-	$MunroAlternative.warpto ( "$fakeplayerEntranceNode" );
+	$munro.warpto ( "$fakeplayerEntranceNode" );
 
 	$renegade_romulan.anim  ( "suldok_point" );
 	$renegade_romulan.playdialog("localization/sound/dialog/m11l3/renrom_ohno.mp3", 1, 10000, 0); //Oh no. It's just beginning.
@@ -666,18 +675,20 @@ void endIntroCinematic ()
 {
 	noncinematic ();
 	killthread ( "introCinematic" );
-	$MunroAlternative.stopdialog ();
+	$munro.stopdialog ();
 	$renegade_romulan.stopdialog ();
 
-	$MunroAlternative.warpto ( "$fakeplayerEntranceNode" );
+	$munro.warpto ( "$fakeplayerEntranceNode" );
 	wait ( .05 );
 
 	//removefakeplayer ();//hzm bla bla bla
-	$MunroAlternative.hide();//hzm blub blub blub
+	$munro.hide();//hzm blub blub blub
 	
 	//[b60021]chrissstrahl - fixed - grab player that was triggering this sequence, and move him, like in singleplayer
-	if( doesEntityExist(entityPlayerGlobal) && entityPlayerGlobal.getHealth() > 0){
-		entityPlayerGlobal.warp('-224 4672 -1040');
+	if( doesEntityExist(entityPlayerGlobal)){
+		if(entityPlayerGlobal.getHealth() > 0){
+			entityPlayerGlobal.warp('-224 4672 -1040');
+		}
 	}
 	
 	releaseplayer ();
@@ -721,25 +732,24 @@ void commanderDestroyedCinematic ()
 	wait ( 1 );
 	threadname ( "commanderDestroyedCinematic" );
 	cinematic ();
-    	forcemusic ("aux5","action");
-	spawn ( "Camera" , "targetname" , "transitionCam" );
-	spawn ( "Camera" , "targetname" , "munroCam" );
+    forcemusic ("aux5","action");
+	
 	wait ( .05 );
 
 	skipthread ( "commanderDestroyedCinematicEnd" );
 	freezeplayer ();
 	//fakeplayer ();//hzm coop mod chrissstrahl - not working
 	//hzm coop mod chrissstrahl - show actor
-	$MunroAlternative.show();
+	$munro.show();
 	
 	letterbox ( .1 );
 	wait ( .05 );
 
-	$MunroAlternative.origin ( '-252.71 4646.12 -1055.96' );
-	$MunroAlternative.angles ( '0 270 0' );
-	$MunroAlternative.model ( "models/char/hazardteam_munro.tik" );
+	$munro.origin ( '-252.71 4646.12 -1055.96' );
+	$munro.angles ( '0 270 0' );
+	//$munro.model ( "models/char/hazardteam_munro.tik" ); //[b60021] chrissstrahl - no need since we don't use fakeplayer()
 	wait ( .05 );
-	$MunroAlternative.removeattachedmodel ( "tag_rhand" );
+	$munro.removeattachedmodel ( "tag_rhand" );
 
 	$cmdrDeath1.follow ( $m11l3b_cmdrShot1 );
 	$cmdrDeath1.cut ();
@@ -752,39 +762,44 @@ void commanderDestroyedCinematic ()
 	waitForDialog( $renegade_romulan );
 
 	wait ( 1 );
-
+	
 	$munroCam.follow ( $m11l3b_munrobossintrocam1 );
 	$munroCam.cut ();
 	cuecamera ( $munroCam);
-	$MunroAlternative.playdialog("localization/sound/dialog/m11l3/munro_stuck.mp3", 1, 80000, 0); //The Master Control Facility is stuck in first gear. You need thousands of Exomorphs, and you only have a handful.
+	
+	$munro.playdialog("localization/sound/dialog/m11l3/munro_stuck.mp3", 1, 80000, 0); //The Master Control Facility is stuck in first gear. You need thousands of Exomorphs, and you only have a handful.
 	wait ( 2 );
-
-	//thread animActor ( $MunroAlternative , "conv-handsweep" , "idle" );
-	wait ( 2 );
+	
+	wait(1); //also debug
 
 	$cmdrDeath1.follow ( $m11l3b_cmdrShot1 );
 	$cmdrDeath1.cut ();
 	wait ( 2 );
-	thread animActor ( $MunroAlternative , "conv-handsweep" , "idle" );
+	
+	wait(1); //also debug
+	
+	thread animActor ( $munro , "conv-handsweep" , "idle" );
 
-	waitfordialog ( $MunroAlternative );
-
+	waitfordialog ( $munro );
+	
 	cuecamera ( $cmdrDeath1 );
 
 	$renegade_romulan.playdialog("localization/sound/dialog/m11l3/renrom_one.mp3", 1, 80000, 0); //I only need one.
 	$renegade_romulan.animateonce  ( "suldok_one" );
+	
 	wait ( 2 );
 
 	$cmdrDeath2.follow ( $m11l3b_cmdrShot2 );
 	$cmdrDeath2.cut ();
 	cuecamera ( $cmdrDeath2 );
-
+	
 	wait ( 1.5 );
 
 	$cmdrDeath3.follow ( $m11l3b_cmdrShot3 );
 	$cmdrDeath3.cut ();
-	cuecamera ( $cmdrDeath3 );
 
+	cuecamera ( $cmdrDeath3 );
+	
 	wait ( 4 );
 
 	//waitforanimation ( $renegade_romulan , "suldok_one" );
@@ -837,9 +852,9 @@ void commanderDestroyedCinematic ()
 
 	wait ( 1.5 );
 	$finalboss.hide ();
-	$MunroAlternative.model ( "char/hazardteam_munro.tik" );
+	//$munro.model ( "char/hazardteam_munro.tik" );  //[b60021] chrissstrahl - no need since we don't use fakeplayer()
 	wait ( .1 );
-	$MunroAlternative.morph( "exp_Skeptical" );
+	$munro.morph( "exp_Skeptical" );
 	wait ( .5 );
 
 
@@ -848,8 +863,8 @@ void commanderDestroyedCinematic ()
 	cuecamera ( $archShot6 );
 
 	wait ( 1 );
-	//$MunroAlternative.morph( "exp_brows_down" );
-	$MunroAlternative.morph( "exp_Disgust" );
+	//$munro.morph( "exp_brows_down" );
+	$munro.morph( "exp_Disgust" );
 
 	wait ( 3.0 );
 
@@ -864,11 +879,11 @@ void commanderDestroyedCinematicEnd ()
 	killthread ( "commanderDestroyedCinematic" );
 	$renegade_romulan.stopdialog ();
 	$transitionCam.remove ();
-	$MunroAlternative.stopdialog ();
+	$munro.stopdialog ();
 
 	//removefakeplayer (); //hzm coop mod chrissstrahl - n
 	//hzm coop mod chrissstrahl - show actor
-	$MunroAlternative.hide();
+	$munro.hide();
 	
 	releaseplayer ();
 	clearletterbox ( .1 );
@@ -912,7 +927,12 @@ entity chooseSpawnerBetweenRangeFromPlayer ( float near, float far)
 	{
 		spawner = getentity ( "spawner" + i );				//grab our spawner
 		globalCommon_AssertEntity ( spawner , "^6chooseSpawnerClosestToPlayer(): $spawner" + i + " is null" );
-		if ( spawner.getfloatvar ( "notChoosable" ) == 0 )		//don't bother checking if its not choosable
+		
+		//[b60021] chrissstrahl - changed to prevent spam 
+		float f;
+		f = globalCoop_level_getFloatVar(spawner,"notChoosable");
+		//$player0.hudprint("chooseSpawnerBetweenRangeFromPlayer: "+f+"\n"); //debug
+		if ( f == 0 )		//don't bother checking if its not choosable
 		{
 			spawnerDistance = globalMath_GetXYDistance ( spawner.getorigin (), playerOrigin );
 			if ( (spawnerDistance <= far) && (spawnerDistance >= near ))
@@ -945,7 +965,11 @@ entity chooseSpawnerClosestToPlayer ()
 	{
 		spawner = getentity ( "spawner" + i );				//grab our spawner
 		globalCommon_AssertEntity ( spawner , "^6chooseSpawnerClosestToPlayer(): $spawner" + i + " is null" );
-		if ( spawner.getfloatvar ( "notChoosable" ) == 0 )		//don't bother checking if its not choosable
+		//[b60021] chrissstrahl - changed to prevent spam
+		float f2;
+		f2 = globalCoop_level_getFloatVar(spawner,"notChoosable" );
+		//$player0.hudprint("chooseSpawnerClosestToPlayer: "+f2+"\n"); //debug
+		if ( f2 == 0 )		//don't bother checking if its not choosable
 		{
 			spawnerDistance = globalMath_GetXYDistance ( spawner.getorigin (), playerOrigin );
 			if ( spawnerDistance < lowestDistance )
@@ -1407,13 +1431,12 @@ void finalBoss_killthread()
 	cam_fadeout( 0.5, 0, 0, 0, 1 );
 
 	wait( 0.7 );
-
+	
 	$finalboss.remove();
 	freezeplayer ();
 	//fakeplayer ();//hzm coop mod chrissstrahl - not working
 	//hzm coop mod chrissstrahl - alternative/hack
-	$MunroAlternative.show();
-	
+	$munro.show();
 	
 	//$player.warpto ( "fakeplayerEntranceNode" );//hzm coop mod chrissstrahl - doesn't matter
 	
@@ -1422,16 +1445,16 @@ void finalBoss_killthread()
     forcemusic ("aux4");
 
 	letterbox( 0.05 );
-	$MunroAlternative.model ( "models/char/hazardteam_munro.tik" );
+	//$munro.model ( "models/char/hazardteam_munro.tik" ); //[b60021] chrissstrahl - no need since we don't use fakeplayer()
 
 	snake = spawn( "char/alien-type6-snake.tik", "origin", "-160.38 4246.42 -1140.88", "angles", "0.00 104.79 0.00" , "scale" , "1.7" );
-	$MunroAlternative.origin ( '-252.71 4646.12 -1055.96' );
+	$munro.origin ( '-252.71 4646.12 -1055.96' );
 	wait ( 0.05 );
-	$MunroAlternative.turntoangle ( 300 );
+	$munro.turntoangle ( 300 );
 	wait( 0.05 );
 	
 	//hzm coop mod chrissstrahl - kill attach, this is much cleaner and less crashier way
-	$MunroAlternative.killattach ();
+	//$munro.killattach (); //[b60021] chrissstrahl - we don't use fakeplayer
 
 	snake.ai_off();
 
@@ -1470,7 +1493,7 @@ void finalBoss_killthread()
 
 	wait ( 1 );
 
-	$MunroAlternative.playsound ( "sound/chars/finalboss/final_lavasplash.wav" , 1, 1, 10000 );
+	$munro.playsound ( "sound/chars/finalboss/final_lavasplash.wav" , 1, 1, 10000 );
 	snake.playsound ( "sound/chars/finalboss/final_pre3.wav" , 2, 1, 10000 );
 
 	$finalLavaburst5.origin ( snake.getorigin () );
@@ -1488,32 +1511,32 @@ void finalBoss_killthread()
 	cam2.cut();
 	cuecamera( cam2 );
 
-	$MunroAlternative.stopdialog();
-	$MunroAlternative.playdialog("localization/sound/dialog/m11l3/munro_sodamn.mp3", 1 , 10000 , 0); //Not so damn perfect now.
+	$munro.stopdialog();
+	$munro.playdialog("localization/sound/dialog/m11l3/munro_sodamn.mp3", 1 , 10000 , 0); //Not so damn perfect now.
 
 	triggerentity ( $finalRockBurst1 );
 
-	waitForDialog( $MunroAlternative );
+	waitForDialog( $munro );
 
-	$MunroAlternative.headwatch ( $finalRockBurst2 );
+	$munro.headwatch ( $finalRockBurst2 );
 
-	$MunroAlternative.anim ( "tap_comm" );
-	waitforanimation ( $MunroAlternative , "tap_comm" );
-	$MunroAlternative.anim ( "idle" );
+	$munro.anim ( "tap_comm" );
+	waitforanimation ( $munro , "tap_comm" );
+	$munro.anim ( "idle" );
 
 	triggerentity ( $finalLavaburst1 );
 
-	$MunroAlternative.headwatch ( cam2 );
+	$munro.headwatch ( cam2 );
 //	wait ( 1.5 );
 
 	triggerentity ( $finalRockBurst2 );
 
-//	$MunroAlternative.turntoangle ( 120 );
+//	$munro.turntoangle ( 120 );
 
 	triggerentity ( $finalLavaburst3 );
 	triggerentity ( $finalLavaburst5 );
 //	wait ( 1.5 );
-//	$MunroAlternative.turntoangle ( 300 );
+//	$munro.turntoangle ( 300 );
 //	$world.time_scale ( 1.0 );
 
 
@@ -1528,18 +1551,18 @@ void finalBoss_killthread()
 	$finalRock.time ( 2.3 );
 	$finalRock.movedown ( 1900 );
 
-	$MunroAlternative.displayeffect ( "TransportOut" , "Federation" );
-	$MunroAlternative.fadeout ( 2.0 );
+	$munro.displayeffect ( "TransportOut" , "Federation" );
+	$munro.fadeout ( 2.0 );
 
 	wait ( .5 );
-	$MunroAlternative.headwatch ( $finalRock );
+	$munro.headwatch ( $finalRock );
 	wait ( .5 );
 
 	//$world.time_scale ( .5 );
 
 	wait ( .25 );
 	triggerentity ( $finalRockDebris );
-	$MunroAlternative.playsound ( "sound/environment/rock/bigrock.wav" , 1, 1, 1000 );
+	$munro.playsound ( "sound/environment/rock/bigrock.wav" , 1, 1, 1000 );
 
 	wait ( .75 );
 
@@ -1838,11 +1861,13 @@ void suldok ()
 	$renegade_romulan.anim ( "suldok_pain" );
 	wait ( 1 );
 
-	$MunroAlternative.playdialog("localization/sound/dialog/m11l3/munro_stuck.mp3", 1, 80000, 0); //The Master Control Facility is stuck in first gear. You need thousands of Exomorphs, and you only have a handful.
-	waitfordialog ( $MunroAlternative );
-
+	$munro.playdialog("localization/sound/dialog/m11l3/munro_stuck.mp3", 1, 80000, 0); //The Master Control Facility is stuck in first gear. You need thousands of Exomorphs, and you only have a handful.
+	waitfordialog ( $munro );
 
 	$renegade_romulan.playdialog("localization/sound/dialog/m11l3/renrom_one.mp3", 1, 80000, 0); //I only need one.
+
+	wait(1); //also debug
+	
 	$renegade_romulan.animateonce  ( "suldok_one" );
 	//waitforanimation ( $renegade_romulan , "suldok_one" );
 	//$renegade_romulan.animateonce ( "suldok_death" );
