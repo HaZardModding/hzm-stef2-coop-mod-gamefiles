@@ -151,7 +151,7 @@ Button
 	font serpentinemedium-10
 	fgcolor 		0.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.80 0.25 0.35 1.0
 	
 	verticaljustify top
 	
@@ -173,7 +173,7 @@ Button
 	font serpentinemedium-10
 	fgcolor 		0.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
-	hoverbgcolor 	0.22 0.25 0.35 1.0
+	hoverbgcolor 	0.80 0.25 0.35 1.0
 	
 	verticaljustify top
 	
