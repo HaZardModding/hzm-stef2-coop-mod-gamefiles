@@ -84,47 +84,6 @@ Button
 resource
 Button
 {
-	title "!follow"
-	rect 200 30 128 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/holo_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars013.tga
-	hovershader textures/xxx/coopLcars017.tga
-	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows you as green dot on Radar\""
-	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
-
-	cvarvisibility "coop_comL" "10"
-	stuffcommand "!follow"
-}
-resource
-Button
-{
-	title "!stuck"
-	rect 200 50 128 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/holo_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
-	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Moves you to Spawn location\""
-	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
-
-	cvarvisibility "coop_comL" "10"
-	stuffcommand "!stuck"
-}
-
-resource
-Button
-{
 	title "!origin"
 	rect 12 50 128 18
 	borderstyle "NONE"
@@ -167,6 +126,68 @@ Button
 resource
 Button
 {
+	title "!block"
+	rect 12 90 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars019.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Use to aim on a Player that is blocking the way\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!block"
+}
+
+resource
+Button
+{
+	title "!follow"
+	rect 200 30 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars013.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows you as green dot on Radar\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!follow"
+}
+resource
+Button
+{
+	title "!stuck"
+	rect 200 50 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars019.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Moves you to Spawn location\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "!stuck"
+}
+
+resource
+Button
+{
 	title "!drop"
 	rect 200 70 128 18
 	borderstyle "NONE"
@@ -189,7 +210,7 @@ resource
 Button
 {
 	title "!kickbots"
-	rect 200 97 128 18
+	rect 200 94 128 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -209,29 +230,8 @@ Button
 resource
 Button
 {
-	title "!block"
-	rect 12 90 128 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/holo_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
-	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Use to aim on a Player that is blocking the way\""
-	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
-
-	cvarvisibility "coop_comL" "10"
-	stuffcommand "!block"
-}
-
-resource
-Button
-{
 	title "!kill"
-	rect 200 124 128 18
+	rect 200 118 128 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -252,7 +252,7 @@ resource
 Button
 {
 	title "reconnect"
-	rect 200 150 128 18
+	rect 200 143 128 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -267,6 +267,27 @@ Button
 
 	cvarvisibility "coop_comL" "10"
 	stuffcommand "reconnect"
+}
+
+resource
+Button
+{
+	title "reboot Server"
+	rect 200 170 128 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/holo_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	shader textures/xxx/coopLcars023.tga
+	hovershader textures/xxx/coopLcars017.tga
+	
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Requests Server Reboot\""
+	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
+
+	cvarvisibility "coop_comL" "10"
+	stuffcommand "callvote coop_quit"
 }
 
 resource
@@ -474,7 +495,7 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "11"
-	stuffcommand "!levelend"
+	stuffcommand "!levelend;popmenu coop_com"
 }
 
 
@@ -496,7 +517,7 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "11"
-	stuffcommand "!reboot"
+	stuffcommand "!reboot;popmenu coop_com"
 }
 
 resource
