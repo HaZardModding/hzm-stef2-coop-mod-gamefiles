@@ -119,11 +119,13 @@ echo -9---------------------------hcm_readme.pdf---
 echo Check changelog if the Readme file needs update.
 echo Verify readme to be latest version.
 echo ----------------------------------------------
-cd _GAMEFILES
-start hcm_readme.pdf
+cd ../
+start Documents/hcm_readme.docx
+echo CHECK 
 pause
 
 cls
+cd _GAMEFILES
 echo -1--------------coop_mod\ui\setup_mainmenu.inc
 echo -2--------coop_mod\cfg\ setup.cfg + detect.cfg
 echo -3------------------c++ Gamecode Build Version
