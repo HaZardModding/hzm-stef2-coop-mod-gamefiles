@@ -1,0 +1,660 @@
+/* Meant to be used with unmodified gamex86.dll
+
+Provides various script functions that are actually used by the coop mod
+but instead of using the coop mod this is made to work in singleplayer.
+
+This exists because some scripts from the Aftermath Episodes Mod where
+updated for coop but then needed to be updated for the singleplayer as
+well as new issues where discovered.
+
+Instead or trying to revert and figure out how to fix each issue with the
+regular script commands this was created from the coop scripts, so that
+the altered level script for the map made for the coop mod could be keept.
+*/
+
+
+void	globalCoop_actor_walkToVector(entity eActor,vector vOrigin,string sAnimName);
+void	globalCoop_actor_walkTo(entity eActor,string sEntityRawTargetname,string sAnimName);
+void	globalCoop_actor_aiOff(entity eActor);
+
+void	globalCoop_armory_takeGently(entity ePlayer, string toTake);
+void	globalCoop_armory_weaponUnregister(string sWeaponTiki);
+void	globalCoop_armory_weaponRegister(string sWeaponTiki);
+string	globalCoop_armory_returnTikiFromWeaponname(string sWeaponName);
+string	globalCoop_armory_weaponGiveAndReturnAsString(entity ePlayer,string sWeaponTiki);
+
+void	globalCoop_main_waitAFrame();
+
+void	globalCoop_level_warpEntityToVectorSafty(entity eWarpMe,vector vOrigin);
+void	globalCoop_level_gatheringArea(string sTargetname,string sThread,float fPercentage,vector vSize,vector vOrigin);
+
+float	globalCoop_check_isEntityInsideOfEntity(entity e1,entity e2,float fPadding);
+float	globalCoop_check_existingLivingEntity(entity e);
+float	globalCoop_check_playerInRange(entity eOrigin,float fRange);
+float	globalCoop_check_playerSpectator(entity ePlayer);
+float	globalCoop_check_playerCrouching(entity ePlayer);
+float	globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding);
+float	globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding);
+float	globalCoop_check_isBoundingBox2InsideOfBoundingBox1(	vector vOrigin1,//ORIGIN BBOX1
+															vector vBBoxMins1,//e.getMins()
+															vector vBBoxMaxs1,//e.getMaxs()
+															vector vOrigin2,//ORIGIN BBOX2
+															vector vBBoxMins2,//e.getMins()
+															vector vBBoxMaxs2,//e.getMaxs()
+															float fPadding); //ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+
+void	globalCoop_player_takeAll(string toTake);
+void	globalCoop_player_giveAll(string toGive,float useItNow);
+void	globalCoop_player_makeSolidASAP(entity ePlayer);
+void	globalCoop_player_useAfter(entity ePlayer, string UseThis, float waitTime);
+
+entity	globalCoop_return_playerClosestActive(entity eOrigin);
+float	globalCoop_return_floatNotNegative(float fNotNegative);
+
+void	globalCoop_objectives_update(string s,float f1,float f2);
+
+float	coop_integer_maxPlayers,cvar_bool_multiplayer;
+float	coop_float_oneFrameTime = 0.05;
+float	coop_integer_actorWalktoVectorIndex;
+
+
+string	coop_string_weapon1,
+		coop_string_weapon2,
+		coop_string_weapon3,
+		coop_string_weapon4,
+		coop_string_weapon5,
+		coop_string_weapon6,
+		coop_string_weapon7,
+		coop_string_weapon8,
+		coop_string_weapon9,
+		coop_string_weapon10,
+		coop_string_weapon11,
+		coop_string_weapon12,
+		coop_string_weapon13,
+		coop_string_weapon14,
+		coop_string_weapon15;
+		
+		
+//-------------------------------------------------------------
+// This file is meant to replace coop funstions so this level can be quickly used without coop without messing any of teh fixes up
+//-------------------------------------------------------------
+void globalCoop_main()
+{
+	cvar_bool_multiplayer = getCvarInt("g_gametype");
+	coop_integer_maxPlayers = 1;
+}
+void	globalCoop_main_waitAFrame()
+{
+	wait(coop_float_oneFrameTime);
+}
+entity	globalCoop_return_playerClosestActive(entity eOrigin)
+{
+	return $player;
+}
+float globalCoop_check_playerSpectator(entity ePlayer)
+{
+	return 0;
+}
+float	globalCoop_check_playerInRange(entity eOrigin,float fRange)
+{
+	if($player.isWithinDistanceOf(eOrigin,fRange)){
+		return 1;
+	}
+	return 0;
+}
+float globalCoop_check_playerCrouching(entity ePlayer)
+{
+	if(doesEntityExist(ePlayer)){
+		vector vMaxs;
+		vMaxs = ePlayer.getMaxs();
+		if(vMaxs_z == 49){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void globalCoop_objectives_update(string s,float f1,float f2)
+{
+
+}
+
+void globalCoop_actor_walkToVector(entity eActor, vector vOrigin,string sAnimName)
+{
+	if(doesEntityExist(eActor)){
+		string sNodeName,sTargetname;
+		entity eNode;
+		vector vOldPosition;
+		vOldPosition = eActor.getOrigin();
+		sTargetname = eActor.getRawTargetname();
+		coop_integer_actorWalktoVectorIndex++;
+		vOrigin_z += 2;
+		sNodeName	= "walkToNode"+sTargetname+coop_integer_actorWalktoVectorIndex;
+		eNode		= spawn("info_notnull","targetname",sNodeName,"origin",vectorToString(vOrigin));
+		globalCoop_main_waitAFrame();
+		eNode.dropToFloor();
+		globalCoop_main_waitAFrame();
+		vOrigin = eNode.getOrigin();
+		eNode.setFloatVar("deleteMe",1);
+		globalCoop_actor_walkTo(eActor,sNodeName,sAnimName);
+	}
+}
+
+
+void globalCoop_actor_walkTo(entity eActor,string sEntityRawTargetname,string sAnimName)
+//----------------------------------------------------------------------
+// let the ai walk to a entity
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		vector vOrigin;
+		vector vOldPosition;
+		vOldPosition = eActor.getOrigin();
+		if(sAnimName == ""){
+			sAnimName="walk";
+		}
+		globalCoop_actor_aiOff(eActor);
+		if(sEntityRawTargetname != ""){
+			eActor.walkTo(sEntityRawTargetname,sAnimName);
+			waitfor(eActor);
+		}else{
+			vOrigin = eActor.getVectorVar("globalCoop_walktoVector");
+			if(vOrigin != '0 0 0'){
+				globalCoop_actor_walkToVector(eActor,vOrigin,sAnimName);
+				globalCoop_level_warpEntityToVectorSafty(eActor,vOrigin);
+			}
+		}
+	}
+
+}
+void globalCoop_level_warpEntityToVectorSafty(entity eWarpMe,vector vOrigin)
+//----------------------------------------------------------------------
+// Warp given entity to the given location
+//----------------------------------------------------------------------
+{
+//EXIT: WHEN PASSED ENTITY DOES NOT EXISTS
+	if(doesEntityExist(eWarpMe))
+	{
+	//DON'T PLAY WITH THE WORLD! -> should tell this industry and politicans
+		string sEntityTargetname;
+		sEntityTargetname = eWarpMe.getRawTargetName();
+		if(sEntityTargetname == "world")
+		{
+			return;
+		}
+	//RELOCATE
+		eWarpMe.warp(vOrigin);
+		thread globalCoop_player_makeSolidASAP(eWarpMe);
+	}
+}
+
+void globalCoop_player_makeSolidASAP(entity ePlayer)
+//------------------------------------------------FIXED---------[b60011]
+// MAKE PLAYER SOLID WHEN CLEAR - ORRRRR any other entity, as soon as it is clear of any player
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		//CHECK IF ENTITY IS ALLREADY HANDLED
+		if(!ePlayer.getFloatVar("globalCoop_player_makeSolidASAP")){
+			//print("globalCoop_player_makeSolidASAP - handle "+ePlayer.getTargetname()+"\n");
+			ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",1);
+			
+			float	bInsideEntity;
+			string	sRawTargetName1;
+			string	sRawTargetName2;
+			entity	eOther;
+			float	iNum;
+			while(doesEntityExist(ePlayer)){
+				//reset
+				bInsideEntity = 0;
+				
+				//Grab Targetname
+				sRawTargetName1 = ePlayer.getRawTargetName();		//must be put in a var to be checked
+				
+				//check players
+				if(cvar_bool_multiplayer){
+					for(iNum=0;iNum<=coop_integer_maxPlayers;iNum++){
+						eOther = getentity("*"+iNum);
+						if(doesEntityExist(eOther)){
+							sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
+							
+							if(sRawTargetName2 != sRawTargetName1){
+								if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
+									thread globalCoop_player_makeSolidASAP(eOther);
+									bInsideEntity=1;
+									//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" PLAYER inside "+sRawTargetName2+"\n");
+								}
+							}
+						}
+					}				
+				}
+				
+				//check for npc
+				for(iNum=1;iNum<=23;iNum++){
+					if(iNum==1){eOther=$munro;}
+					else if(iNum==2){eOther=$Munro;}
+					else if(iNum==3){eOther=$chang;}
+					else if(iNum==4){eOther=$Chang;}
+					else if(iNum==5){eOther=$chell;}
+					else if(iNum==6){eOther=$Chell;}
+					else if(iNum==7){eOther=$Jurot;}
+					else if(iNum==8){eOther=$jurot;}
+					else if(iNum==9){eOther=$telsia;}
+					else if(iNum==10){eOther=$Telsia;}
+					else if(iNum==11){eOther=$Korban;}
+					else if(iNum==12){eOther=$korban;}
+					else if(iNum==13){eOther=$kourban;}
+					else if(iNum==14){eOther=$Kourban;}
+					else if(iNum==15){eOther=$Gonzales;}
+					else if(iNum==16){eOther=$gonzales;}
+					else if(iNum==17){eOther=$Krindo;}
+					else if(iNum==18){eOther=$krindo;}
+					else if(iNum==19){eOther=$Franklin;}
+					else if(iNum==20){eOther=$franklin;}
+					else if(iNum==21){eOther=$Picard;}
+					else if(iNum==22){eOther=$picard;}
+					else{eOther=$Engineer;}
+					if(doesEntityExist(eOther) == 1 && eOther.getHealth() > 0){
+						sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
+						if(sRawTargetName2 != sRawTargetName1){
+							if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
+								thread globalCoop_player_makeSolidASAP(eOther);
+								bInsideEntity=1;
+								//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" NPC inside "+sRawTargetName2+"\n");
+							}
+						}
+					}
+				}
+				
+				//inside each other - make primary entity notsolid
+				//not feeling comfortable making other objects that are not a actor or player notsolid/solid
+				if(bInsideEntity){
+					ePlayer.notsolid();
+				}else{
+					if(!globalCoop_check_playerSpectator(ePlayer)){
+						ePlayer.solid();
+						//print("globalCoop_player_makeSolidASAP - handle stop: "+sRawTargetName1+"\n");
+						ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
+						return;//exit insitantly, no delay or a bug can be created in the next frame!
+					}
+				}
+				
+				//WAIT A MOMENT
+				globalCoop_main_waitAFrame();				
+			}
+		}
+	}
+}
+
+void globalCoop_player_takeAll(string toTake)
+{
+//[b60012] chrissstrahl - upgraded to be usable before globalCoop_main() was executed
+	if(getCvarInt("g_gametype") == 0){
+		waitForPlayer();
+		$player.take(toTake);
+		return;
+	}
+//Take the weapon away from the virtual inventory
+	globalCoop_armory_weaponUnregister( toTake );
+//Take away procedure
+	entity ePlayer;
+	float fPlayerIdInUse=0;
+	while(fPlayerIdInUse<coop_integer_maxPlayers)
+	{
+		ePlayer = getentity("*"+ fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(toTake == globalCoop_armory_returnTikiFromWeaponname(ePlayer.getActiveWeaponName())){
+				thread globalCoop_armory_takeGently(ePlayer,toTake);
+			}
+		}
+		fPlayerIdInUse++;
+		//globalCoop_main_waitAFrame();//build 16 disabled
+	}
+}
+
+float globalCoop_check_existingLivingEntity(entity e)
+{
+	if(doesEntityExist(e)){
+		if(e.getHealth() > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void globalCoop_player_giveAll(string toGive, float useItNow)
+{
+//[b60012] chrissstrahl - upgraded to be usable before globalCoop_main() was executed
+	if(getCvarInt("g_gametype") == 0){
+		waitForPlayer();
+		$player.give( toGive );
+		if(useItNow > -1)
+		{
+			thread globalCoop_player_useAfter($player,toGive,useItNow);
+		}
+		return;
+	}
+//Register the weapon
+	globalCoop_armory_weaponRegister(toGive);
+//Give weapons to the players
+	entity ePlayer;
+	float fPlayerIdInUse=0;
+	
+	while(fPlayerIdInUse<coop_integer_maxPlayers)
+	{
+		ePlayer = getentity("*"+ fPlayerIdInUse);
+		if(doesEntityExist(ePlayer)){
+			toGive = globalCoop_armory_weaponGiveAndReturnAsString(ePlayer,toGive);
+			if(useItNow >= 0){
+				//globalCoop_main_waitAFrame();//build 16 disabled
+				thread globalCoop_player_useAfter(ePlayer,toGive,useItNow);
+			}
+		}
+		fPlayerIdInUse++;
+	}
+}
+
+void globalCoop_armory_weaponRegister(string sWeaponTiki)
+{
+//Register to the inventory list
+	if(coop_string_weapon1 == "" || coop_string_weapon1 == sWeaponTiki){coop_string_weapon1 = sWeaponTiki;}
+	else if(coop_string_weapon2 == "" || coop_string_weapon2 == sWeaponTiki){coop_string_weapon2 = sWeaponTiki;}
+	else if(coop_string_weapon3 == "" || coop_string_weapon3 == sWeaponTiki){coop_string_weapon3 = sWeaponTiki;}
+	else if(coop_string_weapon4 == "" || coop_string_weapon4 == sWeaponTiki){coop_string_weapon4 = sWeaponTiki;}
+	else if(coop_string_weapon5 == "" || coop_string_weapon5 == sWeaponTiki){coop_string_weapon5 = sWeaponTiki;}
+	else if(coop_string_weapon6 == "" || coop_string_weapon6 == sWeaponTiki){coop_string_weapon6 = sWeaponTiki;}
+	else if(coop_string_weapon7 == "" || coop_string_weapon7 == sWeaponTiki){coop_string_weapon7 = sWeaponTiki;}
+	else if(coop_string_weapon8 == "" || coop_string_weapon8 == sWeaponTiki){coop_string_weapon8 = sWeaponTiki;}
+	else if(coop_string_weapon9 == "" || coop_string_weapon9 == sWeaponTiki){coop_string_weapon9 = sWeaponTiki;}
+	else if(coop_string_weapon10 == "" || coop_string_weapon10 == sWeaponTiki){coop_string_weapon10 = sWeaponTiki;}
+	else if(coop_string_weapon11 == "" || coop_string_weapon11 == sWeaponTiki){coop_string_weapon11 = sWeaponTiki;}
+	else if(coop_string_weapon12 == "" || coop_string_weapon12 == sWeaponTiki){coop_string_weapon12 = sWeaponTiki;}
+	else if(coop_string_weapon13 == "" || coop_string_weapon13 == sWeaponTiki){coop_string_weapon13 = sWeaponTiki;}
+	else if(coop_string_weapon14 == "" || coop_string_weapon14 == sWeaponTiki){coop_string_weapon14 = sWeaponTiki;}
+	else{coop_string_weapon15 = sWeaponTiki;}
+}
+
+
+void globalCoop_armory_weaponUnregister(string sWeaponTiki)
+{
+//unRegister the given weapon
+	if(coop_string_weapon1 == sWeaponTiki){coop_string_weapon1 = "";}
+	if(coop_string_weapon2 == sWeaponTiki){coop_string_weapon2 = "";}
+	if(coop_string_weapon3 == sWeaponTiki){coop_string_weapon3 = "";}
+	if(coop_string_weapon4 == sWeaponTiki){coop_string_weapon4 = "";}
+	if(coop_string_weapon5 == sWeaponTiki){coop_string_weapon5 = "";}
+	if(coop_string_weapon6 == sWeaponTiki){coop_string_weapon6 = "";}
+	if(coop_string_weapon7 == sWeaponTiki){coop_string_weapon7 = "";}
+	if(coop_string_weapon8 == sWeaponTiki){coop_string_weapon8 = "";}
+	if(coop_string_weapon9 == sWeaponTiki){coop_string_weapon9 = "";}
+	if(coop_string_weapon10 == sWeaponTiki){coop_string_weapon10 = "";}
+	if(coop_string_weapon11 == sWeaponTiki){coop_string_weapon11 = "";}
+	if(coop_string_weapon12 == sWeaponTiki){coop_string_weapon12 = "";}
+	if(coop_string_weapon13 == sWeaponTiki){coop_string_weapon13 = "";}
+	if(coop_string_weapon14 == sWeaponTiki){coop_string_weapon14 = "";}
+	if(coop_string_weapon15 == sWeaponTiki){coop_string_weapon15 = "";}
+}
+
+void globalCoop_level_gatheringArea(string sTargetname,string sThread,float fPercentage,vector vSize,vector vOrigin)
+{
+	if(doesEntityExist(getEntity(sTargetname))){
+		print("ERROR: globalCoop_level_gatheringArea named '"+sTargetname+"' already exist!\n");
+		return;
+	}
+	entity eLevelEndTrigger;
+	eLevelEndTrigger = spawn( "trigger_multiple","targetname",sTargetname,"origin",""+vOrigin );
+	globalCoop_main_waitAFrame();
+	
+	//set the new size
+	vector vSizeMaxs;
+	vector vSizeMins;
+	vSizeMaxs_x = vectorGetX(vSize);
+	vSizeMaxs_y = vectorGetY(vSize);
+	vSizeMaxs_z = vectorGetZ(vSize);
+	
+	vSizeMins_x = (vSizeMaxs_x - (vSizeMaxs_x * 2)); //xSize minus xSize*2 = negative equivalent of vSize/2
+	vSizeMins_y = (vSizeMaxs_y - (vSizeMaxs_y * 2)); //xSize minus xSize*2 = negative equivalent of vSize/2
+	vSizeMins_z = -85;
+	
+	eLevelEndTrigger.thread("sThread");
+	eLevelEndTrigger.setSize(vSizeMins,vSizeMaxs);
+	eLevelEndTrigger.wait(1);
+}
+
+void globalCoop_armory_takeGently(entity ePlayer, string toTake)
+{
+	string sActiveWeapon;
+	sActiveWeapon = ePlayer.getStringVar("globalCoop_weapon");
+	if(sActiveWeapon != ""){
+		ePlayer.setStringVar("globalCoop_weapon","");
+	}
+	ePlayer.safeholster(1);
+	wait(0.05);
+	ePlayer.take(toTake);
+}
+
+void globalCoop_actor_aiOff(entity eActor)
+{
+	if(globalCoop_check_existingLivingEntity(eActor)){
+		string sWeaponName;
+		//return; //HZM fixme restoreme - this is here only because we have bug in the dll, that returns health for entities that should not have any health!
+		sWeaponName = eActor.getActiveWeaponName();
+		if(eActor.doesVarExist("aiState")){
+			eActor.setFloatVar("aiStateWas",eActor.getFloatVar("aiState"));
+		}
+		eActor.ai_off();
+		if(sWeaponName != "None"){
+			eActor.anim(sWeaponName+"_idle");
+		}
+	}
+}
+
+float globalCoop_check_isEntityInsideOfEntity(entity e1,entity e2,float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ENTITY2 OR OTHERWISE
+//------------------------------------------------------------------------------
+{
+//USE PADDING FOR MOVING ENTITYS, DEPENDING ON VELOCITY THEY CAN HAVE MOVED AWAY FROM THE LAST ORIGIN
+	if(doesEntityExist(e1) == 1 && doesEntityExist(e2) == 1){
+//CREATE VARS
+		vector	vOrigin1,
+				vBBoxMins1,
+				vBBoxMaxs1,
+				vOrigin2,
+				vBBoxMins2,
+				vBBoxMaxs2;
+//GRAB DATA FROM BBOX, SAVES US TWO "else" statments
+		vBBoxMins1 = e1.getMins();
+		vBBoxMaxs1 = e1.getMaxs();
+		vBBoxMins2 = e2.getMins();
+		vBBoxMaxs2 = e2.getMaxs();
+//IS ENTITY (1) A PLAYER ENTITY - [b60011] upgrade
+		if(e1.getRawTargetname() == "player"){
+			vBBoxMins1 = '-22 -22 0';
+			vBBoxMaxs1 = '22 22 96';
+		}		
+//IS ENTITY (2) A PLAYER ENTITY - [b60011] upgrade
+		if(e2.getRawTargetname() == "player"){
+			vBBoxMins2 = '-22 -22 0';
+			vBBoxMaxs2 = '22 22 96';
+		}
+//GET ORIGINS
+		vOrigin1 = e1.getOrigin();
+		vOrigin2 = e2.getOrigin();
+//DO THE BBOX CHECK, CHECK BOTHCONSTELLATIONS TO AVOID MISSCALCULATION, UPDATE globalCoop_check_isBoundingBox2InsideOfBoundingBox1 TO SOLVE ERROR
+		float fInside = 0;
+		if(	globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin1,vBBoxMins1,vBBoxMaxs1,vOrigin2,vBBoxMins2,vBBoxMaxs2,fPadding) == 1 &&
+			globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin2,vBBoxMins2,vBBoxMaxs2,vOrigin1,vBBoxMins1,vBBoxMaxs1,fPadding) == 1)
+		{
+			fInside = 1;
+		}
+		return fInside;
+	}
+//Return False Player by default
+	return 0;
+}
+
+float globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding)
+//------------------------------------------------------------------------------
+//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ANY PLAYER
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(e1)){
+		string sRawTargetname;
+		float fPlayerIdInUse,fInside;
+		entity ePlayer;
+		sRawTargetname = e1.getRawTargetname();
+		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+			ePlayer = getentity("player"+fPlayerIdInUse);
+		//DON'T BE SILLY DON'T CHECK THE PLAYER BEEING STUCK INSIDE HIM SELF!
+			if(sRawTargetname != "player"+fPlayerIdInUse){
+		//DONT CHECK DEATH PPL
+				if(globalCoop_check_existingLivingEntity(ePlayer)){
+		//CHECK IF ANY ELSE DUDE IS STUCK IN THE ENTITY
+					if(globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity(ePlayer,e1,fPadding) == 1){
+						fInside++;
+					}
+				}
+			}
+		}
+//SINGLEPLAYER
+		if(!cvar_bool_multiplayer){
+			if(globalCoop_check_isEntityInsideOfEntity(e1,$player,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity($player,e1,fPadding) == 1){
+				fInside++;
+			}
+		}
+		if(fInside > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+float globalCoop_check_isBoundingBox2InsideOfBoundingBox1(	vector vOrigin1,//ORIGIN BBOX1
+															vector vBBoxMins1,//e.getMins()
+															vector vBBoxMaxs1,//e.getMaxs()
+															vector vOrigin2,//ORIGIN BBOX2
+															vector vBBoxMins2,//e.getMins()
+															vector vBBoxMaxs2,//e.getMaxs()
+															float fPadding)//ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+//------------------------------------------------------------------------------
+//CHECK IF THE GIVEN BOUNDINGBOXES ARE TOUCHING OR INSIDE OF EACH OTHER BOUNDINGBOX
+//------------------------------------------------------------------------------
+{
+//VECTOR LENGTH
+	float fCalcDist;
+//TEMP-VECTORS FOR CALCULATIONS
+ 	vector vCalc1,vCalc2;
+//IF ORIGIN IS NOT EXACTLY THE SAME
+	if(vOrigin1 != vOrigin2){
+//X-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_x = vOrigin1_x;//GET ONLY X
+		vCalc2_x = vOrigin2_x;//GET ONLY X
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_x >= vCalc2_x){
+			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_x) + vBBoxMaxs2_x)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_x + globalCoop_return_floatNotNegative(vBBoxMins2_x))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Y-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_y = vOrigin1_y;//GET ONLY Y
+		vCalc2_y = vOrigin2_y;//GET ONLY Y
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_y >= vCalc2_y){
+			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_y) + vBBoxMaxs2_y)){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (vBBoxMaxs1_y + globalCoop_return_floatNotNegative(vBBoxMins2_y))){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+//Z-CHECK
+		vCalc2 = (vCalc1 = '0 0 0');
+		vCalc1_z = vOrigin1_z;//GET ONLY Z
+		vCalc2_z = vOrigin2_z;//GET ONLY Z
+		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
+		
+		if(vCalc1_z <= vCalc2_z){
+			if(	fCalcDist > (vBBoxMaxs1_z + globalCoop_return_floatNotNegative(vBBoxMins2_z))){
+				return 0;//IS OUTSIDE ABORT OTHER CALCS
+			}
+		}
+		else if(fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_z) + vBBoxMaxs2_z)){
+			return 0;//IS OUTSIDE ABORT OTHER CALCS
+		}
+	}
+//IS STUCK
+	return 1;
+}
+
+float globalCoop_return_floatNotNegative(float fNotNegative)
+//----------------------------------------------------------------------
+// If negative value, convert to positive
+//----------------------------------------------------------------------
+{
+	if(fNotNegative < 0){
+		fNotNegative = (fNotNegative - (fNotNegative*2));
+	}
+	return fNotNegative;
+}
+
+string globalCoop_armory_returnTikiFromWeaponname(string sWeaponName)
+//----------------------------------------------------------------------
+// return the tiki for the waponname
+//----------------------------------------------------------------------
+{
+	string sTikiName;
+	sTikiName = "models/weapons/worldmodel-"+sWeaponName+".tik";
+	if(sWeaponName == "Spawn" || sWeaponName == "Menu")
+		{sTikiName = "models/weapons/"+sWeaponName+".tik";}
+	if(sWeaponName == "FederationSniperRifle")
+		{sTikiName = "models/weapons/worldmodel-sniperrifle.tik";}
+	//fixed support for noscript.scr prf_weapon added check for "imod" [b607]
+	if(sWeaponName == "I-Mod" || sWeaponName == "I-mod" || sWeaponName == "i-mod" || sWeaponName == "imod" )//singleplayer variations
+		{sTikiName = "models/weapons/worldmodel-imod.tik";}
+	if(sWeaponName == "Tricorder-rom")
+		{sTikiName = "models/weapons/worldmodel-rom-datapad.tik";}
+	if(sWeaponName == "RomulanDisruptor")
+		{sTikiName = "models/weapons/worldmodel-rom-disruptor.tik";}
+	if(sWeaponName == "TetryonGatlingGun")
+		{sTikiName = "models/weapons/worldmodel-tetryon.tik";}
+	if(sWeaponName == "AttrexianRifle")
+		{sTikiName = "models/weapons/worldmodel-attrex-rifle.tik";}
+	if(sWeaponName == "DrullStaff")
+		{sTikiName = "models/weapons/worldmodel-drull-staff.tik";}
+	if(sWeaponName == "PhotonBurst")
+		{sTikiName = "models/weapons/worldmodel-photon.tik";}
+	if(sWeaponName == "RomulanRadGun")
+		{sTikiName = "models/weapons/worldmodel-rom-radgun.tik";}
+	if(sWeaponName == "EnterpriseCannon")
+		{sTikiName = "models/weapons/worldmodel-enterprise.tik";}
+	return sTikiName+"";
+}
+
+void globalCoop_player_useAfter(entity ePlayer, string UseThis, float waitTime)
+{
+	if(waitTime <= 0){
+		wait(coop_float_oneFrameTime);
+	}else{
+		wait(waitTime);
+	}
+	if(doesEntityExist(ePlayer))
+	{
+		ePlayer.use(UseThis);
+	}
+}
+
+string globalCoop_armory_weaponGiveAndReturnAsString(entity ePlayer,string sWeaponTiki)
+{
+//GIVE WEAPON
+	ePlayer.give(sWeaponTiki);	
+//RETURN INFO
+	return ""+sWeaponTiki;
+}
