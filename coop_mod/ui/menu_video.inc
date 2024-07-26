@@ -386,55 +386,55 @@ SwitchBox
     
     linkcvar "ui_customresolution"
 	
-	option "$$SetVideoResolution$$"  "set ui_customresolution 3;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80.00;set r_mode 3\"" 0
+	option "$$c#160$$"  "seta ui_customresolution 3;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80.00;seta r_mode 3\"" 0
 //GENERATED IN BLACKBOX MAP SCRIPT
-option "640x480"		"set ui_customresolution 3;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 3\"" 3
-option "800x600"		"set ui_customresolution 4;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 4\"" 4
-option "856x480"		"set ui_customresolution 5;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.6;set r_mode 11\"" 5
-option "960x720"		"set ui_customresolution 6;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 5\"" 6
-option "1024x768"		"set ui_customresolution 7;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 6\"" 7
-option "1152x864"		"set ui_customresolution 8;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 7\"" 8
-option "1280x720"		"set ui_customresolution 9;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 720;set r_customwidth 1280\"" 9
-option "1280x800"		"set ui_customresolution 10;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 800;set r_customwidth 1280\"" 10
-option "1280x1024"		"set ui_customresolution 11;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 76.38;set r_mode 8\"" 11
-option "1360x768"		"set ui_customresolution 12;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.2;set r_mode -1;set r_customHeight 768;set r_customwidth 1360\"" 12
-option "1366x768"		"set ui_customresolution 13;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.45;set r_mode -1;set r_customHeight 768;set r_customwidth 1366\"" 13
-option "1440x900"		"set ui_customresolution 14;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 900;set r_customwidth 1440\"" 14
-option "1536x864"		"set ui_customresolution 15;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 864;set r_customwidth 1536\"" 15
-option "1600x900"		"set ui_customresolution 16;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 900;set r_customwidth 1600\"" 16
-option "1600x1200"		"set ui_customresolution 17;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 9\"" 17
-option "1680x1050"		"set ui_customresolution 18;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 1050;set r_customwidth 1680\"" 18
-option "1920x1080"		"set ui_customresolution 19;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 1080;set r_customwidth 1920\"" 19
-option "1920x1200"		"set ui_customresolution 20;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 1200;set r_customwidth 1920\"" 20
-option "2048x1152"		"set ui_customresolution 21;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 106.26;set r_mode -1;set r_customHeight 1152;set r_customwidth 2048\"" 21
-option "2048x1536"		"set ui_customresolution 22;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 80;set r_mode 10\"" 22
-option "2560x1080"		"set ui_customresolution 23;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.33;set r_mode -1;set r_customHeight 1080;set r_customwidth 2560\"" 23
-option "2560x1440"		"set ui_customresolution 24;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 1440;set r_customwidth 2560\"" 24
-option "2560x1600"		"set ui_customresolution 25;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 1600;set r_customwidth 2560\"" 25
-option "2880x1200"		"set ui_customresolution 26;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 1200;set r_customwidth 2880\"" 26
-option "3200x1800"		"set ui_customresolution 27;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 1800;set r_customwidth 3200\"" 27
-option "3440x1440"		"set ui_customresolution 28;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.74;set r_mode -1;set r_customHeight 1440;set r_customwidth 3440\"" 28
-option "3840x1080"		"set ui_customresolution 29;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.74;set r_mode -1;set r_customHeight 1080;set r_customwidth 3840\"" 29
-option "3840x1600"		"set ui_customresolution 30;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 1600;set r_customwidth 3840\"" 30
-option "3840x2160"		"set ui_customresolution 31;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 2160;set r_customwidth 3840\"" 31
-option "3840x2400"		"set ui_customresolution 32;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 90.4;set r_mode -1;set r_customHeight 2400;set r_customwidth 3840\"" 32
-option "4096x2304"		"set ui_customresolution 33;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 2304;set r_customwidth 4096\"" 33
-option "4320x1800"		"set ui_customresolution 34;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 1800;set r_customwidth 4320\"" 34
-option "5120x1440"		"set ui_customresolution 35;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 138.89;set r_mode -1;set r_customHeight 1440;set r_customwidth 5120\"" 35
-option "5120x2160"		"set ui_customresolution 36;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.33;set r_mode -1;set r_customHeight 2160;set r_customwidth 5120\"" 36
-option "5120x2880"		"set ui_customresolution 37;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 2880;set r_customwidth 5120\"" 37
-option "5760x2400"		"set ui_customresolution 38;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 2400;set r_customwidth 5760\"" 38
-option "6880x2880"		"set ui_customresolution 39;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.74;set r_mode -1;set r_customHeight 2880;set r_customwidth 6880\"" 39
-option "7680x3200"		"set ui_customresolution 40;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 3200;set r_customwidth 7680\"" 40
-option "7680x4320"		"set ui_customresolution 41;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 96.42;set r_mode -1;set r_customHeight 4320;set r_customwidth 7680\"" 41
-option "8640x3600"		"set ui_customresolution 42;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 3600;set r_customwidth 8640\"" 42
-option "10240x4320"		"set ui_customresolution 43;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"set userFov 112.98;set r_mode -1;set r_customHeight 4320;set r_customwidth 10240\"" 43
+option "640x480"		"seta ui_customresolution 3;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 3\"" 3
+option "800x600"		"seta ui_customresolution 4;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 4\"" 4
+option "856x480"		"seta ui_customresolution 5;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.6;seta r_mode 11\"" 5
+option "960x720"		"seta ui_customresolution 6;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 5\"" 6
+option "1024x768"		"seta ui_customresolution 7;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 6\"" 7
+option "1152x864"		"seta ui_customresolution 8;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 7\"" 8
+option "1280x720"		"seta ui_customresolution 9;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 720;set r_customwidth 1280\"" 9
+option "1280x800"		"seta ui_customresolution 10;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 800;set r_customwidth 1280\"" 10
+option "1280x1024"		"seta ui_customresolution 11;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 76.38;seta r_mode 8\"" 11
+option "1360x768"		"seta ui_customresolution 12;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.2;seta r_mode -1;set r_customHeight 768;set r_customwidth 1360\"" 12
+option "1366x768"		"seta ui_customresolution 13;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.45;seta r_mode -1;set r_customHeight 768;set r_customwidth 1366\"" 13
+option "1440x900"		"seta ui_customresolution 14;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 900;set r_customwidth 1440\"" 14
+option "1536x864"		"seta ui_customresolution 15;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 864;set r_customwidth 1536\"" 15
+option "1600x900"		"seta ui_customresolution 16;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 900;set r_customwidth 1600\"" 16
+option "1600x1200"		"seta ui_customresolution 17;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 9\"" 17
+option "1680x1050"		"seta ui_customresolution 18;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 1050;set r_customwidth 1680\"" 18
+option "1920x1080"		"seta ui_customresolution 19;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 1080;set r_customwidth 1920\"" 19
+option "1920x1200"		"seta ui_customresolution 20;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 1200;set r_customwidth 1920\"" 20
+option "2048x1152"		"seta ui_customresolution 21;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 106.26;seta r_mode -1;set r_customHeight 1152;set r_customwidth 2048\"" 21
+option "2048x1536"		"seta ui_customresolution 22;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 80;seta r_mode 10\"" 22
+option "2560x1080"		"seta ui_customresolution 23;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.33;seta r_mode -1;set r_customHeight 1080;set r_customwidth 2560\"" 23
+option "2560x1440"		"seta ui_customresolution 24;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 1440;set r_customwidth 2560\"" 24
+option "2560x1600"		"seta ui_customresolution 25;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 1600;set r_customwidth 2560\"" 25
+option "2880x1200"		"seta ui_customresolution 26;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 1200;set r_customwidth 2880\"" 26
+option "3200x1800"		"seta ui_customresolution 27;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 1800;set r_customwidth 3200\"" 27
+option "3440x1440"		"seta ui_customresolution 28;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.74;seta r_mode -1;set r_customHeight 1440;set r_customwidth 3440\"" 28
+option "3840x1080"		"seta ui_customresolution 29;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.74;seta r_mode -1;set r_customHeight 1080;set r_customwidth 3840\"" 29
+option "3840x1600"		"seta ui_customresolution 30;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 1600;set r_customwidth 3840\"" 30
+option "3840x2160"		"seta ui_customresolution 31;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 2160;set r_customwidth 3840\"" 31
+option "3840x2400"		"seta ui_customresolution 32;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 90.4;seta r_mode -1;set r_customHeight 2400;set r_customwidth 3840\"" 32
+option "4096x2304"		"seta ui_customresolution 33;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 2304;set r_customwidth 4096\"" 33
+option "4320x1800"		"seta ui_customresolution 34;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 1800;set r_customwidth 4320\"" 34
+option "5120x1440"		"seta ui_customresolution 35;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 138.89;seta r_mode -1;set r_customHeight 1440;set r_customwidth 5120\"" 35
+option "5120x2160"		"seta ui_customresolution 36;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.33;seta r_mode -1;set r_customHeight 2160;set r_customwidth 5120\"" 36
+option "5120x2880"		"seta ui_customresolution 37;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 2880;set r_customwidth 5120\"" 37
+option "5760x2400"		"seta ui_customresolution 38;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 2400;set r_customwidth 5760\"" 38
+option "6880x2880"		"seta ui_customresolution 39;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.74;seta r_mode -1;set r_customHeight 2880;set r_customwidth 6880\"" 39
+option "7680x3200"		"seta ui_customresolution 40;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 3200;set r_customwidth 7680\"" 40
+option "7680x4320"		"seta ui_customresolution 41;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 96.42;seta r_mode -1;set r_customHeight 4320;set r_customwidth 7680\"" 41
+option "8640x3600"		"seta ui_customresolution 42;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 3600;set r_customwidth 8640\"" 42
+option "10240x4320"		"seta ui_customresolution 43;exec coop_mod/cfg/menu_video_customreschange.cfg;seta ui_videotest \"seta userFov 112.98;seta r_mode -1;set r_customHeight 4320;set r_customwidth 10240\"" 43
 
 //Thanks to fov calculator
 //https://www.wsgf.org/fovcalc.php
     
     font serpentinemedium-12
-    hovercommand "globalwidgetcommand tooltip_video title \"$$SetVideoResolution$$\""
+    hovercommand "globalwidgetcommand tooltip_video title \"$$c#164$$\""
     hoverexitcommand "globalwidgetcommand tooltip_video title \"\""
 	
 	//hovercommand "seta r_mode -1;seta ui_testRes \"exec coop_mod/cfg/testres.cfg\""
@@ -584,7 +584,7 @@ CheckBox
 {
 	title "$$FullScreen$$"
 	name "Default"
-	rect 474 162 120 34
+	rect 312 162 120 34
 	fgcolor 1.00 1.00 1.00 1.00
 	bgcolor 0.50 0.50 0.50 0.00
 
@@ -607,6 +607,27 @@ CheckBox
 	clicksound sound/misc/menu/click.wav
 }
 
+
+resource
+Button
+{
+	stuffcommand "exec coop_mod/cfg/highsettings.cfg"
+	
+	title	"$$c#161$$"
+	name 	"Default"
+	rect 	 430 160 174 36
+	font serpentinemedium-10
+	fgcolor			1 1 1 1
+	bgcolor			0.502 0.000 0.502 1.000
+	hoverbgcolor	0.6 0.2 0.6 1
+	hoverfgcolor	0.000 0.000 0.000 1.000
+	borderstyle "3D_BORDER"
+    verticaljustify top
+	
+	hovercommand "globalwidgetcommand tooltip_video title \"$$c#162$$\""
+	hoverexitcommand "globalwidgetcommand tooltip_video title \"\""
+}
+
 ///////////////////////////////////////////////////////////////// VIDEO SETTINGS userfov
 ///////////////////////////////////////////////////////////////// VIDEO SETTINGS userfov
 ///////////////////////////////////////////////////////////////// VIDEO SETTINGS userfov
@@ -616,7 +637,7 @@ Label
 {
     title "$$c#131$$"
     name "Default"
-    rect 36 160 140 36
+    rect 36 160 108 36
     fgcolor 1.00 1.00 1.00 1.00
     bgcolor 0.122 0.157 0.251 1.000
     borderstyle "3D_BORDER"
@@ -631,7 +652,7 @@ resource
 Field
 {
     name "videoCurrFov"
-	rect 178 160 80 36
+	rect 146 160 80 36
 	fgcolor 1.00 1.00 1.00 1.00
 	bgcolor 0.000 0.000 0.000 0.000
 	borderstyle	"OUTLINE_BORDER"
@@ -653,7 +674,7 @@ Button
 	
 	title	"$$c#132$$"
 	name 	"Default"
-	rect 	 260 160 120 36
+	rect 	 228 160 80 36
 	font serpentinemedium-10
 	fgcolor			0.937 0.643 0.129 1.000
 	bgcolor			0.125 0.157 0.251 1.000
@@ -764,7 +785,7 @@ Label
 	bgcolor 0.122 0.157 0.251 1.000
 	font serpentinemedium-10
 	borderstyle "3D_BORDER"	
-	horizontaljustify center
+	horizontaljustify right
 	verticaljustify top
 }
 resource
