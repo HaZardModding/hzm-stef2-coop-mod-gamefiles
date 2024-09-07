@@ -112,8 +112,6 @@ float boolInfoTerminalInMotion = 0;
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 void	coop_endLevel();
-void	Coop_EndHallwayLift_Down();
-void	Coop_EndHallwayLift_Up();
 void	coop_cinematic_ending ();
 void	coop_tokenLoaded(); //[b607] chrissstrahl - this is executed if the mission has failed previously
 entity	entityPlayerGlobal;
@@ -137,30 +135,6 @@ string  sLevelTooken; //[b607] chrissstrahl - load tooken
 //  MAIN THREAD
 //===================================================================================================================================================
 //===================================================================================================================================================
-
-void test()
-{
-	coop_vector_spawnOrigin1 = '720 -3680 75';
-	$player0.playerviewangles('0 0 0');
-	$player0.origin(coop_vector_spawnOrigin1);
-	//hzm coop chrissstrahl, do additional stuff to make this work in multiplayer
-	spawn("trigger_multiple","targetname","CoopLiftInsideTrigger","origin","1117 -3359 -184","wait","10");
-	wait(0.1);
-	$CoopLiftInsideTrigger.bind($EndHallwayLift);
-	$CoopLiftInsideTrigger.thread("Coop_EndHallwayLift_Toggle");
-	
-	vector vSizeMin;
-	vector vSizeMax;
-	vSizeMin = $EndHallwayLift.getMins();
-	vSizeMax = $EndHallwayLift.getMaxs();
-	$CoopLiftInsideTrigger.setSize(vSizeMin,vSizeMax);
-	
-	spawn("trigger_multiple","targetname","CoopLiftDownTrigger","origin","1326 -3359 -184","wait","10");
-	wait(0.1);
-	$CoopLiftDownTrigger.thread("Coop_EndHallwayLift_Down");
-	$CoopLiftDownTrigger.setSize('-64 -64 0','64 64 20');
-}
-
 //---------------------
 void main()
 //---------------------
@@ -245,6 +219,26 @@ void main()
 	globalCoop_main_waitForWarmupTime();
 	wait(1);
 	$chell.ai_on();
+}
+
+
+//[b60022] Chrissstrahl - prevent this thread being called multiple times, this spams the console
+float LOCK_greenForceField_9_down = 0;
+float LOCK_dis_node2_destroy = 0;
+
+
+//---------------------
+// Test the Lift with Chell and Telsia in coop, it is suppose to go up and down, but eventually it gets stuck
+//---------------------
+void test()
+{
+	coop_vector_spawnOrigin1 = '720 -3680 75';
+	$player0.playerviewangles('0 0 0');
+	$player0.origin(coop_vector_spawnOrigin1);
+	
+	$chell.origin('870 -3280 75');
+	$telsia.origin('920 -3280 75');
+	EndHallwayLift_Move();
 }
 
 //===================================================================================================================================================
@@ -860,9 +854,6 @@ void EndHallwayLift_Move()
 	coop_float_spawnAngle2 				= 355;
 	coop_float_spawnAngle3 				= 355;
 	//eof hzm
-
-	//hzm coop chrissstrahl, do additional stuff to make this work in multiplayer
-	spawn("trigger_multiple","targetname","CoopLiftInsideTrigger","origin","1117 -3359 -184","wait","8");
 	
 	//hzm coop chrissstrahl, wait until player does no longer block the lift
 	float fBlocking = 1;
@@ -876,7 +867,7 @@ void EndHallwayLift_Move()
 			ePlayer = getentity("player"+fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
 				if(globalCoop_check_playerSpectator(ePlayer) == 0){
-					if(globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2,4) || globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift1,4) ){
+					if(globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2,4)){
 						if( ePlayer.getFloatVar("coopElevatorMessage") < getLevelTime() ){
 							ePlayer.hudPrint("Please move, you are blocking the lift\n");
 							ePlayer.hudPrint("Sie blockieren den Lift, bitte bewegen\n");
@@ -887,12 +878,7 @@ void EndHallwayLift_Move()
 				}
 			}
 		}
-	}
-	
-	//hzm coop chrissstrahl, bind the trigger that makes the lift go down from above
-	//this trigger is on the sufrace on the lift and shall travel with it
-	$CoopLiftInsideTrigger.bind($EndHallwayLift);
-	
+	}	
 	
 	$lift2.solid ();
 	$EndHallwayLift.playsound ( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
@@ -932,84 +918,60 @@ void EndHallwayLift_Move()
 		wait(0.25);
 	}
 	
-	//hzm coop chrissstrahl, wait for the lift to rest
-	wait(3);
-	$CoopLiftInsideTrigger.thread("Coop_EndHallwayLift_Toggle");
 	vector vSizeMin;
 	vector vSizeMax;
 	vSizeMin = $EndHallwayLift.getMins();
 	//vSizeMin_z = 0;
 	vSizeMax = $EndHallwayLift.getMaxs();
 	//vSizeMax_z = 4;
-	$CoopLiftInsideTrigger.setSize(vSizeMin,vSizeMax);
 	
-	spawn("trigger_multiple","targetname","CoopLiftDownTrigger","origin","1326 -3359 -184","wait","8");
 	spawn("trigger_push","targetname","CoopLiftPushOffTrigger","origin",""+$EndHallwayLift.getOrigin(),"angle","180","spawnflags","4");//push only AI
 	wait(0.1);
 	
 	$CoopLiftPushOffTrigger.speed(1000);
 	$CoopLiftPushOffTrigger.setSize(vSizeMin,vSizeMax);
 	
-	$CoopLiftDownTrigger.thread("Coop_EndHallwayLift_Down");
-	$CoopLiftDownTrigger.setSize('-64 -64 0','64 64 20');
+	//hzm coop chrissstrahl, wait for the lift to rest
+	wait(3);
+	
 	$EndHallwayLiftCallVolume.remove();
 	
 	$chell.allowfall(0);
 	$chell.ai_on();
 	$telsia.allowfall(0);
 	$telsia.ai_on();
+	
+	//[b60022] chrissstrahl - fix for Hallway Lift getting Stuck.
+	//This issue was fixed multiple times over the years, none of the fixes
+	//works reliably, that is why we instead now beam players up if they face the correct direction on the lift.
+	spawn("script_origin","targetname","superShittOriginEntity","origin",""+$EndHallwayLift.getOrigin());
+	spawn("trigger_multiple","targetname","CoopLiftInsideTrigger","origin","1000 -3359 -184","wait","1");
+	wait(0.1);
+	$EndHallwayLift.bind($superShittOriginEntity);
+	$superShittOriginEntity.moveToPos ( '1152 -3360 -208' );
+	wait( 4 );
+	$lift2.remove();
+	$CoopLiftInsideTrigger.angle(180);
+	$CoopLiftInsideTrigger.thread("Coop_EndHallwayLift_PlayerUp");
+	$CoopLiftInsideTrigger.setSize(vSizeMin,vSizeMax);
 }
 
-//hzm coop chrissstrahl, decide what to do with the lift
-void Coop_EndHallwayLift_Toggle()
+//[b60022] chrissstrahl - fix for Hallway Lift getting Stuck.
+//This issue was fixed multiple times over the years, none of the fixes
+//works reliably, that is why we instead now beam players up if they face the correct direction on the lift.
+void Coop_EndHallwayLift_PlayerUp()
 {
-	//screw this super fuck, do it the way it was ment to do this shitt
-	if(!doesEntityExist($superShittOriginEntity)){
-		spawn("script_origin","targetname","superShittOriginEntity","origin",""+$EndHallwayLift.getOrigin());
-		wait(0.1);
-		$EndHallwayLift.bind($superShittOriginEntity);
-	}
-
-
-	entity eTrigger;
-	entity ePlayer;
+	entity eTrigger,ePlayer;
 	eTrigger = getCurrentEntity();
-	
-	//make sure the lift knows what to do
-	vector v1;
-	v1 = $EndHallwayLift.getOrigin();
-	if( v1_z >= 50 ){
-	//do not move down the lift, if the activating player looks into the wrong direction
-	//should prevent players from triggering the lift when they still standing on it while the lift is still up
-	/*
-		if(doesEntityExist(eTrigger)){
-			ePlayer = eTrigger.getLastActivatingEntity();
-			if( doesEntityExist( ePlayer ) ){
-				if(ePlayer.gethealth() > 0 ){ //40 315
-					if( vectorGetZ(ePlayer.getangles()) < 40 && vectorGetZ(ePlayer.getangles()) > 315 ){
-						return;
-					}
-				}
-			}
-		}*/
-		
-		Coop_EndHallwayLift_Down();
-	}else{
-	//do not move up the lift, if the activating player looks into the wrong direction
-	//should prevent players from triggering the lift when they jump down
-	/*
-		if(doesEntityExist(eTrigger)){
-			ePlayer = eTrigger.getLastActivatingEntity();
-			if( doesEntityExist( ePlayer ) ){
-				if(ePlayer.gethealth() > 0 ){ //40 315
-					if( vectorGetZ(ePlayer.getangles()) < 40 && vectorGetZ(ePlayer.getangles()) > 315 ){
-						return;
-					}
-				}
+	if(doesEntityExist(eTrigger)){
+		ePlayer = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getHealth() > 0){
+				//ePlayer.hudprint("Player up\n");
+				ePlayer.displayeffect("TransportIn","FederationWeapons");
+				globalCoop_player_warpToSpawn(ePlayer);
 			}
 		}
-		*/
-		Coop_EndHallwayLift_Up();
 	}
 }
 
@@ -1030,89 +992,6 @@ void coop_messageDude(entity player)
 			thread globalCoop_player_warpToSpawn(player);
 		}
 	}
-}
-
-//hzm coop chrissstrahl, call lift down
-void Coop_EndHallwayLift_Down()
-{
-	$lift2.notsolid();
-	$CoopLiftInsideTrigger.nottriggerable();
-	$CoopLiftDownTrigger.nottriggerable();
-
-	//hzm wait until player does no longer block the lift
-	float fBlocking = 1;
-	entity ePlayer;
-	while(fBlocking)
-	{
-		wait(0.5);
-		fBlocking = 0;
-		float fPlayerIdInUse;
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(doesEntityExist(ePlayer)){
-				if(	globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2,4) == 1 ||
-					globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift1,4) == 1 ||
-					globalCoop_check_isEntityInsideOfEntity(ePlayer,$EndHallwayLift_solid,4) == 1
-					){
-					fBlocking = 1;
-					coop_messageDude(ePlayer);
-				}
-			}
-		}
-	}
-	$lift2.playsound ( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
-	$superShittOriginEntity.time ( 5 );
-	$superShittOriginEntity.movetopos ( '1152 -3360 -207' );
-	wait( 4.75 );
-	$lift2.playsound ( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );	
-	$CoopLiftInsideTrigger.triggerable();
-}
-
-//hzm coop chrissstrahl, call lift up
-void Coop_EndHallwayLift_Up()
-{
-	$CoopLiftInsideTrigger.nottriggerable();
-	$CoopLiftDownTrigger.nottriggerable();
-
-	if(vectorGetZ($chell.getOrigin()) < 50){
-		thread globalCoop_level_warpEntityToVectorSafty($chell,'771 -3311 75');
-		$chell.ai_on();
-	}
-	if(vectorGetZ($telsia.getOrigin()) < 50){
-		thread globalCoop_level_warpEntityToVectorSafty($telsia,'771 -3211 75');
-		$telsia.ai_on();
-	}
-	
-	//hzm wait until player does no longer block the lift
-	float fBlocking = 1;
-	entity ePlayer;
-	while(fBlocking)
-	{
-		wait(0.5);
-		fBlocking = 0;
-		float fPlayerIdInUse;
-		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-			if(doesEntityExist(ePlayer)){
-				if( globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift2,4) == 1 ||
-					globalCoop_check_isEntityInsideOfEntity(ePlayer,$lift1,4) == 1 ||
-					globalCoop_check_isEntityInsideOfEntity(ePlayer,$EndHallwayLift_solid,4) == 1
-					){
-					fBlocking = 1;
-					coop_messageDude(ePlayer);
-				}
-			}
-		}
-	}
-	$lift2.solid ();
-	$lift2.playsound ( "sound/environment/machine/solanlift.wav", 8, 1, 1500 );
-	$superShittOriginEntity.time ( 5 );
-	$superShittOriginEntity.moveTo ( $Lift2UpPos );
-	wait( 4.75 );
-	$lift2.playsound ( "sound/environment/machine/solanlift_stop.wav", 8, 1, 1500 );
-	
-	$CoopLiftInsideTrigger.triggerable();
-	$CoopLiftDownTrigger.triggerable();
 }
 
 //==========================================================================================================
@@ -1352,6 +1231,12 @@ void powercoupling3_setup()
 void greenForceField_9_down()
 //---------------------
 {
+	//[b60022] Chrissstrahl - prevent this thred being called multiple times, this spams the console
+	if(LOCK_greenForceField_9_down){
+		return;
+	}
+	LOCK_greenForceField_9_down = 1;
+	
 	//$powercoupling3_trigger.nodamage();
 
 	//--- spawn an explosion
@@ -1518,6 +1403,12 @@ void dis_node2_setup()
 void dis_node2_destroy()
 //------------------------
 {
+	//[b60022] Chrissstrahl - prevent this thred being called multiple times, this spams the console
+	if(LOCK_dis_node2_destroy){
+		return;
+	}
+	LOCK_dis_node2_destroy = 1;
+
 	//--make the trigger not take damage anymore
 	$dis_node2_trigger.nodamage ();
 
