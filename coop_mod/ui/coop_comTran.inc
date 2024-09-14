@@ -17,26 +17,9 @@ Label
 resource
 Button
 {
-	title "Transport to random Player"
-	rect 12 55 320 18
-	borderstyle "NONE"
-	font serpentinemedium-10
-	verticaljustify top
-	clicksound sound/environment/computer/lcars_yes.wav
-	fgcolor 0 0 0 1
-	bgcolor 0 0 0 0
-	cvarvisibility "coop_comT" "2"
-	stuffcommand "!transport;togglemenu coop_com"
-	shader textures/xxx/coopLcars020.tga
-	hovershader textures/xxx/coopLcars016.tga
-}
-
-resource
-Button
-{
 	title "!transport 0"
 	name "coop_comTran0"
-	rect 12 85 320 18
+	rect 12 55 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -54,7 +37,7 @@ Button
 {
 	title "!transport 1"
 	name "coop_comTran1"
-	rect 12 105 320 18
+	rect 12 75 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -72,7 +55,7 @@ Button
 {
 	title "!transport 2"
 	name "coop_comTran2"
-	rect 12 125 320 18
+	rect 12 95 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -90,7 +73,7 @@ Button
 {
 	title "!transport 3"
 	name "coop_comTran3"
-	rect 12 145 320 18
+	rect 12 115 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -107,7 +90,7 @@ Button
 {
 	title "!transport 4"
 	name "coop_comTran4"
-	rect 12 165 320 18
+	rect 12 135 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -124,7 +107,7 @@ Button
 {
 	title "!transport 5"
 	name "coop_comTran5"
-	rect 12 185 320 18
+	rect 12 155 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -136,22 +119,19 @@ Button
 	shader textures/xxx/coopLcars024.tga
 	hovershader textures/xxx/coopLcars016.tga
 }
-////////////////////////////////////////////////////////////////////////////////
-//TRANSPORT BUTTONS - PAGE 2
-////////////////////////////////////////////////////////////////////////////////
 resource
 Button
 {
 	title "!transport 6"
 	name "coop_comTran6"
-	rect 12 85 320 18
+	rect 12 175 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
 	clicksound sound/environment/computer/lcars_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	cvarvisibility "coop_comL" "21"
+	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 6;togglemenu coop_com"
 	shader textures/xxx/coopLcars014.tga
 	hovershader textures/xxx/coopLcars016.tga
@@ -161,7 +141,27 @@ Button
 {
 	title "!transport 7"
 	name "coop_comTran7"
-	rect 12 105 320 18
+	rect 12 195 320 18
+	borderstyle "NONE"
+	font serpentinemedium-10
+	verticaljustify top
+	clicksound sound/environment/computer/lcars_yes.wav
+	fgcolor 0 0 0 1
+	bgcolor 0 0 0 0
+	cvarvisibility "coop_comL" "20"
+	stuffcommand "!transport 7;togglemenu coop_com"
+	shader textures/xxx/coopLcars024.tga
+	hovershader textures/xxx/coopLcars016.tga
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//TRANSPORT BUTTONS - PAGE 2
+////////////////////////////////////////////////////////////////////////////////
+resource
+Button
+{
+	title "Transport to random Player"
+	rect 12 55 320 18
 	borderstyle "NONE"
 	font serpentinemedium-10
 	verticaljustify top
@@ -169,8 +169,8 @@ Button
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "21"
-	stuffcommand "!transport 7;togglemenu coop_com"
-	shader textures/xxx/coopLcars024.tga
+	stuffcommand "!transport;togglemenu coop_com"
+	shader textures/xxx/coopLcars020.tga
 	hovershader textures/xxx/coopLcars016.tga
 }
 
