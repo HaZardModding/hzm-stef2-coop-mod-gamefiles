@@ -1815,6 +1815,9 @@ void seqTactical_Lift2CallKorban()
 	//--- have korban tell the player to get on the elevator
     $korban.playdialog( "localization/sound/dialog/m2l2/korban_elev.mp3", 1, 20000, 1 ); //The elevator!!....ohhhhh....doesn't he sounds scary!!!!
 
+	//[b60023] Chrissstrahl - make sure player can't use him that could get him stuck as well
+	$korban.setactorflag("cannotuse" , 1.0 );
+
 	//--- make him goto the node no matter what
 	commonGoToLocation( $korban, "nodeLift2_Panel" );
 
@@ -1830,7 +1833,7 @@ void seqTactical_Lift2CallKorban()
 	float fPlayerIdInUse;
 	float fInsideNumRequired;
 	float fCurrentExisting;
-	float fRounds = 50;
+	float fRounds = 50; //10 sec countdown
 	entity ePlayer;
 	
 	while( fRounds > -1 )
@@ -2066,6 +2069,10 @@ void seqGreatHall_KorbanUnlockDoor()
 
 	//--- open the door
 	$doorLocked5.open( $korban );
+	
+	
+	//[b60023] Chrissstrahl - allow him being useable again
+	$korban.setactorflag("cannotuse" , 0.0 );
 }
 
 //---------------------
@@ -2076,6 +2083,12 @@ void seqGreatHall_KorbanUnlockDoor_FailSafe()
 {
 	vector vecPlayerOrigin;
 	vector vecPlayerAngle;
+	
+	
+	//[b60023] chrissstrahl - we have something else in place during coop to prevent Korban getting stuck
+	if(cvar_bool_multiplayer){
+		return;
+	}
 
 	//--- only loop while korban is on the lift
 	while( globalMath_GetXYDistance( $korban.getOrigin(), $nodeKorban_Lift2_Check.getOrigin() ) <= 128 )
@@ -2114,8 +2127,15 @@ void testLift()
 	$romulan6_2.remove();
 	$romulan6_3.remove();
 
-	$player.origin( '3255 1747 224' );
-	$player.angles( '0 180 0' );
+	//[b60023] chrissstrahl - make this work in mp
+	if(cvar_bool_multiplayer){
+		$player0.origin( '3255 1747 224' );
+		$player0.angles( '0 180 0' );	
+	}else{
+		$player.origin( '3255 1747 224' );
+		$player.angles( '0 180 0' );
+	}
+	
 	$korban.origin( '3404 1747 224' );
 	$korban.angles( '0 180 0' );
 	$korban.ai_on();
@@ -2468,6 +2488,7 @@ void commonUnlockDoor( entity entDoor )
 //---------------------
 void commonGoToLocation( entity entDork, string strNode )
 {
+	//$player0.hudprint("commonGoToLocation start\n");
 	globalCoop_main_print("commonGoToLocation start");
 	entity entCheck;
 
@@ -2484,21 +2505,46 @@ void commonGoToLocation( entity entDork, string strNode )
 	entCheck = getEntity( strAssemble );
 	/*print( "GOTO: entCheck: " + entCheck.getTargetname() + "\n" );*/
 	
-
+	//$player0.hudprint("commonGoToLocation - "+entCheck.getTargetname()+"\n");
+	
+	//[b60023] chrissstrahl - add failsafe for actor getting stuck
+	float fRounds = 0;
 
 	while( boolSuccess == FALSE )
 	{
-		print("while...\n");
+		//$player0.hudprint("commonGoToLocation - while...\n");
+		globalCoop_main_print("commonGoToLocation while...");
 		
 		//Have to slam AI Off, because of restore mode craziness.
 		entDork.ai_off();
 
 		/*print( "GOTO: targetname of entDork walking to target: " + entDork.getTargetname() + "\n" );*/
+		
+		//[b60023] chrissstrahl - add failsafe for actor getting stuck
+		vector vLast;
+		vLast = entDork.getOrigin();
 
     	//--- run korban to the path node, loop until it's success
     	entDork.walkto( strPathNode, "run" );
 		wait(0.05);
     	waitFor( entDork );
+		
+		//[b60023] chrissstrahl - add failsafe for actor getting stuck
+		if(cvar_bool_multiplayer){
+			vector vCurr;
+			vCurr = entDork.getOrigin();
+			if(vectorLength(vCurr - vLast) < GOTO_TOLERANCE){
+				fRounds++;
+				//$player0.hudprint("commonGoToLocation - rounds++\n");
+				if(fRounds == 3){
+					//$player0.hudprint("commonGoToLocation - failsafe rounds\n");
+					vCurr = entCheck.getOrigin();
+					//vCurr_z -= 16; //node origin floats at least 16 units over the floor or the node is stuck, there for we can compensate at least this much
+					vCurr_z -= 20; //all targetnamed node origins floats at least 20 units over the floor in this level
+					thread globalCoop_level_warpEntityToVectorSafty(entDork,vCurr);
+				}
+			}
+		}
 
     	/*print( "GOTO: waitFor is completed\n" );*/
 
@@ -2509,6 +2555,7 @@ void commonGoToLocation( entity entDork, string strNode )
     		boolSuccess = TRUE;
     	}
     }
+	//$player0.hudprint("commonGoToLocation - end\n");
 	globalCoop_main_print("commonGoToLocation end");
 }
 
