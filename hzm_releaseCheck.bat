@@ -10,6 +10,8 @@ echo -1--------------------------setup_mainmenu.inc
 echo Check Build version in Main menu include file.
 echo :: cvarvisibility coop_ver 6xx !=
 echo ----------------------------------------------
+echo MAKE SURE ANY NEW CFG FILES END WITH A EMPTY LINE
+echo ----------------------------------------------
 start coop_mod\ui\mainmenu.inc
 pause
 
