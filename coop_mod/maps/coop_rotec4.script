@@ -13,9 +13,13 @@ void commandUserKilled();
 void disconnectNodes(float fNum);
 void teamAiWaitHere();
 
+void doctorSequenceEnemySpawnManager();
+void evacuationSequenceEnemyKilled();
+
 float fEndSequenceCinematicRunning = 0;
 float fSequence2ExtraEnemies = 0;
 float fSpawnerEnemyNum = 0;
+float fSpawnerEnemyNumActive = 0;
 float fSequence2Over = 0;
 
 //hzm coop mod - chrissstrahl - include the required coop level-scripts
@@ -253,10 +257,6 @@ void commandUserKilled()
 
 void evacuationSequenceSpawn()
 {
-	if( (fSequence2ExtraEnemies / 2) > (globalCoop_return_integerPlayersQuantity(2)) ){
-		return;
-	}
-
 	entity eEnemy;
 	entity eSpawn;
 	float fRandom;
@@ -265,20 +265,30 @@ void evacuationSequenceSpawn()
 	fEnemyNum = fSpawnerEnemyNum;
 	fSpawnerEnemyNum++;
 	
+	fSpawnerEnemyNumActive++;
+	
 	fRandom = randomInt(7);
 	eSpawn = getEntity("sequence2Spawner" + fRandom );
 	eSpawn.spawneffectname("TransportIn","Romulan");
 	eSpawn.spawntargetname("sequence2Enemy" + fEnemyNum);
+	
+	//[b60024] chrissstrahl - set killthread
+	//eSpawn.setSpawnKeyValue("killthread", "evacuationSequenceSpawn" );
+	eSpawn.setSpawnKeyValue("killthread", "evacuationSequenceEnemyKilled" );
+	
 	eSpawn.checkforspace();
 	eEnemy = eSpawn.spawnnow();
-	wait(0.05);
+	wait(0.1);
 	//eEnemy = getEntity("sequence2Enemy" + fEnemyNum);
-	eEnemy.killthread("evacuationSequenceSpawn");
 	
-	if(fRandom != 1 && fRandom != 3 && fRandom != 5 && !fSequence2Over ){
-		eEnemy.attack($doctor);
-	}else{
-		eEnemy.aggressive(1);
+	//[b60024] chrissstrahl - set killthread -> moved up
+	//eEnemy.killthread("evacuationSequenceSpawn");
+	if(doesEntityExist(eEnemy)){
+		if(fRandom != 1 && fRandom != 3 && fRandom != 5 && !fSequence2Over ){
+			eEnemy.attack($doctor);
+		}else{
+			eEnemy.aggressive(1);
+		}
 	}
 	
 	if( fSequence2Over ){
@@ -365,12 +375,8 @@ void evacuationSequence()
 	//set mission marker on radar
 	$doctor.missionObjective(1);
 	
-	//spawn a enemy
-	thread evacuationSequenceSpawn();
-	wait(0.25);
-	thread evacuationSequenceSpawn();
-	wait(0.25);
-	thread evacuationSequenceSpawn();
+	//[b60021] chrissstrahl - enemy spawn manager
+	thread doctorSequenceEnemySpawnManager();
 	
 	$useSymbolSequence2Over.scale(0.05);
 	
@@ -911,6 +917,34 @@ void teamAiWaitHere()
 	$hazardTeam1.mass(99999);
 	$hazardTeam1.pushable(0);	
 }
+
+
+void evacuationSequenceEnemyKilled()
+//------------------------------------------------------------------------------
+//Used to keep track of enemy spawns during the doctor sequence
+//------------------------------------------------------------------------------
+{
+	fSpawnerEnemyNumActive--;
+}
+
+void doctorSequenceEnemySpawnManager()
+//------------------------------------------------------------------------------
+//Manages enemy spawns during the doctor sequence
+//------------------------------------------------------------------------------
+{
+	while(!fSequence2Over){
+		wait(2);
+		
+		float fNumEnemiesLimit;
+		fNumEnemiesLimit = globalCoop_return_integerPlayersQuantity(2);
+		if(fNumEnemiesLimit > 3 ){ fNumEnemiesLimit = 3; }
+		
+		if(fSpawnerEnemyNumActive < (2 + fNumEnemiesLimit) ){			
+			evacuationSequenceSpawn();
+		}
+	}
+}
+
 
 void coop_endLevel()
 //------------------------------------------------------------------------------
