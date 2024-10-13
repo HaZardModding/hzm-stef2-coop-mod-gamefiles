@@ -122,7 +122,8 @@ echo Check changelog if the Readme file needs update.
 echo Verify readme to be latest version.
 echo ----------------------------------------------
 cd ../
-start Documents/hcm_readme.docx
+cd Documents
+start hcm_readme.docx
 echo CHECK 
 pause
 
