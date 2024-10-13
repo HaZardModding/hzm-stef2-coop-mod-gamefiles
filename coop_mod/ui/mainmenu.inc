@@ -92,7 +92,7 @@ Button
 resource
 Label
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	title "$$c#001$$"
 	name "coopVersionCheckerTitle"
 	rect 120 90 400 46
@@ -107,7 +107,7 @@ Label
 resource
 widget
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	name "coopVersionCheckerImage"
 	rect 230 140 40 52
 	bgcolor 0 1 0 0.40
@@ -118,7 +118,7 @@ widget
 resource
 widget
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	name "coopVersionCheckerImage1"
 	rect 230 142 20 20
 	bgcolor 0 1 0 0
@@ -127,7 +127,7 @@ widget
 resource
 widget
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	name "coopVersionCheckerImage2"
 	rect 230 170 20 20
 	bgcolor 0 1 0 0
@@ -136,7 +136,7 @@ widget
 resource
 Label
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	title "$$c#002$$"
 	name "coopVersionCheckerShadow"
 	rect 272 142 250 52
@@ -150,7 +150,7 @@ Label
 resource
 Label
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	title "$$c#002$$"
 	name "coopVersionChecker"
 	rect 270 140 250 52
@@ -164,7 +164,7 @@ Label
 resource
 Label
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	title "$$c#003$$"
 	name "coopVersionCheckerButtonShadow"
 	rect 122 142 100 52
@@ -178,7 +178,7 @@ Label
 resource
 Button
 {
-	cvarvisibility coop_ver 60023 !=
+	cvarvisibility coop_ver 60024 !=
 	title "$$c#003$$"
 	name "coopVersionCheckerButton"
 	rect 120 140 100 52
