@@ -8,6 +8,7 @@
 
 void	coop_evosuit();
 void	coop_evosuit_pickup(entity eTrigger,entity ePlayer);
+float	coop_evosuit_playerPickedUp(entity ePlayer);
 void	coop_evosuit_playerOn(entity ePlayer,float fPickedUp);
 void	coop_evosuit_playerOff(entity ePlayer);
 void	coop_evosuit_playerSufficate(entity ePlayer);
@@ -69,7 +70,8 @@ void coop_evosuit()
 	if(doesEntityExist(eTrigger)){
 		ePlayer = eTrigger.getLastActivatingEntity();
 		if(doesEntityExist(ePlayer)){
-			if(coop_evosuit_playerEquiped(ePlayer) == 1 && ePlayer.getFloatVar("coop_evosuit_pickedUp") == 1){				
+			//[b60025] chrissstrahl - updated to reduce warning message spam
+			if(coop_evosuit_playerEquiped(ePlayer) == 1 && coop_evosuit_playerPickedUp(ePlayer) == 1){				
 				thread coop_evosuit_playerOff(ePlayer);
 				
 			}else{
@@ -347,15 +349,22 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 		}
 
 		//thrusters
-		if(iStatVal != iLastStatVal && ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
-			ePlayer.setstat(__EVOSUIT_STR_HUD_THRUSTER_STAT,iStatVal);
+		//[b60025] chrissstrahl - updated to reduce warning message spam
+		if(iStatVal != iLastStatVal){
+			if(!ePlayer.doesVarExist("coop_evosuit_haltStat")){
+				ePlayer.setFloatVar("coop_evosuit_haltStat",0.0);
+			}		
+		
+			if(ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
+				ePlayer.setstat(__EVOSUIT_STR_HUD_THRUSTER_STAT,iStatVal);
 			
-			if(iStatVal < 0){
-				iStatVal=0;
+				if(iStatVal < 0){
+					iStatVal=0;
+				}
+			
+				//sync last and current
+				iLastStatVal = iStatVal;
 			}
-			
-			//sync last and current
-			iLastStatVal = iStatVal;	
 		}
 		
 		globalCoop_main_waitAFrame();
@@ -428,10 +437,31 @@ void coop_evosuit_playerSufficate(entity ePlayer)
 
 float coop_evosuit_playerEquiped(entity ePlayer)
 //------------------------------------------------------------------------------
-//if player has the suit on but no airz, killz thez bitchz
+//check if equiped
 //------------------------------------------------------------------------------
 {
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(!ePlayer.doesVarExist("coop_evosuit_on")){
+		ePlayer.setFloatVar("coop_evosuit_on",0);
+	}
+	
 	if(ePlayer.getFloatVar("coop_evosuit_on") == 1){
+		return 1;
+	}
+	return 0;
+}
+
+float coop_evosuit_playerPickedUp(entity ePlayer)
+//------------------------------------------------------------------------------
+//check if has picked up a suit
+//------------------------------------------------------------------------------
+{
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(!ePlayer.doesVarExist("coop_evosuit_pickedUp")){
+		ePlayer.setFloatVar("coop_evosuit_pickedUp",0);
+	}
+	
+	if(ePlayer.getFloatVar("coop_evosuit_pickedUp") == 1){
 		return 1;
 	}
 	return 0;
@@ -445,7 +475,8 @@ float coop_evosuit_spaceWorthy(entity eSentity)
 	//check for models that validate for space usage
 	string sModelName;
 	sModelName = eSentity.getModelName();
-	if(	eSentity.getFloatVar("coop_evosuit_pickedUp") == 1 ||
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(	coop_evosuit_playerPickedUp(eSentity) == 1 ||
 		getIntStringFind(sModelName,"dm_attrexian_security-male.tik") > -1 ||
 		getIntStringFind(sModelName,"evosuit") > -1 ||
 		getIntStringFind(sModelName,"eb_gonzales") > -1 ||
@@ -514,7 +545,8 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 		ePlayer.setFloatVar("coop_respawnAtRespawnpoint",0);
 		
 		//leaving space - and did not pick up suit but was spaceworthy, take off the auto evo suit
-		if(ePlayer.getFloatVar("coop_evosuit_pickedUp") == 0 && coop_evosuit_playerEquiped(ePlayer) == 1){
+		//[b60025] chrissstrahl - updated to reduce warning message spam
+		if(coop_evosuit_playerPickedUp(ePlayer) == 0 && coop_evosuit_playerEquiped(ePlayer) == 1){
 			thread coop_evosuit_playerOff(ePlayer);
 		}
 		coop_evosuit_playerSetSpaceGravity(ePlayer,0);
@@ -528,6 +560,10 @@ float coop_evosuit_playerInSpace(entity ePlayer)
 //------------------------------------------------------------------------------
 {
 	float fSpace;
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(!ePlayer.doesVarExist("coop_evosuit_inSpace")){
+		ePlayer.setFloatVar("coop_evosuit_inSpace",0);
+	}
 	fSpace = ePlayer.getFloatVar("coop_evosuit_inSpace");
 	return fSpace;
 }
@@ -537,6 +573,11 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 //scales player and then kills player
 //------------------------------------------------------------------------------
 {
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(!ePlayer.doesVarExist("coop_evosuit_decompressing")){
+		ePlayer.setFloatVar("coop_evosuit_decompressing",0);
+	}
+	
 	if(ePlayer.getFloatVar("coop_evosuit_decompressing") == 1){
 		return;
 	}
@@ -621,35 +662,38 @@ void coop_evosuit_airlockDecompress(entity eAirLock)
 	fMaxEnt = getCvarInt("maxentities");
 	for(fPlayerIdInUse=0;fPlayerIdInUse<fMaxEnt;fPlayerIdInUse++){
 		ePlayer = getentity("*"+ fPlayerIdInUse);
-		if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
-			//check all players touching this trigger
-			if(ePlayer.isEntityInsideOfEntity(eAirLock) == 1){
-				coop_evosuit_playerSetSpace(ePlayer,1);
-				if(ePlayer.getSubclassName() == "Player"){
-					//make sure player respawns at spawn spot info_player_deathmatch
-					ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
-				
-					//kill players that are inside without evo 
-					thread coop_evosuit_playerDecompress(ePlayer);
+		if(doesEntityExist(ePlayer)){
+			//[b60025] chrissstrahl - updated to fix null ent warning
+			if(ePlayer.getHealth() > 0){
+				//check all players touching this trigger
+				if(ePlayer.isEntityInsideOfEntity(eAirLock) == 1){
+					coop_evosuit_playerSetSpace(ePlayer,1);
+					if(ePlayer.getSubclassName() == "Player"){
+						//make sure player respawns at spawn spot info_player_deathmatch
+						ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
 					
-					vVel = ePlayer.getVelocity();
-					vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
-					ePlayer.setvelocity(vVel);
-					
-					ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
-				}else if(ePlayer.getSubclassName() == "Actor"){
-					if(!coop_evosuit_spaceWorthy(ePlayer)){
-						//ePlayer.immobilize(1);
-						ePlayer.gravity(0);
-						ePlayer.suicide();
-						ePlayer.setCustomShader("coop_iceing");
-					}						
+						//kill players that are inside without evo 
+						thread coop_evosuit_playerDecompress(ePlayer);
+						
+						vVel = ePlayer.getVelocity();
+						vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
+						ePlayer.setvelocity(vVel);
+						
+						ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+					}else if(ePlayer.getSubclassName() == "Actor"){
+						if(!coop_evosuit_spaceWorthy(ePlayer)){
+							//ePlayer.immobilize(1);
+							ePlayer.gravity(0);
+							ePlayer.suicide();
+							ePlayer.setCustomShader("coop_iceing");
+						}						
+					}
 				}
+				//BUGSPRAY
+				//else{
+					//print("coop_evosuit_airlockDecompress ("+ePlayer.getTargetname()+")NOT-INSIDE: "+eAirLock.getTargetname()+"\n");
+				//}
 			}
-			//BUGSPRAY
-			//else{
-				//print("coop_evosuit_airlockDecompress ("+ePlayer.getTargetname()+")NOT-INSIDE: "+eAirLock.getTargetname()+"\n");
-			//}
 		}
 	}
 }
@@ -669,6 +713,11 @@ void coop_evosuit_airlockInside()
 			if(doesEntityExist(ePlayer)){
 				//check all players touching this trigger
 				if(ePlayer.isEntityInsideOfEntity(eTrigger) == 1){
+					//[b60025] chrissstrahl - updated to reduce warning message spam
+					if(!eTrigger.doesVarExist("coop_evosuit_AirLockDecompressed")){
+						eTrigger.setFloatVar("coop_evosuit_AirLockDecompressed",0.0);
+					}
+				
 					if(eTrigger.getFloatVar("coop_evosuit_AirLockDecompressed") == 0){
 						coop_evosuit_playerSetSpace(ePlayer,0);
 					}else{
@@ -859,7 +908,8 @@ float coop_evosuit_helmetHud(entity ePlayer)
 {
 	string sModelName;
 	sModelName = ePlayer.getModelName();
-	if(	ePlayer.getFloatVar("coop_evosuit_pickedUp") == 0 && coop_evosuit_spaceWorthy(ePlayer) == 0 ||
+	//[b60025] chrissstrahl - updated to reduce warning message spam
+	if(	coop_evosuit_playerPickedUp(ePlayer) == 0 && coop_evosuit_spaceWorthy(ePlayer) == 0 ||
 		getIntStringFind(sModelName,"dm_attrexian_security-male.tik") > -1 ||
 		//getIntStringFind(sModelName,"eb_gonzales") > -1 ||
 		//getIntStringFind(sModelName,"eb_idryll") > -1 ||
@@ -941,8 +991,9 @@ void coop_evosuit_modelChanged(entity ePlayer)
 		float fSuitOn;
 		float fPickedUp;
 		fInSpace = coop_evosuit_playerInSpace(ePlayer);
-		fSuitOn = ePlayer.getFloatVar("coop_evosuit_on");
-		fPickedUp = ePlayer.getFloatVar("coop_evosuit_pickedUp");
+		//[b60025] chrissstrahl - updated to reduce warning message spam
+		fSuitOn = coop_evosuit_playerEquiped(ePlayer);
+		fPickedUp = coop_evosuit_playerPickedUp(ePlayer);
 		
 		if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") > 0){
 			ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
