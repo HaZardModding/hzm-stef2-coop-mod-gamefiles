@@ -56,6 +56,10 @@ state COMBAT_MAIN
 	states
 		{
 		HANDLE_CALL_VOLUME						: PLAYER_IN_CALL_VOLUME
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 
 		
@@ -82,6 +86,9 @@ state NO_NODE_AVAILABLE
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_THE_WAY
@@ -129,6 +136,9 @@ state NO_NODE_COMBAT_GET_OUT_OF_THE_WAY_FAILED
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 
 		COMBAT_MAIN		: TORSO_BEHAVIOR_DONE !IN_THE_WAY !IN_PLAYER_CONE_OF_FIRE
@@ -158,6 +168,9 @@ state NO_NODE_AVAILABLE_RETRY
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		NO_NODE_COMBAT_ENEMY_IN_MELEE_RANGE		: BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )
 		COMBAT_MAIN								: BEHAVIOR_DONE
@@ -228,6 +241,10 @@ state NO_NODE_COMBAT_MELEE_RANGE_ATTACK_WITH_WEAPON
 	states 
 		{
 		NO_NODE_COMBAT_MELEE_RANGE_ATTACK_WITH_MELEE : TIME_DONE
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_THE_WAY
@@ -372,6 +389,9 @@ state COVER_COMBAT_WITH_RANGED_WEAPON
 	{
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 
 		COVER_COMBAT_PAIN						: SHOW_PAIN
@@ -406,6 +426,7 @@ state COVER_COMBAT_GOTO_COVER_NODE
 	states
 		{
 		COVER_COMBAT_PAIN			: SHOW_PAIN
+		
 		//FOLLOW_THE_LEADER			: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME			: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 
@@ -431,6 +452,10 @@ state COVER_COMBAT_GOTO_COMBAT_NODE
 	states
 		{
 		COVER_COMBAT_PAIN			: SHOW_PAIN
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER			: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME			: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 
@@ -449,7 +474,10 @@ state COVER_COMBAT_GOTO_COMBAT_NODE_FAILED
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 	
 	states 
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_THE_WAY
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_PLAYER_CONE_OF_FIRE
@@ -476,7 +504,10 @@ state COVER_COMBAT_GOTO_COVER_NODE_FAILED
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 	
 	states 
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_THE_WAY
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_PLAYER_CONE_OF_FIRE
@@ -533,7 +564,11 @@ state COVER_COMBAT_ATTACK_FROM_COMBAT_NODE
 	time ( 5 )
 
 	states 
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: TIME_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		FOLLOW_OBJECT	: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: TIME_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		FOLLOW_THE_LEADER						: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY	: IN_THE_WAY
@@ -628,7 +663,11 @@ state COVER_COMBAT_ATTACK_FROM_CRATE_COVER
 	
 	time ( 5 )
 	states 
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: TIME_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		FOLLOW_OBJECT	: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: TIME_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		FOLLOW_THE_LEADER						: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_FIND_NEW_SPOT							: PLAYER_RANGE ( $PLAYER_NEAR_ME$ )
@@ -650,6 +689,9 @@ state COVER_COMBAT_ATTACK_FROM_CRATE_COVER_REPEAT_ATTACK
 
 	states
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_FIND_NEW_SPOT	: PLAYER_RANGE ( $PLAYER_NEAR_ME$ )
 		COVER_COMBAT_ATTACK_FROM_CRATE_COVER : default
@@ -661,7 +703,10 @@ state COVER_COMBAT_FIND_NEW_SPOT
 //------------------------------------------------------------------------------
 {
 	states
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID	
 		COVER_COMBAT_GOTO_COVER_NODE 			: VALID_COVER_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_ANY_NODE$ , $RANGE_MIN_DISTANCE_TO_COVER_NODE$ )
 		COVER_COMBAT_GOTO_COMBAT_NODE			: VALID_COMBAT_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_ANY_NODE$ )
@@ -703,6 +748,9 @@ state COVER_COMBAT_SPOTTED
 	
 	states 
 		{	
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_FIND_NEW_SPOT							: PLAYER_RANGE ( $PLAYER_NEAR_ME$ )
 		COVER_COMBAT_ATTACK_FROM_CRATE_COVER_DUCK			: TORSO_BEHAVIOR_DONE !ENEMY_CAN_SEE_CURRENT_NODE
@@ -719,6 +767,9 @@ state COVER_COMBAT_WITH_RANGED_WEAPON_FAILED
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						:  SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_ENEMY_IN_MELEE_RANGE			: TORSO_BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )	
 		COVER_COMBAT_ATTACK_FROM_CRATE_COVER_DUCK	: TORSO_BEHAVIOR_DONE !ENEMY_CAN_SEE_CURRENT_NODE
@@ -834,6 +885,9 @@ state COVER_COMBAT_MELEE_RANGE_ATTACK_WITH_WEAPON
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_ENEMY_IN_MELEE_RANGE		: TORSO_BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )
 		COMBAT_MAIN								: TORSO_BEHAVIOR_DONE
@@ -903,7 +957,10 @@ state POSITIONAL_COMBAT_GOTO_COMBAT_NODE_FAILED
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 	
 	states 
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		POSITIONAL_COMBAT_ENEMY_IN_MELEE_RANGE	: TORSO_BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )
 		POSITIONAL_COMBAT_GOTO_COMBAT_NODE		: TORSO_BEHAVIOR_DONE
@@ -926,6 +983,9 @@ state POSITIONAL_COMBAT_ARRIVED_AT_COMBAT_NODE
 {
 	states
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		POSITIONAL_COMBAT_FIND_NEW_SPOT				: PLAYER_RANGE ( $PLAYER_NEAR_ME$ )
 		POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE	: default
@@ -943,6 +1003,10 @@ state POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE
 
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: TIME_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		FOLLOW_OBJECT	: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: TIME_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		FOLLOW_THE_LEADER						: TORSO_BEHAVIOR_DONE SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		POSITIONAL_COMBAT_ENEMY_IN_MELEE_RANGE				: TORSO_BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )	
@@ -964,6 +1028,9 @@ state POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE_FAILED
 
 	states
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE : TIME_DONE
 		}
@@ -975,6 +1042,9 @@ state POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE_REPEAT
 {
 	states
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		COVER_COMBAT_GOTO_COVER_NODE			: VALID_COVER_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_ANY_NODE$ , $RANGE_MIN_DISTANCE_TO_COVER_NODE$ )
 		POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE	: default
@@ -986,7 +1056,10 @@ state POSITIONAL_COMBAT_FIND_NEW_SPOT
 //------------------------------------------------------------------------------
 {
 	states
-		{	
+		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE	PLAYER_VALID
 		COVER_COMBAT_GOTO_COVER_NODE				: VALID_COVER_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_ANY_NODE$ , $RANGE_MIN_DISTANCE_TO_COVER_NODE$ )
 		POSITIONAL_COMBAT_GOTO_COMBAT_NODE			: VALID_COMBAT_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_ANY_NODE$ )
@@ -1023,6 +1096,9 @@ state POSITIONAL_COMBAT_MELEE_RANGE_ATTACK_WITH_MELEE
 	
 	states
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER							: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY			: IN_THE_WAY
 		NO_NODE_COMBAT_GET_OUT_OF_THE_WAY			: IN_PLAYER_CONE_OF_FIRE
@@ -1065,6 +1141,9 @@ state POSITIONAL_COMBAT_MELEE_RANGE_ATTACK_WITH_WEAPON
 	
 	states 
 		{
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER						: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		POSITIONAL_COMBAT_ENEMY_IN_MELEE_RANGE		: TORSO_BEHAVIOR_DONE RANGE ( $RANGE_MELEE$ )
 		COMBAT_MAIN								: TORSO_BEHAVIOR_DONE
@@ -1140,4 +1219,122 @@ state POSITIONAL_COMBAT_SMALL_PAIN
 		POSITIONAL_COMBAT_ATTACK_FROM_COMBAT_NODE : ANIM_DONE
 		}
 
+}
+
+
+//[b60025] chrissstrahl - allow following objects
+// SCRIPT USAGE, ai needs to be on:
+// $actor.setTendency("follow",0);
+// $actor.setTendency("followobject",1);
+// $actor.followtarget( $objectToFollow );
+//---------------------------------------------------------
+state FOLLOW_OBJECT
+//---------------------------------------------------------
+{
+	states
+	{
+		FOLLOW_OBJECT_300	: SHOULD_DO_ACTION ( "followobjectdist300" )
+		FOLLOW_OBJECT_500	: SHOULD_DO_ACTION ( "followobjectdist500" )
+		FOLLOW_OBJECT_750	: SHOULD_DO_ACTION ( "followobjectdist750" )
+		FOLLOW_OBJECT_1000	: SHOULD_DO_ACTION ( "followobjectdist1000" )
+		FOLLOW_OBJECT_DEFAULT : default
+	}
+}
+
+//75 - 150
+//---------------------------------------------------------
+state FOLLOW_OBJECT_DEFAULT
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 75 , 150 )
+
+	states
+		{
+		HANDLE_CALL_VOLUME	: PLAYER_IN_CALL_VOLUME
+		NO_NODE_AVAILABLE			: !SHOULD_DO_ACTION ( "followobject" )
+		FOLLOW_NO_ATTACK	: RANGE ( $RANGE_NO_FIRE_ON_FOLLOW$ )
+		NO_NODE_AVAILABLE			: WITHIN_FOLLOW_TARGET_MIN_RANGE
+		NO_NODE_AVAILABLE			: BEHAVIOR_SUCCESS
+		FOLLOW_FAILED	: BEHAVIOR_FAILED		
+		}
+}
+
+//150 - 300
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist300",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_300
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 150 , 300 )
+
+	states
+		{
+		HANDLE_CALL_VOLUME	: PLAYER_IN_CALL_VOLUME
+		NO_NODE_AVAILABLE			: !SHOULD_DO_ACTION ( "followobject" )
+		FOLLOW_NO_ATTACK	: RANGE ( 300 )
+		NO_NODE_AVAILABLE			: WITHIN_FOLLOW_TARGET_MIN_RANGE
+		NO_NODE_AVAILABLE			: BEHAVIOR_SUCCESS
+		FOLLOW_FAILED	: BEHAVIOR_FAILED		
+		}
+}
+
+//300 - 500
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist500",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_500
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 300 , 500 )
+
+	states
+		{
+		HANDLE_CALL_VOLUME	: PLAYER_IN_CALL_VOLUME
+		NO_NODE_AVAILABLE			: !SHOULD_DO_ACTION ( "followobject" )
+		FOLLOW_NO_ATTACK	: RANGE ( 500 )
+		NO_NODE_AVAILABLE			: WITHIN_FOLLOW_TARGET_MIN_RANGE
+		NO_NODE_AVAILABLE			: BEHAVIOR_SUCCESS
+		FOLLOW_FAILED	: BEHAVIOR_FAILED		
+		}
+}
+
+//500 - 750
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist750",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_750
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 500 , 750 )
+
+	states
+		{
+		HANDLE_CALL_VOLUME	: PLAYER_IN_CALL_VOLUME
+		NO_NODE_AVAILABLE			: !SHOULD_DO_ACTION ( "followobject" )
+		FOLLOW_NO_ATTACK	: RANGE ( 750 )
+		NO_NODE_AVAILABLE			: WITHIN_FOLLOW_TARGET_MIN_RANGE
+		NO_NODE_AVAILABLE			: BEHAVIOR_SUCCESS
+		FOLLOW_FAILED	: BEHAVIOR_FAILED		
+		}
+}
+
+//750 - 1000
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist1000",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_1000
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 750 , 1000 )
+
+	states
+		{
+		HANDLE_CALL_VOLUME	: PLAYER_IN_CALL_VOLUME
+		NO_NODE_AVAILABLE			: !SHOULD_DO_ACTION ( "followobject" )
+		FOLLOW_NO_ATTACK	: RANGE ( 1000 )
+		NO_NODE_AVAILABLE			: WITHIN_FOLLOW_TARGET_MIN_RANGE
+		NO_NODE_AVAILABLE			: BEHAVIOR_SUCCESS
+		FOLLOW_FAILED	: BEHAVIOR_FAILED		
+		}
 }

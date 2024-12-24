@@ -43,7 +43,10 @@ state CORE_MAIN
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
 		CORE_PAIN			: SHOW_PAIN
 		CORE_COWER			: OTHER_DIED 
-
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
@@ -81,6 +84,9 @@ state AT_IDLE_NODE
 		CORE_PAIN			: SHOW_PAIN
 		CORE_COWER			: OTHER_DIED 
 
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 		//GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
@@ -110,6 +116,9 @@ state WANDER
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
 		CORE_PAIN			: SHOW_PAIN
 		CORE_COWER			: OTHER_DIED 
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
 
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
@@ -138,6 +147,9 @@ state WANDER_WAIT
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
 		CORE_PAIN			: SHOW_PAIN
 		CORE_COWER			: OTHER_DIED 
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT	: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
 
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE PLAYER_VALID
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
@@ -416,4 +428,137 @@ state CORE_SMALL_PAIN
 		CORE_MAIN : ANIM_DONE
 		}
 
+}
+
+
+//[b60025] chrissstrahl - allow following objects
+// SCRIPT USAGE, ai needs to be on:
+// $actor.setTendency("follow",0);
+// $actor.setTendency("followobject",1);
+// $actor.followtarget( $objectToFollow );
+//---------------------------------------------------------
+state FOLLOW_OBJECT
+//---------------------------------------------------------
+{
+	states
+	{
+		FOLLOW_OBJECT_300	: SHOULD_DO_ACTION ( "followobjectdist300" )
+		FOLLOW_OBJECT_500	: SHOULD_DO_ACTION ( "followobjectdist500" )
+		FOLLOW_OBJECT_750	: SHOULD_DO_ACTION ( "followobjectdist750" )
+		FOLLOW_OBJECT_1000	: SHOULD_DO_ACTION ( "followobjectdist1000" )
+		FOLLOW_OBJECT_DEFAULT : default
+	}
+}
+
+//75 - 150
+//---------------------------------------------------------
+state FOLLOW_OBJECT_DEFAULT
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 75 , 150 )
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		CORE_COWER			: OTHER_DIED 
+
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//150 - 300
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist300",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_300
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 150 , 300 )
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		CORE_COWER			: OTHER_DIED 
+
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//300 - 500
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist500",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_500
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 300 , 500 )
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		CORE_COWER			: OTHER_DIED 
+
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//500 - 750
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist750",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_750
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 500 , 750 )
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		CORE_COWER			: OTHER_DIED 
+
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//750 - 1000
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist1000",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_1000
+//---------------------------------------------------------
+{
+	Behavior GroupFollow ( 750 , 1000 )
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		CORE_COWER			: OTHER_DIED 
+
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
 }

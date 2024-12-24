@@ -59,6 +59,10 @@ state CORE_MAIN
 		//chrissstrahl - added states for smarter ai - 2020.10.10
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT		: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
 		//[b610] chrissstrahl - changed so the ai does not go back and forth because of bad distance checks
 		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
@@ -119,6 +123,10 @@ state WANDER_WAIT
 		//chrissstrahl - added states for smarter ai - 2020.10.10
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
 		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		
+		//[b60025] chrissstrahl - allow following objects
+		FOLLOW_OBJECT		: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
+		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
 		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
 		//end chrissstrahl
@@ -474,3 +482,155 @@ state WAIT_FOR_PLAYER
 		}
 	}
 
+
+//[b60025] chrissstrahl - allow following objects
+// SCRIPT USAGE, ai needs to be on:
+// $actor.setTendency("follow",0);
+// $actor.setTendency("followobject",1);
+// $actor.followtarget( $objectToFollow );
+//---------------------------------------------------------
+state FOLLOW_OBJECT
+//---------------------------------------------------------
+{
+	states
+	{
+		FOLLOW_OBJECT_300	: SHOULD_DO_ACTION ( "followobjectdist300" )
+		FOLLOW_OBJECT_500	: SHOULD_DO_ACTION ( "followobjectdist500" )
+		FOLLOW_OBJECT_750	: SHOULD_DO_ACTION ( "followobjectdist750" )
+		FOLLOW_OBJECT_1000	: SHOULD_DO_ACTION ( "followobjectdist1000" )
+		FOLLOW_OBJECT_DEFAULT : default
+	}
+}
+
+//75 - 150
+//---------------------------------------------------------
+state FOLLOW_OBJECT_DEFAULT
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+	endtorsobehavior
+	cleartorsoanim
+	}
+		
+	Behavior GroupFollow ( 75 , 150 ) //fixed in gameplay.gdb batlethhold animations //this messes up the animation when actor holds batleth
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//150 - 300
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist300",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_300
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+	endtorsobehavior
+	cleartorsoanim
+	}
+		
+	Behavior GroupFollow ( 150 , 300 ) //fixed in gameplay.gdb batlethhold animations //this messes up the animation when actor holds batleth
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//300 - 500
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist500",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_500
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+	endtorsobehavior
+	cleartorsoanim
+	}
+		
+	Behavior GroupFollow ( 300 , 500 ) //fixed in gameplay.gdb batlethhold animations //this messes up the animation when actor holds batleth
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//500 - 750
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist750",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_750
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+	endtorsobehavior
+	cleartorsoanim
+	}
+		
+	Behavior GroupFollow ( 500 , 750 ) //fixed in gameplay.gdb batlethhold animations //this messes up the animation when actor holds batleth
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
+
+//750 - 1000
+// SCRIPT USAGE, additional parameter:
+// $actor.setTendency("followobjectdist1000",1);
+//---------------------------------------------------------
+state FOLLOW_OBJECT_1000
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+	endtorsobehavior
+	cleartorsoanim
+	}
+		
+	Behavior GroupFollow ( 750 , 1000 ) //fixed in gameplay.gdb batlethhold animations //this messes up the animation when actor holds batleth
+
+	states
+		{
+		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
+		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
+		CORE_MAIN			: !SHOULD_DO_ACTION ( "followobject" )
+		CORE_PAIN			: SHOW_PAIN
+		GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" ) IN_THE_WAY
+		CORE_MAIN			: BEHAVIOR_SUCCESS
+		HOLD				: BEHAVIOR_FAILED
+		}
+}
