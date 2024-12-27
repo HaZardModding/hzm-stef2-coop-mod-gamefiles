@@ -313,7 +313,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 				if(sPlayerModel != "models/char/dm_stalker.tik"){
 					if(ePlayer.isplayeronground() == 0 && vVelocity_z < -300){ //player could be on a lift, so check for ground
 						ePlayer.hudprint("== Emercency Stabilisation ==\n");
-						vVelocityNew = '0 0 75';
+						vVelocityNew = '0 0 150';
 						iStatVal = __EVOSUIT_INT_THRUSTER_EMERGENCY_COST;
 						ePlayer.setVelocity(vVelocityNew);
 					}
@@ -499,7 +499,10 @@ void coop_evosuit_playerSetSpaceGravity(entity ePlayer,float fYes)
 {
 	if(doesEntityExist(ePlayer)){
 		if(fYes == 1){
-			ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
+			//[b60025] chrissstrahl - added check so players that commit suicide will not stay in lowgrav
+			if(ePlayer.getHealth() > 0){
+				ePlayer.gravity(__EVOSUIT_FLT_SPACE_GRAVITY);
+			}
 		}
 		else{
 			string sClass;
@@ -516,6 +519,7 @@ void coop_evosuit_playerSetSpaceGravity(entity ePlayer,float fYes)
 			else{ //"Technician"
 				fGravity=0.9;
 			}
+			
 			ePlayer.gravity(fGravity);
 		}
 	}
@@ -596,8 +600,11 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 	
 	ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
 	ePlayer.setCustomShader("coop_iceing");
-	ePlayer.gravity(0);
-	ePlayer.setmovetype("bounce");
+	//[b60025] chrissstrahl - added check so players that commit suicide will not stay in lowgrav
+	if(ePlayer.getHealth() > 0){
+		ePlayer.gravity(0);
+		ePlayer.setmovetype("bounce");
+	}
 	
 	//ePlayer.immobilize(1);
 	
@@ -605,18 +612,25 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 	ePlayer.setFloatVar("coop_respawnAtRespawnpoint",1);
 
 	if(doesEntityExist(ePlayer)){
-		wait(2);
-		while(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
-			ePlayer.kill();
-			globalCoop_main_waitAFrame();
-			
-			if(doesEntityExist(ePlayer)){
-				thread coop_evosuit_playerSetSpace(ePlayer,0);
-				thread coop_evosuit_playerOff(ePlayer);
+		//[b60025] chrissstrahl - added check so players that commit suicide will not stay in lowgrav
+		float fTime;
+		while(doesEntityExist(ePlayer) == 1 && fTime < 2){
+			if(ePlayer.getHealth() > 0){
+				globalCoop_main_waitAFrame();
+				fTime += coop_float_oneFrameTime;
+			}else{
+				fTime = 2;
 			}
+		}
+
+		if(doesEntityExist(ePlayer) == 1 && ePlayer.getHealth() > 0){
+			ePlayer.kill();
 		}
 		
 		if(doesEntityExist(ePlayer)){
+			thread coop_evosuit_playerSetSpace(ePlayer,0);
+			thread coop_evosuit_playerOff(ePlayer);
+			
 			ePlayer.setmovetype("walk");
 			ePlayer.gravity(1);
 			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
