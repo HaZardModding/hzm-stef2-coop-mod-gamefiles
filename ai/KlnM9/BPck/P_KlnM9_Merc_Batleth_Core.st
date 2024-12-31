@@ -22,6 +22,7 @@ state START
 	entrycommands
 	{
 		setvartime ( "playerattacked" )
+//printmessage "START CORE"
 	}
 
 	states
@@ -34,12 +35,11 @@ state START
 state CORE_MAIN
 //---------------------------------------------------------
 {
+entrycommands
+{
+//printmessage "CORE_MAIN CORE"
+}
 
-	entrycommands
-	{
-		//printmessage "CORE_MAIN"//hzm coop mod chrissstrahl - debug
-	}
-	
 	states
 	{
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate"	)
@@ -51,10 +51,16 @@ state CORE_MAIN
 		//FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" )	FOLLOW_TARGET_OUT_OF_RANGE
 		//HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume"	) PLAYER_IN_CALL_VOLUME
 		//GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" )	IN_THE_WAY
-//hzm coop mod chrissstrahl - we want this to work - utilized on coop_gbs7
-		PATROL				: SHOULD_DO_ACTION ( "patrol" )	VALID_PATROL_NODE_IN_RANGE ( $RANGE_PATROL$	)
 		//WORK				: SHOULD_DO_ACTION ( "work"	) VALID_WORK_NODE_IN_RANGE ( $RANGE_WORK$ )
-		//WANDER				: SHOULD_DO_ACTION ( "wander" )
+		
+		//hzm coop mod chrissstrahl - we want this to work - utilized on coop_gbs7
+		PATROL				: SHOULD_DO_ACTION ( "patrol" )	VALID_PATROL_NODE_IN_RANGE ( $RANGE_PATROL$	)
+		
+		//[b60025] chrissstrahl - allow ai to wander if friendly or teammmate - disable with $actor.setTendency("wander",0);
+		//these are used in singleplayer in mission 9 klingon base as enemies, we don't want their behaviour changed there
+		WANDER				: SHOULD_DO_ACTION ( "wander" ) CHANCE ( 0.25 ) !ACTORTYPE ( "enemy" )
+		
+		
 		HOLD				: default
 	}
 }
@@ -65,8 +71,8 @@ state PATROL
 {
 	entrycommands
 	{
-		//printmessage "PATROL"//hzm coop mod chrissstrahl - debug
 		incontext "patrol"
+//printmessage "PATROL CORE"
 	}
 
 	Behavior Patrol	( "walk" )
@@ -88,11 +94,11 @@ state PATROL
 state PATROL_FAILED
 //---------------------------------------------------------
 {
-	entrycommands
-	{
-		//printmessage "PATROL_FAILED"//hzm coop mod chrissstrahl - debug
-	}
-	
+entrycommands
+{
+//printmessage "PATROL_FAILED CORE"
+}
+
 	legs
 	{
 		idle : default
@@ -117,6 +123,7 @@ state WORK
 	entrycommands
 	{
 		incontext "work"
+//printmessage "WORK CORE"
 	}
 
 	Behavior Work (	"walk" )
@@ -137,6 +144,11 @@ state WORK
 state WORK_FAILED
 //---------------------------------------------------------
 {
+entrycommands
+{
+//printmessage "WORK_FAILED CORE"
+}
+
 	legs
 	{
 		idle : default
@@ -162,9 +174,10 @@ state WANDER
 	entrycommands
 	{
 		incontext "wander"
+//printmessage "WANDER CORE"
 	}
 
-	Behavior MoveRandomDirection ( "walk" ,	128	, 96 )
+	Behavior MoveRandomDirection ( "walk" , 192 , 64 )
 
 	states
 	{
@@ -186,6 +199,15 @@ state WANDER
 state WANDER_WAIT
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "WANDER_WAIT CORE"
+		
+		//[b60025] chrissstrahl - allow to look at player for a moment
+		headwatchtarget player
+		setheadwatchmaxdistance 256
+	}
+
 	Behavior HoldPosition
 
 	time ( 7.5 , 10	)
@@ -203,12 +225,23 @@ state WANDER_WAIT
 		//GET_OUT_OF_THE_WAY	: SHOULD_DO_ACTION ( "getoutoftheway" )	IN_THE_WAY
 		CORE_MAIN			: TIME_DONE
 	}
+	
+	exitcommands
+	{
+		//[b60025] chrissstrahl - allow to look at player for a moment - reset
+		headwatchtarget none
+		setheadwatchmaxdistance -1
+	}
 }
 
 //---------------------------------------------------------
 state WANDER_FAILED
 //---------------------------------------------------------
 {
+entrycommands
+{
+	//printmessage "WANDER_FAILED CORE"
+}
 	Behavior HoldPosition
 
 	time ( 1.0 )
@@ -255,6 +288,11 @@ state WANDER_FAILED
 
 state PLAYER_ATTACKED
 {
+	entrycommands
+	{
+//[b60025] chrissstrahl
+//printmessage "PLAYER_ATTACKED CORE"
+	}
 
 	states
 	{
@@ -270,6 +308,9 @@ state UPGRADE_STAGE
 		incontext "playerattacked"
 		gotonextstage
 		setvartime ( "playerattacked" )
+		
+//[b60025] chrissstrahl
+//printmessage "UPGRADE_STAGE CORE"
 	}
 
 	states
@@ -287,6 +328,8 @@ state TURN_AGAINST_PLAYER
 		attackplayer
 		groupattack	1
 		failmission	8
+		
+//printmessage "TURN_AGAINST_PLAYER CORE"
 	}
 }
 
@@ -294,10 +337,10 @@ state TURN_AGAINST_PLAYER
 state HOLD
 //---------------------------------------------------------
 {
-	entrycommands
-	{
-		//printmessage "HOLD"//hzm coop mod chrissstrahl - debug
-	}
+entrycommands
+{
+	//printmessage "HOLD CORE"
+}
 
 	legs
 	{
@@ -382,6 +425,10 @@ state HOLD
 state CORE_PAIN
 //---------------------------------------------------------
 {
+entrycommands
+{
+	//printmessage "CORE_PAIN CORE"
+}
 	states
 	{
 		CORE_BIG_PAIN	  :	MOD	( "explosion" )
@@ -396,6 +443,10 @@ state CORE_PAIN
 state CORE_BIG_PAIN
 //---------------------------------------------------------
 {
+entrycommands
+{
+//printmessage "CORE_BIG_PAIN CORE"
+}
 	legs
 	{
 		pain_knockback : default
@@ -414,6 +465,7 @@ state CORE_SMALL_PAIN
 	entrycommands
 	{
 		saveofflasthitbone
+//printmessage "CORE_SMALL_PAIN CORE"
 	}
 
 	legs
