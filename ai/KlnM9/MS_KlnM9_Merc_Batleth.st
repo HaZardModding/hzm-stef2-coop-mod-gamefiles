@@ -57,10 +57,17 @@ state CORE
 	states
 	{
 		AI_OFF : !IN_AI_MODE
-		COMBAT 	 : ACTORTYPE ( "enemy" ) HAVE_ENEMY
-		COMBAT 	 : ACTORTYPE ( "enemy" ) ATTACKED
-		TO_ENEMY : ATTACKED
-		COMBAT : HAVE_ENEMY
+		
+		//[b60025] chrissstrahl - upgrade ai to work as teammate/friend
+		//COMBAT 	 : ACTORTYPE ( "enemy" ) HAVE_ENEMY
+		//COMBAT 	 : ACTORTYPE ( "enemy" ) ATTACKED
+		COMBAT 	 : HAVE_ENEMY
+		COMBAT 	 : ATTACKED
+		
+		//[b60025] chrissstrahl - upgrade ai to work as teammate/friend
+		//disabled because we do not need them anymore
+		//TO_ENEMY : ATTACKED
+		//COMBAT : HAVE_ENEMY
 	}
 }
 
