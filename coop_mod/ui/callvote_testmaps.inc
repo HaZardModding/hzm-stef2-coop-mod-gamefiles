@@ -77,7 +77,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_animate;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-animate;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -98,7 +98,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_bind;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-bind;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -119,7 +119,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_callvolume;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-callvolume;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -140,7 +140,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_cinematic;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-cinematic;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -161,7 +161,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_destructible;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-destructible;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -182,7 +182,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_destructiblevanish;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-destructiblevanish;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -203,7 +203,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_dialog;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-dialog;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -224,7 +224,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_doors;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-doors;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -245,7 +245,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_everyone;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-everyone;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -266,7 +266,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_forcefield;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-forcefield;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -287,7 +287,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_heal;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-heal;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -308,7 +308,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_bioscanner;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-bioscanner;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -369,7 +369,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_hud;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-hud;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -390,7 +390,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_hurt;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-hurt;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -411,7 +411,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_immobilize;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-immobilize;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -432,7 +432,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_lock;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-lock;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -453,7 +453,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_map;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-map;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -474,7 +474,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_objective;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-objective;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -495,7 +495,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_puzzle;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-puzzle;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -516,7 +516,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_remove;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-remove;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -537,7 +537,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_respawn;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-respawn;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -558,7 +558,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_savegame;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-savegame;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -579,7 +579,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_selectionmove;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-selectionmove;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -600,7 +600,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_doorsRotating;popmenu 0\n"
+	stuffcommand "callvote map coop_test-doorsRotating;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -621,7 +621,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_walkto;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-walkto;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -682,7 +682,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_weapon;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-weapon;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -703,7 +703,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_cinematic2;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-cinematic2;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -724,7 +724,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_fallschirmspringer;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-fallschirmspringer;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -745,7 +745,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_multioptions;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-multioptions;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -766,7 +766,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_borgWork;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-borgWork;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -787,7 +787,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_groupdeath;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-groupdeath;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -808,7 +808,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_teammate;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-teammate;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -829,7 +829,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_leadplayer;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-leadplayer;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -850,7 +850,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_batlethteammate;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-batlethteammate;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -871,7 +871,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_triggerish;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-triggerish;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -892,7 +892,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_mrm;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-mrm;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -913,7 +913,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_circle;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-circle;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -934,7 +934,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_statbar;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-statbar;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -995,7 +995,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_ranks;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-ranks;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -1016,7 +1016,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_symbols;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-symbols;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -1037,7 +1037,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_continuoususe;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-continuoususe;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -1058,7 +1058,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_ffscan;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-ffscan;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -1079,7 +1079,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_bCommander;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-bCommander;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }
@@ -1100,7 +1100,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "callvote map prf_pointAndClick;popmenu 1;popmenu 0\n"
+	stuffcommand "callvote map coop_test-pointAndClick;popmenu 1;popmenu 0\n"
 	hovercommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coopShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coopName title \"\""
 }

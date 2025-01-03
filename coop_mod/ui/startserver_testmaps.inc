@@ -79,7 +79,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_animate\n"
+	stuffcommand "set ui_startmap coop_test-animate\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -100,7 +100,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_bind\n"
+	stuffcommand "set ui_startmap coop_test-bind\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -121,7 +121,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_callvolume\n"
+	stuffcommand "set ui_startmap coop_test-callvolume\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -142,7 +142,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_cinematic\n"
+	stuffcommand "set ui_startmap coop_test-cinematic\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -163,7 +163,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_destructible\n"
+	stuffcommand "set ui_startmap coop_test-destructible\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -184,7 +184,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_destructiblevanish\n"
+	stuffcommand "set ui_startmap coop_test-destructiblevanish\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -205,7 +205,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_dialog\n"
+	stuffcommand "set ui_startmap coop_test-dialog\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -226,7 +226,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_doors\n"
+	stuffcommand "set ui_startmap coop_test-doors\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -247,7 +247,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_everyone\n"
+	stuffcommand "set ui_startmap coop_test-everyone\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -268,7 +268,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_forcefield\n"
+	stuffcommand "set ui_startmap coop_test-forcefield\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -289,7 +289,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_heal\n"
+	stuffcommand "set ui_startmap coop_test-heal\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -310,7 +310,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_bioscanner\n"
+	stuffcommand "set ui_startmap coop_test-bioscanner\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -373,7 +373,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_hud\n"
+	stuffcommand "set ui_startmap coop_test-hud\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -394,7 +394,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_hurt\n"
+	stuffcommand "set ui_startmap coop_test-hurt\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -415,7 +415,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_immobilize\n"
+	stuffcommand "set ui_startmap coop_test-immobilize\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -436,7 +436,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_lock\n"
+	stuffcommand "set ui_startmap coop_test-lock\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -457,7 +457,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_map\n"
+	stuffcommand "set ui_startmap coop_test-map\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -478,7 +478,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_objective\n"
+	stuffcommand "set ui_startmap coop_test-objective\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -499,7 +499,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_puzzle\n"
+	stuffcommand "set ui_startmap coop_test-puzzle\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -520,7 +520,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_remove\n"
+	stuffcommand "set ui_startmap coop_test-remove\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -541,7 +541,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_respawn\n"
+	stuffcommand "set ui_startmap coop_test-respawn\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -562,7 +562,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_savegame\n"
+	stuffcommand "set ui_startmap coop_test-savegame\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -583,7 +583,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_selectionmove\n"
+	stuffcommand "set ui_startmap coop_test-selectionmove\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -604,7 +604,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_doorsRotating\n"
+	stuffcommand "set ui_startmap coop_test-doorsRotating\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -625,7 +625,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_walkto\n"
+	stuffcommand "set ui_startmap coop_test-walkto\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -688,7 +688,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_weapon\n"
+	stuffcommand "set ui_startmap coop_test-weapon\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -709,7 +709,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_cinematic2\n"
+	stuffcommand "set ui_startmap coop_test-cinematic2\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -730,7 +730,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_fallschirmspringer\n"
+	stuffcommand "set ui_startmap coop_test-fallschirmspringer\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -751,7 +751,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_multioptions\n"
+	stuffcommand "set ui_startmap coop_test-multioptions\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -772,7 +772,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_borgWork\n"
+	stuffcommand "set ui_startmap coop_test-borgWork\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -793,7 +793,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_groupdeath\n"
+	stuffcommand "set ui_startmap coop_test-groupdeath\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -814,7 +814,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_teammate\n"
+	stuffcommand "set ui_startmap coop_test-teammate\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -835,7 +835,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_leadplayer\n"
+	stuffcommand "set ui_startmap coop_test-leadplayer\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -856,7 +856,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_batlethteammate\n"
+	stuffcommand "set ui_startmap coop_test-batlethteammate\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -877,7 +877,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_triggerish\n"
+	stuffcommand "set ui_startmap coop_test-triggerish\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -898,7 +898,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_mrm\n"
+	stuffcommand "set ui_startmap coop_test-mrm\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -919,7 +919,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_circle\n"
+	stuffcommand "set ui_startmap coop_test-circle\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -940,7 +940,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_statbar\n"
+	stuffcommand "set ui_startmap coop_test-statbar\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -983,7 +983,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_ranks\n"
+	stuffcommand "set ui_startmap coop_test-ranks\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -1004,7 +1004,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_symbols\n"
+	stuffcommand "set ui_startmap coop_test-symbols\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -1025,7 +1025,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_continuoususe\n"
+	stuffcommand "set ui_startmap coop_test-continuoususe\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -1046,7 +1046,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_ffscan\n"
+	stuffcommand "set ui_startmap coop_test-ffscan\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -1067,7 +1067,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_bCommander\n"
+	stuffcommand "set ui_startmap coop_test-bCommander\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
@@ -1088,7 +1088,7 @@ Button
 
 	clicksound sound/misc/menu/click.wav
  
-	stuffcommand "set ui_startmap prf_pointAndClick\n"
+	stuffcommand "set ui_startmap coop_test-pointAndClick\n"
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"Chrissstrahl\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
