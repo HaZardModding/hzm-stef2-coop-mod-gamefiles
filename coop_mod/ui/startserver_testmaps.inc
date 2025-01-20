@@ -66,7 +66,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Animation"
+	title "Coop Test Animation"
 	name 	"coopHzmTestLvlStartSv1"
 	rect	275 135 328 20
 	font serpentinemedium-10
@@ -87,7 +87,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Bind"
+	title "Coop Test Bind"
 	name 	"coopHzmTestLvlStartSv2"
 	rect	275 156 328 20
 	font serpentinemedium-10
@@ -108,7 +108,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Callvolume"
+	title "Coop Test Callvolume"
 	name 	"coopHzmTestLvlStartSv3"
 	rect	275 177 328 20
 	font serpentinemedium-10
@@ -129,7 +129,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Cinematic"
+	title "Coop Test Cinematic"
 	name 	"coopHzmTestLvlStartSv4"
 	rect	275 198 328 20
 	font serpentinemedium-10
@@ -150,7 +150,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Destructible"
+	title "Coop Test Destructible"
 	name 	"coopHzmTestLvlStartSv5"
 	rect	275 219 328 20
 	font serpentinemedium-10
@@ -171,7 +171,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Destructible Vanish"
+	title "Coop Test Destructible Vanish"
 	name 	"coopHzmTestLvlStartSv6"
 	rect	275 240 328 20
 	font serpentinemedium-10
@@ -192,7 +192,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Dialog"
+	title "Coop Test Dialog"
 	name 	"coopHzmTestLvlStartSv7"
 	rect	275 261 328 20
 	font serpentinemedium-10
@@ -213,7 +213,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Doors"
+	title "Coop Test Doors"
 	name 	"coopHzmTestLvlStartSv8"
 	rect	275 282 328 20
 	font serpentinemedium-10
@@ -234,7 +234,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Everyone"
+	title "Coop Test Everyone"
 	name 	"coopHzmTestLvlStartSv9"
 	rect	275 303 328 20
 	font serpentinemedium-10
@@ -255,7 +255,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Forcefield"
+	title "Coop Test Forcefield"
 	name 	"coopHzmTestLvlStartSv10"
 	rect	275 324 328 20
 	font serpentinemedium-10
@@ -276,7 +276,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Heal"
+	title "Coop Test Heal"
 	name 	"coopHzmTestLvlStartSv11"
 	rect	275 345 328 20
 	font serpentinemedium-10
@@ -297,7 +297,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 20 ==
-	title "Prefab Bioscanner"
+	title "Coop Test Bioscanner"
 	name 	"coopHzmTestLvlStartSv12"
 	rect	275 366 328 20
 	font serpentinemedium-10
@@ -360,7 +360,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Hud"
+	title "Coop Test Hud"
 	name 	"coopHzmTestLvlStartSv13"
 	rect	275 114 328 20
 	font serpentinemedium-10
@@ -381,7 +381,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Hurt"
+	title "Coop Test Hurt"
 	name 	"coopHzmTestLvlStartSv14"
 	rect	275 135 328 20
 	font serpentinemedium-10
@@ -402,7 +402,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Immobilize"
+	title "Coop Test Immobilize"
 	name 	"coopHzmTestLvlStartSv15"
 	rect	275 156 328 20
 	font serpentinemedium-10
@@ -423,7 +423,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Lock"
+	title "Coop Test Lock"
 	name 	"coopHzmTestLvlStartSv16"
 	rect	275 177 328 20
 	font serpentinemedium-10
@@ -444,7 +444,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Load Map"
+	title "Coop Test Load Map"
 	name 	"coopHzmTestLvlStartSv17"
 	rect	275 198 328 20
 	font serpentinemedium-10
@@ -465,7 +465,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Objective"
+	title "Coop Test Objective"
 	name 	"coopHzmTestLvlStartSv18"
 	rect	275 219 328 20
 	font serpentinemedium-10
@@ -486,7 +486,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Puzzle"
+	title "Coop Test Puzzle"
 	name 	"coopHzmTestLvlStartSv19"
 	rect	275 240 328 20
 	font serpentinemedium-10
@@ -507,7 +507,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Remove"
+	title "Coop Test Remove"
 	name 	"coopHzmTestLvlStartSv20"
 	rect	275 261 328 20
 	font serpentinemedium-10
@@ -528,7 +528,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Respawn"
+	title "Coop Test Respawn"
 	name 	"coopHzmTestLvlStartSv21"
 	rect	275 282 328 20
 	font serpentinemedium-10
@@ -549,7 +549,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Savegame"
+	title "Coop Test Savegame"
 	name 	"coopHzmTestLvlStartSv22"
 	rect	275 303 328 20
 	font serpentinemedium-10
@@ -570,7 +570,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Selection Move"
+	title "Coop Test Selection Move"
 	name 	"coopHzmTestLvlStartSv23"
 	rect	275 324 328 20
 	font serpentinemedium-10
@@ -591,7 +591,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Rotating Doors"
+	title "Coop Test Rotating Doors"
 	name 	"coopHzmTestLvlStartSv24"
 	rect	275 345 328 20
 	font serpentinemedium-10
@@ -612,7 +612,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 21 ==
-	title "Prefab Walkto"
+	title "Coop Test Walkto"
 	name 	"coopHzmTestLvlStartSv25"
 	rect	275 366 328 20
 	font serpentinemedium-10
@@ -675,7 +675,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Weapon"
+	title "Coop Test Weapon"
 	name 	"coopHzmTestLvlStartSv27"
 	rect	275 114 328 20
 	font serpentinemedium-10
@@ -696,7 +696,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Cinematic 2"
+	title "Coop Test Cinematic 2"
 	name 	"coopHzmTestLvlStartSv28"
 	rect	275 135 328 20
 	font serpentinemedium-10
@@ -717,7 +717,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Fallschirmspringer"
+	title "Coop Test Fallschirmspringer"
 	name 	"coopHzmTestLvlStartSv29"
 	rect	275 156 328 20
 	font serpentinemedium-10
@@ -738,7 +738,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Multi Options Menu (MOM)"
+	title "Coop Test Multi Options Menu (MOM)"
 	name 	"coopHzmTestLvlStartSv30"
 	rect	275 177 328 20
 	font serpentinemedium-10
@@ -759,7 +759,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Borg Work"
+	title "Coop Test Borg Work"
 	name 	"coopHzmTestLvlStartSv31"
 	rect	275 198 328 20
 	font serpentinemedium-10
@@ -780,7 +780,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Group Death Thread"
+	title "Coop Test Group Death Thread"
 	name 	"coopHzmTestLvlStartSv32"
 	rect	275 219 328 20
 	font serpentinemedium-10
@@ -801,7 +801,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Teammate"
+	title "Coop Test Teammate"
 	name 	"coopHzmTestLvlStartSv33"
 	rect	275 240 328 20
 	font serpentinemedium-10
@@ -822,7 +822,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Lead Player"
+	title "Coop Test Lead Player"
 	name 	"coopHzmTestLvlStartSv34"
 	rect	275 261 328 20
 	font serpentinemedium-10
@@ -843,7 +843,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Bat'leth Teammate"
+	title "Coop Test Bat'leth Teammate"
 	name 	"coopHzmTestLvlStartSv35"
 	rect	275 282 328 20
 	font serpentinemedium-10
@@ -864,7 +864,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Triggerish"
+	title "Coop Test Triggerish"
 	name 	"coopHzmTestLvlStartSv36"
 	rect	275 303 328 20
 	font serpentinemedium-10
@@ -885,7 +885,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Mission Resource Managment"
+	title "Coop Test Mission Resource Managment"
 	name 	"coopHzmTestLvlStartSv37"
 	rect	275 324 328 20
 	font serpentinemedium-10
@@ -906,7 +906,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Circle Menu"
+	title "Coop Test Circle Menu"
 	name 	"coopHzmTestLvlStartSv38"
 	rect	275 345 328 20
 	font serpentinemedium-10
@@ -927,7 +927,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 22 ==
-	title "Prefab Statistics and Health Bar"
+	title "Coop Test Statistics and Health Bar"
 	name 	"coopHzmTestLvlStartSv39"
 	rect	275 366 328 20
 	font serpentinemedium-10
@@ -970,7 +970,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Ranks"
+	title "Coop Test Ranks"
 	name 	"coopHzmTestLvlStartSv40"
 	rect	275 114 328 20
 	font serpentinemedium-10
@@ -991,7 +991,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Symbols, Icons, Sprites"
+	title "Coop Test Symbols, Icons, Sprites"
 	name 	"coopHzmTestLvlStartSv41"
 	rect	275 135 328 20
 	font serpentinemedium-10
@@ -1012,7 +1012,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Continuous Use"
+	title "Coop Test Continuous Use"
 	name 	"coopHzmTestLvlStartSv42"
 	rect	275 156 328 20
 	font serpentinemedium-10
@@ -1033,7 +1033,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Forcefield Scan"
+	title "Coop Test Forcefield Scan"
 	name 	"coopHzmTestLvlStartSv43"
 	rect	275 177 328 20
 	font serpentinemedium-10
@@ -1054,7 +1054,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Bridge Commander"
+	title "Coop Test Bridge Commander"
 	name 	"coopHzmTestLvlStartSv44"
 	rect	275 198 328 20
 	font serpentinemedium-10
@@ -1075,7 +1075,7 @@ resource
 Button
 {
 	cvarvisibility coop_ui_vt 23 ==
-	title "Prefab Point and Click"
+	title "Coop Test Point and Click"
 	name 	"coopHzmTestLvlStartSv45"
 	rect	275 219 328 20
 	font serpentinemedium-10
