@@ -2526,7 +2526,8 @@ OBJECT HoldBatleth		Animations
     string CombatWalk		swat_walk
     string Draw		batleth_ready
     string Fire		batleth_ready
-    string Idle		swat_idle //[608] chrissstrahl - fixed strange behaviour when patrolling or following in all ai with batleth
+    //string Idle		batleth_idle
+    string Idle		idle //[b60025] chrissstrahl - fixed strange behaviour when patrolling or following in all ai with batleth
     string IdleBackpedal		backpedal
     string IdleLStrafe		strafe_left
     string IdleLegIdle		idle
