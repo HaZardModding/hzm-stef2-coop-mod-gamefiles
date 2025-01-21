@@ -65,7 +65,9 @@ state CORE_MAIN
 		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
 		//[b610] chrissstrahl - changed so the ai does not go back and forth because of bad distance checks
-		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
+		//[b60025] chrissstrahl - added !follow check and added patrol
+		LEAD				: !SHOULD_DO_ACTION ( "follow" ) SHOULD_DO_ACTION ( "patrol" )
+		LEAD				: !SHOULD_DO_ACTION ( "follow" ) SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
 		WANDER				: SHOULD_DO_ACTION ( "wander" ) 
 		//end chrissstrahl
 		HOLD				: default
@@ -116,7 +118,7 @@ state WANDER_WAIT
 		batleth_idle : default
 	}
 
-	time ( 1.5 , 3	)
+	time ( 1.5 , 5 ) //[b60025] chrissstrahl - changed from 3 sec to 5
 
 	states
 	{
@@ -128,8 +130,11 @@ state WANDER_WAIT
 		FOLLOW_OBJECT		: SHOULD_DO_ACTION ( "followobject" ) FOLLOW_TARGET_OUT_OF_RANGE
 		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
-		LEAD				: SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
-		//end chrissstrahl
+		
+		//[b60025] chrissstrahl - added !follow check and added patrol
+		LEAD				: !SHOULD_DO_ACTION ( "follow" ) SHOULD_DO_ACTION ( "patrol" )
+		LEAD				: !SHOULD_DO_ACTION ( "follow" ) SHOULD_DO_ACTION ( "lead" ) PLAYER_RANGE ( $PLAYER_DISTANCE_OPTIMAL_FOR_LEAD_CONTINUE$ )
+
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate"	)
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "friend" )
 		CORE_PAIN			: SHOW_PAIN
@@ -394,6 +399,7 @@ state LEAD
 
 	states
 		{
+		LEAD_SLOW			: SHOULD_DO_ACTION ( "patrol" )
 		LEAD_SLOW			: SHOULD_DO_ACTION ( "leadslow" )
 		LEAD_FAST			: default
 		}
@@ -415,7 +421,7 @@ state LEAD_SLOW
 		PLAYER_ATTACKED		: ATTACKED_BY_PLAYER ACTORTYPE ( "teammate" )
 		CORE_PAIN			: SHOW_PAIN
 		HANDLE_CALL_VOLUME	: SHOULD_DO_ACTION ( "handlecallvolume" ) PLAYER_IN_CALL_VOLUME
-		TURN_TO_PLAYER   	: !PLAYER_RANGE ( $MAX_WAIT_FOR_PLAYER_RANGE$ )
+		TURN_TO_PLAYER   	: !SHOULD_DO_ACTION ( "patrol" ) !PLAYER_RANGE ( $MAX_WAIT_FOR_PLAYER_RANGE$ )
 		CORE_MAIN			 : BEHAVIOR_SUCCESS
 		CORE_MAIN			 : BEHAVIOR_FAILED
 		}
