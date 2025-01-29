@@ -31,6 +31,10 @@ void	coop_evosuit_classChanged(entity ePlayer);
 void	coop_evosuit_modelChanged(entity ePlayer);
 void	coop_evosuit_3rdPerson(entity ePlayer);
 float	coop_evosuit_helmetHud(entity ePlayer);
+void	coop_evosuit_setHudHelmet(entity ePlayer, float fOn);
+void	coop_evosuit_setHudAirsupply(entity ePlayer, float fOn);
+void	coop_evosuit_setHudThruster(entity ePlayer, float fOn);
+void	coop_evosuit_setHudIceing(entity ePlayer, float fOn);
 
 //these are global for this level script using __ as prefix so highligther shows them
 //USE THEM IN YOUR SCRIPT FOR CONFIGURATION, SO YOU DONT HAVE TO EDIT THE EVOSUIT SCRIPT
@@ -159,7 +163,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 	}
 	
 	if(sPlayerModel != "models/char/dm_stalker.tik"){
-		ePlayer.addhud(__EVOSUIT_STR_HUD_AIRSUPPLY);
+		coop_evosuit_setHudAirsupply(ePlayer,1);
 		if(__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR != ""){
 			thread globalCoop_player_transmitter(ePlayer,"set "+__EVOSUIT_STR_HUD_AIRSUPPLY_CVAR+" "+__EVOSUIT_STR_HUD_AIRSUPPLY_STRING);
 		}
@@ -330,7 +334,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 						if(iFreezing == 0){
 							iFreezing=1;
 							iLastFreezeHurt = getLevelTime();
-							ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+							coop_evosuit_setHudIceing(ePlayer,1);
 						}
 						if((iLastFreezeHurt + 5) < getLevelTime()){
 							iLastFreezeHurt = getLevelTime();
@@ -341,7 +345,7 @@ void coop_evosuit_playerOn(entity ePlayer,float fPickedUp)
 			}else{
 				if(iFreezing == 1){
 					iFreezing=0;
-					ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+					coop_evosuit_setHudIceing(ePlayer,0);
 				}
 				iTrusersInactiveTime  = ((1 / coop_float_oneFrameTime) * __EVOSUIT_INT_EXO_FREEZE_TIME);
 			}
@@ -385,10 +389,10 @@ void coop_evosuit_playerOff(entity ePlayer)
 		killthread(sKillThread);
 		
 		ePlayer.stoploopsound();
-		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);	
 		ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY_WARNING);
-		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
 		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER_WARNING);
+		coop_evosuit_setHudAirsupply(ePlayer,0);
+		coop_evosuit_setHudThruster(ePlayer,0);
 		
 		//REMOVE HELMET HUD
 		
@@ -400,7 +404,7 @@ void coop_evosuit_playerOff(entity ePlayer)
 			getIntStringFind(sModelName,"eb_idryll") == -1 &&
 			getIntStringFind(sModelName,"spacesuit") == -1 )
 		{
-			ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+			coop_evosuit_setHudHelmet(ePlayer,0);
 		}
 		//ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
 		
@@ -538,7 +542,7 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 		
 		//player worthy of space even without picking suit up - auto put on
 		if(coop_evosuit_spaceWorthy(ePlayer) == 1){
-			ePlayer.addhud(__EVOSUIT_STR_HUD_THRUSTER);
+			coop_evosuit_setHudThruster(ePlayer,1);
 			if(coop_evosuit_playerEquiped(ePlayer) == 0){		
 				thread coop_evosuit_playerOn(ePlayer,0); //mark as not picked up
 			}
@@ -552,7 +556,7 @@ void coop_evosuit_playerSetSpace(entity ePlayer,float fSpace)
 			thread coop_evosuit_playerOff(ePlayer);
 		}
 		coop_evosuit_playerSetSpaceGravity(ePlayer,0);
-		ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+		coop_evosuit_setHudThruster(ePlayer,0);
 	}
 }
 
@@ -590,14 +594,14 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 	if(coop_evosuit_spaceWorthy(ePlayer) == 1){
 		wait(2);
 		if(doesEntityExist(ePlayer)){
-			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			coop_evosuit_setHudIceing(ePlayer,0);
 			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
 		}
 		return;
 	}
 	
 	
-	ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+	coop_evosuit_setHudIceing(ePlayer,1);
 	ePlayer.setCustomShader("coop_iceing");
 	//[b60025] chrissstrahl - added check so players that commit suicide will not stay in lowgrav
 	if(ePlayer.getHealth() > 0){
@@ -632,7 +636,7 @@ void coop_evosuit_playerDecompress(entity ePlayer)
 			
 			ePlayer.setmovetype("walk");
 			ePlayer.gravity(1);
-			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			coop_evosuit_setHudIceing(ePlayer,0);
 			ePlayer.setFloatVar("coop_evosuit_decompressing",0);
 		}
 	}
@@ -693,7 +697,7 @@ void coop_evosuit_airlockDecompress(entity eAirLock)
 						vVel = (vVel + __EVOSUIT_VEC_AIRLOCK_DECOMPRESS_PUSH);
 						ePlayer.setvelocity(vVel);
 						
-						ePlayer.addhud(__EVOSUIT_STR_HUD_ICEING);
+						coop_evosuit_setHudIceing(ePlayer,1);
 					}else if(ePlayer.getSubclassName() == "Actor"){
 						if(!coop_evosuit_spaceWorthy(ePlayer)){
 							//ePlayer.immobilize(1);
@@ -783,9 +787,9 @@ void coop_evosuit_haltStat(entity ePlayer,float fHalt)
 	if(doesEntityExist(ePlayer)){
 		if(fHalt != 1){
 			fHalt = 0;
-			ePlayer.addhud(__EVOSUIT_STR_HUD_THRUSTER);
+			coop_evosuit_setHudThruster(ePlayer,1);
 		}else{
-			ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
+			coop_evosuit_setHudThruster(ePlayer,0);
 		}
 		ePlayer.setFloatVar("coop_evosuit_haltStat",fHalt);
 	}
@@ -932,7 +936,7 @@ float coop_evosuit_helmetHud(entity ePlayer)
 	{
 		return 0;
 	}
-	ePlayer.addHud(__EVOSUIT_STR_HUD_HELMET);
+	coop_evosuit_setHudHelmet(ePlayer,1);
 	return 1;
 }
 
@@ -950,7 +954,7 @@ void coop_evosuit_3rdPerson(entity ePlayer)
 		if(ePlayer.checkThirdperson()){
 			if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") != 2){
 				ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",2);
-				ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+				coop_evosuit_setHudHelmet(ePlayer,0);
 			}
 		}else{
 			if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") != 3){
@@ -1015,7 +1019,7 @@ void coop_evosuit_justBecameSpectator(entity ePlayer)
 			//ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
 			//ePlayer.removehud(__EVOSUIT_STR_HUD_AIRSUPPLY);
 			//ePlayer.removehud(__EVOSUIT_STR_HUD_THRUSTER);
-			ePlayer.removehud(__EVOSUIT_STR_HUD_ICEING);
+			coop_evosuit_setHudIceing(ePlayer,0);
 		}
 	}
 }
@@ -1046,7 +1050,7 @@ void coop_evosuit_modelChanged(entity ePlayer)
 		fPickedUp = coop_evosuit_playerPickedUp(ePlayer);
 
 		//[b60025] chrissstrahl - updated to fix hud staying on when changing models from gonzales to other
-		ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+		coop_evosuit_setHudHelmet(ePlayer,0);
 		
 		if(ePlayer.getFloatVar("coop_evosuit_3rdPersonRunning") > 0){
 			ePlayer.setFloatVar("coop_evosuit_3rdPersonRunning",1);
@@ -1080,5 +1084,62 @@ void coop_evosuit_justEntered(entity ePlayer)
 	if(doesEntityExist(ePlayer)){
 		ePlayer.setFloatVar("coop_evosuit_pickedUp",0); //[b60018] Chrissstrahl - stop variable does not exist warning spam
 		thread coop_evosuit_3rdPerson(ePlayer);
+	}
+}
+
+void coop_evosuit_setHudHelmet(entity ePlayer, float fOn)
+//------------------------------------------------------------------------------
+// [b60025] chrissstrahl - allow to add and remove huds
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(fOn){
+			ePlayer.addHud(__EVOSUIT_STR_HUD_HELMET);
+		}else{
+			ePlayer.removeHud(__EVOSUIT_STR_HUD_HELMET);
+		}
+	}
+}
+
+void coop_evosuit_setHudAirsupply(entity ePlayer, float fOn)
+//------------------------------------------------------------------------------
+// [b60025] chrissstrahl - allow to add and remove huds
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(fOn){
+			ePlayer.addHud(__EVOSUIT_STR_HUD_AIRSUPPLY);
+		}else{
+			ePlayer.removeHud(__EVOSUIT_STR_HUD_AIRSUPPLY);
+		}
+	}
+}
+
+
+void coop_evosuit_setHudThruster(entity ePlayer, float fOn)
+//------------------------------------------------------------------------------
+// [b60025] chrissstrahl - allow to add and remove huds
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(fOn){
+			ePlayer.addHud(__EVOSUIT_STR_HUD_THRUSTER);
+		}else{
+			ePlayer.removeHud(__EVOSUIT_STR_HUD_THRUSTER);
+		}
+	}
+}
+
+void coop_evosuit_setHudIceing(entity ePlayer, float fOn)
+//------------------------------------------------------------------------------
+// [b60025] chrissstrahl - allow to add and remove huds
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(ePlayer)){
+		if(fOn){
+			ePlayer.addHud(__EVOSUIT_STR_HUD_ICEING);
+		}else{
+			ePlayer.removeHud(__EVOSUIT_STR_HUD_ICEING);
+		}
 	}
 }
