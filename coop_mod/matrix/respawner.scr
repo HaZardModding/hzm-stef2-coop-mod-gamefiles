@@ -1,0 +1,604 @@
+//-----------------------------------------------------------------------------------
+// Script By:	Christian Sebastian Strahl (Chrissstrahl)
+// Created on:	2025.01.30
+// E-Mail:		chrissstrahl@yahoo.de
+//-----------------------------------------------------------------------------------
+// SCRIPT TO RESPAWN ENEMIES AUTOMATICALLY BASED ON VARIOUS CUSTOMIZABLE PARAMETERS
+//-----------------------------------------------------------------------------------
+
+/* ------------------- 
+THIS IS MEANT TO MAKE IT EASIER TO RESPAWN ENEMIES THAT ARE ALREADY ON THE LEVEL
+Use the functions on the Actor as soon as possible so that the respawns happen on the same location the original was spawned, 
+if the actor wanders before you call the function on them the current origin will be used, see EXAMPLES on how to use
+	
+USE THESE FUNCTIONS:
+------------------- 
+void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
+	-> Respawns a actor based on various parameters/options
+	-> More details see: PARAMETERS
+	
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
+	-> Respawns a actor multiple times based on the difficulty/skill set - easy 1 enemy per player, normal 2, hard 3, very heard 4
+	-> More details see: PARAMETERS
+	
+void respawner_stopActiveSpawners();
+	-> stops all active spawners where the original actor is already dead
+	-> does NOT stop all other spawners that are waiting for their original actor to die
+	
+void respawner_clearSpawnedNum()
+	-> resets the number of active actors on the level
+	-> allowes instant respawn of new actors
+	
+ACTOR LIMIT
+------------------- 
+	There is a limit on how many actors that have been spawned will be active at the same time
+	this is managed within each respawn function the limit is global which ever active function
+	is currently checking will be the lucky one allowed to spawn
+	functions will continue to try respawning actors until they are done or decaying
+	
+FUNCTION DECAY
+------------------- 
+	There is a limit on how many functions will be active to do the respawning
+	functions waiting for their target actor to die are not yet in the active pool
+	each function will check before a spawn if it is already to old/to many newer function running
+	functions that are finished spawning or to old will terminate them self
+	
+
+PARAMETERS:
+------------------- 
+	entity eActor		- The Actor you want to respawn - needs to be on the level
+	float minPlayers	- The minimum of players active to respawn - range 0 to 8 - 0 Ignores player count
+	float delayBefore	- Extra time delay after actor died to respawn - range 0 - 60
+	string effect		- Effect to use for spawning like TransportIn - leave empty for none
+	string effect2		- Effect to use for spawning like Borg - leave empty for none or singlename effects, if you only need to use the first effect paramater
+	float freeSpace		- Spawn as soon as the spawn space is free - ignoring other distance checks
+	groupID				- Actor belongs to a specific group - used for borg and other enemies that like to be activated in groups and share their enemy - default none = 0
+	within				- Range for any player to be with for enemy to respawn - will be ignored if freeSpace is set to 1
+	stopLimit			- Stop respawning if this limit of spawns is hit. If you use negative value it will be used as a timer in secounds
+	
+EXAMPLES:
+------------------- 
+	//spawn if at least 2 players on server, wait 5.5 sec before first respawn, use borg beam effects, respawn 11 times for each player on the server, respawn as soon as there is free space,no group,no distance check,stop after 60 sec
+	thread respawner_respawn($testBorg0,2,5.5,"TransportIn","Borg",11,1,0,0,-60);
+	
+	//ignore number of players, don't wait before first spawn, use borg effects, respawn 3 times for each player on the server, add to groupId 777, wait until any player is within 333 units, limit to a total of 10 respawns
+	thread respawner_respawn($testBorg1,0,0,"TransportIn","Borg",3,0,777,333,10);
+	
+	//ignore number of players, don't wait before first spawn, use borg effects, respawn 3 times for each player on the server, add to groupId 888, wait until all players are at least 333 units away, limit to a total of 10 respawns
+	thread respawner_respawn($testBorg1,0,0,"TransportIn","Borg",3,0,888,-333,10);
+	
+	//spawn if at last 2 players on server, 1.25 sec delay, use federation beam effects, beam in as soon as there is free space, assign to groupid 666, no distance check, no more than 10 spawns
+	//this will automatically spawn based on the difficulty, easy 1 enemy per player, normal 2, hard 3, very heard 4
+	thread respawner_respawnByDifficulty($klingonTarg,2,1.25,"TransportIn","Federation",1,666,0,10);
+------------------- */
+
+
+float RESPAWNER_FUNCTIONS_MAX = 10;
+float RESPAWNER_SPAWNED_MAX = 6;
+
+//USED TO KEEP TRACK, DON'T MODIFY
+float RESPAWNER_FUNCTIONS_CURRENT;
+float RESPAWNER_SPAWNED_CURRENT;
+
+
+//FUNCTIONS YOU SHOULD USE
+void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_stopActiveSpawners();
+void respawner_clearSpawnedNum(); //use this very carefully, to not flood the level with to many actors
+
+//BASE FUNCTION - parameters might change, don't use it directly
+void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit );
+
+//INTERNAL - DO NOT USE
+void	respawner_killed();
+void	respawner_waitForDeath(entity eActor);
+void	respawner_waitUntilInside(entity eActor, vector vOrigin, float distanceTo);
+void	respawner_waitUntilOutside(entity eActor, vector vOrigin, float distanceTo);
+float	respawner_minPlayersReached(float minPlayers);
+void	respawner_effects(entity eActor, string effect, string effect2);
+entity	respawner_getPlayerClosest(	vector vOrigin, float fMinDist, float fMaxDist, float fActive, string sClassToExclude, float fInvertExclusion, float fEqualizeZAxis);
+
+
+
+void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
+//------------------------------------------------------------------------------
+//respawns enemies based on the current skill/difficulty
+//------------------------------------------------------------------------------
+{
+	respawner_makeRespawn(eActor, minPlayers, delayBefore, effect, effect2, multiplier, freeSpace, groupID, within, stopLimit );
+}
+
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit)
+//------------------------------------------------------------------------------
+//respawns enemies based on the current skill/difficulty
+//------------------------------------------------------------------------------
+{
+	float fSkill;
+	fSkill = getCvarInt("skill"); //range 0-3
+	fSkill++;
+	
+	respawner_makeRespawn(eActor, minPlayers, delayBefore, effect, effect2, fSkill , freeSpace, groupID, within, stopLimit );
+}
+
+void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
+//------------------------------------------------------------------------------
+//- BASE FUNCTION - respawns this enemy once for each player
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		globalCoop_main_print("respawner - Given entity does not exist");
+		return;
+	}
+	
+	//grab relevant data
+	string sModel;
+	string sTargetname;
+	vector vOrigin;
+	vector vBBox;
+	float fAngle;
+	
+	sModel			= eActor.getModelName();
+	sTargetname		= eActor.getRawTargetName();
+	vOrigin			= eActor.getOrigin();
+	fAngle			= vectorGetY(eActor.getAngles());
+	vBBox			= eActor.getMaxs();
+	
+	//wait for given entity to die
+	respawner_waitForDeath(eActor);
+	//globalCoop_main_print("respawner_makeRespawn - Target dead ($"+sTargetname+")");
+	
+	//use this to keep track how many spawner functions we are running in paralell
+	float thisFunctionNumber;
+	RESPAWNER_FUNCTIONS_CURRENT++;
+	thisFunctionNumber = RESPAWNER_FUNCTIONS_CURRENT;
+	
+	
+	if(delayBefore > 60){
+		delayBefore = 60;
+	}
+	
+	//delay before respawn
+	wait(delayBefore);
+	
+	//check min players needed to spawn
+	if(!respawner_minPlayersReached(minPlayers)){
+		globalCoop_main_print("respawner - To few players to respawn ($"+sTargetname+")");
+		return;
+	}
+	
+	//printout overwrites
+	//developer debug
+	globalCoop_main_print("respawner - Respawning ($"+sTargetname+") at "+vOrigin);
+	/*
+	if(freeSpace){
+		if(within != 0){
+			globalCoop_main_print("respawner_makeRespawn - freeSpace set, ignoring within/distance");
+		}
+	}else{
+		if(within < 0){
+			globalCoop_main_print("respawner_makeRespawn - negative distance set, expecting players to be outside of set radius");
+		}
+		else if(within > 0){
+			globalCoop_main_print("respawner_makeRespawn - positive distance set, expecting players to be inside of set radius");
+		}
+	}
+	if(stopLimit > 0){
+		globalCoop_main_print("respawner_makeRespawn - stopLimit set, possibly overwriting skill and multiplier");
+	}else if(stopLimit < 0){
+		globalCoop_main_print("respawner_makeRespawn - stopLimit set, timer set to function will be active for "+(stopLimit * -1)+" secounds");
+	}
+	if(effect == ""){
+		globalCoop_main_print("respawner_makeRespawn - no spawn effect set");
+	}
+	if(groupID){
+		globalCoop_main_print("respawner_makeRespawn - groupID, assigning $"+sTargetname+" to "+groupID);
+	}
+	*/
+
+	float fMaxTime;
+	float fRespawns;
+	float currentPlayerNum;
+	float fMaxAtSameTime;
+	fMaxAtSameTime = 5;
+	
+	//exclude spectators only - player that are just about to respawn will be counted
+	//this also excludes players that are out in LMS
+	currentPlayerNum = globalCoop_return_integerPlayersQuantity(2);
+	
+	//make sure multiplier is at least 1
+	//multiplier multiplicates the number of players, 4 would spawn 4 times more enemies than players
+	if(multiplier < 1){
+		multiplier = 1;
+	}	
+	
+	//set multiplier
+	fRespawns = currentPlayerNum * multiplier;
+	
+	//check spawn limit
+	if(stopLimit > 0){
+		if(fRespawns >= stopLimit){
+			fRespawns = stopLimit;
+		}
+	}else if(stopLimit < 0){
+		fMaxTime = (getLevelTime() + (stopLimit * -1));
+	}
+	
+	//make sure not to spawn inside player
+	respawner_waitUntilOutside($null, vOrigin,vectorLength(vBBox));
+	
+	//check distances before first spawn
+	if( within != 0){
+		if(within > 0){
+			//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait within range ("+within+") ($"+sTargetname+")");
+			respawner_waitUntilInside($null, vOrigin, within);
+		}else{
+			//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait outside range ("+within+") ($"+sTargetname+")");
+			respawner_waitUntilOutside($null, vOrigin, (within * -1));
+		}
+	}
+	
+	//try respawning until done
+	//and until level is marked as completed
+	//and until this spawner function is way behind the allowed number of active functions
+	while(fRespawns > 0){
+		if(coop_vector_linuxForcerebootTransporting_y != 0){
+			//globalCoop_main_print("Level Over no more respawning...");
+			return;
+		}
+		
+		if((RESPAWNER_FUNCTIONS_CURRENT - thisFunctionNumber) >= RESPAWNER_FUNCTIONS_MAX){
+			//globalCoop_main_print("To many newer spawner functions active, terminating this one...");
+			return;
+		}
+		
+		if(fMaxTime){
+			if( fMaxTime < getLevelTime()){
+				globalCoop_main_print("respawner - Spawner ran out of time...");
+				return;
+			}
+		}
+		
+		if(RESPAWNER_SPAWNED_CURRENT >= RESPAWNER_SPAWNED_MAX){
+			//globalCoop_main_print("To many spawned actors, waiting...");
+			globalCoop_main_waitAFrame();
+		}else{
+			if(effect != ""){
+				eActor = spawn(sModel,"origin",""+vOrigin,"angle",""+fAngle,"hide","1","killthread","respawner_killed");
+			}
+			else{
+				eActor = spawn(sModel,"origin",""+vOrigin,"angle",""+fAngle,"killthread","respawner_killed");
+			}
+			
+			//keep track of spawned actors
+			RESPAWNER_SPAWNED_CURRENT++;
+			
+			globalCoop_main_waitAFrame();
+			if(globalCoop_check_existingLivingEntity(eActor)){	
+				eActor.aggressive(1);
+				eActor.targetname(sTargetname);
+				thread globalCoop_player_makeSolidASAP(eActor);
+				
+				if(effect != ""){
+					eActor.show();
+				}
+				
+				if(groupID != 0){
+					eActor.setGroupID(groupID);
+				}
+				
+				respawner_effects(eActor, effect, effect2);
+			}
+			
+			fRespawns--;
+			
+			if( freeSpace > 0){
+				//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait for free space ("+vectorLength(vBBox)+") ($"+sTargetname+")");
+				respawner_waitUntilOutside(eActor, vOrigin,(vectorLength(vBBox) + 10));
+			}
+			else if( within != 0){
+				if(within > 0){
+					//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait within range ("+within+") ($"+sTargetname+")");
+					respawner_waitUntilInside(eActor, vOrigin, within);
+				}else{
+					//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait outside range ("+within+") ($"+sTargetname+")");
+					respawner_waitUntilOutside(eActor, vOrigin,(within * -1));
+				}
+			}
+			else{
+				//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait for death ($"+sTargetname+")");
+				respawner_waitForDeath(eActor);
+			}
+			
+			//added artifical wait so the enemies don't beam in just spawn in right away
+			wait(1);
+		}
+	}
+	//globalCoop_main_print("respawner_makeRespawn - done RESPAWING ($"+sTargetname+")");
+}
+
+void respawner_clearSpawnedNum()
+//------------------------------------------------------------------------------
+//resets the number of active spawned actors - be very careful when using this
+//------------------------------------------------------------------------------
+{
+	globalCoop_main_print("respawner - Active Spawners Spawns Reset");
+	RESPAWNER_SPAWNED_CURRENT = 0;
+}
+
+void respawner_stopActiveSpawners()
+//------------------------------------------------------------------------------
+//this makes all the active functions decay and terminate
+//------------------------------------------------------------------------------
+{
+	globalCoop_main_print("respawner - Active Spawners Terminated");
+	RESPAWNER_FUNCTIONS_CURRENT = (RESPAWNER_FUNCTIONS_CURRENT + (RESPAWNER_FUNCTIONS_MAX + 1));
+}
+
+void respawner_killed()
+//------------------------------------------------------------------------------
+//keep track of respawned actors on the level
+//------------------------------------------------------------------------------
+{
+	if(RESPAWNER_SPAWNED_CURRENT > 0){
+		RESPAWNER_SPAWNED_CURRENT--;
+	}
+}
+
+void respawner_waitForDeath(entity eActor)
+//------------------------------------------------------------------------------
+//wait for target to die
+//------------------------------------------------------------------------------
+{
+	while(globalCoop_check_existingLivingEntity(eActor)){
+		globalCoop_main_waitAFrame();
+	}
+}
+
+void respawner_waitUntilInside(entity eActor, vector vOrigin, float distanceTo)
+//------------------------------------------------------------------------------
+// waits until any player is within distance and the given actor has cleared the spawn area
+//------------------------------------------------------------------------------
+{
+	entity ePlayer;
+	vector vPlayerOrigin;
+	float allClear;
+	
+	while(!coop_vector_linuxForcerebootTransporting_y){
+		//make sure the base Origin is way out
+		//vectorscale ?
+		vPlayerOrigin_x = (vOrigin_x + (distanceTo * 2));
+		vPlayerOrigin_y = (vOrigin_y + (distanceTo * 2));
+		vPlayerOrigin_z = (vOrigin_z + (distanceTo * 2));
+		
+		allClear = 1;
+		
+		//check if given actor has cleared spawn location
+		if(doesEntityExist(eActor)){
+			if(eActor.getHealth() > 0){
+				float fDist1,fDist2;
+				fDist1 = vectorLength(eActor.getOrigin() - vOrigin);
+				fDist2 = (vectorLength(eActor.getMaxs()) + 10);
+				if(fDist1 < fDist2){
+					allClear = 0;
+				}
+			}
+		}
+		
+		if(allClear){
+			ePlayer = respawner_getPlayerClosest(
+											vOrigin,		//The Origin Entity of the distance calculation
+											50,				//The Minimum distance required to be between both entitys,0=none
+											distanceTo,		//The Maximum distance allowed between both entitys,0=none
+											1,				//Only Active Players
+											"",				//name of the class to exclude
+											0,				//do not exclude but include the given class
+											0);				//Check only two dimensional
+			
+			if(doesEntityExist(ePlayer)){
+				vPlayerOrigin = ePlayer.getOrigin();
+				if(vectorLength(vPlayerOrigin - vOrigin) <= distanceTo ){
+					return;
+				}
+			}
+		}
+		
+		//this is a kinda expensive function
+		wait(0.5);
+	}
+}
+
+void respawner_waitUntilOutside(entity eActor, vector vOrigin, float distanceTo)
+//------------------------------------------------------------------------------
+//waits until all players are outside distance
+//------------------------------------------------------------------------------
+{
+	entity ePlayer;
+	vector vPlayerOrigin;
+	float allClear;
+	string sTargetName;
+	
+	while(!coop_vector_linuxForcerebootTransporting_y){
+		//make sure base origin is well within
+		vPlayerOrigin = vOrigin;
+	
+		allClear = 1;
+		
+		//check if given actor has cleared spawn location
+		if(doesEntityExist(eActor)){
+			if(eActor.getHealth() > 0){
+				float fDist1,fDist2;
+				fDist1 = vectorLength(eActor.getOrigin() - vOrigin);
+				fDist2 = (vectorLength(eActor.getMaxs()) + 10);
+				if(fDist1 < fDist2){
+					allClear = 0;
+				}
+			}
+		}
+
+		if(allClear){
+			ePlayer = respawner_getPlayerClosest(
+											vOrigin,		//The Origin Entity of the distance calculation
+											50,				//The Minimum distance required to be between both entitys,0=none
+											distanceTo,		//The Maximum distance allowed between both entitys,0=none
+											1,				//Only Active Players
+											"",				//name of the class to exclude
+											0,				//do not exclude but include the given class
+											0);				//Check only two dimensional
+			
+			if(doesEntityExist(ePlayer)){
+				vPlayerOrigin = ePlayer.getOrigin();
+				if(vectorLength(vPlayerOrigin - vOrigin) >= distanceTo ){
+					return;
+				}
+			}
+		}
+		
+		//this is a kinda expensive function
+		wait(0.5);
+	}
+}
+
+float respawner_minPlayersReached(float minPlayers)
+//------------------------------------------------------------------------------
+//exclude spectators only - player that are just about to respawn will be counted
+//this also excludes players that are out in LMS
+//------------------------------------------------------------------------------
+{
+	if(minPlayers > coop_integer_maxPlayers){
+		minPlayers = coop_integer_maxPlayers;
+	}
+
+	float currentPlayerNum;
+	currentPlayerNum = globalCoop_return_integerPlayersQuantity(2);
+	if(minPlayers != 0 && minPlayers < currentPlayerNum){
+		return 0;
+	}
+	return 1;
+}
+
+void respawner_effects(entity eActor, string effect, string effect2)
+//------------------------------------------------------------------------------
+//exclude spectators only - player that are just about to respawn will be counted
+//this also excludes players that are out in LMS
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		if(effect != ""){
+			if(effect2 == ""){
+				eActor.displayEffect(effect);
+			}
+			else{
+				//.displayEffect("TransportIn","Borg");
+				eActor.displayEffect(effect,effect2);
+			}
+		}
+	}
+}
+
+
+entity respawner_getPlayerClosest(	vector vOrigin,			//The Origin Entity of the distance calculation
+										float fMinDist,		//The Minimum distance required to be between both entitys, 0=none
+										float fMaxDist,		//The Maximum distance allowed between both entitys, 0=none
+										float fActive,			//Only Active Players
+										string sClassToExclude,	//name of the class to exclude
+										float fInvertExclusion,//do not exclude but include the given class
+										float fEqualizeZAxis)	//Check only two dimensional
+//----------------------------------------------------------------------
+// returns a player entity matching the given rules closest to the entity given
+//----------------------------------------------------------------------
+{
+//Return player in Singleplayer
+	if(!cvar_bool_multiplayer){
+		return $player;
+	}
+	
+	float	fPlayerId,
+			fPlayerIdClosest,
+			fDistanceCurrent,
+			fDistancePreviouse,
+			fExistingNumOfPlayers,
+			fHandle;
+	entity	eCurrentPlayer;
+	vector	vClosestOrigin;
+	
+	for(fPlayerId=0;fPlayerId<coop_integer_maxPlayers;fPlayerId++){
+//RESET HANDLE
+		fHandle=1;
+//GET A PLAYER
+		eCurrentPlayer = getentity("player"+fPlayerId);
+//HANDLE PLAYER IF EXIST
+		if(doesEntityExist(eCurrentPlayer)){
+//KEEP TRACK OF THE PLAYERS
+			fExistingNumOfPlayers++;
+//DO NOT CHECK DISTANCE TO THIS PLAYER IF HE/SHE IS DEATH OR OUT
+			if(fHandle)
+			{
+				if(coop_bool_mp_warmupTimeOver)
+				{
+					if(fActive == 1)
+					{
+						if(	globalCoop_check_existingLivingEntity(eCurrentPlayer) != 1 || globalCoop_check_playerSpectator(eCurrentPlayer) == 1)
+						{
+							fHandle=0;
+						}
+					}
+				}
+			}
+//DO NOT CHECK DISTANCE TO THIS PLAYER IF HE/SHE DOES HAVE THE GIVEN CLASS
+			if(fHandle)
+			{
+				if(sClassToExclude != "")
+				{
+					string sClass;
+					sClass = eCurrentPlayer.getStringvar("globalCoop_className");
+					if(sClassToExclude == sClass && fInvertExclusion != 1){
+						fHandle=0;
+					}
+					else if(sClassToExclude != sClass && fInvertExclusion == 1){
+						fHandle=0;
+					}
+				}
+//CHECK DISTANCE FROM ORIGIN OBJECT TO THE CURRENT PLAYER
+				if(fHandle)
+				{
+					vClosestOrigin = eCurrentPlayer.getOrigin();
+//EQUALIZE THE Z AXIS
+					if(fEqualizeZAxis){
+						vOrigin_z = vClosestOrigin_z;
+					}
+//CALCULATE DISATANCE
+					fDistanceCurrent = vectorlength( (vOrigin - vClosestOrigin) );
+//CHECK MIN DISTANCE DOES MATCH
+					if(fMinDist != 0){
+						if(fMinDist > fDistanceCurrent){
+							fHandle=0;
+						}
+					}
+//CHECK IF MAX DISTANCE DOES MATCH
+					if(fMaxDist != 0){
+						if(fDistanceCurrent > fMaxDist){
+							fHandle=0;
+						}
+					}
+//CHECK IF PLAYER IS CLOSER AS ANY OTHER PLAYER IN RANGE
+					if(fHandle){
+						if(fDistanceCurrent < fDistancePreviouse || fDistancePreviouse == 0){
+							fDistancePreviouse	= fDistanceCurrent;
+							fPlayerIdClosest	= fPlayerId;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+//GET CLOSEST PLAYER
+	eCurrentPlayer = getentity("player"+fPlayerIdClosest);
+	if(doesEntityExist(eCurrentPlayer)){
+		return eCurrentPlayer;
+	}
+	
+//FAILSAVE
+	return $null;
+}
