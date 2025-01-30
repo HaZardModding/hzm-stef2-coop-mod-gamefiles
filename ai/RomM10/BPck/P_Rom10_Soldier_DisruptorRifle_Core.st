@@ -151,7 +151,8 @@ state WANDER
 		incontext "wander"
 	}
 
-	Behavior MoveRandomDirection ( "walk" , 128 , 96 )
+	//[b60025] chrissstrahl - Fixed: Wander STATE, changed min dist to 32 from 96
+	Behavior MoveRandomDirection ( "walk" , 128 , 32 )
 
 	states
 	{
@@ -207,6 +208,9 @@ state WANDER_FAILED
 		ALERTED 			: HAVE_ENEMY CAN_SEE_ENEMY CAN_ATTACK_ENEMY
 
 		WANDER	: TIME_DONE
+		
+		//[b60025] chrissstrahl - Fixed: Getting stuck in WANDER states
+		CORE_MAIN : default
 	}
 }
 
@@ -335,6 +339,9 @@ state TO_COMBAT
 		groupattack
 		selectclosestenemy
 		setvar ( "manual_state" , "combat" )
+		
+		//[b60025] chrissstrahl - Fixed: AI not being able to reenter combat again
+		usebehaviorpackage ( "romulan_m10_soldier_rifle_combat" )
 	}
 }
 

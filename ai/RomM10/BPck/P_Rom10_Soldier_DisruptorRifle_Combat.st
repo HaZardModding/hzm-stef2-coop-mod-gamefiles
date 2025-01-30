@@ -29,6 +29,11 @@ $define CHANCE_SWITCH_NODES					0.3
 state START
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "START"
+	}
+	
 	states
 	{
 		START_AI_ON : IN_AI_MODE
@@ -45,6 +50,7 @@ state START_AI_ON
 {
 	entrycommands
 	{
+		//printmessage "START_AI_ON"
 		runthread m10l2a_FromStateMachine_KillDialog
 	}
 	states
@@ -60,9 +66,15 @@ state START_AI_OFF
 	entrycommands
 		{
 		setvartime ( "last_dodge" )
-		attackplayer
+		
 		groupattack
-		turntowardsplayer
+		
+		//[b60025] chrissstrahl - Changed: Actor can now be a Teammmate
+		//attackplayer
+		//turntowardsplayer
+		turntowardsenemy
+		//printmessage "START_AI_OFF"
+		
 		visiondistance 1024
 		}
 
@@ -83,6 +95,7 @@ state STUPID_STEALTH_DIALOG_HACK
 {
 	entrycommands
 		{
+		//printmessage "STUPID_STEALTH_DIALOG_HACK"
 		incontext "incombat"
 		}
 
@@ -95,6 +108,27 @@ state STUPID_STEALTH_DIALOG_HACK
 		}
 }
 
+//[b60025] chrissstrahl - Changed: Actor can now resume core behaviour after Combat
+//---------------------------------------------------------
+state CORE
+//---------------------------------------------------------
+{
+	entrycommands
+	{
+		setposturestate	( "STAND" ,	"STAND"	)
+		usebehaviorpackage ( "romulan_m10_soldier_rifle_core" )
+	}
+
+	states
+	{
+		AI_OFF : !IN_AI_MODE
+		
+		//[b60025] chrissstrahl - upgrade ai to work as teammate/friend
+		COMBAT 	 : HAVE_ENEMY
+		COMBAT 	 : ATTACKED
+	}
+}
+
 //---------------------------------------------------------
 state WAIT
 //---------------------------------------------------------
@@ -102,6 +136,7 @@ state WAIT
 		entrycommands
 			{
 			startactivationtimer
+			//printmessage "wait"
 			}
 
 		legs
@@ -123,6 +158,7 @@ state EARLY_OUT
 {
 	entrycommands
 		{
+		printmessage "EARLY_OUT"
 		runthread m10l2a_FromStateMachine_EarlyOut
 		}
 }
@@ -134,6 +170,7 @@ state ALARM
 
 	entrycommands
 		{
+		//printmessage "ALARM"
 		incontext "pullalarm"
 		setvar ( "pulledAlarm" , "true" )
 		sendeventtogroup aggressive 1.0
@@ -155,7 +192,7 @@ state ALARM_FAILED
 	{
 	entrycommands
 		{
-		printmessage "COMBAT:  ALARM_FAILED"
+		//printmessage "COMBAT:  ALARM_FAILED"
 		}
 
 	states
@@ -171,7 +208,7 @@ state ALARM_SUCCESS
 	{
 	entrycommands
 		{
-		printmessage "COMBAT:  ALARM_SUCCESS"
+		//printmessage "COMBAT:  ALARM_SUCCESS"
 		}
 
 	states
@@ -185,6 +222,11 @@ state ALARM_SUCCESS
 state GOTO_COVER_POSITION
 //---------------------------------------------------------
 	{
+	entrycommands
+	{
+		//printmessage "GOTO_COVER_POSITION"
+	}
+	
 	TorsoBehavior torsoAimAndFireWeapon ( 0 )
 	behavior GotoCurrentHelperNode ( "run" )
 
@@ -199,6 +241,12 @@ state GOTO_COVER_POSITION
 //---------------------------------------------------------
 state GOTO_COVER_POSITION_NOFIRE
 	{
+	entrycommands
+	{
+		//printmessage "GOTO_COVER_POSITION_NOFIRE"
+	}
+	
+	
 	behavior GotoCurrentHelperNode ( "run" )
 
 	states
@@ -217,15 +265,29 @@ state NO_VALID_COVER_AVAILIABLE
 	{
 	entrycommands
 		{
+		//printmessage "NO_VALID_COVER_AVAILIABLE"
+		
+		//[b60025] chrissstrahl - make sure to update enemy list?
+		clearCurrentEnemy
 		turntowardsenemy
 		}
 
 	TorsoBehavior torsoAimAndFireWeapon ( 0 )
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
+	
+	//[b60025] chrissstrahl - set failsafe time
+	time ( 4 )
 
 	states
 		{
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE 			: TIME_DONE !HAVE_ENEMY
+		CORE 			: ANIM_DONE !HAVE_ENEMY
+		
 		LOOK_FOR_COVER 	: TORSO_BEHAVIOR_DONE
+		
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE 			: TORSO_BEHAVIOR_FAILED
 		}
 	}
 
@@ -233,9 +295,18 @@ state NO_VALID_COVER_AVAILIABLE
 state LOOK_FOR_COVER
 //---------------------------------------------------------
 	{
+	entrycommands
+	{
+		//printmessage "LOOK_FOR_COVER"
+	}
+	
 	states
 		{
 		GOTO_COVER_POSITION : VALID_COVER_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_COVER_NODE$ , $RANGE_MIN_DISTANCE_TO_COVER_NODE$ )
+		
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE : !HAVE_ENEMY
+		
 		NO_VALID_COVER_AVAILIABLE : default
 		}
 	}
@@ -247,6 +318,7 @@ state AT_COMBAT_POSITION
 	entrycommands
 		{
 		turntowardsenemy
+		//printmessage "AT_COMBAT_POSITION"
 		}
 
 	legs
@@ -256,6 +328,9 @@ state AT_COMBAT_POSITION
 
 	states
 		{
+		//[b60025] chrissstrahl - upgrade - fixing ai getting stuck if there is no more enemy
+		COVER_COMBAT_SPOTTED_STAND_UP : !HAVE_ENEMY
+		
 		WAIT_AT_COMBAT_POSITION : ANIM_DONE
 		}
 	}
@@ -264,6 +339,11 @@ state AT_COMBAT_POSITION
 state WAIT_AT_COMBAT_POSITION
 //---------------------------------------------------------
 	{
+	entrycommands
+	{
+		//printmessage "WAIT_AT_COMBAT_POSITION"
+	}
+	
 	legs
 		{
 		crouch_idle : default
@@ -273,6 +353,9 @@ state WAIT_AT_COMBAT_POSITION
 
 	states
 		{
+		//[b60025] chrissstrahl - upgrade - fixing ai getting stuck if there is no more enemy
+		COVER_COMBAT_SPOTTED_STAND_UP : !HAVE_ENEMY
+		
 		COVER_COMBAT_SPOTTED_STAND_UP : TIME_DONE CHANCE ( $CHANCE_SWITCH_NODES$ ) ENEMY_CAN_SEE_CURRENT_NODE
 		ATTACK_FROM_COMBAT_POSITION : TIME_DONE
 		}
@@ -284,6 +367,7 @@ state ATTACK_FROM_COMBAT_POSITION
 	{
 	entrycommands
 		{
+		//printmessage "ATTACK_FROM_COMBAT_POSITION"
 		turntowardsenemy
 		}
 
@@ -304,6 +388,11 @@ state ATTACK_FROM_COMBAT_POSITION
 state ATTACK_FROM_WALL_COVER
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "ATTACK_FROM_WALL_COVER"
+	}
+
 	Behavior CloseInOnEnemy ( "run" , $RANGE_MELEE$ )
 
 	states
@@ -318,6 +407,11 @@ state ATTACK_FROM_WALL_COVER
 state ATTACK_FROM_WALL_COVER_ATTACK
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "ATTACK_FROM_WALL_COVER_ATTACK"
+	}
+
 	TorsoBehavior torsoAimAndFireWeapon ( 0 )
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 
@@ -332,6 +426,11 @@ state ATTACK_FROM_WALL_COVER_ATTACK
 state RETURN_TO_WALL_COVER
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "RETURN_TO_WALL_COVER"
+	}
+
 	behavior GotoCurrentHelperNode ( "run" )
 
 	states
@@ -346,6 +445,11 @@ state RETURN_TO_WALL_COVER
 state WAIT_AT_WALL_COVER
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "WAIT_AT_WALL_COVER"
+	}
+
 	legs
 		{
 		crouch_idle : default
@@ -364,12 +468,21 @@ state WAIT_AT_WALL_COVER
 state ATTACK_FROM_CRATE_COVER
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "ATTACK_FROM_CRATE_COVER"
+	}
+
 	TorsoBehavior torsoAimAndFireWeapon ( 0 )
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 
 	states
 		{
 		GENERAL_COMBAT_PAIN				: SHOW_PAIN
+		
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE : !HAVE_ENEMY
+		
 		ATTACK_FROM_CRATE_COVER_DUCK 	: TORSO_BEHAVIOR_DONE STAGE ( $COUNT_MAX_REPEATS$ )
 		ATTACK_FROM_CRATE_COVER_REPEAT_ATTACK	: TORSO_BEHAVIOR_DONE CHANCE ( $CHANCE_REPEAT_ATTACK$ )
 		COVER_COMBAT_SPOTTED 			: TORSO_BEHAVIOR_DONE ENEMY_CAN_SEE_CURRENT_NODE
@@ -383,6 +496,7 @@ state ATTACK_FROM_CRATE_COVER_REPEAT_ATTACK
 {
 	entrycommands
 		{
+		//printmessage "ATTACK_FROM_CRATE_COVER_REPEAT_ATTACK"
 		gotonextstage
 		}
 
@@ -398,6 +512,7 @@ state ATTACK_FROM_CRATE_COVER_DUCK
 {
 	entrycommands
 		{
+		//printmessage "ATTACK_FROM_CRATE_COVER_DUCK"
 		gotostage 1
 		}
 
@@ -416,6 +531,11 @@ state ATTACK_FROM_CRATE_COVER_DUCK
 state ATTACK_FROM_CRATE_COVER_WAIT
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "ATTACK_FROM_CRATE_COVER_WAIT"
+	}
+	
 	legs
 		{
 		crouch_idle : default
@@ -436,6 +556,7 @@ state ATTACK_FROM_CRATE_COVER_STANDUP_TO_ATTACK
 {
 	entrycommands
 		{
+		//printmessage "ATTACK_FROM_CRATE_COVER_STANDUP_TO_ATTACK"
 		turntowardsenemy
 		}
 
@@ -455,6 +576,11 @@ state ATTACK_FROM_CRATE_COVER_STANDUP_TO_ATTACK
 state GENERAL_COMBAT_PAIN
 //---------------------------------------------------------
 	{
+	entrycommands
+	{
+		//printmessage "GENERAL_COMBAT_PAIN"
+	}
+	
 	states
 		{
 		GENERAL_COMBAT_BIG_PAIN	  : MOD ( "explosion" )
@@ -469,6 +595,11 @@ state GENERAL_COMBAT_PAIN
 state GENERAL_COMBAT_BIG_PAIN
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "GENERAL_COMBAT_BIG_PAIN"
+	}
+	
 	legs
 		{
 		pain_knockback : default
@@ -486,6 +617,7 @@ state GENERAL_COMBAT_SMALL_PAIN
 {
 	entrycommands
 		{
+		//printmessage "GENERAL_COMBAT_SMALL_PAIN"
 		saveofflasthitbone
 		}
 
@@ -527,6 +659,11 @@ state GENERAL_COMBAT_SMALL_PAIN
 state COVER_COMBAT_SPOTTED_STAND_UP
 //------------------------------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "COVER_COMBAT_SPOTTED_STAND_UP"
+	}
+	
 	legs
 		{
 		from_crouch : default
@@ -534,6 +671,9 @@ state COVER_COMBAT_SPOTTED_STAND_UP
 
 	states
 		{
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE 	: ANIM_DONE !HAVE_ENEMY
+
 		COVER_COMBAT_SPOTTED 	: ANIM_DONE
 		}
 }
@@ -542,6 +682,11 @@ state COVER_COMBAT_SPOTTED_STAND_UP
 state COVER_COMBAT_SPOTTED
 //------------------------------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "COVER_COMBAT_SPOTTED"
+	}
+	
 	states
 		{
 		GOTO_COVER_POSITION 			: VALID_COVER_NODE_IN_RANGE ( $RANGE_MAX_DISTANCE_TO_COVER_NODE$ , $RANGE_MIN_DISTANCE_TO_COVER_NODE$ )
@@ -551,11 +696,23 @@ state COVER_COMBAT_SPOTTED
 
 state COVER_COMBAT_WITH_RANGED_WEAPON_FAILED
 {
+	entrycommands
+	{
+		//printmessage "COVER_COMBAT_WITH_RANGED_WEAPON_FAILED"
+		
+		//[b60025] chrissstrahl - make sure to update enemy list
+		clearCurrentEnemy
+		turntowardsenemy
+	}
+	
 	TorsoBehavior torsoAimAndFireWeapon ( 0 )
 	Behavior WatchEntity ( 1 , 15 , "shuffle" , 0 , "idle_weapon_legs" )
 
 	states
 		{
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE : !HAVE_ENEMY
+		
 		GENERAL_COMBAT_PAIN			: SHOW_PAIN
 		ATTACK_FROM_CRATE_COVER_DUCK : TORSO_BEHAVIOR_DONE !ENEMY_CAN_SEE_CURRENT_NODE
 		COVER_COMBAT_SPOTTED		: TORSO_BEHAVIOR_DONE
