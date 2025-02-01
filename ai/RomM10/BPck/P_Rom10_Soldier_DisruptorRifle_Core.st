@@ -13,6 +13,7 @@ state START
 	{
 		setvartime ( "playerattacked" )
 		//turntowardsplayer
+		//printmessage "START"
 	}
 
 	states
@@ -28,12 +29,16 @@ state CORE_MAIN
 	entrycommands
 	{
 		forgetenemies
+		//printmessage "CORE_MAIN"
 	}
 
 	states
 	{
 		CORE_PAIN			: SHOW_PAIN
 		TO_COMBAT			: OTHER_DIED
+		
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		TO_COMBAT			: CAN_SEE_ENEMY
 
 		PATROL				: SHOULD_DO_ACTION ( "patrol" ) VALID_PATROL_NODE_IN_RANGE ( $RANGE_PATROL$ )
 		WORK 				: SHOULD_DO_ACTION ( "work" ) VALID_WORK_NODE_IN_RANGE ( $RANGE_WORK$ )
@@ -49,6 +54,7 @@ state PATROL
 	entrycommands
 	{
 		incontext "patrol"
+		//printmessage "PATROL"
 	}
 
 	Behavior Patrol ( "walk" )
@@ -61,7 +67,9 @@ state PATROL
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
 
-		ALERTED 			: HAVE_ENEMY
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED 			: CAN_SEE_ENEMY
+		
 		WORK 				: SHOULD_DO_ACTION ( "work" ) VALID_WORK_NODE_IN_RANGE ( $RANGE_WORK$ )
 		CORE_MAIN			: BEHAVIOR_SUCCESS
 		PATROL_FAILED		: BEHAVIOR_FAILED
@@ -72,6 +80,11 @@ state PATROL
 state PATROL_FAILED
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "PATROL_FAILED"
+	}
+
 	legs
 	{
 		idle : default
@@ -86,9 +99,11 @@ state PATROL_FAILED
 		TO_COMBAT 		: PAIN
 		TO_COMBAT		: OTHER_DIED
 
-		ALERTED 		: HAVE_ENEMY
-
-		PATROL	: TIME_DONE
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED 		: CAN_SEE_ENEMY
+		
+		//[b60025] chrissstrahl - allow actor get out of Patrol state
+		CORE_MAIN		: TIME_DONE
 	}
 }
 
@@ -100,6 +115,7 @@ state WORK
 	entrycommands
 	{
 		incontext "work"
+		//printmessage "WORK"
 	}
 
 	Behavior Work ( "walk" )
@@ -111,7 +127,8 @@ state WORK
 		TO_COMBAT		: ATTACKED
 		TO_COMBAT 		: PAIN
 
-		ALERTED 		: HAVE_ENEMY
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED 		: CAN_SEE_ENEMY
 
 		CORE_MAIN	: BEHAVIOR_SUCCESS
 		WORK_FAILED	: BEHAVIOR_FAILED
@@ -122,6 +139,11 @@ state WORK
 state WORK_FAILED
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "WORK_FAILED"
+	}
+	
 	legs
 	{
 		idle : default
@@ -135,8 +157,9 @@ state WORK_FAILED
 		TO_COMBAT			: OTHER_DIED
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
-
-		ALERTED 		: HAVE_ENEMY
+		
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED 			: CAN_SEE_ENEMY
 
 		WORK	: TIME_DONE
 	}
@@ -149,6 +172,7 @@ state WANDER
 	entrycommands
 	{
 		incontext "wander"
+		//printmessage "WANDER"
 	}
 
 	//[b60025] chrissstrahl - Fixed: Wander STATE, changed min dist to 32 from 96
@@ -161,7 +185,8 @@ state WANDER
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
 
-		//ALERTED 		: HAVE_ENEMY
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED				: CAN_SEE_ENEMY
 
 		WANDER_WAIT			: BEHAVIOR_SUCCESS
 		WANDER_FAILED		: BEHAVIOR_FAILED
@@ -172,6 +197,11 @@ state WANDER
 state WANDER_WAIT
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "WANDER_WAIT"
+	}
+	
 	Behavior HoldPosition
 
 	time ( 7.5 , 10 )
@@ -183,7 +213,8 @@ state WANDER_WAIT
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
 
-		//ALERTED 			: HAVE_ENEMY
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		ALERTED 			: CAN_SEE_ENEMY
 
 		CORE_MAIN			: TIME_DONE
 	}
@@ -193,6 +224,11 @@ state WANDER_WAIT
 state WANDER_FAILED
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "WANDER_FAILED"
+	}
+	
 	Behavior HoldPosition
 
 	time ( 1.0 )
@@ -204,8 +240,8 @@ state WANDER_FAILED
 		TO_COMBAT			: ATTACKED
 		TO_COMBAT 			: PAIN
 
-		//[b60011] chrissstrahl - allow actor to attack player when seeing him
-		ALERTED 			: HAVE_ENEMY CAN_SEE_ENEMY CAN_ATTACK_ENEMY
+		//[b60025] chrissstrahl - allow actor to attack enemy when seeing him
+		ALERTED 			: CAN_SEE_ENEMY
 
 		WANDER	: TIME_DONE
 		
@@ -218,6 +254,11 @@ state WANDER_FAILED
 state HOLD
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "HOLD"
+	}
+	
 	legs
 	{
 		idle : default
@@ -262,6 +303,11 @@ state HOLD
 state CORE_PAIN
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "CORE_PAIN"
+	}
+	
 	states
 	{
 		CORE_BIG_PAIN	  : MOD ( "explosion" )
@@ -338,10 +384,12 @@ state TO_COMBAT
 	{
 		groupattack
 		selectclosestenemy
-		setvar ( "manual_state" , "combat" )
 		
 		//[b60025] chrissstrahl - Fixed: AI not being able to reenter combat again
+		//setvar ( "manual_state" , "combat" )
 		usebehaviorpackage ( "romulan_m10_soldier_rifle_combat" )
+		
+		//printmessage "TO_COMBAT"
 	}
 }
 
@@ -355,6 +403,8 @@ state ALERTED
 		forgetenemies
 		//jhefty -- this is a male voice, but the riflemen are all women
 		//playdialog ( "localization/sound/dialog/m10l1/rom_whatthat.mp3" , 1 , 192 , 0)
+		
+		//printmessage "ALERTED"
 	}
 
 	legs
@@ -377,6 +427,11 @@ state ALERTED
 state INVESTIGATE
 //---------------------------------------------------------
 {
+	entrycommands
+	{
+		//printmessage "INVESTIGATE"
+	}
+	
 	Behavior Investigate ( "walk" , 5 , 0 , "patrol_search" , 3 )
 
 	Time ( 2 );

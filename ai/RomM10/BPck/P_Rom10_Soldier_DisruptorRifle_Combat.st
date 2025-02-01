@@ -70,10 +70,10 @@ state START_AI_OFF
 		groupattack
 		
 		//[b60025] chrissstrahl - Changed: Actor can now be a Teammmate
+		//printmessage "START_AI_OFF"
 		//attackplayer
 		//turntowardsplayer
 		turntowardsenemy
-		//printmessage "START_AI_OFF"
 		
 		visiondistance 1024
 		}
@@ -116,6 +116,8 @@ state CORE
 	entrycommands
 	{
 		setposturestate	( "STAND" ,	"STAND"	)
+		
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
 		usebehaviorpackage ( "romulan_m10_soldier_rifle_core" )
 	}
 
@@ -150,6 +152,9 @@ state WAIT
 				EARLY_OUT : ACTIVATION_DELAY_DONE !SHOULD_DO_ACTION ( "noscript" )
 				START 	: RANGE ( $RANGE_CAN_ATTACK$ )
 				START 	: CAN_SEE_ENEMY
+				
+				//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+				CORE	: !HAVE_ENEMY
 			}
 
 	}
@@ -419,6 +424,9 @@ state ATTACK_FROM_WALL_COVER_ATTACK
 		{
 		GENERAL_COMBAT_PAIN				: SHOW_PAIN
 		RETURN_TO_WALL_COVER		: TORSO_BEHAVIOR_DONE
+		
+		//[b60025] chrissstrahl - Actor can now resume core behaviour after Combat
+		CORE : !HAVE_ENEMY
 		}
 }
 
