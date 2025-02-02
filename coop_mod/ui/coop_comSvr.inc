@@ -44,7 +44,7 @@ Button
 	shader textures/xxx/coopLcars015.tga
 	hovershader textures/xxx/coopLcars017.tga
 	
-	hovercommand "globalwidgetcommand coop_comTooltip title \"Restarts the current Map\""
+	hovercommand "globalwidgetcommand coop_comTooltip title \"Sets this new rcon password\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "30"
