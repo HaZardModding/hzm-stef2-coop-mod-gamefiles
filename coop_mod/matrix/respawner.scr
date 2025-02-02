@@ -13,11 +13,11 @@ if the actor wanders before you call the function on them the current origin wil
 	
 USE THESE FUNCTIONS:
 ------------------- 
-void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_respawn(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
 	-> Respawns a actor based on various parameters/options
 	-> More details see: PARAMETERS
 	
-void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
 	-> Respawns a actor multiple times based on the difficulty/skill set - easy 1 enemy per player, normal 2, hard 3, very heard 4
 	-> More details see: PARAMETERS
 	
@@ -28,6 +28,15 @@ void respawner_stopActiveSpawners();
 void respawner_clearSpawnedNum()
 	-> resets the number of active actors on the level
 	-> allowes instant respawn of new actors
+	
+void respawner_setLimitActiveSpawned(float fNum);
+	-> Sets how many spawned actors should be alive at the same time on the level
+	-> range: 1 to 20
+	
+void respawner_setLimitActiveFunctions(float fNum);
+	-> Sets how many spawn functions should be activeley re-spawning at the same time
+	-> range: 1 to 20
+	-> If you want to kill all active function use: respawner_stopActiveSpawners()
 	
 ACTOR LIMIT
 ------------------- 
@@ -48,7 +57,7 @@ PARAMETERS:
 ------------------- 
 	entity eActor		- The Actor you want to respawn - needs to be on the level
 	float minPlayers	- The minimum of players active to respawn - range 0 to 8 - 0 Ignores player count
-	float delayBefore	- Extra time delay after actor died to respawn - range 0 - 60
+	float delayEach		- Extra time delay before each respawn - range 0 - 60
 	string effect		- Effect to use for spawning like TransportIn - leave empty for none
 	string effect2		- Effect to use for spawning like Borg - leave empty for none or singlename effects, if you only need to use the first effect paramater
 	float freeSpace		- Spawn as soon as the spawn space is free - ignoring other distance checks
@@ -82,13 +91,16 @@ float RESPAWNER_SPAWNED_CURRENT;
 
 
 //FUNCTIONS YOU SHOULD USE
-void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
-void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_respawn(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit);
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit);
 void respawner_stopActiveSpawners();
-void respawner_clearSpawnedNum(); //use this very carefully, to not flood the level with to many actors
+void respawner_clearSpawnedNum();						//use this very carefully, to not flood the level with to many actors once the players advance to a new area
+void respawner_setLimitActiveSpawned(float fNum);
+void respawner_setLimitActiveFunctions(float fNum);
+
 
 //BASE FUNCTION - parameters might change, don't use it directly
-void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit );
+void respawner_makeRespawn(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit );
 
 //INTERNAL - DO NOT USE
 void	respawner_killed();
@@ -101,15 +113,15 @@ entity	respawner_getPlayerClosest(	vector vOrigin, float fMinDist, float fMaxDis
 
 
 
-void respawner_respawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
+void respawner_respawn(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
 //------------------------------------------------------------------------------
 //respawns enemies based on the current skill/difficulty
 //------------------------------------------------------------------------------
 {
-	respawner_makeRespawn(eActor, minPlayers, delayBefore, effect, effect2, multiplier, freeSpace, groupID, within, stopLimit );
+	respawner_makeRespawn(eActor, minPlayers, delayEach, effect, effect2, multiplier, freeSpace, groupID, within, stopLimit );
 }
 
-void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit)
+void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float freeSpace, float groupID, float within, float stopLimit)
 //------------------------------------------------------------------------------
 //respawns enemies based on the current skill/difficulty
 //------------------------------------------------------------------------------
@@ -118,10 +130,10 @@ void respawner_respawnByDifficulty(entity eActor, float minPlayers, float delayB
 	fSkill = getCvarInt("skill"); //range 0-3
 	fSkill++;
 	
-	respawner_makeRespawn(eActor, minPlayers, delayBefore, effect, effect2, fSkill , freeSpace, groupID, within, stopLimit );
+	respawner_makeRespawn(eActor, minPlayers, delayEach, effect, effect2, fSkill , freeSpace, groupID, within, stopLimit );
 }
 
-void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
+void respawner_makeRespawn(entity eActor, float minPlayers, float delayEach, string effect, string effect2, float multiplier, float freeSpace, float groupID, float within, float stopLimit )
 //------------------------------------------------------------------------------
 //- BASE FUNCTION - respawns this enemy once for each player
 //------------------------------------------------------------------------------
@@ -154,12 +166,14 @@ void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, s
 	thisFunctionNumber = RESPAWNER_FUNCTIONS_CURRENT;
 	
 	
-	if(delayBefore > 60){
-		delayBefore = 60;
+	if(delayEach > 60){
+		delayEach = 60;
+	}else if(delayEach < coop_float_oneFrameTime){
+		delayEach = coop_float_oneFrameTime;
 	}
 	
 	//delay before respawn
-	wait(delayBefore);
+	wait(delayEach);
 	
 	//check min players needed to spawn
 	if(!respawner_minPlayersReached(minPlayers)){
@@ -294,6 +308,7 @@ void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, s
 			if( freeSpace > 0){
 				//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait for free space ("+vectorLength(vBBox)+") ($"+sTargetname+")");
 				respawner_waitUntilOutside(eActor, vOrigin,(vectorLength(vBBox) + 10));
+				delayEach = 1;
 			}
 			else if( within != 0){
 				if(within > 0){
@@ -307,10 +322,11 @@ void respawner_makeRespawn(entity eActor, float minPlayers, float delayBefore, s
 			else{
 				//globalCoop_main_print("respawner_makeRespawn - "+fRespawns+" - wait for death ($"+sTargetname+")");
 				respawner_waitForDeath(eActor);
+				delayEach = 1;
 			}
 			
-			//added artifical wait so the enemies don't beam in just spawn in right away
-			wait(1);
+			//wait before each spawn
+			wait(delayEach);
 		}
 	}
 	//globalCoop_main_print("respawner_makeRespawn - done RESPAWING ($"+sTargetname+")");
@@ -321,7 +337,7 @@ void respawner_clearSpawnedNum()
 //resets the number of active spawned actors - be very careful when using this
 //------------------------------------------------------------------------------
 {
-	globalCoop_main_print("respawner - Active Spawners Spawns Reset");
+	globalCoop_main_print("respawner - Active actor Spawns set to 0");
 	RESPAWNER_SPAWNED_CURRENT = 0;
 }
 
@@ -330,8 +346,35 @@ void respawner_stopActiveSpawners()
 //this makes all the active functions decay and terminate
 //------------------------------------------------------------------------------
 {
-	globalCoop_main_print("respawner - Active Spawners Terminated");
+	globalCoop_main_print("respawner - All active Spawner-Functions terminated");
 	RESPAWNER_FUNCTIONS_CURRENT = (RESPAWNER_FUNCTIONS_CURRENT + (RESPAWNER_FUNCTIONS_MAX + 1));
+}
+
+void respawner_setLimitActiveSpawned(float fNum)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+{
+	if(fNum < 1){
+		fNum = 1;
+	}else if(fNum > 20){
+		fNum = 20;
+	}
+	RESPAWNER_SPAWNED_MAX = fNum;
+	globalCoop_main_print("respawner - Max parallel active respawned actors set to "+RESPAWNER_SPAWNED_MAX);
+}
+void respawner_setLimitActiveFunctions(float fNum)
+//------------------------------------------------------------------------------
+//this makes all the active functions decay and terminate
+//------------------------------------------------------------------------------
+{
+	if(fNum < 1){
+		fNum = 1;
+	}else if(fNum > 20){
+		fNum = 20;
+	}
+	RESPAWNER_FUNCTIONS_MAX = fNum;
+	globalCoop_main_print("respawner - Max active Spawner-Functions set to "+RESPAWNER_FUNCTIONS_MAX);
 }
 
 void respawner_killed()
