@@ -149,7 +149,7 @@ Button
 	rect	441 162 162 20
 	
 	font serpentinemedium-10
-	fgcolor 		0.000 1.000 1.000 1.000
+	fgcolor 		1.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
 	hoverbgcolor 	0.80 0.25 0.35 1.0
 	
@@ -171,7 +171,7 @@ Button
 	rect	275 162 162 20
 	
 	font serpentinemedium-10
-	fgcolor 		0.000 1.000 1.000 1.000
+	fgcolor 		1.000 1.000 1.000 1.000
 	bgcolor 		0.12 0.15 0.25 0.7
 	hoverbgcolor 	0.80 0.25 0.35 1.0
 	
