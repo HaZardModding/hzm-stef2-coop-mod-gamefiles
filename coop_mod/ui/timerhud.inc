@@ -1,5 +1,5 @@
 //Co-Op Related, remove the missionobjectives hud before showing the timer hud
-showcommand	"ui_removehud coop_objectives;\n"
+showcommand	"ui_removehud coop_obj\n"
 
 resource
 Label
