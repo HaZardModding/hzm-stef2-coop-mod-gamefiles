@@ -24,6 +24,7 @@ void klingonStation_hallwayKlingonSellerTalk();
 void klingonStation_hallwayKlingonFriendTalk();
 void klingonStation_barBattlearenaLoser();
 void klingonStation_barRomulanFound();
+void klingonStation_barEnterCinematicCamInPosition();
 void klingonStation_shuttlebayFerengieTakeoff();
 void klingonStation_cinematicBorgArrive();
 void klingonStation_barEnterCinematic();
@@ -31,6 +32,18 @@ void klingonStation_barEnterCinematicEnd();
 void klingonStation_hallwayConsoleExplode();
 void klingonStation_hallwayTubeExplode();
 void klingonStation_PDA();
+void klingonStation_seller();
+void klingonStation_takeBathleth();
+
+void klingonStation_cargobayTransporterEnable();
+void klingonStation_cargobayTransporter();
+
+void klingonStation_generalPurposeTransporter(vector vNewLocation);
+void klingonStation_generalPurposeTransporter_transport(vector vOld,vector vNew,entity ePlayer);
+void klingonStation_generalPurposeTransporter_move(vector vOld,vector vNew,entity ePlayer);
+
+
+void space_federationShuttle2_fire();
 
 
 void borgCube_entranceTransport();
@@ -49,21 +62,18 @@ void borgCube_tricorderPuzzle0();
 void borgCube_resetTricorderPuzzle0();
 void borgCube_tricorderPuzzle1();
 void borgCube_resetTricorderPuzzle1();
+void borgCube_contiousRandomTorpedoAttack();
+void borgCube_torpedoDamaged();
 
+void TestStuff();
+
+float BORGCUBE_INFILTRATED = 0;
+float BORGCUBE_FIRERANDOMLY = 1;
 float KLINGONSTATION_ROMULANFOUND = 0;
 float BORGCUBE_CHELLWORKING = 1;
 float MAX_ARRAY_WINGS = 3;
 float MAX_ARRAYS = 6;
 //float MAX_FWD_SPEED = 99999;
-
-//ACTOR_FLAG_USE_GRAVITY
-//STEPMOVE_BLOCKED_BY_DOOR -> _isBlockedByDoor
-//STEPMOVE_BLOCKED_BY_FALL
-//STEPMOVE_STUCK
-//vectorleft( Vector vector ) -> Returns the left vector of the vector. 
-
-//#include "maps/scrtools/scriptingtools.scr"
-//#include "maps/scrtools/noscript.scr"
 
 #include "coop_mod/matrix/main.scr"
 #include "coop_mod/matrix/evosuit.scr"
@@ -77,21 +87,7 @@ void	coop_endLevel();
 #include "maps/global_scripts/global_tricordermod.scr"
 
 
-/* Effects for 
-spawn models/projectile/projectile_merc-pistol.tik
-spawn models/projectile/projectile_fedphotonball.tik
-spawn models/projectile/projectile_attrex-security-pistol.tik
-spawn models/projectile/projectile-snake-laserbeam.tik
-spawn models/projectile/projectile-photonball-voyager.tik
-spawn models/projectile/projectile-photonball-borg.tik
-spawn models/projectile/projectile-laserbeam.tik
-spawn models/projectile/projectile-klingon-rig-arm.tik
-spawn models/projectile/projectile-idryllstrike.tik //this one actually strikes towards a angle over and over again
-spawn models/projectile/projectile-idryll-blast2.tik //looks kinda like a wormhole effect
-spawn models/projectile/projectile-idryll-blast.tik //looks kinda like a wormhole effect
-
-
-*/
+#include "coop_mod/matrix/respawner.scr"
 
 
 void ffTouchedClearShader(entity ePlayer)
@@ -146,32 +142,11 @@ void ffTouched()
 	}
 }
 
-
-//handle borg boss
-float fltBossStage = 1;
-void stage_change_cinema_start()
-{
-	//--- increment the stage counter
-	fltBossStage++;
-
-    //--- set the boss into the next stage
-    $boss1.ai_off();
-    $boss1.goToStage( fltBossStage );
-	//--- wait for the stage transition
-	wait ( .5 );
-
-    //--- enable the borg boss's AI
-    $borg1.ai_on();
-}
-
-
-void testCam1End()
-{
-	
-}
-
 void main ()
 {
+	//borgCube_drone0 -> borgCube_drone20
+	//coop_evosuit_haltStat(ePlayer,0);
+
 	//fade cam in
 	cam_fadeOut(0.05,0,0,0,1);
 	
@@ -179,12 +154,11 @@ void main ()
 	
 	//hzm coop mod chrissstrahl - declare objectives - english
 	coop_string_objectiveItem1 = "$$Rotec9SecureFriendlyRomulan$$";
-	coop_string_objectiveItem2 = "$$Rotec9ChallengeKlingonToGetBatleth$$";
-	coop_string_objectiveItem3 = "$$Rotec9DefendStation$$";
-	coop_string_objectiveItem4 = "$$Rotec9ObtainEvosuitInCargobay$$";
-	coop_string_objectiveItem5 = "$$Rotec9InfiltrateBorgCube$$";
-	coop_string_objectiveItem6 = "$$Rotec9ProtectChell$$";
-	coop_string_objectiveItem7 = "$$Rotec9DefendDemolitionTeams$$";
+	coop_string_objectiveItem2 = "$$Rotec9DefendStation$$";
+	coop_string_objectiveItem3 = "$$Rotec9ObtainEvosuitInCargobay$$";
+	coop_string_objectiveItem4 = "$$Rotec9InfiltrateBorgCube$$";
+	coop_string_objectiveItem5 = "$$Rotec9ProtectChell$$";
+	coop_string_objectiveItem6 = "$$Rotec9DefendDemolitionTeams$$";
 	coop_string_objectiveTacticalInfo1 = "$$Rotec9Story";
 
 
@@ -220,7 +194,6 @@ void main ()
 	$klingonAirlockActor0.remove();
 	$klingonAirlockActor1.remove();
 	$KlingonAirlockActPlayerClip.remove();
-	$klingonStation_cargobayAirlockSceneTrigger.remove();
 	*/
 	
 	
@@ -252,20 +225,15 @@ void main ()
 	
 	//$borgCube_gravNode.speed(200);
 	
+		
+	thread TestStuff();
+	
 	
 	wait(3);
 	
 	//remove unwanted texture from mission marker model
 	$objectiveMarker0.surface("material1", "+nodraw" );
 	$objectiveMarker1.surface("material1", "+nodraw" );
-	$objectiveMarker2.surface("material1", "+nodraw" );
-	
-	vector vPos;
-	vPos = $chell.getOrigin();
-	vPos_z += -50;
-	$objectiveMarker2.origin(vPos);
-	wait(0.1);
-	$objectiveMarker2.bind($chell);
 	
 	//ready torpedo puzzles
 	wait(1);	
@@ -274,6 +242,10 @@ void main ()
 	$borgCube_generator0.time(5);
 	$borgCube_generator1.rotateX(5);
 	$borgCube_generator1.time(5);
+	
+	$klingonStation_barRomulanFriend.missionobjective(1);
+	
+	$klingonStation_pinnedBatlethTriggerSymbol.scale(0.01);
 	
 	return;
 	while(1)
@@ -294,6 +266,8 @@ void intro()
 	
 	globalCoop_main_waitForWarmupTime();
 	globalCoop_main_waitAFrame();
+
+	thread globalCoop_objectives_set(coop_string_objectiveItem1,"incomplete",1,1);
 	
 	//=======================================
 	//=======================================
@@ -454,6 +428,7 @@ void setupClips()
 	
 	$playerclipKlingonArea.solid();
 	setupActor($klingonStation_hallwayKlingonGuard1,"");
+	thread globalCoop_armory_putAwayWeapon($klingonStation_hallwayKlingonGuard1);
 	setupActor($klingonStation_hallwayKlingonGuard2,"");
 	
 	$klingonBorgFF.solid();
@@ -461,9 +436,6 @@ void setupClips()
 
 void setupActors()
 {
-	//borgCube
-	thread borgCube_chellWork();
-	
 	/* //CHELL WORK ANIMATIONS
 	ent-compstation-idle
 	ent-compstation-idle-look
@@ -535,7 +507,7 @@ void setupActors()
 	setupActor($klingonStation_barRomulanFriend,"sfa_chair-idle");
 	
 	
-	//needs to be executed in this order
+	//needs to be executed in this order	
 	globalCoop_armory_putAwayWeapon($klingonStation_hallwayKlingonFriend);
 	thread globalCoop_level_onUse($klingonStation_hallwayKlingonFriend,"klingonStation_hallwayKlingonFriendTalk");
 	setupActor($klingonStation_hallwayKlingonFriend,"bar_standing");
@@ -616,6 +588,7 @@ void puzzleFailed()
 
 void klingonStation_barEnterCinematic()
 {
+	/* CINEMATIC DISABLED
 	//fade cam
 	cam_fadeOut(0.25,0,0,0,1);
 	wait(0.25);
@@ -629,7 +602,8 @@ void klingonStation_barEnterCinematic()
 	$cam1.cut();
 	globalCoop_main_waitAFrame();
 	cuecamera($cam1);
-
+	*/
+	
 	//Battle Area Klingon
 	$klingonStation_barBattlearenaWarrior1.ai_on();
 	$klingonStation_barBattlearenaWarrior2.ai_on();
@@ -646,16 +620,23 @@ void klingonStation_barEnterCinematic()
 	$klingonStation_barBattlearenaWarrior1.actortype("enemy");
 	$klingonStation_barBattlearenaWarrior2.actortype("enemy");
 	
+	wait(3);
+	
+	thread klingonStation_barEnterCinematicCamInPosition(); //needs to be executed if there is no cinematic
+	
+	/* CINEMATIC DISABLED
 	cinematic();
 	freezeplayer();
 	letterbox(0.1);
 	
 	//fade cam
 	cam_fadeIn(0.5,0,0,0,1);
+	*/
 }
 
 void klingonStation_barEnterCinematicEnd()
 {
+	/* CINEMATIC DISABLED
 	//fade cam
 	cam_fadeOut(0.25,0,0,0,1);
 	
@@ -672,6 +653,7 @@ void klingonStation_barEnterCinematicEnd()
 	wait(1.5);
 	releaseplayer();
 	cam_fadein( 2, 0, 0, 0, 1, 0 );
+	*/
 	
 	//remove camera path
 	thread globalCoop_level_removePath($klingonStation_barCinematicSplinepath);
@@ -689,6 +671,11 @@ void klingonStation_barEnterCinematicCamInPosition()
 
 void klingonStation_barChallenge()
 {
+	//we do this differently now, the player picks up a batleth in the hallway
+	//makes morse sense this way, until we have the actual challange/combat working
+	//moved to -> klingonStation_barRomulanFound
+	return;
+	
 	//don't allow the challenge before talking to the spy
 	if(!KLINGONSTATION_ROMULANFOUND){
 		return;
@@ -713,6 +700,14 @@ void klingonStation_barChallenge()
 void klingonStation_cinematicBorgArrive()
 //spacebattle attack cinematic
 {
+	//remove that so we don't run into issues when triggering things out of order
+	globalCoop_level_remove($klingonStation_barEnterTrigger);
+	globalCoop_level_removePath($klingonStation_barCinematicSplinepath);
+	globalCoop_level_remove($klingonStation_barRomulanFound);
+	globalCoop_level_removePath($klingonStation_barRomulanFoundCinematic);
+
+
+
 	cinematic();
 	freezeplayer();
 	letterbox(0.1);
@@ -720,6 +715,10 @@ void klingonStation_cinematicBorgArrive()
 	//fade cam
 	cam_fadeOut(0.25,0,0,0,1);
 	wait(0.3);
+	
+	//lower shields
+	$klingonStation_shieds.notsolid();
+	$klingonStation_shieds.hide();
 	
 	
 	//remove ambient sound
@@ -773,15 +772,21 @@ void klingonStation_cinematicBorgArrive()
 	ePhoton.remove();
 	*/
 	
-	$borgCube_torpedoLauncher0.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$t309",5,20);
+	$borgCube_torpedoLauncher0.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$t309",5,20);
 	wait(1);
-	$borgCube_torpedoLauncher1.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$t309",5,20);
+	$borgCube_torpedoLauncher1.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$t309",5,20);
 	wait(0.5);
-	$borgCube_torpedoLauncher2.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$klingonSpaceStationCinematic",5,20);	$borgCube_torpedoLauncher0.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$t309",5,20);
+	$borgCube_torpedoLauncher2.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$klingonSpaceStationCinematic",5,20);
+	$borgCube_torpedoLauncher0.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$t309",5,20);
 	wait(1);
-	$borgCube_torpedoLauncher1.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$t309",5,20);
-	wait(0.5);
-	$borgCube_torpedoLauncher2.projectileAttackEntity( "models/projectile/projectile-photonball-idryll-secret.tik","$klingonSpaceStationCinematic",5,20);
+	$borgCube_torpedoLauncher1.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$t309",5,20);
+	wait(0.7);
+	
+	//raise shields
+	$klingonStation_shieds.solid();
+	$klingonStation_shieds.show();
+	
+	$borgCube_torpedoLauncher2.projectileAttackEntity( "models/coop/projectile/photonball-borgcube.tik","$klingonSpaceStationCinematic",5,20);
 	wait(3);
 	
 	cam_fadeOut(0.25,0,0,0,1);
@@ -801,7 +806,15 @@ void klingonStation_cinematicBorgArrive()
 	float fNum;
 	entity eBat;
 	for(fNum=4;fNum>=0;fNum--){
-		eBat = getEntity("klingonSellerBathlet0");
+		eBat = getEntity("klingonStation_sellerBathlet"+fNum);
+		if(doesEntityExist(eBat)){
+			eBat.remove();
+		}
+	}
+	
+	//remove gauntlets from hallway
+	for(fNum=4;fNum>=0;fNum--){
+		eBat = getEntity("klingonStation_sellerGauntlet"+fNum);
 		if(doesEntityExist(eBat)){
 			eBat.remove();
 		}
@@ -830,6 +843,9 @@ void klingonStation_cinematicBorgArrive()
 	$klingonStation_hallwayKlingonGuard2.remove();
 	
 	$klingonStation_hallwayKlingonSittingWithFemale.remove();
+	
+	//to much work to make him fight and not get attacked by other teammate - at this time I just wana finish the mission
+	$klingonStation_hallwayKlingonFemaleWithSitting.remove();
 	
 	$klingonStation_hallwayKlingonFriend.remove();
 	
@@ -867,22 +883,40 @@ void klingonStation_cinematicBorgArrive()
 	//have random PDA
 	thread klingonStation_PDA();
 	
-	$klingonStation_hallwayKlingonGuard1.actortype("teammate");
-	$klingonStation_hallwayKlingonGuard1.groupactortype("teammate");
+	$klingonStation_hallwayKlingonGuard1.health(75);
 	$klingonStation_hallwayKlingonGuard1.aggressive(1);
-	$klingonStation_hallwayKlingonGuard1.ai_on();
+	$klingonStation_hallwayKlingonGuard1.useactorweapon("actorweapons/klingon-batleth.tik","left");
 	$klingonStation_hallwayKlingonGuard1.immortal(0);
 	$klingonStation_hallwayKlingonGuard1.settendency("patrol",1);
+	$klingonStation_hallwayKlingonGuard1.setTendency("follow",0);
+	$klingonStation_hallwayKlingonGuard1.ai_on();
+	
 	
 	//flip over chair
 	$klingonStation_hallwayKlingonSittingWithFemaleChair.angles('0 135 270');
 	$klingonStation_hallwayKlingonSittingWithFemaleChair.origin('989.93 659.42 39');	
+	
+	//show signs of battle
+	$klingonStation_pinnedBatleth.show();
+	$klingonStation_pinnedBorg.nodamage();
+	$klingonStation_pinnedBorg.solid();
+	$klingonStation_pinnedBorg.show();
+	$klingonStation_pinnedBorg.anim("alcove_disabled_still");
+	$klingonStation_pinnedBorg.setcustomshader("electriclines");
+	//allow to pickup batleth now
+	$klingonStation_pinnedBatlethTrigger.triggerable();
+	$klingonStation_pinnedBatlethTriggerSymbol.scale(2);
+	$klingonStation_pinnedBatleth.missionobjective(1);
 	
 	//ready borg
 	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayBorg1);
 	$klingonStation_hallwayBorg1.show();
 	$klingonStation_hallwayBorg1.ai_on();
 	$klingonStation_hallwayBorg1.aggressive(1);
+	
+	//make sure we get some more borg to fight, respawn this drone
+	//but wait some time, because we want the klingon to help the player first
+	thread respawner_respawnByDifficulty($klingonStation_hallwayBorg1,0,25,"TransportIn","Borg",0,0,400,8);
 	
 	//toggle redalert ambient on
 	float fAlerts;
@@ -893,6 +927,9 @@ void klingonStation_cinematicBorgArrive()
 			triggerEntity(eAlert);
 		}
 	}
+	
+	//start random torpedo attacks
+	thread borgCube_contiousRandomTorpedoAttack();
 }
 
 void klingonStation_romulanSectionEnter()
@@ -907,6 +944,9 @@ void klingonStation_romulanSectionEnter()
 		if(doesEntityExist(eActor)){
 			eActor.ai_on();
 			eActor.aggressive(1);
+			
+			//make sure we get some more borg to fight, respawn this drone
+			thread respawner_respawnByDifficulty(eActor,0,3,"TransportIn","Borg",0,0,400,4);
 		}
 	}
 	//activate romulan
@@ -914,9 +954,19 @@ void klingonStation_romulanSectionEnter()
 	$klingonStation_romulanSectionRomulan0.aggressive(1);
 	$klingonStation_romulanSectionRomulan0.actortype("teammate");
 	$klingonStation_romulanSectionRomulan0.groupactortype("teammate");
-	$klingonStation_romulanSectionRomulan0.attack($klingonStation_romulanSectionBorg0);
+//	$klingonStation_romulanSectionRomulan0.attack($klingonStation_romulanSectionBorg0);
 	$klingonStation_romulanSectionRomulan0.settendency("patrol",1);
 	$klingonStation_romulanSectionRomulan0.settendency("pullalarm",0);
+	$klingonStation_romulanSectionRomulan0.settendency("noscript",1);
+	$klingonStation_romulanSectionRomulan0.setnodeid(3003); //for what ever reason this does not work, should be investigated at some point - Chrissstrahl
+	$klingonStation_romulanSectionRomulan0.talkiness(0);
+	
+	globalCoop_main_waitAFrame();
+	$klingonStation_romulanSectionRomulan0.damagemodifier("actortype","monster", 2);
+	$klingonStation_romulanSectionRomulan0.damagemodifier("actortype","enemy", 1);
+	$klingonStation_romulanSectionRomulan0.damagemodifier("actortype","teammate", 0.25);
+	$klingonStation_romulanSectionRomulan0.damagemodifier("actortype","friend",0);
+	$klingonStation_romulanSectionRomulan0.actortoactordamage(2);
 }
 
 void klingonStation_cinematicBorgArriveTorpedo()
@@ -938,6 +988,25 @@ void klingonStation_barRomulanFound()
 	sit_right
 	
 	*/
+	
+	$klingonStation_barRomulanFriend.missionobjective(0);
+	
+	//mark the surviving warrior
+	if(doesEntityExist($klingonStation_barBattlearenaWarrior1)){
+		if($klingonStation_barBattlearenaWarrior1.getHealth()){
+			$klingonStation_barBattlearenaWarrior1.missionobjective(1);
+		}
+	}
+	if(doesEntityExist($klingonStation_barBattlearenaWarrior2)){
+		if($klingonStation_barBattlearenaWarrior2.getHealth()){
+			$klingonStation_barBattlearenaWarrior2.missionobjective(1);
+		}
+	}
+	
+	$klingonStation_barRomulanFriend.missionobjective(1);
+	globalCoop_objectives_set(coop_string_objectiveItem1,"complete",1,0);
+	thread globalCoop_objectives_set(coop_string_objectiveItem2,"incomplete",2,1);
+	
 	cam_fadeOut(0.1,0,0,0,1);	
 	wait(0.15);
 	
@@ -962,7 +1031,11 @@ void klingonStation_barRomulanFound()
 	cam_fadeIn(0.25,0,0,0,1);
 	
 	skipthread("");
-	wait(1.5);
+	wait(1.4);
+	
+	$klingonStation_barRomulanFriendDatapad.remove();
+	$t352.playsound("sound/player/player_invpickup.wav",0,1.5,99999);
+	wait(.15);
 	
 	$klingonStation_barRomulanFriend.animateonce("sfa_chair_talk_B");
 	
@@ -980,7 +1053,7 @@ void klingonStation_barRomulanFound()
 	//hzm coop mod chrissstrahl - this is only for sp
 	if(getCvarInt("g_gametype") == 0){
 		$player.show();
-		$player.solid();		
+		$player.solid();
 	}
 	
 	wait(0.5);
@@ -988,6 +1061,20 @@ void klingonStation_barRomulanFound()
 	cam_fadein( 1, 0, 0, 0, 1, 0 );
 	
 	KLINGONSTATION_ROMULANFOUND = 1;
+	
+	wait(2);
+	$klingonStation_barRomulanFriend.remove();
+	
+	wait(2);
+	
+	//BORG ATTACK >>> BORG ATTACK
+	//BORG ATTACK >>> BORG ATTACK
+	//BORG ATTACK >>> BORG ATTACK
+	//BORG ATTACK >>> BORG ATTACK
+	//BORG ATTACK >>> BORG ATTACK
+	//BORG ATTACK >>> BORG ATTACK
+	//spacebattle attack cinematic
+	thread klingonStation_cinematicBorgArrive();
 }
 
 void klingonStation_barBattlearenaLoser()
@@ -1011,6 +1098,7 @@ void klingonStation_barBattlearenaLoser()
 			wait(1.6);
 			eWinner.anim("idle");
 			wait(0.5);
+			eWinner.pushable(0);
 			eWinner.walkto("$klingonStation_barBattlearenaExit1");
 			waitfor(eWinner);
 			
@@ -1052,27 +1140,34 @@ void klingonStation_hallwayConsoleExplode()
 	$klingonStation_hallwayConsole.remove();
 	
 	//borg beams in
+	$klingonStation_hallwayBorg2.ai_on();
 	$klingonStation_hallwayBorg2.show();
 	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayBorg2);
 	$klingonStation_hallwayBorg2.displayEffect("TransportIn","Borg");
 	$klingonStation_hallwayBorg2.aggressive(1);
 	
-	//klingon warrier comes to crush borg
-	//$klingonStation_hallwayKlingonFemaleWithSitting.model("models/char/klingon-m9-merc-knife-f3.tik"); //changed to make as female would fail mission if made to teammate
-	$klingonStation_hallwayKlingonFemaleWithSitting.model("models/char/klingon-m9-merc-knife-m1.tik");
-	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayKlingonFemaleWithSitting);
-	$klingonStation_hallwayKlingonFemaleWithSitting.walkto("$klingonStation_hallwayRunto1","run");
-	waitFor($klingonStation_hallwayKlingonFemaleWithSitting);
-	//$klingonStation_hallwayKlingonFemaleWithSitting.actortype("teammate");
-	$klingonStation_hallwayKlingonFemaleWithSitting.immortal(0);
-	$klingonStation_hallwayKlingonFemaleWithSitting.actortype("teammate");
-	$klingonStation_hallwayKlingonFemaleWithSitting.groupactortype("teammate");
-	$klingonStation_hallwayKlingonFemaleWithSitting.ai_on();
-	$klingonStation_hallwayKlingonFemaleWithSitting.aggressive(1);
-	$klingonStation_hallwayKlingonFemaleWithSitting.attack($klingonStation_hallwayBorg2);
-	$klingonStation_hallwayKlingonFemaleWithSitting.settendency("patrol",1);
-	$klingonStation_hallwayBorg2.ai_on();
-	$klingonStation_hallwayBorg2.attack($klingonStation_hallwayKlingonFemaleWithSitting);
+	//make sure we get some more borg to fight, respawn this drone
+	thread respawner_respawnByDifficulty($klingonStation_hallwayBorg2,0,2,"TransportIn","Borg",0,0,400,4);
+	
+	$klingonStation_hallwayBorg3.ai_on();
+	$klingonStation_hallwayBorg3.show();
+	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayBorg3);
+	$klingonStation_hallwayBorg3.displayEffect("TransportIn","Borg");
+	$klingonStation_hallwayBorg3.aggressive(1);
+	
+	//make sure we get some more borg to fight, respawn this drone
+	//but wait some time, because we want the klingon to help the player first
+	thread respawner_respawnByDifficulty($klingonStation_hallwayBorg3,0,10,"TransportIn","Borg",0,0,400,4);
+	
+	$klingonStation_hallwayBorg4.ai_on();
+	$klingonStation_hallwayBorg4.show();
+	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayBorg4);
+	$klingonStation_hallwayBorg4.displayEffect("TransportIn","Borg");
+	$klingonStation_hallwayBorg4.aggressive(1);
+	
+	//make sure we get some more borg to fight, respawn this drone
+	//but wait some time, because we want the klingon to help the player first
+	thread respawner_respawnByDifficulty($klingonStation_hallwayBorg4,0,2,"TransportIn","Borg",0,0,400,8);
 }
 
 void klingonStation_hallwayTubeExplode()
@@ -1084,6 +1179,7 @@ void klingonStation_hallwayTubeExplode()
 	thread globalCoop_player_makeSolidASAP($klingonStation_hallwayTubeDamaged);
 	$klingonStation_hallwayTubeExplodeSteam.show();
 	$klingonStation_hallwayTubeExplodeSteam.scale(1);
+	$klingonStation_hallwayTubeDamagedTrigger.triggerable();
 	
 	
 	//hallway light turn off
@@ -1092,202 +1188,11 @@ void klingonStation_hallwayTubeExplode()
 	$klingonStation_hallwayLight1Beam.hide();
 }
 
-void playerManageEvoSuit(entity ePlayer)
-//allowes player to sort of manouver in space with trusters up and down
+void klingonStation_seller()
+//kingon seller trigger on table
 {
-return;
-//ePlayer.hudprint("playerManageEvoSuit 1\n");
-	vector vVelocity,vVelocityNew;
-	float iStatVal = -1;
-	float iLastStatVal = 123;
-	float iCoolDownTimmer = 0;
-	float iUpCost = 1.5;
-	float iForwardCost = 0.5;
-	float fRecharge = -0.5;
-	float iAirSupply,fAirSupplyLastHurt;
-	float bAirSupplyStopSound=1;
-	float iLastAirSupply;
-	float iAirSupplyConsumptionRate;
 
-	ePlayer.addhud("cooptimerred");
-	sendClientCommand(ePlayer,"set coop_timerRed Thrusters Temp");
-	
-	ePlayer.setFloatVar("endEvo",0);
-	ePlayer.gravity(0.15);
-	
-	while(doesEntityExist(ePlayer)){	
-		//GRAB CURRENT VELOCITY
-		vVelocity = ePlayer.getVelocity();
-		vVelocityNew = vVelocity;
-		
-		float fHealth;
-		fHealth = ePlayer.getHealth();
-		
-		if(fHealth > 0 && ePlayer.getFloatVar("endEvo") != 1){
-			if(iAirSupply <= 0){
-				if((fAirSupplyLastHurt + 5) < getLevelTime()){
-					fHealth = (fHealth - 10);
-					if(ePlayer.getHealth() > fHealth){ ePlayer.pain(1,ePlayer,2); }
-					if(fHealth <= 0){
-						ePlayer.kill();
-						fHealth = 0;
-					}
-					ePlayer.health(fHealth);
-					
-					fAirSupplyLastHurt=getLevelTime();
-					ePlayer.stoploopsound();
-					bAirSupplyStopSound=1;
-				}
-			}else if(bAirSupplyStopSound){
-				fAirSupplyLastHurt=getLevelTime();
-ePlayer.loopsound("sound/player/player_rebreath.wav",1,96);
-			}
-		}else{
-			ePlayer.removehud("cooptimerred");
-			ePlayer.removehud("cooptimerblue");
-			ePlayer.stoploopsound();
-			ePlayer.gravity(1);
-//ePlayer.hudprint("playerManageEvoSuit 2\n");
-			return;
-		}
-		
-		if(iStatVal < 100 && ePlayer.isplayeronground() == 0){
-			if(ePlayer.checkJump()){
-				if(vVelocity_z < 600){ //cap max upwards velocity for thrusters
-					vVelocityNew_z += 50; 
-					iStatVal = (iStatVal + iUpCost);
-				}
-			}
-			else if(ePlayer.checkCrouch()){
-				if(vVelocity_z > -300){ //cap max downwards velocity for thrusters
-					if(vVelocity_z > 0 ){
-						vVelocityNew_z -= 50;
-						iStatVal = (iStatVal + iUpCost/2);
-					}else{
-						vVelocityNew_z -= 30;
-						iStatVal = (iStatVal + (iUpCost/1));
-					}
-				}
-				/*
-				float fPhy;
-				vector vAngles;
-				fPhy = $world.getPhysicsVar("gravity");
-				vAngles = ePlayer.getViewAngles();
-				ePlayer.hudprint("getPhysicsVar velocity: "+fPhy+" ("+vAngles+")\n");
-				*/
-			}
-			
-			if(ePlayer.checkForward()){
-				iStatVal = (iStatVal + iForwardCost);
-			}else if(ePlayer.checkBackward()){
-				iStatVal = (iStatVal + iForwardCost);
-			}
-			
-			if(ePlayer.checkLeft()){
-				iStatVal = (iStatVal + iForwardCost);
-			}else if(ePlayer.checkRight()){
-				iStatVal = (iStatVal + iForwardCost);
-			}
-		}
-		
-		//make sure we don't go out of bounds
-		if(iStatVal > 100){ iStatVal = 100;	}
-		else if(iStatVal < 0){ iStatVal = 0;}
-		if(iAirSupply < 0){iAirSupply = 0;}
-		else if(iAirSupply > 100){iAirSupply = 100;}
-		
-		//thrusters
-		if(iStatVal != iLastStatVal){
-			//[b60025] chrissstrahl - updated to reduce warning message spam
-			if(!ePlayer.doesVarExist("coop_evosuit_haltStat")){
-				ePlayer.setFloatVar("coop_evosuit_haltStat",0.0);
-			}
-			
-			if(ePlayer.getFloatVar("coop_evosuit_haltStat") == 0){
-				ePlayer.setstat( "generic",iStatVal);
-			}
-		}
-		//air supply
-		if(iAirSupply != iLastAirSupply){
-			ePlayer.setstat( "mp_generic1",iAirSupply);
-		}
-		iLastStatVal = iStatVal;
-		iLastAirSupply = iAirSupply;
-
-		//no thrusters used - recharge
-		if(iLastStatVal == iStatVal){
-			//have cooldown on recharge, once it is empty
-			if(iStatVal == 100 && iCoolDownTimmer < 20){
-				if(iCoolDownTimmer == 0){
-					ePlayer.hudprint("Thrusters need to Cooldown!\n");
-				}
-				iCoolDownTimmer++;
-			}else{
-				iStatVal = (iStatVal + fRecharge);
-				iCoolDownTimmer = 0;
-			}
-		}		
-iAirSupply = (iAirSupply + iAirSupplyConsumptionRate);
-		
-		//SET NEW VELOCITY
-		if(vVelocityNew != vVelocity){
-			ePlayer.setVelocity(vVelocityNew);
-		}
-		wait(0.05);
-	}
-}	
-
-/*
-void coop_airlockCheckPlayer(entity ePlayer)
-{
-	if(ePlayer.getFloatVar("coop_airlockCheckPlayer") == 1){
-//ePlayer.hudprint("coop_airlockCheckPlayer 0\n");
-		return;
-	}
-	
-	ePlayer.setFloatVar("coop_airlockCheckPlayer",1);
-	float fExit=0;
-	vector vPlayerOrigin;
-	
-	while(fExit == 0)
-	{
-		wait(0.05); //wait at the beginning to avoid blocking this to be started again
-		
-		fExit=1;
-		
-		if(doesEntityExist(ePlayer)){
-//ePlayer.hudprint("coop_airlockCheckPlayer 1\n");
-			if(ePlayer.getHealth() > 0){
-//ePlayer.hudprint("coop_airlockCheckPlayer 2\n");
-				if(!globalCoop_check_playerSpectator(ePlayer)){
-					vPlayerOrigin = ePlayer.getOrigin();
-					//check if player is outside airlock height or below
-					if(vectorGetZ(vPlayerOrigin) < 16 || vectorGetZ(vPlayerOrigin) > 224 || vectorGetY(vPlayerOrigin) > 2800){
-
-//ePlayer.setFloatVar("endEvo",1);
-//ePlayer.hudprint("coop_airlockCheckPlayer 3\n");
-
-						coop_evosuit_playerSetSpace(ePlayer,1);
-						
-						
-						//ePlayer.gravity(0.25);
-						//playerManageEvoSuit(ePlayer);
-						//ePlayer.setFloatVar("coop_airlockCheckPlayer",0);
-						
-						
-//ePlayer.hudprint("coop_airlockCheckPlayer 4\n");
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	if(doesEntityExist(ePlayer)){
-		ePlayer.setFloatVar("coop_airlockCheckPlayer",0);
-	}
 }
-*/
 
 void coop_klingonAirlockBoxes()
 {
@@ -1361,6 +1266,7 @@ void coop_justTransported()
 		coop_evosuit_justTransported(ePlayer);
 	}
 }
+
 //-------------------------------------
 //AUTOMATICALLY STARTED BY THE COOP MOD
 //-------------------------------------
@@ -1537,6 +1443,15 @@ void klingonStation_hallwayKlingonFriendTalk()
 
 void klingonStation_cargobayAirlockScene()
 {
+	thread globalCoop_objectives_set(coop_string_objectiveItem2,"incomplete",3,1); //evosuit
+	
+	/*
+	if(getCvar("username") == "Chrissstrahl"){
+		$player0.origin('5504 12264 -1848'); //on cube exterior lower segment
+		//$player0.origin('1111 2640 330'); //On KLstation Airlock
+	}
+	*/
+
 	$klingonAirlockActor0.animateonce("cin-m3_pointing");
 	$klingonAirlockActor1.anim("walk_fast_armup");
 	wait(1.25);
@@ -1548,11 +1463,18 @@ void klingonStation_cargobayAirlockScene()
 	
 	
 	//[b60025] chrissstrahl - have a shuttle loop in a path
+	$shuttleFederationOrigin2_torpedo.bind($shuttleFederationOrigin2);
 	$shuttleFederationClip2.bind($shuttleFederationOrigin2);
 	$shuttleFederation2.bind($shuttleFederationOrigin2);
 	$shuttleFederationOrigin2.followpath( $t280 , "loop" , "normalangles" );
 	$shuttleFederation2.show();
 	$shuttleFederationClip2.solid();
+	
+	while(doesEntityExist($needToPickupEvoSuit)){
+		wait(1);
+	}
+	globalCoop_objectives_set(coop_string_objectiveItem2,"incomplete",4,0);
+	thread globalCoop_objectives_set(coop_string_objectiveItem2,"complete",3,1);
 }
 
 void klingonStation_cargobayPowerCoup()
@@ -1764,6 +1686,13 @@ void borgCube_entranceTransport()
 	
 	//set in space, the function will handle the suffication
 	coop_evosuit_playerSetSpace(ePlayer,0);
+	
+	//[b60025] chrissstrahl - set objective
+	if(!BORGCUBE_INFILTRATED){
+		BORGCUBE_INFILTRATED = 1;
+		globalCoop_objectives_set(coop_string_objectiveItem2,"complete",4,0);
+		thread globalCoop_objectives_set(coop_string_objectiveItem2,"incomplete",5,1);
+	}
 }
 
 
@@ -1802,6 +1731,16 @@ void borgCube_enterCube()
 			eDrone.settendency( "hibernate" , 1.0 );
 			eDrone.ai_on();
 			eDrone.killthread("borgCube_droneMurdered");
+			
+			//some spawn if you are at a distance some dont
+			float fRand;
+			fRand = randomInt(5);
+			if(fRand == 0){
+				fRand = 400;
+			}else{
+				fRand = -500;
+			}
+			thread respawner_respawnByDifficulty(eDrone,0,(randomInt(10) + 1),"TransportIn","Borg",0,0,fRand,8);
 		}
 	}
 	
@@ -1815,8 +1754,8 @@ void borgCube_enterCube()
 		}
 	}
 	
-	//make chell work on console
-	thread borgCube_chellWork_timer();
+	//start beaming in npc demolition teams
+	thread borgCube_npcBeamIn();
 	
 	//stop flickering light in romulan section
 	$world.light_intensity( "klingonStation_romulanSectionLight1" , 0 );
@@ -1839,15 +1778,18 @@ float actor_animateOnce(entity e,string sAnim)
 	if(doesEntityExist(e)){
 		if(e.getHealth() > 0){
 			e.animateonce(sAnim);
+			$player0.hudprint("actor_animateOnce 1\n");
 			return 1;
 		}
 	}
+	$player0.hudprint("actor_animateOnce 0\n");
 	return 0;	
 }
 
 void borgCube_chellWorkDone()
 //chell has finished his work
 {
+	return;
 	if(doesEntityExist($chell)){
 		if($chell.getHealth() > 0){
 			killthread("borgCube_chellWork_timer");
@@ -1909,6 +1851,7 @@ void borgCube_chellWorkDone()
 void borgCube_chellWork_timer()
 //handle mission procedure
 {
+	return;
 	thread globalCoop_main_globalMessage("borgCube_chellWork_timer");
 	thread borgCube_chellWork();
 	
@@ -1926,7 +1869,7 @@ void borgCube_chellWork_timer()
 				
 				killthread("borgCube_chellWork");
 				$chell.ai_off();
-				$chell.animateOnce("death");
+				//$chell.animateOnce("death");
 			}
 		}
 		if(fFailure){
@@ -1944,42 +1887,59 @@ void borgCube_chellWork_timer()
 void borgCube_chellWork()
 //handle animations
 {
-	
-thread borgCube_npcBeamIn();
-return;
-	
+	return;
 	$chell.missionobjective(1);
 	$chell.ai_off();
-	globalCoop_armory_putAwayWeapon($chell);
+	thread globalCoop_armory_putAwayWeapon($chell);
 	$chell.mass(9999);
 	$chell.pushable(0);
 	$chell.immortal(0);
 	
+	if(getCvar("username") == "Chrissstrahl"){
+		$player0.hudprint("chell working 1\n");
+	}
+	
 	while(BORGCUBE_CHELLWORKING){
-		if(!actor_animateOnce($chell,"ent-compstation-idle")){
-			return;
-		}
-		waitForAnimation($chell,"ent-compstation-idle",-0.05);
+		$player0.hudprint("start loop\n");
+		$chell.anim("ent-vchair-sm-gesture1");
+		wait(2.95);
 		
 		if(!actor_animateOnce($chell,"ent-compstation-idle")){
+			$player0.hudprint("chell abbort 2\n");
 			return;
 		}
 		waitForAnimation($chell,"ent-compstation-idle-look",-0.05);
 		
 		if(!actor_animateOnce($chell,"ent-compstation-idle")){
+			$player0.hudprint("chell abbort 3\n");
 			return;
 		}
 		waitForAnimation($chell,"ent-compstation-idle",-0.05);		
 		
 		if(!actor_animateOnce($chell,"ent-compstation-idle")){
+			$player0.hudprint("chell abbort 4\n");
 			return;
 		}
 		waitForAnimation($chell,"ent-compstation-scan",-0.05);
+		
+		if(getCvar("username") == "Chrissstrahl"){
+			$player0.hudprint("chell working loop\n");
+		}
 	}
 }
 
 void borgCube_npcBeamIn()
 {
+	//remove forcefields
+	float fFields;
+	entity eField;
+	for(fFields=3;fFields>=0;fFields--){
+		eField = getEntity("borgCube_forceField"+fFields);
+		if(doesEntityExist(eField)){
+			eField.remove();
+		}
+	}
+			
 	//beam effect for gravunit - can't play effect on it because it is not a model
 	entity e;
 	vector vCap;
@@ -1991,18 +1951,20 @@ void borgCube_npcBeamIn()
 
 	//ready antigrav units
 	//$anigravUnitFederation0Gravnode.bind($anigravUnitFederation0Origin);
+	$anigravUnitFederation0UseSymbol.bind($anigravUnitFederation0Origin);
 	$anigravUnitFederation0Puzzle.bind($anigravUnitFederation0Origin);
-	$anigravUnitFederation0Trigger.bind($anigravUnitFederation0Origin);
 	$anigravUnitFederation0Cap.bind($anigravUnitFederation0Origin);
 	$anigravUnitFederation0.bind($anigravUnitFederation0Origin);
 	$anigravUnitFederation0WalkTo.bind($anigravUnitFederation0Origin);
+	$anigravUnitFederation0DamageTrigger.bind($anigravUnitFederation0Origin);
 	
 	//$anigravUnitFederation1Gravnode.bind($anigravUnitFederation1Origin);
+	$anigravUnitFederation1UseSymbol.bind($anigravUnitFederation1Origin);
 	$anigravUnitFederation1Puzzle.bind($anigravUnitFederation1Origin);
-	$anigravUnitFederation1Trigger.bind($anigravUnitFederation1Origin);
 	$anigravUnitFederation1Cap.bind($anigravUnitFederation1Origin);
 	$anigravUnitFederation1.bind($anigravUnitFederation1Origin);
 	$anigravUnitFederation1WalkTo.bind($anigravUnitFederation1Origin);
+	$anigravUnitFederation1DamageTrigger.bind($anigravUnitFederation1Origin);
 	
 	/*
 	entity eBall0;
@@ -2166,7 +2128,11 @@ void borgCube_gravunitPath1End()
 	$anigravUnitFederation0Cap.rotateZup(-90);
 	$anigravUnitFederation0Cap.time(2);
 	wait(1);
-	$anigravUnitFederation0Trigger.triggerable();
+	
+	//stop following, also stops "invalid animation for" error, because groupfollow was not meant to be used on objects
+	if(doesEntityExist($demolitionTeam0)){
+		$demolitionTeam0.settendency("followobject",0);
+	}
 	
 	$anigravUnitFederation0Puzzle.puzzleobject_solvedthread( "borgCube_torpedo0Ready" );
 	$anigravUnitFederation0Puzzle.puzzleobject_canceledthread( "borgCube_resetTricorderPuzzle0" );
@@ -2178,11 +2144,15 @@ void borgCube_gravunitPath2End()
 	$anigravUnitFederation1Cap.rotateZup(-90);
 	$anigravUnitFederation1Cap.time(2);
 	wait(1);
-	$anigravUnitFederation1Trigger.triggerable();
+	
+	//stop following, also stops "invalid animation for" error, because groupfollow was not meant to be used on objects
+	if(doesEntityExist($demolitionTeam0)){
+		$demolitionTeam1.settendency("followobject",0);
+	}
 	
 	$anigravUnitFederation1Puzzle.puzzleobject_solvedthread( "borgCube_torpedo1Ready" );
-	$anigravUnitFederation1Puzzle.puzzleobject_canceledthread( "borgCube_resetTricorderPuzzle0" );
-	$anigravUnitFederation1Puzzle.puzzleobject_itemusedthread( "borgCube_tricorderPuzzle0" );
+	$anigravUnitFederation1Puzzle.puzzleobject_canceledthread( "borgCube_resetTricorderPuzzle1" );
+	$anigravUnitFederation1Puzzle.puzzleobject_itemusedthread( "borgCube_tricorderPuzzle1" );
 }
 
 //---------------------
@@ -2240,6 +2210,53 @@ void borgCube_gravunitLightBlink(entity eLight)
 	}
 }
 
+void borgCube_contiousRandomTorpedoAttack()
+{
+	entity eLauncher;
+	float waitTime_random = 5;
+	float waitTime_minimum = 1;
+	float launcher_originNums = 2;
+	float target_namesNums = 27;
+	string launcherBaseName;
+	string targetBaseName;
+		launcherBaseName = "borgCube_torpedoLauncher";
+		targetBaseName = "klingonStation_shieldTarget";
+	string projectileName;
+		//projectileName = "models/projectile/projectile-photonball-idryll-secret.tik";
+		//projectileName = "models/coop/projectile/photonball-klingonstation.tik";
+		projectileName = "models/coop/projectile/photonball-borgcube.tik";
+		
+	/*
+	$t309
+	$klingonSpaceStationCinematic
+	
+spawn models/projectile/projectile_merc-pistol.tik
+spawn models/projectile/projectile_fedphotonball.tik
+spawn models/projectile/projectile_attrex-security-pistol.tik
+spawn models/projectile/projectile-snake-laserbeam.tik
+spawn models/projectile/projectile-photonball-voyager.tik
+spawn models/projectile/projectile-photonball-borg.tik
+spawn models/projectile/projectile-laserbeam.tik
+spawn models/projectile/projectile-klingon-rig-arm.tik
+spawn models/projectile/projectile-idryllstrike.tik //this one actually strikes towards a angle over and over again
+spawn models/projectile/projectile-idryll-blast2.tik //looks kinda like a wormhole effect
+spawn models/projectile/projectile-idryll-blast.tik //looks kinda like a wormhole effect
+projectile_cannonblast.tik
+	
+	*/
+	
+	while(BORGCUBE_FIRERANDOMLY)
+	{
+		eLauncher = getEntity(launcherBaseName+""+randomInt(launcher_originNums + 1));
+		eLauncher.projectileAttackEntity( projectileName ,"$"+targetBaseName+""+randomInt(target_namesNums),5,10);
+		
+		$klingonStation_torpedo0.projectileAttackEntity( "models/coop/projectile/photonball-klingonstation.tik" ,"$borgCube_torpedoLauncher1",270,10);
+		
+		//eLauncher.projectileattackfrompoint( projectileName,'2556 13229 2585','0 90 0', 50, 15 );
+		wait( waitTime_minimum + randomInt(waitTime_random));
+	}
+}
+
 void door_unlock()
 //unlocks a targeted door from trigger activation
 {
@@ -2268,6 +2285,297 @@ void door_unlock()
 		eDoor.unlock();
 		//globalCoop_main_print("door_unlock()->UNLOCKED: "+eDoor.getTargetname());
 	}
+}
+
+void klingonStation_cargobayTransporterEnable()
+{
+	vector vOr;
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	vOr = eTrigger.getOrigin();
+	spawn("SFX_sparks_directional-blue-small","model","models/fx/fx-sparks-blue-directional-small.tik","origin",""+vOr);
+	
+	klingonStation_generalPurposeTransporter($klingonStation_warehouseTransporter.getOrigin());
+	wait(5);
+	$klingonStation_cargobayTransportArea.triggerable();
+}
+
+void klingonStation_cargobayTransporter()
+{
+	klingonStation_generalPurposeTransporter($klingonStation_warehouseTransporter.getOrigin());
+}
+
+void klingonStation_generalPurposeTransporter(vector vNewLocation)
+//This Transporter Script Beams pretty much every entity within its designated boundingbox (eTransportArea)
+{
+	entity eCurrent;
+	entity eTransportArea;
+	vector areaOrigin;
+	vector currentEntityOffset;
+	
+	eTransportArea = getEntity("klingonStation_cargobayTransportArea");
+	
+	if(!doesEntityExist(eTransportArea)){
+		globalCoop_main_print("Transport Area Entity not found");
+		return;
+	}
+	
+	areaOrigin = eTransportArea.getOrigin();
+	
+	//compensate for trigger area bbox offset
+	areaOrigin_z -= vectorGetZ(eTransportArea.getMaxs());
+	
+	float entnum;
+	string sClassname;
+	for(entnum=1023;entnum>-1;entnum--){
+		eCurrent = getEntity("*"+entnum);
+		if(doesEntityExist(eCurrent)){			
+			if(globalCoop_check_isEntityTouchingOther(eTransportArea,eCurrent,0)){
+				if(eCurrent.getStringvar("uservar1") != "notransport"){
+					//Actor,Player,Object,ScriptModel,ExplodeObject,Weapon
+					sClassname = eCurrent.getSubclassName();
+					//exclude a few classes, to be sure we don't get any issues
+					if(	sClassname != "ScriptSlave" &&
+						sClassname != "ScriptOrigin" &&
+						sClassname != "SplinePath" &&
+						sClassname != "Camera" &&
+						sClassname != "info_pathnode" &&
+						sClassname != "info_helpernode" 
+						)
+					{
+						globalCoop_main_print("Transporting: Ent:"+entnum+" Class: "+sClassname+" Mdl: "+eCurrent.getModelName()+"Targ: "+eCurrent.getRawTargetname()+"\n");
+						thread klingonStation_generalPurposeTransporter_transport(areaOrigin,vNewLocation,eCurrent);
+					}
+				}
+			}
+		}
+	}
+}
+
+void klingonStation_generalPurposeTransporter_transport(vector vOld,vector vNew,entity ePlayer)
+{
+	float nodamageReset = 0;
+	string subClass;
+	subClass = ePlayer.getSubclassName();
+	if(subClass == "Actor"){
+		ePlayer.ai_off();
+		ePlayer.nodamage();
+		nodamageReset = 1;
+	}else if(subClass == "Player"){
+		ePlayer.nodamage();
+		ePlayer.immobilize(1);
+		nodamageReset = 1;
+	}
+		
+	ePlayer.displayEffect("TransportOut","Federation");
+	wait(2.5); //[b60021] chrissstrahl - fix delay when beaming
+	
+	if(!doesEntityExist(ePlayer)){	return;	}
+	
+	klingonStation_generalPurposeTransporter_move(vOld,vNew,ePlayer);
+	
+	if(!doesEntityExist(ePlayer)){	return;	}
+	if(subClass == "Actor" || subClass == "Player"){
+		if(ePlayer.getHealth() <= 0){
+			return;
+		}
+	}
+	
+	ePlayer.displayEffect("TransportIn","Federation");
+	wait(2);
+	
+	if(!doesEntityExist(ePlayer)){	return;	}
+	if(subClass == "Actor" || subClass == "Player"){
+		if(ePlayer.getHealth() <= 0){
+			return;
+		}
+	}
+	
+	if(subClass == "Actor"){
+		ePlayer.ai_on();
+		ePlayer.takedamage();
+		ePlayer.droptofloor();
+	}else if(subClass == "Player"){
+		ePlayer.takedamage();
+		ePlayer.immobilize(0);
+		//ePlayer.resetState();
+		ePlayer.droptofloor();
+	}
+}
+
+void klingonStation_generalPurposeTransporter_move(vector vOld,vector vNew,entity ePlayer)
+//moves entity relative to old and new origin, taken from hatoria holodeck
+{
+	float yAxisMaxOffset = 240;
+	float xAxisMaxOffset = 240;
+	float zAxisMaxOffset = 120;
+
+	if(	doesEntityExist(ePlayer) != 1)
+	{
+		return;
+	}
+	vector vVelocity;
+	vector vOriginPlayer;
+	vector vOrigin;
+	float fAxisOffsetY;
+	float fAxisOffsetX;
+	float fAxisOffsetZ;
+	float fYOffsetAdd;
+	float fXOffsetAdd;
+	vector vCalc1,vCalc2;
+	vVelocity = ePlayer.getVelocity();
+	vOriginPlayer = ePlayer.getOrigin();
+	vOrigin = vOld;
+	
+	if(vOriginPlayer_y >= vOrigin_y){
+		fYOffsetAdd = 1;
+	}
+	if(vOriginPlayer_x >= vOrigin_x){
+		fXOffsetAdd = 1;
+	}
+	
+	//calc y offset
+	vCalc1 = vOrigin;
+	vCalc2 = vOriginPlayer;
+	vCalc1_x = (vCalc1_z = 0);
+	vCalc2_x = (vCalc2_z = 0);
+	fAxisOffsetY = vectorLength(vCalc1 - vCalc2);
+//if(fAxisOffsetY > yAxisMaxOffset){fAxisOffsetY = yAxisMaxOffset;}
+	
+	//calc x offset
+	vCalc1 = vOrigin;
+	vCalc2 = vOriginPlayer;
+	vCalc1_y = (vCalc1_z = 0);
+	vCalc2_y = (vCalc2_z = 0);
+	fAxisOffsetX = vectorLength(vCalc1 - vCalc2);
+//if(fAxisOffsetX > xAxisMaxOffset){fAxisOffsetX = xAxisMaxOffset;}
+	
+	//calc z offset
+	vCalc1 = vOrigin;
+	vCalc2 = vOriginPlayer;
+	vCalc1_x = (vCalc1_y = 0);
+	vCalc2_x = (vCalc2_y = 0);
+	fAxisOffsetZ = vectorLength(vCalc1 - vCalc2);
+	if(fAxisOffsetZ > zAxisMaxOffset){fAxisOffsetZ = zAxisMaxOffset;}
+	else if(fAxisOffsetZ < 1){fAxisOffsetZ = 1;} //put 1 unit above, avoid getting stuck in the floor
+	
+	//set offsets
+	vOrigin = vNew;
+	if(fYOffsetAdd){
+		vOrigin_y += fAxisOffsetY;
+	}
+	else{
+		vOrigin_y -= fAxisOffsetY;
+	}
+
+	if(fXOffsetAdd){
+		vOrigin_x += fAxisOffsetX;
+	}
+	else{
+		vOrigin_x -= fAxisOffsetX;
+	}
+	
+	
+	vOrigin_z += fAxisOffsetZ;
+	thread globalCoop_level_warpEntityToVectorSafty(ePlayer,vOrigin);
+	globalCoop_main_waitZeroDotZero5();
+	//ePlayer.setVelocity(vVelocity);
+}
+
+//handle borg boss
+float fltBossStage = 1;
+void stage_change_cinema_start()
+{
+	//--- increment the stage counter
+	fltBossStage++;
+
+    //--- set the boss into the next stage
+    $boss1.ai_off();
+    $boss1.goToStage( fltBossStage );
+	//--- wait for the stage transition
+	wait ( .5 );
+
+    //--- enable the borg boss's AI
+    $borg1.ai_on();
+}
+
+void klingonStation_takeBathleth()
+{
+	$klingonStation_pinnedBatleth.remove();
+	coop_string_weapon8 = "models/weapons/worldmodel-Batleth.tik";
+	globalCoop_armory_useTiki( coop_string_weapon8 );
+	
+	wait(0.15);
+	$klingonStation_pinnedBorg.animateonce("death_alcove");
+	//prevent animation from replaying if player reenters area
+	wait(3.5);
+	$klingonStation_pinnedBorg.setFrame(28,"death_alcove");
+	$klingonStation_pinnedBorg.clearcustomshader("electriclines");
+	$klingonStation_pinnedBorg.notsolid();
+	
+	thread globalCoop_objectives_set(coop_string_objectiveItem2,"complete",2,1);
+}
+
+void borgCube_torpedoDamaged()
+//torpedo trigger damaged - update status
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	
+	if(getCvar("uservar") == "Chrissstrahl"){
+		$player0.hudprint(""+eTrigger.getTargetname()+" health: "+eTrigger.getHealth()+"\n");
+	}
+}
+
+
+void space_federationShuttle2_fire()
+{
+	wait(0.25);
+	
+	float fRand;
+	fRand = randomInt(5);
+	fRand++;
+	
+	if(fRand < 2){
+		fRand = 2;
+	}
+	
+	while(fRand > 0){
+		$shuttleFederationOrigin2_torpedo.projectileAttackEntity( "weapons/projectile_photonball2.tik","$space_borgCube_shuttleTarget"+randomInt(3),3,20);
+		fRand--;
+		wait(1.1);
+	}
+}
+
+void testCam1End()
+{
+	
+}
+
+void TestStuff()
+{
+	respawner_setLimitActiveSpawned(8);
+	
+	thread respawner_respawn($testBorg0,0,0,"TransportIn","Borg",20,1,0,0,0);
+	thread respawner_respawn($testBorg1,0,0,"TransportIn","Borg",20,1,0,0,0);
+	thread respawner_respawn($testBorg2,0,0,"TransportIn","Borg",20,1,0,0,0);
+	thread respawner_respawn($testBorg3,0,0,"TransportIn","Borg",20,1,0,0,0);
+	//thread respawner_respawn($testBorg4,0,0,"TransportIn","Borg",20,1,0,0,-60);
+	
+	//wait(10);
+	//respawner_setLimitActiveSpawned(2);
+	
+	//wait(10);
+	//respawner_setLimitActiveFunctions(1);
+	
+	//wait(10);
+	//respawner_stopActiveSpawners();
 }
 
 void coop_endLevel()
