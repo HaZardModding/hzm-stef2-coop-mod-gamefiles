@@ -517,7 +517,7 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	cvarvisibility "coop_comL" "11"
-	stuffcommand "!reboot;popmenu coop_com"
+	stuffcommand "!reboot"
 }
 
 resource
