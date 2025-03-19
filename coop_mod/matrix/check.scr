@@ -88,8 +88,9 @@ float globalCoop_check_playerSpectator(entity ePlayer)
 //Cheks if the given player is in spectator mode, if so return 1 else 0
 //------------------------------------------------------------------------------
 {
+	//[b60025] chrissstrahl - made singleplayer compatible
 	//[b60012] chrissstrahl - using now upgraded command
-	if(doesEntityExist(ePlayer)){
+	if(doesEntityExist(ePlayer) == 1 && cvar_bool_multiplayer != 0){
 		return ePlayer.isSpectator();		
 	}
 	return 0;
@@ -218,13 +219,13 @@ float globalCoop_check_isEntityInsideOfEntity(entity e1,entity e2,float fPadding
 		vBBoxMaxs2 = e2.getMaxs();
 //IS ENTITY (1) A PLAYER ENTITY - [b60011] upgrade
 		if(e1.getSubclassName() == "Player"){
-			if(e1.isSpectator()){ return 0; }
+			if(globalCoop_check_playerSpectator(e1)){ return 0; }
 			vBBoxMins1 = '-22 -22 0';
 			vBBoxMaxs1 = '22 22 96';
 		}		
 //IS ENTITY (2) A PLAYER ENTITY - [b60011] upgrade
 		if(e2.getSubclassName() == "Player"){
-			if(e2.isSpectator()){ return 0; }
+			if(globalCoop_check_playerSpectator(e2)){ return 0; }
 			vBBoxMins2 = '-22 -22 0';
 			vBBoxMaxs2 = '22 22 96';
 		}
@@ -315,31 +316,28 @@ float globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(e1)){
-		string sRawTargetname;
-		float fPlayerIdInUse,fInside;
+		float fPlayerIdInUse;
 		entity ePlayer;
-		sRawTargetname = e1.getRawTargetname();
 		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-			ePlayer = getentity("player"+fPlayerIdInUse);
-		//DON'T BE SILLY DON'T CHECK THE PLAYER BEEING STUCK INSIDE HIM SELF!
-			if(sRawTargetname != "player"+fPlayerIdInUse){
-		//DONT CHECK DEATH PPL
-				if(globalCoop_check_existingLivingEntity(ePlayer)){
-		//CHECK IF ANY ELSE DUDE IS STUCK IN THE ENTITY
-					if(globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity(ePlayer,e1,fPadding) == 1){
-						fInside++;
+			//[b60025] Chrissstrahl - using now entity num instead of targetname
+			ePlayer = getEntity("*"+fPlayerIdInUse);
+			
+			if(doesEntityExist(ePlayer)){
+		//DON'T CHECK THE PLAYER BEEING STUCK INSIDE HIM SELF!	
+				if(e1.getEntNum() != fPlayerIdInUse){	//[b60025] Chrissstrahl - using now entity num instead of targetname
+		//DONT CHECK DEAD PPL
+					if(ePlayer.getHealth() > 0){
+		//DONT CHECK SPECTATOR
+						if(!globalCoop_check_playerSpectator(ePlayer)){
+							if(	globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) == 1 ||
+								globalCoop_check_isEntityInsideOfEntity(ePlayer,e1,fPadding) == 1)
+							{
+								return 1;
+							}
+						}
 					}
 				}
 			}
-		}
-//SINGLEPLAYER
-		if(!cvar_bool_multiplayer){
-			if(globalCoop_check_isEntityInsideOfEntity(e1,$player,fPadding) == 1 || globalCoop_check_isEntityInsideOfEntity($player,e1,fPadding) == 1){
-				fInside++;
-			}
-		}
-		if(fInside > 0){
-			return 1;
 		}
 	}
 	return 0;
