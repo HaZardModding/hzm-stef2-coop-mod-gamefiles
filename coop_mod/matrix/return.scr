@@ -145,6 +145,12 @@ float globalCoop_return_integerPlayerId(entity ePlayer)
 	if(doesEntityExist(ePlayer)){
 		float fClientId;
 		fClientId = ePlayer.getEntNum();
+		
+		//[b60025] Chrissstrahl - make sure we don't return false positive in singleplayer
+		if(cvar_bool_multiplayer == 0 && fClientId != 0){
+			return -1;
+		}
+		
 		if(fClientId < cvar_integer_sv_maxClients){ //fClientId starts at 0
 			return fClientId;
 		}
@@ -171,6 +177,45 @@ float globalCoop_return_floatMultiplicatedPlayerQuantity(float fMultiplicateMe)
 		}
 	}
 	return fMultiplicateMe;
+}
+
+
+entity globalCoop_return_playerRandom()
+//----------------------------------------------------------------------
+// returns a randomly selected player entity - originally used for the blitz on Hatoria
+//----------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
+		//[b60025] Chrissstrahl - using now entity num instead of targetname
+		ePlayer = getEntity("*"+fPlayerIdInUse);
+		if(globalCoop_check_existingLivingEntity(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){
+				fExistingPlayers++;
+				$world.setFloatVar("globalCoop_return_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	if(fExistingPlayers > 0){
+		for(fTries=6;fTries>0;fTries--){
+			fRandom = randomint(fExistingPlayers);
+			fPlayerIdInUse = $world.getFloatVar("globalCoop_return_activeplayer"+fRandom);
+			ePlayer = getEntity("*"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				fTries = 0;
+				eRandomPlayer = ePlayer;
+			}
+		}
+	}
+	return eRandomPlayer;
 }
 
 
