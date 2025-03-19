@@ -42,75 +42,67 @@ void globalCoop_main()
 	if(coop_float_oneFrameTime < .016){
 		coop_float_oneFrameTime = .016;
 	}
+	
+	
+//[b60025] chrissstrahl
+//Fixed: waiting a frame before coop_integer_maxPlayers is set
+//Fixed: coop_integer_maxPlayers not being set to 1 in singleplayer
+
 //AVOID OVERLOADS, THE MOD WILL PUSH THE LIMIT UP - disabled: there are issues with comercial server providers
-//if(getCvarInt("g_eventlimit") <= 5000){
-//stuffCmd("g_eventlimit 8000 \n");
-//}
-//detect if this is a linux server
-	if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003"){
-		coop_vector_linuxForcerebootTransporting_x = 1;
-	}
-//Multiplayer
-	if(cvar_bool_multiplayer){
-//Retrive settings
-		float fTempDed;
+//if(getCvarInt("g_eventlimit") <= 5000){stuffCmd("g_eventlimit 8000 \n"); }
+
+//SET GLOBAL VARS
+	$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",0);
+	
+////PLAYER LIMIT
+	float fMaxPlayers;
+	cvar_integer_sv_maxClients		= getCvarInt("sv_maxClients");
+	fMaxPlayers						= getCvarInt("coop_maxPlayers");
+	
+	if(cvar_bool_multiplayer == 0){
+		coop_integer_maxPlayers		= 1;
+		cvar_float_dedicated		= 0;
+		coop_bool_mp_warmupTimeOver	= 1;
+	}else{
+		//DETECT AND FORCE LINUX SERVERS TO DEDICATED 2, AS THEY HAVE NO OTHER USE
+		if(getCvar("version") == "Elite Force II 1.10 linux-i386 Oct 17 2003"){
+			coop_vector_linuxForcerebootTransporting_x	= 1;
+			cvar_float_dedicated						= 2;
+		}
+		//get gametype and server type
 		cvar_integer_mp_gameType	= getCvarInt("mp_gametype");
 		cvar_float_dedicated		= getCvarInt("dedicated"); 
-		//[b610] chrissstrahl - removed "temp_dedicated" cvar as dedicated is set when temp_dedicated was used to start the server
 		
-//let the server rest for a moment or it will cycle out commands
-		globalCoop_main_waitAFrame();
-		
-//FORCE LINUX SERVERS TO DEDICATED 2, AS THEY HAVE NO OTHER USE
-		if(coop_vector_linuxForcerebootTransporting_x == 1){
-			cvar_float_dedicated=2;
-		}
-	
-//GET cVars and store them in vars, wich makes the script much more economic
-	////PLAYER LIMIT
-		float fMaxPlayers;
-		cvar_integer_sv_maxClients		= getCvarInt("sv_maxClients");
-		fMaxPlayers						= getCvarInt("coop_maxPlayers");
-		
-//let the server rest for a moment or it will cycle out commands
-		globalCoop_main_waitAFrame();
-		
-		//globalCoop_server_listenServerControll();//removed build 16
-	//Make sure server is for more than just 1 player
-		if(fMaxPlayers < 2){
+		if(fMaxPlayers < 2 ){
 			fMaxPlayers = cvar_integer_sv_maxClients;
 		}
-	//make sure we don't exceed the limit
 		else if(fMaxPlayers > coop_integer_maxPlayers){
 			fMaxPlayers = coop_integer_maxPlayers;
 		}
-	//applay to real varaiable
-		coop_integer_maxPlayers = fMaxPlayers;
-	//if max players is higher as client slots are aviable
+		coop_integer_maxPlayers			= fMaxPlayers;
 		if(coop_integer_maxPlayers > cvar_integer_sv_maxClients){
 			coop_integer_maxPlayers = cvar_integer_sv_maxClients;
 		}
-//let the server rest for a moment or it will cycle out commands
-		globalCoop_main_waitAFrame();
 		
-//wait for a player to join and perform further actions
-//manage warmuptime
-//fix the master server ignoring this server after reboot
-		thread globalCoop_main_playerJoined();
+		//wait for a player to join and perform further actions
 		thread globalCoop_main_warmupTimeMaster();
+		
+		//fix the master server ignoring this server after reboot	
 		stuffCMD("heartbeat\n");
 	}
-//SET GLOBAL VARS
-	$world.setFloatVar("globalCoop_mission_failWithReason_isRunning",0);
+	
+//DETECT WHEN GAME STARTED
+	thread globalCoop_main_playerJoined();
+
 //EXECUTE CHEK ALL MAPS ROUTINE		
 	globalCoop_server_checkAllMaps();
-//SPAWN SPAWNLOCATION MARKERS
-	//thread globalCoop_level_showSpawn(); //[b607] we now have a command !showspawns
+	
 //let the server rest for a moment or it will cycle out commands
 	globalCoop_main_waitAFrame();
 //run noscript setup routine, if it exists
 	thread globalCoop_level_callReliably("coop_setuplevel");
 }
+
 
 void globalCoop_main_waitForPlayer()
 //------------------------------------------------------------------------------
@@ -201,11 +193,11 @@ void globalCoop_main_globalCommand(string coopGlobalCmd)
 	coop_playerIdInUse=0;
 	while(coop_playerIdInUse<coop_integer_maxPlayers)
 	{
-		ePlayer = getentity("player"+coop_playerIdInUse);
+		//[b60025] Chrissstrahl - using now entity num instead of targetname
+		ePlayer = getEntity("*"+coop_playerIdInUse);
 //DO ONLY ONCE IN SINGLEPLYER, BUT DO IT!
 		if(!cvar_bool_multiplayer)
 		{
-			ePlayer = getentity("player");
 			coop_playerIdInUse=coop_integer_maxPlayers;
 		}
 		if(globalCoop_check_existingLivingEntity(ePlayer))
