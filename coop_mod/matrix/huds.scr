@@ -56,9 +56,9 @@ void globalCoop_huds_textOrHudAll(string sHudName,string sText)
 	entity ePlayer;
 	float fPlayerIdInUse=0;
 	
-	while(fPlayerIdInUse<coop_integer_maxPlayers)
-	{
-		ePlayer = getentity("player"+ fPlayerIdInUse);
+	while(fPlayerIdInUse<coop_integer_maxPlayers){
+		//[b60025] Chrissstrahl - using now entity num instead of targetname
+		ePlayer = getEntity("*"+fPlayerIdInUse);
 		globalCoop_huds_textOrHud(ePlayer,sHudName,sText);
 		fPlayerIdInUse++;
 	}
@@ -70,37 +70,49 @@ void globalCoop_huds_registerMissionHud(string sHud,float fRegister,string sComm
 // registers this hud to be shown to new players and returning players it is mission relevant
 //----------------------------------------------------------------------
 {
-	float fHudNumber;
-	if(sHud != ""){
-		float fIndex;
-		string sHudname;
-		for(fIndex=0;fIndex < 8;fIndex++){
-			//grab current index hudname //[b60021] Chrissstrahl - added var exist check to stop spam
-			if($world.doesVarExist("coop_registredHud"+fIndex)){
-				sHudname = $world.getStringvar("coop_registredHud"+fIndex);
-			}
-
-//register entry if not registred already
-			if(fRegister){
-				if(sHudname == sHud || sHudname == ""){
-					$world.setStringvar("coop_registredHud"+fIndex,sHud);
-					//[b611] chrissstrahl - add associated command
-					$world.setStringvar("coop_registredHud"+fIndex+"_command",sCommand);
-					return;//already registred
-				}
-			}
-//unregister entry
-			else{
-				if(sHudname == sHud){
-					//[b60024] chrissstrahl - Fix: Huds staying on if player dies while a mission hud is on
-					//$world.setStringvar("coop_registredHud"+fIndex,"");
-					//$world.setStringvar("coop_registredHud"+fIndex+"_command","");					
+	if(sHud == ""){
+		print("globalCoop_huds_registerMissionHud - Error - paramater 1 was empty\n");
+		return;
+	}
+	
+	float fFirstFreeSlot;
+	float fIndex;
+	fFirstFreeSlot = -1;
+	for(fIndex=0;fIndex < 8;fIndex++){
+		if($world.doesVarExist(("coop_registredHud"+fIndex))){
+			string sRegHudName;
+			sRegHudName = $world.getStringVar("coop_registredHud"+fIndex);
+			if(sRegHudName == sHud){
+				//print("hud ("+sHud+") found at: "+fIndex+"\n");
+				
+				//UNREGISTER
+				if(fRegister == 0){
+					//print("remove coop_registredHud"+fIndex+" "+sHud+"\n");
 					$world.removevar("coop_registredHud"+fIndex);
 					$world.removevar("coop_registredHud"+fIndex+"_command");
 					return;
 				}
+				//REGISTER - UPDATE
+				else{
+					print("update coop_registredHud"+fIndex+" "+sHud+"\n");
+					$world.setStringvar(("coop_registredHud"+fIndex+"_command"),""+sCommand);
+					return;
+				}
 			}
+		}else if(fRegister == 1 && fFirstFreeSlot == -1){
+			fFirstFreeSlot = fIndex;
+			//print("first free slot: "+fFirstFreeSlot+"\n");
 		}
+	}
+	
+	//REGISTER - NEW
+	if(fRegister == 1){
+		if(fFirstFreeSlot == -1){
+			fFirstFreeSlot = 7;
+		}
+		//print("set new coop_registredHud"+fFirstFreeSlot+" "+sHud+"\n");
+		$world.setStringVar(("coop_registredHud"+fFirstFreeSlot),""+sHud);
+		$world.setStringvar(("coop_registredHud"+fFirstFreeSlot+"_command"),""+sCommand);
 	}
 }
 
@@ -130,9 +142,9 @@ void globalCoop_huds_manageAll(string sHud,float fAdd,float fMissionHud)
 	entity ePlayer;
 	float fPlayerIdInUse=0;
 	
-	while(fPlayerIdInUse<coop_integer_maxPlayers)
-	{
-		ePlayer = getentity("player"+ fPlayerIdInUse);
+	while(fPlayerIdInUse<coop_integer_maxPlayers){
+		//[b60025] Chrissstrahl - using now entity num instead of targetname
+		ePlayer = getEntity("*"+fPlayerIdInUse);
 		
 		if(fAdd == 1)
 			globalCoop_huds_Add(ePlayer,sHud);
