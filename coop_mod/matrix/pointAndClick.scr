@@ -1480,37 +1480,52 @@ void coop_pacBeamOut()
 			}
 			
 			//make sure this triggers only once
-			coop_pcSetBeamOutCapable(eActivator,0);
 			eActivator.touchTriggers(0);
+			coop_pcSetBeamOutCapable(eActivator,0);
 			
 			//wait for actor to stop moving
+			
+			//[b60025] chrissstrahl - changed loop, to better resemble the desired logic
+			//also done other minor improvments
 			vector vVelocity;
-			vVelocity = eActivator.getVelocity();
-			while(doesEntityExist(eActivator) == 1 && vectorLength(vVelocity) > 2){
+			do{
 				globalCoop_main_waitAFrame();
-			}
+				if(!doesEntityExist(eActivator)){
+					return;
+				}
+				vVelocity = eActivator.getVelocity();
+			}while(vectorLength(vVelocity) > 2);
+			
 			eActivator.immortal(1);
 			
 			//wait for actor to turn/position
 			wait(0.4);
 			
+			if(!doesEntityExist(eActivator)){
+				return;
+			}
+			
+			//make actor stop first and turn off ai  before it gets removed or the waitFor(ent) function will get stuck
+			eActivator.anim("idle");
+			if(sThread != ""){
+				eActivator.runthread(sThread);
+			}
+			//if it is a selectable actor, do no loner allow to select it
+			coop_pacSelectableRemove(eActivator);
+			globalCoop_main_waitAFrame();
+			
+			if(!doesEntityExist(eActivator)){
+				return;
+			}
+			
+			if(sEffect == ""){
+				sEffect = "Federation";
+			}
+			eActivator.displayEffect("TransportOut",sEffect);
+			wait(1.4);
+			
 			if(doesEntityExist(eActivator)){
-				//make actor stop first and turn off ai  before it gets removed or the waitFor(ent) function will get stuck
-				eActivator.anim("idle");
-				if(sThread != ""){
-					eActivator.runthread(sThread);
-				}
-				//if it is a selectable actor, do no loner allow to select it
-				coop_pacSelectableRemove(eActivator);
-				globalCoop_main_waitAFrame();
-				if(sEffect == ""){
-					sEffect = "Federation";
-				}
-				eActivator.displayEffect("TransportOut",sEffect);
-				wait(1.4);
-				if(doesEntityExist(eActivator)){
-					eActivator.remove();
-				}
+				eActivator.remove();
 			}
 		}
 	}
