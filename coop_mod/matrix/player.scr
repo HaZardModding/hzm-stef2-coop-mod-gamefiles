@@ -566,124 +566,113 @@ void globalCoop_player_transporter()
 */
 
 void globalCoop_player_makeSolidASAP(entity ePlayer)
-//------------------------------------------------FIXED---------[b60011]
-// MAKE PLAYER SOLID WHEN CLEAR - ORRRRR any other entity, as soon as it is clear of any player
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// MAKE PLAYER OR ENTITY SOLID WHEN CLEAR OF COLLISIONS
+// [b60025] Chrissstrahl - improved using ChatGTP 4o
+//------------------------------------------------------------------------------
 {
-	if(doesEntityExist(ePlayer)){
-		//CHECK IF ENTITY IS ALLREADY HANDLED
-		if(!ePlayer.getFloatVar("globalCoop_player_makeSolidASAP")){
-			//print("globalCoop_player_makeSolidASAP - handle "+ePlayer.getTargetname()+"\n");
-			ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",1);
-			
-			string	sClass;
-			float	bInsideEntity;
-			string	sRawTargetName1;
-			string	sRawTargetName2;
-			entity	eOther;
-			float	iNum;
-			sClass = ePlayer.getSubclassName();
-			while(doesEntityExist(ePlayer)){
-				//print("globalCoop_player_makeSolidASAP - while "+ePlayer.getTargetname()+"\n");
-				
-				//if actor or player and dead, exit
-				if(sClass == "Player" || sClass == "Actor"){
-					if(ePlayer.getHealth() <= 0 || sClass == "Player" && ePlayer.isSpectator() == 1){
-						//print("globalCoop_player_makeSolidASAP - nohealth or spec EXIT "+ePlayer.getTargetname()+"\n");
-						ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
-						return;
-					}
-				}
-				//reset
-				bInsideEntity = 0;
-				
-				//Grab Targetname
-				sRawTargetName1 = ePlayer.getRawTargetName();		//must be put in a var to be checked
-				
-				//check players
-				if(cvar_bool_multiplayer){
-					for(iNum=0;iNum<=coop_integer_maxPlayers;iNum++){
-						//[b60025] Chrissstrahl - using now entity num instead of targetname
-						eOther = getEntity("*"+iNum);
-						if(doesEntityExist(eOther)){
-							sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
-							
-							if(sRawTargetName2 != sRawTargetName1){
-								if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
-									thread globalCoop_player_makeSolidASAP(eOther);
-									bInsideEntity=1;
-									//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" PLAYER inside "+sRawTargetName2+"\n");
-								}
-							}
-						}
-					}				
-				}
-				
-				//check for npc
-				for(iNum=1;iNum<=23;iNum++){
-					if(iNum==1){eOther=$munro;}
-					else if(iNum==2){eOther=$Munro;}
-					else if(iNum==3){eOther=$chang;}
-					else if(iNum==4){eOther=$Chang;}
-					else if(iNum==5){eOther=$chell;}
-					else if(iNum==6){eOther=$Chell;}
-					else if(iNum==7){eOther=$Jurot;}
-					else if(iNum==8){eOther=$jurot;}
-					else if(iNum==9){eOther=$telsia;}
-					else if(iNum==10){eOther=$Telsia;}
-					else if(iNum==11){eOther=$Korban;}
-					else if(iNum==12){eOther=$korban;}
-					else if(iNum==13){eOther=$kourban;}
-					else if(iNum==14){eOther=$Kourban;}
-					else if(iNum==15){eOther=$Gonzales;}
-					else if(iNum==16){eOther=$gonzales;}
-					else if(iNum==17){eOther=$Krindo;}
-					else if(iNum==18){eOther=$krindo;}
-					else if(iNum==19){eOther=$Franklin;}
-					else if(iNum==20){eOther=$franklin;}
-					else if(iNum==21){eOther=$Picard;}
-					else if(iNum==22){eOther=$picard;}
-					else{eOther=$Engineer;}
-					//[b60014] chrissstrahl - fixed NULL ENTITY REFERENCED issues
-					if(doesEntityExist(eOther)){
-						if(eOther.getHealth() > 0){
-							sRawTargetName2 = eOther.getRawTargetName();	//must be put in a var to be checked
-							if(sRawTargetName2 != sRawTargetName1){
-								if(globalCoop_check_isEntityInsideOfEntity(eOther,ePlayer,0)){
-									thread globalCoop_player_makeSolidASAP(eOther);
-									bInsideEntity=1;
-									//print("globalCoop_player_makeSolidASAP - "+sRawTargetName1+" NPC inside "+sRawTargetName2+"\n");
-								}
-							}
-						}
-					}
-				}
-				
-				//inside each other - make primary entity notsolid
-				//not feeling comfortable making other objects that are not a actor or player notsolid/solid
-				if(bInsideEntity){
-					if(sClass == "Player" || sClass == "Actor"){
-						//print("globalCoop_player_makeSolidASAP - notsolid: "+sRawTargetName1+"\n");
-						ePlayer.notsolid();
-					}
-				}else{
-					if(!globalCoop_check_playerSpectator(ePlayer)){
-						if(sClass == "Player" || sClass == "Actor"){
-							//print("globalCoop_player_makeSolidASAP - solid: "+sRawTargetName1+"\n");
-							ePlayer.solid();
-						}
-						//print("globalCoop_player_makeSolidASAP - handle stop: "+sRawTargetName1+"\n");
-						ePlayer.setFloatVar("globalCoop_player_makeSolidASAP",0);
-						return;//exit insitantly, no delay or a bug can be created in the next frame!
-					}
-				}
-				
-				//WAIT A MOMENT
-				globalCoop_main_waitAFrame();				
-			}
-		}
-	}
+    if (doesEntityExist(ePlayer) == 0) return;
+    
+    // Prevent redundant execution
+    if (globalCoop_level_getFloatVar(ePlayer,"globalCoop_player_makeSolidASAP")) return;
+    ePlayer.setFloatVar("globalCoop_player_makeSolidASAP", 1);
+    
+    string sClass;
+    float iEntNum;
+    float bInsideEntity;
+    entity eOther;
+    float iNum;    
+    
+    bInsideEntity = 0;
+    sClass = ePlayer.getSubclassName();
+    iEntNum = ePlayer.getEntNum();
+    
+    // Iterate while entity exists
+    while (doesEntityExist(ePlayer)) {
+        
+        // If player or actor and dead, exit
+        if ((sClass == "Player" || sClass == "Actor")) {
+            if (ePlayer.getHealth() <= 0 || globalCoop_check_playerSpectator(ePlayer) == 1) {
+                ePlayer.setFloatVar("globalCoop_player_makeSolidASAP", 0);
+                return;
+            }
+        }
+        
+        bInsideEntity = 0;
+        
+        // Check for player collisions
+        for (iNum = 0; iNum <= coop_integer_maxPlayers; iNum++) {
+            eOther = getEntity("*" + iNum);
+            if (doesEntityExist(eOther)) {
+                if (eOther.getEntNum() != iEntNum) {
+                    if (globalCoop_check_isEntityInsideOfEntity(eOther, ePlayer, 0)) {
+                        thread globalCoop_player_makeSolidASAP(eOther);
+                        bInsideEntity = 1;
+                    }
+                }
+            }
+        }
+        
+        // Check for NPC collisions (manual assignment due to lack of arrays)
+        string npcName;
+        for (iNum = 1; iNum <= 25; iNum++) {
+            if(iNum==1){ npcName = "munro"; }
+            else if(iNum==2){ npcName = "Munro"; }
+            else if(iNum==3){ npcName = "chang"; }
+            else if(iNum==4){ npcName = "Chang"; }
+            else if(iNum==5){ npcName = "chell"; }
+            else if(iNum==6){ npcName = "Chell"; }
+            else if(iNum==7){ npcName = "Jurot"; }
+            else if(iNum==8){ npcName = "jurot"; }
+            else if(iNum==9){ npcName = "Telsia"; }
+            else if(iNum==10){ npcName = "telsia"; }
+            else if(iNum==11){ npcName = "Korban"; }
+            else if(iNum==12){ npcName = "korban"; }
+            else if(iNum==13){ npcName = "Kourban"; }
+            else if(iNum==14){ npcName = "kourban"; }
+            else if(iNum==15){ npcName = "Gonzales"; }
+            else if(iNum==16){ npcName = "gonzales"; }
+            else if(iNum==17){ npcName = "Krindo"; }
+            else if(iNum==18){ npcName = "krindo"; }
+            else if(iNum==19){ npcName = "Franklin"; }
+            else if(iNum==20){ npcName = "franklin"; }
+            else if(iNum==21){ npcName = "Picard"; }
+            else if(iNum==22){ npcName = "picard"; }
+            else if(iNum==23){ npcName = "sydney"; }
+            else if(iNum==24){ npcName = "Sydney"; }
+            else{ npcName = "Engineer"; }
+            
+            eOther = getEntity("$" + npcName);
+            if (doesEntityExist(eOther)) {
+                if (eOther.getHealth() > 0 && eOther.getEntNum() != iEntNum) {
+                    if (globalCoop_check_isEntityInsideOfEntity(eOther, ePlayer, 0)) {
+                        thread globalCoop_player_makeSolidASAP(eOther);
+                        bInsideEntity = 1;
+                    }
+                }
+            }
+        }
+        
+        // Set solid or not-solid based on overlap
+        if (bInsideEntity) {
+            if (sClass == "Player" || sClass == "Actor") {
+                ePlayer.notsolid();
+            }
+        } else {
+            if (!globalCoop_check_playerSpectator(ePlayer)) {
+                if (sClass == "Player" || sClass == "Actor") {
+                    ePlayer.solid();
+                }
+                ePlayer.setFloatVar("globalCoop_player_makeSolidASAP", 0);
+                return;
+            }
+        }
+        
+        // Wait before next loop iteration
+        globalCoop_main_waitAFrame();
+    }
 }
+
 
 void globalCoop_player_joinDefaultTeam(entity ePlayer)
 //----------------------------------------------------------------------
