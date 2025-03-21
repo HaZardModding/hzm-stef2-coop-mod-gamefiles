@@ -672,8 +672,27 @@ void globalCoop_level_testSpawn()
 	//[b607] handle call from c++ code via !testspawn, get player0 on default (if called via console script)
 	entity ePlayer;
 	ePlayer = getCurrentEntity();
-	if(doesEntityExist(ePlayer) != 1 || ePlayer.getSubclassName() != "Player"){
-		ePlayer = $player0;
+	
+	if(doesEntityExist(ePlayer)){
+		if(ePlayer.getSubclassName() != "Player"){
+			ePlayer = $NULL;
+		}
+	}
+	
+	//[b60025] Chrissstrahl - try grabbing next best player
+	if(!doesEntityExist(ePlayer)){
+		float fPlayerIdInUse=0;	
+		while(fPlayerIdInUse<coop_integer_maxPlayers){
+			ePlayer = getEntity("*"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				fPlayerIdInUse = coop_integer_maxPlayers;
+			}
+			fPlayerIdInUse++;
+		}
+	}
+		
+	if(!doesEntityExist(ePlayer)){
+		return;
 	}
 	
 	//[b610] chrissstrahl - abbort if player dies or goes spec or cancels
@@ -684,56 +703,62 @@ void globalCoop_level_testSpawn()
 	}
 	ePlayer.setFloatVar("globalCoopLevelTestingSpawns",1);
 	
-	//if(getCvarInt("coop_dev")){ //[b607]
-		vector vAngle;
-		vector vSpawn;
-		float fSpawnpointsChecked = 1;
-		//[b610] chrissstrahl - abbort if player dies or goes spec or cancels
-		while(doesEntityExist(ePlayer) = 1 && ePlayer.gethealth() > 0 && globalCoop_check_playerSpectator(ePlayer) == 0 && ePlayer.getFloatVar("globalCoopLevelTestingSpawns") == 1){
-		
-			//player further away as X units
-			if(vectorlength( ePlayer.getOrigin() - vSpawn ) > 110){
-				vSpawn = getVectorScriptVariable("coop_vector_spawnOrigin"+fSpawnpointsChecked);
-				//get targetnamed info player deathmatch if spawn seams to be not set
-				//get targetnamed info player deathmatch if spawn seams to be not set
-				if(vSpawn == '0 0 0'){
-					entity eIpd;
-					eIpd = getEntity("ipd"+fSpawnpointsChecked);
-					if(doesEntityExist(eIpd)){
-						vSpawn = eIpd.getOrigin();
-						vAngle = eIpd.getAngles();
-					}
-				}else{
-					vAngle_y = getFloatScriptVariable("coop_float_spawnAngle"+fSpawnpointsChecked);
-					if( vAngle_y == 0 ){
-						vAngle_y = getFloatScriptVariable("coop_float_spawnAngle0");
-					}
+	vector vAngle;
+	vector vSpawn;
+	float fSpawnpointsChecked = 1;
+	//[b610] chrissstrahl - abort if player dies or goes spec or cancels
+	while(doesEntityExist(ePlayer)){
+		if(ePlayer.gethealth() <= 0 || globalCoop_check_playerSpectator(ePlayer) == 1){
+			ePlayer.setFloatVar("globalCoopLevelTestingSpawns",0);
+			return;
+		}
+		if(ePlayer.getFloatVar("globalCoopLevelTestingSpawns") == 0){
+			return;
+		}
+	
+		//player further away as X units
+		if(vectorlength( ePlayer.getOrigin() - vSpawn ) > 110){
+			vSpawn = getVectorScriptVariable("coop_vector_spawnOrigin"+fSpawnpointsChecked);
+			//get targetnamed info player deathmatch if spawn seams to be not set
+			//get targetnamed info player deathmatch if spawn seams to be not set
+			if(vSpawn == '0 0 0'){
+				entity eIpd;
+				eIpd = getEntity("ipd"+fSpawnpointsChecked);
+				if(doesEntityExist(eIpd)){
+					vSpawn = eIpd.getOrigin();
+					vAngle = eIpd.getAngles();
 				}
-				ePlayer.hudprint("Checking ^3spawnpoint^5 "+fSpawnpointsChecked+"^3 please move^8 to test next\n");
-				ePlayer.notsolid(); //[b607] prevent player getting stuck in a player
-				ePlayer.warp(vSpawn);
-				ePlayer.immobilize(1);
-				ePlayer.playerviewangles(vAngle);
-				fSpawnpointsChecked++;
-				wait(0.5);
-				//[b610] chrissstrahl - make sure player is valid
-				if(doesEntityExist(ePlayer)){
-					if(globalCoop_check_playerSpectator(ePlayer) == 0){
-						thread globalCoop_player_makeSolidASAP(ePlayer);//[b607] prevent player getting stuck in a player
-						ePlayer.playerviewangles(vAngle);
-					}
-					ePlayer.immobilize(0);
+			}else{
+				vAngle_y = getFloatScriptVariable("coop_float_spawnAngle"+fSpawnpointsChecked);
+				if( vAngle_y == 0 ){
+					vAngle_y = getFloatScriptVariable("coop_float_spawnAngle0");
 				}
 			}
-			//[b610] chrissstrahl - moved here to show test completed after the player has really completed the test
-			if(fSpawnpointsChecked == 9){
-				ePlayer.setFloatVar("globalCoopLevelTestingSpawns",0);
-				ePlayer.hudprint("Checks COMPLETED!\n");
+			ePlayer.hudprint("Checking ^3spawnpoint^5 "+fSpawnpointsChecked+"^3 please move^8 to test next\n");
+			ePlayer.notsolid(); //[b607] prevent player getting stuck in a player
+			ePlayer.warp(vSpawn);
+			ePlayer.immobilize(1);
+			ePlayer.playerviewangles(vAngle);
+			fSpawnpointsChecked++;
+			wait(0.5);
+			//[b610] chrissstrahl - make sure player is valid
+			if(!doesEntityExist(ePlayer)){
 				return;
 			}
-			wait(0.25);
+			if(globalCoop_check_playerSpectator(ePlayer) == 0){
+				thread globalCoop_player_makeSolidASAP(ePlayer);//[b607] prevent player getting stuck in a player
+				ePlayer.playerviewangles(vAngle);
+			}
+			ePlayer.immobilize(0);
 		}
-	//} //[b607]
+		//[b610] chrissstrahl - moved here to show test completed after the player has really completed the test
+		if(fSpawnpointsChecked == 9){
+			ePlayer.setFloatVar("globalCoopLevelTestingSpawns",0);
+			ePlayer.hudprint("Checks COMPLETED!\n");
+			return;
+		}
+		wait(0.25);
+	}
 }
 void globalCoop_level_showSpawn()
 //----------------------------------------------------------------------
