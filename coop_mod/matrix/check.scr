@@ -198,115 +198,96 @@ float globalCoop_check_isEntityTouchingOther(entity eTouch, entity eOther, float
 	return 1;
 }
 
-float globalCoop_check_isEntityInsideOfEntity(entity e1,entity e2,float fPadding)
+float globalCoop_check_isEntityInsideOfEntity(entity e1, entity e2, float fPadding)
 //------------------------------------------------------------------------------
-//CHECK IF ENTITY1 IS INDIDE OF THE BOUNDINBOX OF ENTITY2 OR OTHERWISE
+//CHECK IF ENTITY1 IS INSIDE THE BOUNDING BOX OF ENTITY2
+//[b60025] Chrissstrahl - improved using ChatGTP 4o
+//We are still checking against dead players, so the function can be used more wideley
 //------------------------------------------------------------------------------
 {
-//USE PADDING FOR MOVING ENTITYS, DEPENDING ON VELOCITY THEY CAN HAVE MOVED AWAY FROM THE LAST ORIGIN
-	if(doesEntityExist(e1) == 1 && doesEntityExist(e2) == 1){
-//CREATE VARS
-		vector	vOrigin1,
-				vBBoxMins1,
-				vBBoxMaxs1,
-				vOrigin2,
-				vBBoxMins2,
-				vBBoxMaxs2;
-//GRAB DATA FROM BBOX, SAVES US TWO "else" statments
-		vBBoxMins1 = e1.getMins();
-		vBBoxMaxs1 = e1.getMaxs();
-		vBBoxMins2 = e2.getMins();
-		vBBoxMaxs2 = e2.getMaxs();
-//IS ENTITY (1) A PLAYER ENTITY - [b60011] upgrade
-		if(e1.getSubclassName() == "Player"){
-			if(globalCoop_check_playerSpectator(e1)){ return 0; }
-			vBBoxMins1 = '-22 -22 0';
-			vBBoxMaxs1 = '22 22 96';
-		}		
-//IS ENTITY (2) A PLAYER ENTITY - [b60011] upgrade
-		if(e2.getSubclassName() == "Player"){
-			if(globalCoop_check_playerSpectator(e2)){ return 0; }
-			vBBoxMins2 = '-22 -22 0';
-			vBBoxMaxs2 = '22 22 96';
-		}
-//GET ORIGINS
-		vOrigin1 = e1.getOrigin();
-		vOrigin2 = e2.getOrigin();
-//DO THE BBOX CHECK, CHECK BOTHCONSTELLATIONS TO AVOID MISSCALCULATION, UPDATE globalCoop_check_isBoundingBox2InsideOfBoundingBox1 TO SOLVE ERROR
-		float fInside = 0;
-		if(	globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin1,vBBoxMins1,vBBoxMaxs1,vOrigin2,vBBoxMins2,vBBoxMaxs2,fPadding) == 1 &&
-			globalCoop_check_isBoundingBox2InsideOfBoundingBox1(vOrigin2,vBBoxMins2,vBBoxMaxs2,vOrigin1,vBBoxMins1,vBBoxMaxs1,fPadding) == 1)
-		{
-			fInside = 1;
-		}
-		return fInside;
+    if (doesEntityExist(e1) == 0 || doesEntityExist(e2) == 0){
+		return 0;
 	}
-//Return False Player by default
-	return 0;
+
+    // Declare variables
+    vector vOrigin1, vBBoxMins1, vBBoxMaxs1;
+    vector vOrigin2, vBBoxMins2, vBBoxMaxs2;
+    
+    // Get bounding box data
+    vBBoxMins1 = e1.getMins();
+    vBBoxMaxs1 = e1.getMaxs();
+    vBBoxMins2 = e2.getMins();
+    vBBoxMaxs2 = e2.getMaxs();
+    
+    // Adjust bounding box for players
+    if (e1.getSubclassName() == "Player") {
+		if(globalCoop_check_playerSpectator(e1)){
+			return 0;
+		}
+        vBBoxMins1 = '-22 -22 0';
+        vBBoxMaxs1 = '22 22 96';
+    }
+    if (e2.getSubclassName() == "Player") {
+		if(globalCoop_check_playerSpectator(e2)){
+			return 0;
+		}
+        vBBoxMins2 = '-22 -22 0';
+        vBBoxMaxs2 = '22 22 96';
+    }
+    
+    // Get entity origins
+    vOrigin1 = e1.getOrigin();
+    vOrigin2 = e2.getOrigin();
+	
+    // Check if e1 is inside e2's bounding box
+    if (globalCoop_check_isBoundingBox2InsideOfBoundingBox1( vOrigin1, vBBoxMins1, vBBoxMaxs1,vOrigin2, vBBoxMins2, vBBoxMaxs2, fPadding)){
+        return 1;
+    }
+    
+    return 0;
 }
 
-float globalCoop_check_isBoundingBox2InsideOfBoundingBox1(	vector vOrigin1,//ORIGIN BBOX1
-															vector vBBoxMins1,//e.getMins()
-															vector vBBoxMaxs1,//e.getMaxs()
-															vector vOrigin2,//ORIGIN BBOX2
-															vector vBBoxMins2,//e.getMins()
-															vector vBBoxMaxs2,//e.getMaxs()
-															float fPadding)//ADD TO BOUNDINGBOX, EXTRA SIZE (TOLLERANCE)
+float globalCoop_check_isBoundingBox2InsideOfBoundingBox1(
+    vector vOrigin1, vector vBBoxMins1, vector vBBoxMaxs1,
+    vector vOrigin2, vector vBBoxMins2, vector vBBoxMaxs2,
+    float fPadding)
 //------------------------------------------------------------------------------
 //CHECK IF THE GIVEN BOUNDINGBOXES ARE TOUCHING OR INSIDE OF EACH OTHER BOUNDINGBOX
+//[b60025] chrissstrahl - function improved with ChatGTP 4o
 //------------------------------------------------------------------------------
 {
-//VECTOR LENGTH
-	float fCalcDist;
-//TEMP-VECTORS FOR CALCULATIONS
- 	vector vCalc1,vCalc2;
-//IF ORIGIN IS NOT EXACTLY THE SAME
-	if(vOrigin1 != vOrigin2){
-//X-CHECK
-		vCalc2 = (vCalc1 = '0 0 0');
-		vCalc1_x = vOrigin1_x;//GET ONLY X
-		vCalc2_x = vOrigin2_x;//GET ONLY X
-		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
-		
-		if(vCalc1_x >= vCalc2_x){
-			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_x) + vBBoxMaxs2_x)){
-				return 0;//IS OUTSIDE ABORT OTHER CALCS
-			}
-		}
-		else if(fCalcDist > (vBBoxMaxs1_x + globalCoop_return_floatNotNegative(vBBoxMins2_x))){
-			return 0;//IS OUTSIDE ABORT OTHER CALCS
-		}
-//Y-CHECK
-		vCalc2 = (vCalc1 = '0 0 0');
-		vCalc1_y = vOrigin1_y;//GET ONLY Y
-		vCalc2_y = vOrigin2_y;//GET ONLY Y
-		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
-		
-		if(vCalc1_y >= vCalc2_y){
-			if(	fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_y) + vBBoxMaxs2_y)){
-				return 0;//IS OUTSIDE ABORT OTHER CALCS
-			}
-		}
-		else if(fCalcDist > (vBBoxMaxs1_y + globalCoop_return_floatNotNegative(vBBoxMins2_y))){
-			return 0;//IS OUTSIDE ABORT OTHER CALCS
-		}
-//Z-CHECK
-		vCalc2 = (vCalc1 = '0 0 0');
-		vCalc1_z = vOrigin1_z;//GET ONLY Z
-		vCalc2_z = vOrigin2_z;//GET ONLY Z
-		fCalcDist = ( floor(vectorLength(vCalc1 - vCalc2)) - fPadding );
-		
-		if(vCalc1_z <= vCalc2_z){
-			if(	fCalcDist > (vBBoxMaxs1_z + globalCoop_return_floatNotNegative(vBBoxMins2_z))){
-				return 0;//IS OUTSIDE ABORT OTHER CALCS
-			}
-		}
-		else if(fCalcDist > (globalCoop_return_floatNotNegative(vBBoxMins1_z) + vBBoxMaxs2_z)){
-			return 0;//IS OUTSIDE ABORT OTHER CALCS
-		}
+	//[b60025] Chrissstrahl - make sure if it is the same origin/entity we get a early out
+	if(vOrigin1 == vOrigin2){
+		return 1;
 	}
-//IS STUCK
-	return 1;
+
+    // Compute absolute min/max positions in world space
+    vector min1, max1;
+    vector min2, max2;
+    
+    // Adjust bounding box min/max with padding on a per-axis basis
+    min1_x = vOrigin1_x + vBBoxMins1_x - fPadding;
+    min1_y = vOrigin1_y + vBBoxMins1_y - fPadding;
+    min1_z = vOrigin1_z + vBBoxMins1_z - fPadding;
+    
+    max1_x = vOrigin1_x + vBBoxMaxs1_x + fPadding;
+    max1_y = vOrigin1_y + vBBoxMaxs1_y + fPadding;
+    max1_z = vOrigin1_z + vBBoxMaxs1_z + fPadding;
+    
+    min2_x = vOrigin2_x + vBBoxMins2_x;
+    min2_y = vOrigin2_y + vBBoxMins2_y;
+    min2_z = vOrigin2_z + vBBoxMins2_z;
+    
+    max2_x = vOrigin2_x + vBBoxMaxs2_x;
+    max2_y = vOrigin2_y + vBBoxMaxs2_y;
+    max2_z = vOrigin2_z + vBBoxMaxs2_z;
+    
+    // AABB Overlap check
+    if (max1_x < min2_x || min1_x > max2_x) return 0;
+    if (max1_y < min2_y || min1_y > max2_y) return 0;
+    if (max1_z < min2_z || min1_z > max2_z) return 0;
+    
+    return 1; // Overlapping or inside
 }
 
 
@@ -316,22 +297,22 @@ float globalCoop_check_isEntityInsideOfPlayer(entity e1,float fPadding)
 //------------------------------------------------------------------------------
 {
 	if(doesEntityExist(e1)){
+		float iEntNum;
 		float fPlayerIdInUse;
 		entity ePlayer;
+		iEntNum = e1.getEntNum();
 		for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
 			//[b60025] Chrissstrahl - using now entity num instead of targetname
 			ePlayer = getEntity("*"+fPlayerIdInUse);
 			
 			if(doesEntityExist(ePlayer)){
 		//DON'T CHECK THE PLAYER BEEING STUCK INSIDE HIM SELF!	
-				if(e1.getEntNum() != fPlayerIdInUse){	//[b60025] Chrissstrahl - using now entity num instead of targetname
+				if(iEntNum != fPlayerIdInUse){	//[b60025] Chrissstrahl - using now entity num instead of targetname
 		//DONT CHECK DEAD PPL
 					if(ePlayer.getHealth() > 0){
 		//DONT CHECK SPECTATOR
 						if(!globalCoop_check_playerSpectator(ePlayer)){
-							if(	globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) == 1 ||
-								globalCoop_check_isEntityInsideOfEntity(ePlayer,e1,fPadding) == 1)
-							{
+							if(	globalCoop_check_isEntityInsideOfEntity(e1,ePlayer,fPadding) ){
 								return 1;
 							}
 						}
