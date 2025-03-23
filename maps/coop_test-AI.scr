@@ -1,0 +1,187 @@
+//DEC 2024 - CHRISSSTRAHL - AI TEST LEVEL
+//USED TO TEST VARIOUS BEHAVIOUR OF VARIOUS AI
+
+#include "coop_mod/matrix/main.scr"
+void	coop_endLevel();
+
+
+//declaration - let the script know which functions exist before they are called
+void main();
+void setAI(entity eActor,string sActorType);
+void node_patrolWork();
+
+
+void romDamaged()
+{
+	$player.selfdetonate();
+	$player0.selfdetonate();
+}
+
+void main()
+{
+	coop_string_weapon1 = "models/weapons/worldmodel-Phaser.tik";
+	
+	//setup ai with parameters we want
+	setAI($romulanHostileRiffleM10,"teammate");
+	setAI($mercHostileBatleth,"teammate");
+	
+	/*
+	damagemodifier actortype enemy 1
+	damagemodifier actortype teammate .01
+	damagemodifier actortype friend .01
+	*/
+	
+	
+	$attraxFollow.ai_on();
+	$attraxFollow.actortype("teammate");
+	$attraxFollow.setTendency("patrol",1);
+	$attraxFollow.setTendency("follow",1);
+	$attraxFollow.setTendency("work",1);
+	$attraxFollow.health(99999);
+	
+	$klingonLF.setTendency("follow",0);
+	$klingonLF.setTendency("leadslow",1);
+	$klingonLF.setTendency("patrol",1);
+	$klingonLF.setTendency("work",1);
+	
+	//tendencies
+	$romulanHostileRiffleM10.setTendency("patrol",1);
+	$romulanHostileRiffleM10.setTendency("work",1);
+	$romulanHostileRiffleM10.setTendency("noscript",1); //disable script dependencies
+	
+	//$romulanHostileRiffleM10.changetype( String new_model_name )
+	//$romulanHostileRiffleM10.actorondamage("romDamaged", 1.5 ); //works but some what delayed
+	$romulanHostileRiffleM10.actortoactordamage(999);
+	//they seam not to work, lets investigate that
+	$romulanHostileRiffleM10.damagemodifier("actortype","animal",2.0);
+	$romulanHostileRiffleM10.damagemodifier("actortype","monster",99);
+	$romulanHostileRiffleM10.damagemodifier("actortype","enemy",2.0);
+	$romulanHostileRiffleM10.damagemodifier("actortype","civilian", 0.1);
+	$romulanHostileRiffleM10.damagemodifier("actortype","teammate",0.1);
+	$romulanHostileRiffleM10.damagemodifier("actortype","friend",0.1);
+	
+	//$romulanHostileRiffleM10.setTendency("pulllalarm",1);
+	//$romulanHostileRiffleM10.setTendency("flee",1);
+	
+	//$romulanHostileRiffleM10.setTendency("followoject",1); //coop specific
+	
+	//overwrite gameplay database setup
+	$romulanHostileRiffleM10.setgameplaystring("RomulanSoldierM10Rifle","InteractiveType","Teammate");
+	$romulanHostileRiffleM10.setgameplayfloat("RomulanSoldierM10Rifle","health",100);
+	$romulanHostileRiffleM10.setgameplayfloat("RomulanSoldierM10Rifle","playerhatemodifier",0);
+	$romulanHostileRiffleM10.setgameplayfloat("RomulanSoldierM10Rifle","fov",110);
+	$romulanHostileRiffleM10.setgameplaystring("RomulanSoldierM10Rifle","RadarDescription","PicardRadar");
+	
+/*
+   IS_INANIMATE, 0
+	IS_MONSTER, 1
+	IS_ENEMY, 2
+	IS_CIVILIAN,
+	IS_FRIEND, 4
+   IS_ANIMAL,	
+	IS_TEAMMATE, 6
+	NUM_ACTORTYPES
+*/
+}
+
+void setAI(entity eActor,string sActorType)
+{
+	if(doesEntityExist(eActor)){
+		eActor.immortal(1);
+		eActor.actortype(sActorType);
+		eActor.groupactortype(sActorType);
+	}
+}
+
+void node_patrolWork()
+{
+	centerprint("dude at work node");
+}
+
+void aiTest_toggleCvar(string sCvar)
+{
+	if(getCvarInt(sCvar) != 0){
+		stuffCmd("set "+sCvar+" 0");
+	}
+	else{
+		stuffCmd("set "+sCvar+" 1");
+	}
+}
+
+
+
+float aiTest_developer()
+{
+	if(getCvarInt("developer") <= 0){
+		thread globalCoop_main_globalMessage("CVAR Developer Needs to be on");
+		return 0;
+	}
+	return 1;
+}
+
+void aiTest_sv_showInfo()
+{
+	if(!aiTest_developer()){
+		return;
+	}
+	aiTest_toggleCvar("sv_showInfo");
+}
+
+void aiTest_ai_showRoutes()
+{
+	if(!aiTest_developer()){
+		return;
+	}
+	aiTest_toggleCvar("ai_showRoutes");
+}
+
+void aiTest_ai_showNodeNums()
+{
+	if(!aiTest_developer()){
+		return;
+	}
+	aiTest_toggleCvar("ai_showNodeNums");
+}
+
+void aiTest_ai_showFailure()
+{
+	if(!aiTest_developer()){
+		return;
+	}
+	aiTest_toggleCvar("ai_showFailure");
+}
+
+void aiTest_ai_debugPath()
+{
+	if(!aiTest_developer()){
+		return;
+	}
+	aiTest_toggleCvar("ai_debugPath");
+}
+
+
+
+
+
+void coop_endLevel()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+//credits, and history of map
+//mark this map as completed to the scripts (can not fail anymore)
+	globalCoop_mission_accomplished();
+	globalCoop_main_globalCommand("nodamage");
+	
+//credits, and history of map
+	wait(5);
+	
+	//end server if in singleplayer
+	if(getCvarInt("g_gametype") == 0){
+		stuffcmd("disconnect\n");
+		return;
+	}
+	
+//load next map
+	thread globalCoop_mission_completed("secret1");
+}
