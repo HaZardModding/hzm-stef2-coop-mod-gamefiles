@@ -34,11 +34,34 @@ state START
 	{
 		incontext "enteredcombat"
 		groupattack
+		
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		//we don't need to set it in multiplayer/coop
+		multiplayer setTendency ( "fix_follow_player_sp" , "1.0" )
 	}
 
 	states
 	{
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		FIX_FOLLOW_PLAYER_SP : !SHOULD_DO_ACTION ( "fix_follow_player_sp" )
+		
 		COMBAT_MAIN		: default
+	}
+}
+
+//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget		
+//---------------------------------------------------------
+state FIX_FOLLOW_PLAYER_SP
+//---------------------------------------------------------
+{
+entrycommands
+	{
+	setTendency ( "fix_follow_player_sp" , "1.0" )
+	followtarget ( "$player" )
+	}
+states
+	{
+	COMBAT_MAIN	: default
 	}
 }
 

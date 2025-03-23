@@ -14,12 +14,35 @@ state START
 	entrycommands
 	{
 		setvartime ( "playerattacked" )
+		
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		//we don't need to set it in multiplayer/coop
+		multiplayer setTendency ( "fix_follow_player_sp" , "1.0" )
 	}
 
 	states
 	{
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		FIX_FOLLOW_PLAYER_SP : !SHOULD_DO_ACTION ( "fix_follow_player_sp" )
+		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
 		CORE_MAIN	: default
+	}
+}
+
+//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget		
+//---------------------------------------------------------
+state FIX_FOLLOW_PLAYER_SP
+//---------------------------------------------------------
+{
+entrycommands
+	{
+	setTendency ( "fix_follow_player_sp" , "1.0" )
+	followtarget ( "$player" )
+	}
+states
+	{
+	CORE_MAIN	: default
 	}
 }
 

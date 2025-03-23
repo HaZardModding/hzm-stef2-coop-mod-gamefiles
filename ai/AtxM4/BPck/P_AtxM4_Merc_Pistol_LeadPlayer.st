@@ -17,11 +17,37 @@ $define CHASE_RANGE 550
 state START
 //---------------------------------------------------------
 	{
+	entrycommands
+	{
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		//we don't need to set it in multiplayer/coop
+		multiplayer setTendency ( "fix_follow_player_sp" , "1.0" )
+	}
+	
 	states
 		{
+		//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget
+		FIX_FOLLOW_PLAYER_SP : !SHOULD_DO_ACTION ( "fix_follow_player_sp" )
+		
 		THINK : default
 		}
 	}
+	
+//[b60025] chrissstrahl - this is required now since we do not check distance to player but to followtarget		
+//---------------------------------------------------------
+state FIX_FOLLOW_PLAYER_SP
+//---------------------------------------------------------
+{
+entrycommands
+	{
+	setTendency ( "fix_follow_player_sp" , "1.0" )
+	followtarget ( "$player" )
+	}
+states
+	{
+	THINK	: default
+	}
+}
 
 //---------------------------------------------------------
 state THINK
@@ -29,6 +55,7 @@ state THINK
 	{
 	states
 		{
+		
 		FOLLOW_THE_LEADER	: SHOULD_DO_ACTION ( "follow" ) FOLLOW_TARGET_OUT_OF_RANGE
 		LEAD : SHOULD_DO_ACTION ( "lead" )
 		IDLE : default
