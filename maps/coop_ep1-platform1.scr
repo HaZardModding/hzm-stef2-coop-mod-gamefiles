@@ -1,0 +1,2028 @@
+//----------------------------------------------------------------------
+// Geometry by:	Daedalus - Remastered by Chrissstrahl
+// Script by:	Christian Sebastian Strahl (Chrissstrahl) HaZardModding
+// Script Created on:	2025.02.25
+//----------------------------------------------------------------------
+//SINGLEPLAYER - SCRIPT VERSION
+//----------------------------------------------------------------------
+void main();
+void introCin();
+void setupPlayers();
+void setupActors();
+void setupMap();
+void setupSewerBox(entity eBox,float fSwimmming);
+void archetypeHide(entity ent);
+void pointer(vector vOri,string sName);
+void tagged(entity eObjective);
+void sensitive(entity eActor);
+void notMovable(entity eActor);
+void actorSpawn();
+void triggerAiOn();
+void actorAiOn();
+void randomSound(entity eSound);
+void secretOfficeUnlock();
+void spawnLurkerExtra();
+void telsiaFollow();
+void takeBatlethFromWall();
+void barDoor();
+void triggerValve();
+void pickupAttraxGun();
+void pickupRomGun();
+void pickupSniperGun();
+void eatFood();
+void activateOnEvent(entity eActor, string sUsed, string sDamaged);
+void barSittingAtTableHurt();
+void actorTalk();
+void removePath(entity ePath);
+void airlockBarel();
+void airlockOpen();
+void stopAirlockPull();
+void cleaningRobotUpdateNode(string sNodeName);
+void cleaningRobotGo();
+void waitForZeroZVeloctity(entity e, float fInitDelay);
+void actorWalkAwayIfZeroZVelocity(entity eActor, string sPath, string sPath);
+void sewerTunelCrawlyThings();
+void upperLevelLadder();
+void unlockRomulanGunRoom();
+void soundPlay();
+void teammateLevelJump(entity eActor);
+void teammateLevelTeleport();
+void teammateAdd(entity eActor);
+void killedTeamMate();
+void replicator();
+void checkTaggedAllSaved();
+void setMusic();
+void teamTalk();
+void levelEnd();
+
+#include "maps/scrtools/mpCompatibility.scr"
+
+float VALE_TURN_ON = 0;
+float RESCUED_PERSONAL = 0;
+float TAGGED_PERSONAL = 0;
+float ROBOT_END_OF_PATH;
+float ROBOT_PATH_MOVED;
+float ROBOT_LAST_TIME_BLOCKED;
+float TEAMMATES_MAX;
+entity ROBOT_CURRENT_NODE;
+string ROBOT_CURRENT_NODE_NAME;
+vector ROBOT_CURRENT_POS;
+vector ROBOT_CURRENT_ANGLES;
+
+void main()
+//----------------------------------------------------------------------
+// started by the game once the level is loaded
+//----------------------------------------------------------------------
+{
+	soundtrack("music/coop_ep1-platform1.mus");
+	
+	thread setupPlayers();
+	thread setupActors();
+	thread setupMap();
+	thread setupSewerBox($sewerBox0,1); //box starts swimming
+	thread setupSewerBox($sewerBox1,1); //box starts swimming
+	
+	waitForPlayer();
+	//allow teammmates to switch levels by teleporting there
+	wait(5);
+	thread teammateLevelTeleport();
+}
+
+void introCin()
+//----------------------------------------------------------------------
+// Equip and do other stuff with player
+//----------------------------------------------------------------------
+{
+	/*if(getCvar("username") == "Chrissstrahl"){
+		return;
+	}*/
+	
+	if(getCvarInt("g_gameType") == 0){
+		forcemusic("aux1","normal");
+		cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+		freezeplayer();
+		cinematic();
+		letterbox( .01 );
+		if(!doesEntityExist($cam1)){
+			spawn("camera","targetname","cam1");
+		}
+		if(!doesEntityExist($cam2)){
+			spawn("camera","targetname","cam2");
+		}
+		wait( .1 );
+		cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+		
+		entity eRescuePath;
+		entity eCam;
+		eCam = $cam1;
+		eRescuePath = $rescueCinematic0;
+		float fNext;
+		while(doesEntityExist(eRescuePath)){
+			eCam.follow(eRescuePath);
+			cuecamera( eCam );
+			eCam.cut();
+			wait(1.5);
+			//alternate between cams to avoid weired stuff
+			if(eCam == $cam1){
+				eCam = $cam2;
+			}else{
+				eCam = $cam1;
+			}
+			fNext++;
+			eRescuePath = getEntity("rescueCinematic"+fNext);
+		}
+	}
+	
+	wait(2);
+	
+	if(getCvarInt("g_gameType") == 0){
+		cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+		wait( .25 );
+		cueplayer();
+		noncinematic();
+		releaseplayer();
+		clearletterbox( .1 );
+		cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+		
+		//make sure we don't get a crash on mission failure - a savegame needs to be present
+		if(getCvarInt("g_gameType") == 0){
+			stuffcmd("ui_savegamewithName \""+getCvar("mapname")+" Start\"\n");
+			print("game saved\n");
+		}
+		music("normal","normal");
+	}
+	//setup sewer water - drain water
+	trigger("$t6");
+}
+
+void setupPlayers()
+//----------------------------------------------------------------------
+// Equip and do other stuff with player
+//----------------------------------------------------------------------
+{	
+	waitforplayer();
+	
+	introCin();
+	
+	playerGive("models/weapons/worldmodel-compressionrifle.tik");
+	playerGive("models/weapons/worldmodel-phaser-stx.tik");
+	playerGive("models/weapons/worldmodel-tricorder-stx.tik");
+}
+
+void setupActors()
+//----------------------------------------------------------------------
+// Equip and do other stuff with player
+//----------------------------------------------------------------------
+{
+	waitforplayer();
+
+	//upper area - near exit
+	$officalSitting.anim("ent-mainchair-gesture");
+	notMovable($officalSitting);
+	tagged($officalSitting);
+	archetypeHide($officalSitting);
+	
+	//office
+	$office.anim("brace_impact_duck");
+	notMovable($office);
+	tagged($office);
+	archetypeHide($office);
+	
+	//little dark room - upper area
+	$functionary.anim("brace_impact_duck");
+	notMovable($functionary);
+	tagged($functionary);
+	archetypeHide($functionary);
+	
+	//sickbay
+	$doctor.anim("ent-sickbed-laying-idle");
+	notMovable($doctor);
+	tagged($doctor);
+	archetypeHide($doctor);
+
+
+	//shuttlebay
+	$cadet.anim("ent-sickbed-laying-idle");
+	notMovable($cadet);
+	tagged($cadet);
+	archetypeHide($cadet);
+	
+	//bar
+	$dancer0.anim("dance2");
+	$dancer1.anim("dance1");
+	notMovable($dancer0);
+	notMovable($dancer1);
+	archetypeHide($dancer0);
+	archetypeHide($dancer1);
+	
+	$barSittingAtTable.health(250);
+	$barSittingAtTable.anim("bar_sitting_relaxed");
+	notMovable($barSittingAtTable);
+	archetypeHide($barSittingAtTable);
+	activateOnEvent($barSittingAtTable,"actorTalk","barSittingAtTableHurt");
+	
+	//setup team - respond to damage - use
+	sensitive($telsia);
+	
+	//make specific npc auto activate on damage
+	sensitive($romulan0);
+	sensitive($merch0);
+	sensitive($klingon0);
+	sensitive($a700_0);
+	sensitive($a700_1);
+	sensitive($a700_2);
+	sensitive($klingonFirstEncounter);
+	
+	//ready shuttlebay
+	sensitive($shuttlebayDude);
+	$shuttlebayDude.anim("crouch_idle");
+
+	//spawn("camera","targetname","cam2");
+	//eWeapon1.displayEffect("TransportIn","FederationWeapons");
+}
+
+void setupMap()
+//----------------------------------------------------------------------
+// Equip and do other stuff with player
+//----------------------------------------------------------------------
+{
+	$airlockGrav.speed(0);
+	
+	//explosive barrels - upper level (+1 else where) - made notsolid for pathnodes to connect
+	float fBarrel;
+	entity eBarrel;
+	for(fBarrel=0;fBarrel<7;fBarrel++){
+		eBarrel = getEntity("explodeBarrel"+fBarrel);
+		if(doesEntityExist(eBarrel)){
+			eBarrel.solid();
+			archetypeHide(eBarrel);
+		}
+	}
+	//cannons
+	for(fBarrel=0;fBarrel<7;fBarrel++){
+		eBarrel = getEntity("cannon"+fBarrel);
+		if(doesEntityExist(eBarrel)){
+			eBarrel.notarget();
+			eBarrel.hide();
+			archetypeHide(eBarrel);
+		}
+	}
+	
+	//food
+	for(fBarrel=0;fBarrel<3;fBarrel++){
+		eBarrel = getEntity("food"+fBarrel);
+		if(doesEntityExist(eBarrel)){
+			eBarrel.renderEffects("+fullbright");
+		}
+	}
+	
+	//energy console for weapon energy
+	archetypeHide($energyPlasmaConsole);
+	
+	//tricky in sp have it removed
+	if(getCvarInt("g_gameType") == 0){
+		$medkit.remove();
+	}
+	
+	//move bar door in place
+	$barDoor.movewest(20);
+	$barDoor.time(1);
+	
+	//make stand out a bit
+	$officeLaptop.rendereffects( "+fullbright" );
+	$barBatlethFromWall.rendereffects( "+fullbright" );
+	$shield.rendereffects( "+minlight" );
+	
+	//office
+	$officeLaptop.anim("open_idle");
+	$officeLaptop.setFloatVar("isOpen",1);
+	
+	//sky asteroid
+	$skyAsteroidFerengie.renderEffects("+minlight");
+	$skyAsteroid.renderEffects("+minlight");
+	$skyAsteroid.rotateY(5);
+	
+	//sewer - use our own random speaker version, because the game is bugged and it plays the sound to all areas
+	thread randomSound($sewerRandom0);
+	
+	//move ladder up - player should not be able to reach it yet
+	$upperLevelLadder.moveUp(128);
+	$upperLevelLadder.time(0.1);
+	
+	//disconnect pathnodes - additional nodes are only used in multiplayer
+	//the room is seperated by a door that is removed in multiplayer
+	if(getCvarInt("g_gameType") == 0){
+		disconnectPathNodes("transNode0","transNode2" );
+		disconnectPathNodes("transNode0","transNode3" );
+
+		disconnectPathNodes("transNode1","transNode2" );
+		disconnectPathNodes("transNode1","transNode3" );
+	}else{
+		$singleplayerSeperator.remove();
+	}
+}
+
+void setupSewerBox(entity eBox,float fSwimmming)
+//----------------------------------------------------------------------
+// fake the box swiming
+// this box is stationary it floats only up and down with the water
+// this could be changed to check if the box could actually swim into a certain direction
+//----------------------------------------------------------------------
+{	
+	if(!doesEntityExist(eBox)){
+		return;
+	}
+	
+	//float fZStart;
+	float fBoxStateLast;
+	float fZEnd;
+	float fLastZ;
+	vector vOri;
+	vector vOriBox;
+	vector vFloatingBBox;
+	vector vFloatingBBoxMin;
+	
+	vOriBox 		= eBox.getOrigin();
+	//fZStart			= vectorGetZ(vOriBox);
+	vFloatingBBox	= eBox.getMaxs();
+	vFloatingBBox_z	= eBox.getFloatVar("uservar1");
+	
+	vFloatingBBoxMin_x = vFloatingBBox_x * -1;
+	vFloatingBBoxMin_y = vFloatingBBox_x * -1;
+	vFloatingBBoxMin_z = vFloatingBBox_x * -1;
+	
+	eBox.notsolid();
+	
+	entity eGroundCheck;
+	eGroundCheck = spawn("script_model","fx/fx-dummy.tik");
+	wait(0.05);
+	eGroundCheck.setsize(vectorScale(vFloatingBBox,-1),vFloatingBBox);
+	eGroundCheck.origin(vOriBox + '0 0 4');
+	eGroundCheck.dropToFloor();
+	wait(0.1);
+	fZEnd = vectorGetZ(eGroundCheck.getOrigin());
+	
+	eGroundCheck.remove();
+	
+	eBox.solid();
+	
+	//print("z end: "+fZEnd+"\n");
+	
+	while(doesEntityExist(eBox)){
+		if(!doesEntityExist($t6)){
+			return;
+		}
+		
+		vOri = $t6.getOrigin();
+		vOriBox = eBox.getOrigin();
+		if(fLastZ != vOri_z){
+			if(vOri_z >= fZEnd){
+				fSwimmming = 1;
+				fLastZ = vOri_z;
+				vOriBox_z = fLastZ;
+				eBox.movetopos(vOriBox); //box pos with corrected z current water Z pos
+				eBox.time(0.1); //move longer than a frame
+			}else{
+				fSwimmming = 0;
+			}	
+		}
+		
+		if(fBoxStateLast != fSwimmming){
+			fBoxStateLast = fSwimmming;
+			eBox.setFloatVar("isSwimming",fBoxStateLast);
+			print("box ($"+eBox.getRawTargetName()+") swimming state changed to ("+fSwimmming+")\n");
+		}
+		
+		wait(0.05); //update each frame
+	}
+}
+
+void archetypeHide(entity ent)
+//----------------------------------------------------------------------
+// hide tricorder and targetting description of entity
+//----------------------------------------------------------------------
+{
+	//if(doesEntityExist(ent)){
+		ent.archetype("");
+	//}
+}
+
+void pointer(vector vOri,string sName)
+//----------------------------------------------------------------------
+// spawn blue arrow and mark on radar - used for locations that are objectives
+//----------------------------------------------------------------------
+{
+	entity e;
+	e = spawn("Object","model","sysimg/icons/mp/team_blue.spr","scale","0.5","origin",""+vOri,"targetname",""+sName);
+	wait(0.05);
+	e.missionobjective(1);
+}
+
+void tagged(entity eObjective)
+//----------------------------------------------------------------------
+// mark on radar - used for objects that are objectives
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eObjective)){
+		eObjective.missionobjective(1);
+		eObjective.onuse("taggedUsed");
+		eObjective.renderEffects("+fullbright");
+		eObjective.killthread("unTag");
+		
+		TAGGED_PERSONAL++;
+	}
+}
+
+void unTag()
+//----------------------------------------------------------------------
+// mark on radar - used for objects that are objectives
+//----------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(doesEntityExist(eActor)){
+		eActor.missionobjective(0);
+		eActor.onuse("");
+		eActor.killthread("");
+		
+		TAGGED_PERSONAL--;
+		
+		thread checkTaggedAllSaved();
+	}
+}
+
+void sensitive(entity eActor)
+//----------------------------------------------------------------------
+// mark on radar - used for objects that are objectives
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.actorOnDamage("actorAiOn");
+		eActor.onUse("actorAiOn");
+	}
+}
+
+void taggedUsed()
+//----------------------------------------------------------------------
+// if a marked actor is used, they get beamed out
+//----------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+		
+			allowMusicDucking(1);
+			music("success","normal");
+			
+			RESCUED_PERSONAL++;
+			
+			thread checkTaggedAllSaved();
+			
+			eActor.killthread("");
+			eActor.nouse();
+			eActor.missionobjective(0);
+			eActor.nodamage();
+			eActor.immortal(1);
+			eActor.playsound("sound/player/CommunicatorBeep.wav");
+			wait(0.25);
+			eActor.displayEffect("TransportOut","FederationNoAnim");
+			eActor.notsolid();
+			wait(1.8);
+			if(doesEntityExist(eActor)){
+				eActor.remove();
+			}
+		}
+	}
+}
+
+void notMovable(entity eActor)
+//----------------------------------------------------------------------
+// prevent actors getting pushed by player or damage
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		eActor.pushable(0);
+		eActor.mass(99999);
+		eActor.gravity(99999);
+	}
+}
+
+void actorSpawn()
+//------------------------------------------------------------------------------
+//spawn actor from trigger and read data of trigger - usually the trigger is using a origin brush
+//uservar1 = string - model
+//uservar2 = angle
+//uservar3 = string - effect model
+//uservar4 = string - killthread to give
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity eActor;
+		string sName;
+		sName = eTrigger.getStringVar("uservar1");
+		if(sName == ""){
+			return;
+		}
+		
+		entity effect;
+		float fAngle;
+		string sEffect;
+		string sKillthread;
+		fAngle = eTrigger.getFloatVar("uservar2");
+		sEffect = eTrigger.getStringVar("uservar3");
+		sKillthread = eTrigger.getStringVar("uservar4");
+		
+		eActor = spawn("actor","model",""+sName,"origin",""+eTrigger.getOrigin(),"killthread",""+sKillthread);
+		
+		if(sEffect != ""){
+			effect = spawn("object","model",""+sEffect,"origin",""+eTrigger.getOrigin());
+		}
+		
+		wait(0.05);
+		if(doesEntityExist(eActor)){
+			eActor.angle(fAngle);	
+		}
+		wait(3);
+		if(doesEntityExist(effect)){
+			effect.remove();
+		}
+	}
+}
+
+void triggerAiOn()
+//------------------------------------------------------------------------------
+// activates targeted actor - needs to be started by trigger targeting actor
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	entity eActor;
+	string sName;
+	float fAggressive;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		sName = eTrigger.getStringVar("uservar1");
+		fAggressive = eTrigger.getFloatVar("uservar2");
+		if(sName == ""){
+			return;
+		}
+		if(doesEntityExist(eActor)){
+			if(eActor.getHealth() > 0){
+				eActor.nouse();
+				eActor.ai_on();
+				eActor.actorOnDamage("");
+				if(fAggressive){
+					eActor.aggressive(fAggressive);
+				}
+			}
+		}
+	}
+}
+
+void actorAiOn()
+//------------------------------------------------------------------------------
+// activates actor starting this function - can usually called from actor via onDamage/onUse
+//------------------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			eActor.nouse();
+			eActor.actorOnDamage("");
+			eActor.ai_on();
+		}
+	}
+}
+
+void randomSound(entity eSound)
+//------------------------------------------------------------------------------
+// activates actor starting this function - can usually called from actor via onDamage/onUse
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eSound)){
+		return;
+	}
+	
+	string sSound;
+	sSound	= eSound.getStringVar("uservar1");
+	
+	if(sSound == ""){
+		return;
+	}
+	
+	float fMin,fMax;
+	fMin	= eSound.getFloatVar("uservar2");
+	fMax	= eSound.getFloatVar("uservar3");
+	if(fMin <= 0){
+		fMin = 3;
+	}
+	if(fMax <= 0 || fMax <= fMin){
+		fMax = fMin * 2;
+	}
+	
+	float fRandWait;
+	while(doesEntityExist(eSound)){
+		fRandWait = (randomFloat(fMax - fMin) + fMin);
+		wait(fRandWait);
+		if(doesEntityExist(eSound)){
+			if(playerLowestZ() < -140){
+				eSound.playSound(sSound,0,1,64);//CHAN_BODY=0,CHAN_ITEM=4
+			}
+		}
+	}
+}
+
+void secretOfficeUnlock()
+//------------------------------------------------------------------------------
+// unlocks secret office door - if player enters room from the other side
+//------------------------------------------------------------------------------
+{
+	$secretOfficeDoor.unlock();
+}
+
+void spawnLurkerExtra()
+//------------------------------------------------------------------------------
+// spawns a extra lurker based on difficulty
+//------------------------------------------------------------------------------
+{
+	if(getCvarInt("skill") > 2){
+		trigger("$spawnLurkerExtra");
+	}
+	wait(1);
+	
+	$spawnLurker0.remove();
+	$spawnLurkerExtra.remove();
+	
+	if(!doesEntityExist($merch0)){
+		return;
+	}
+	
+	//wait for dude to stop being busy
+	float fLastHealth;
+	float fLastBusy;
+	vector vValue;
+	vector vLast;
+	vLast = $merch0.getOrigin();
+	fLastHealth = $merch0.getHealth();
+	fLastBusy = (getLevelTime() + 3);
+	while(fLastBusy > getLevelTime()){
+		if(doesEntityExist($merch0)){
+			if(doesEntityExist($lurkie)){
+				if($lurkie.getHealth() > 0){
+					fLastBusy = (getLevelTime() + 3);
+				}
+			}
+			if($merch0.getHealth() > 0){
+				vValue = $merch0.getVelocity();
+				if(vectorLength(vValue) > 0){
+					fLastBusy = (getLevelTime() + 3);
+				}
+				vValue = $merch0.getOrigin();
+				if(vectorLength(vLast - vValue) > 0){
+					fLastBusy = (getLevelTime() + 3);
+				}
+				if($merch0.getHealth() != fLastHealth){
+					fLastBusy = (getLevelTime() + 3);
+				}
+				fLastHealth = $merch0.getHealth();
+				vLast = $merch0.getOrigin();
+			}
+		}
+		wait(0.25);
+	}
+	
+	if($merch0.getHealth() > 0){
+		$merch0.displayEffect("TransportOut","Federation");
+		$merch0.notsolid();
+		$merch0.nodamage();
+		wait(1.8);
+		$merch0.remove();
+	}
+}
+
+void telsiaFollow()
+//------------------------------------------------------------------------------
+// spawns a extra lurker based on difficulty
+//------------------------------------------------------------------------------
+{
+	//make telsia follow player
+	$telsia.ai_on();
+	$telsia.followtarget($player);
+	$telsia.settendency ( "follow" , 1.0 );
+	$telsia.followcombatrange( 512 );
+	$telsia.allowFall( 1 );
+	
+	//add to teammate scripts
+	teammateAdd($telsia);
+}
+
+void sydneyBeamIn()
+//------------------------------------------------------------------------------
+// spawns a extra lurker based on difficulty
+//------------------------------------------------------------------------------
+{
+	//start cleaning robot
+	thread cleaningRobotGo();
+	
+	$schwesterVonKlausKinski.displayEffect("TransportIn","Idryll");
+	$schwesterVonKlausKinski.show();
+	$schwesterVonKlausKinski.solid();
+	$schwesterVonKlausKinski.flags("-notarget");
+	$schwesterVonKlausKinski.aggressive(1);
+	$schwesterVonKlausKinski.ai_on();
+	
+	wait(8);
+	
+	//make sydney follow player
+	$sydney.followtarget($player);
+	$sydney.settendency ( "follow" , 1.0 );
+	$sydney.followcombatrange( 512 );
+	$sydney.allowFall( 1 );
+	
+	//prevent sydney beaming into player ot telsia
+	float fToClose;
+	fToClose=1;
+	vector vSyd,vTels;
+	while(fToClose == 1){
+		wait(1);
+		
+		if(!doesEntityExist($sydney)){
+			return;
+		}
+		
+		vTels = $telsia.getOrigin();
+		vSyd = $sydney.getOrigin();
+		if(getDistanceToPlayer($sydney) > 120 && vectorLength(vSyd - vTels) > 120){
+			fToClose = 0;
+		}
+	}
+	
+	$sydney.displayEffect("TransportIn","Federation");
+	$sydney.solid();
+	$sydney.show();
+	$sydney.flags("-notarget");
+	wait(1.5);
+	$sydney.ai_on();
+	
+	//add to teammate scripts
+	teammateAdd($sydney);
+}
+
+void takeBatlethFromWall()
+//------------------------------------------------------------------------------
+// takes batleth from wall and gives one to player inventory
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	//not started by a trigger but console command or direct call - reject
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	if(!doesEntityExist(ePlayer)){
+		return;
+	}
+	
+	allowMusicDucking(1);
+	music("success","normal");
+	
+	ePlayer.give("models/weapons/worldmodel-batleth.tik");
+	ePlayer.playsound("sound/player/player_invpickup.wav");
+	$barBatlethFromWall.remove();
+	wait(0.05);
+	if(doesEntityExist(ePlayer)){
+		ePlayer.use("models/weapons/worldmodel-batleth.tik");
+	}
+}
+
+void barDoor()
+//------------------------------------------------------------------------------
+// make bar door fall over
+//------------------------------------------------------------------------------
+{
+	$barDoor.movewest(-20);
+	$barDoor.time(0.25);
+	wait(0.26);
+	$barDoor.rotateXDown(90);
+	$barDoor.time(0.2);
+}
+
+void triggerValve()
+//------------------------------------------------------------------------------
+// rotate valve when triggered
+//------------------------------------------------------------------------------
+{
+	if(VALE_TURN_ON == 0){
+		allowMusicDucking(1);
+		music("success","normal");
+		VALE_TURN_ON=1;
+	}
+
+	float fState;
+	//$sewerValve.playsound("sound/ships/drull/drull_machmove.wav");
+	$sewerValve.playsound("sound/ships/drull/drull_bigdoorstop.wav");
+	$sewerBox1.playsound("sound/environment/water/lowgurgle.wav");
+	fState = $sewerValve.getFloatVar("valveState");
+	if(fState){
+		$sewerValve.rotateY(90);
+		fState=0;
+	}else{
+		$sewerValve.rotateY(-90);
+		fState=1;
+	}
+	wait(5.5);
+	$sewerValve.setFloatVar("valveState",fState);
+	$sewerValve.rotateY(0);
+}
+
+void pickupAttraxGun()
+//------------------------------------------------------------------------------
+// attraxian gun picked up
+//------------------------------------------------------------------------------
+{
+}
+
+void pickupRomGun()
+//------------------------------------------------------------------------------
+// romulan gun picked up
+//------------------------------------------------------------------------------
+{
+}
+
+void pickupSniperGun()
+//------------------------------------------------------------------------------
+// sniper gun picked up
+//------------------------------------------------------------------------------
+{
+}
+
+void eatFood()
+//------------------------------------------------------------------------------
+// make it look like player ate some food - uservar1 is used on the trigger to determin which entity was used as food
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	//not started by a trigger but console command or direct call - reject
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	
+	entity ePlayer;
+	ePlayer = eTrigger.getLastActivatingEntity();
+	if(!doesEntityExist(ePlayer)){
+		return;
+	}
+	
+	//player dead or already in good health
+	if(ePlayer.getHealth() <= 0 || ePlayer.getHealth() >= 100){
+		return;
+	}
+		
+	//grab name of food
+	string sName;
+	sName = eTrigger.getStringVar("uservar1");
+	if(sName == ""){
+		return;
+	}
+	
+	//grab food
+	entity eFood;
+	eFood = getEntity(sName);
+	if(!doesEntityExist(eFood)){
+		return;
+	}
+	
+	//remove trigger - this food is depleted
+	if(doesEntityExist(eTrigger)){
+		eTrigger.remove();
+	}
+	
+	//remove food - heal player
+	eFood.remove();
+	ePlayer.playsound("sound/player/player_gulp.wav");
+	ePlayer.addHealthOverTime(25,3);
+}
+
+void activateOnEvent(entity eActor, string sUsed, string sDamaged)
+//------------------------------------------------------------------------------
+// set threads to run by actor if damaged or used
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(sUsed != ""){
+		eActor.onUse(sUsed);
+	}
+	if(sDamaged != ""){
+		eActor.actorOnDamage(sDamaged);
+	}
+}
+
+void barSittingAtTableHurt()
+//------------------------------------------------------------------------------
+// if girl at table in the bar is hurt - make her get up and run outside
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist($barSittingAtTable)){
+		return;
+	}
+	if($barSittingAtTable.getHealth() <= 0){
+		return;
+	}
+	
+	$barSittingAtTable.stopDialog();
+	
+	$barSittingAtTable.model("models/char/human-m9-merc-pistol-f2.tik");
+	$barSittingAtTable.registerpackage("human-m9-merc-pistol-core");
+	$barSittingAtTable.registerpackage("human-m9-merc-pistol-combat");
+	$barSittingAtTable.masterstatemap("ai/HmnM9/MS_HmnM9_Merc_Pistol.st");
+	$barSittingAtTable.giveactorweapon("actorweapons/merc-pistol.tik");
+	
+	$barSittingAtTable.walkto("$nodeInBarAtTable","run");
+	wait(0.5);
+	
+	if(!doesEntityExist($barSittingAtTable)){
+		return;
+	}
+	if($barSittingAtTable.getHealth() <= 0){
+		return;
+	}
+	
+	$barSittingAtTable.useactorweapon("MercPistol");
+	
+	/* Does not work - just beam out*/
+	$barSittingAtTable.ai_on();
+	$barSittingAtTable.actortype("Enemy");
+	//$barSittingAtTable.aggressive(1);
+	//$barSittingAtTable.sethatemodifier(1);
+}
+
+void actorTalk()
+//------------------------------------------------------------------------------
+// started by actor if used by player - cycle trough dialogs
+//------------------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(eActor.getHealth() <= 0){
+		return;
+	}
+	
+	eActor.noUse();
+	
+	float fIndex;
+	fIndex = eActor.getFloatVar("actorTalkIndex");
+	fIndex++;
+	
+	string sDialog;
+	sDialog = eActor.getStringVar("uservar"+fIndex);
+	if(sDialog == ""){
+		return;
+	}
+
+	eActor.setFloatVar("actorTalkIndex",fIndex);
+	
+	eActor.playDialog("localization/sound/dialog/"+sDialog, 1, 200, 0);
+	eActor.headwatchtarget("player",5);
+	waitForDialog( eActor );
+	eActor.headwatchtarget("none",10);
+	
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(eActor.getHealth() <= 0){
+		return;
+	}
+	eActor.onUse("actorTalk");
+}
+
+void test()
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+{
+}
+
+void removePath(entity ePath)
+//------------------------------------------------------------------------------
+// make barel go towards sucker
+//------------------------------------------------------------------------------
+{
+	entity eOld;
+	string sNextName;
+	while(doesEntityExist(ePath)){
+		eOld = ePath;
+		eOld.remove();
+		ePath = ePath.getTargetEntity();
+	}
+}
+
+void airlockBarel()
+//------------------------------------------------------------------------------
+// make barel go towards sucker
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist($explodeBarrel6)){
+		if(doesEntityExist($airlockBarelPath)){
+			$explodeBarrel6.bind($explodeBarrel6Origin);
+			$explodeBarrel6Origin.followPath($airlockBarelPath);
+			waitFor($explodeBarrel6Origin);
+			if(doesEntityExist($explodeBarrel6)){
+				trigger("$explodeBarrel6");
+				$explodeBarrel6Origin.remove();
+				wait(0.05);
+				if(!doesEntityExist($explodeBarrel6)){
+					removePath($airlockBarelPath);
+				}
+			}
+		}
+	}	
+}
+
+void airlockOpen()
+//------------------------------------------------------------------------------
+// opens the airlock door for a moment and sucks players and actors out
+// pushes actor towards specific location
+// used ChatGTP for some of the calculations
+//------------------------------------------------------------------------------
+{
+	$airLockDoors.unlock();
+	$airLockDoors.open($world);
+	$airLockDoors.playsound("sound/ships/forever/for_alarm_breach.wav");
+	//make barel move
+	thread airlockBarel();
+
+	//wait for door to open
+	wait(0.15);
+	
+	//effect
+	entity eEffect;
+	eEffect = spawn("object","model","fx/fx-explosion-ice-gas-large.tik","origin","394 -77 6","angle","270");
+	
+	//enable player and actor pusher/puller
+	$airlockGrav.speed(70);
+	$airlockGrav.playsound("sound/environment/wind/wind_vacuum.wav");
+	
+	//activate extra triggers for ai
+	float fTriggers;
+	entity eTriggers;
+	for(fTriggers=3;fTriggers>=0;fTriggers--){
+		eTriggers = getEntity("actorAirlockPush"+fTriggers);
+		if(doesEntityExist(eTriggers)){
+			eTriggers.triggerable();
+		}
+	}
+	
+	float fTime;
+	fTime = 3.2;
+	
+	vector vTarget;
+    vector actor_pos;
+    vector direction;
+    float fMagnitude;
+	float fLimitZDown;
+	float fLimitZUp;
+	float fMaxPull;
+	float fCurrentPull;
+	float fLimitRange;
+    vector vPu;
+	
+	vTarget = '384 -120 -24';
+	
+	//limit how many z units below the gravity origin we should try pulling, so we don't try pulling actors from other areas/rooms above/below
+	fLimitZDown = -70;
+	fLimitZUp = 96;
+	fLimitRange = 450;
+	fMaxPull = 25;
+    
+	while(fTime > 0){
+		fTime -= 0.1;
+		wait(0.1);
+		
+		float fEntNum,fMaxCl,fMaxEnt;
+		fMaxCl = getCvarInt("sv_maxClients");
+		fMaxEnt = getCvarInt("maxentities");
+		entity eActor;
+		for(fEntNum=fMaxCl;fEntNum < fMaxEnt;fEntNum++){
+			eActor = getEntity("*"+fEntNum);
+			
+			if(doesEntityExist(eActor)){
+				if(eActor.getHealth() > 0){
+					actor_pos = eActor.getOrigin(); // Get the actor's current position
+					if(actor_pos_z >= (fLimitZDown + vTarget_z) && actor_pos_z < (fLimitZUp + vTarget_z)){
+						if(eActor.getFloatVar("airlockNoPull") != 1){
+							direction = (vTarget - actor_pos); // Compute direction vector
+							
+							//check distance
+							if(vectorLength(direction) < fLimitRange){
+								//pull stronger the closer we get
+								fCurrentPull = fMaxPull - ((fMaxPull / 100) * vectorLength(direction) / (fLimitRange / 100));
+
+								//print("fCurrentPull: "+fCurrentPull+"\n");
+									
+								// Compute magnitude (length) of direction vector
+								fMagnitude = sqrt((direction_x * direction_x) + (direction_y * direction_y) + (direction_z * direction_z));
+
+								// Prevent division by zero
+								if (fMagnitude > 0) {
+									vPu_x = (direction_x / fMagnitude) * fCurrentPull;
+									vPu_y = (direction_y / fMagnitude) * fCurrentPull;
+									//vPu_z = (direction_z / fMagnitude) * fCurrentPull;
+									vPu_z = 5;
+									
+									eActor.push(vPu); // Apply the push force
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	$airLockDoors.lock();
+	$airLockDoors.close();
+	
+	//remove effect
+	if(doesEntityExist(eEffect)){
+		eEffect.remove();
+	}
+	
+	//stop player and actor pusher/puller
+	$airlockGrav.speed(0);
+
+	//disable extra triggers for ai
+	float fTriggers;
+	entity eTriggers;
+	for(fTriggers=3;fTriggers>=0;fTriggers--){
+		eTriggers = getEntity("actorAirlockPush"+fTriggers);
+		if(doesEntityExist(eTriggers)){
+			eTriggers.nottriggerable();
+		}
+	}
+}
+
+void stopAirlockPull()
+//------------------------------------------------------------------------------
+// sets flag to stop pull on this actor
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		entity eActor;
+		eActor = eTrigger.getLastActivatingEntity();
+		if(doesEntityExist(eActor)){
+			eActor.immortal(0);
+			eActor.suicide();
+			eActor.touchtriggers(0);
+			eActor.origin('384 -120 -24');
+		}
+		wait(2);
+		if(doesEntityExist(eActor)){
+			eActor.setFloatVar("airlockNoPull",1);
+		}
+	}
+}
+
+void cleaningRobotUpdateNodeStart(){ cleaningRobotUpdateNode("cleaningRobotStart"); }
+void cleaningRobotUpdateNode1(){ cleaningRobotUpdateNode("t22"); }
+void cleaningRobotUpdateNode2(){ cleaningRobotUpdateNode("t23"); }
+void cleaningRobotUpdateNode3(){ cleaningRobotUpdateNode("t24"); }
+void cleaningRobotUpdateNode4(){ cleaningRobotUpdateNode("t25"); }
+void cleaningRobotUpdateNode5(){ cleaningRobotUpdateNode("t26"); }
+void cleaningRobotUpdateNode6(){ cleaningRobotUpdateNode("t27"); }
+void cleaningRobotUpdateNode7(){ cleaningRobotUpdateNode("t28"); }
+void cleaningRobotUpdateNode8(){ cleaningRobotUpdateNode("t29"); }
+void cleaningRobotUpdateNode9(){ cleaningRobotUpdateNode("t30"); }
+void cleaningRobotUpdateNode10(){ cleaningRobotUpdateNode("t31"); }
+void cleaningRobotUpdateNode(string sNodeName)
+//------------------------------------------------------------------------------
+// robot reached a node - keep in mind this does not always fire correctly
+//------------------------------------------------------------------------------
+{
+	entity eNode;
+	eNode = getEntity(sNodeName);
+	if(doesEntityExist(eNode)){
+		ROBOT_CURRENT_NODE = eNode;
+		
+		if("t31" == sNodeName){
+			ROBOT_END_OF_PATH = 1;
+		}
+		
+		//print(ROBOT_CURRENT_NODE_NAME+"\n");
+	}
+}
+
+void cleaningRobotBlocked()
+//------------------------------------------------------------------------------
+// robot was blocked by player or ai
+//------------------------------------------------------------------------------
+{
+	ROBOT_LAST_TIME_BLOCKED = getLevelTime();
+	if(doesEntityExist($cleaningRobotOrigin)){
+		if(vectorLength($cleaningRobotOrigin.getVelocity()) > 0){
+			$cleaningRobot.stopLoopSound();
+			$cleaningRobot.playsound("sound/environment/computer/access_denied.wav");
+			ROBOT_CURRENT_POS = $cleaningRobotOrigin.getOrigin();
+			ROBOT_CURRENT_ANGLES = $cleaningRobotOrigin.getAngles();
+			$cleaningRobotOrigin.remove();
+		}
+	}
+	//print("Blocked\n");
+}
+
+void cleaningRobotGo()
+//------------------------------------------------------------------------------
+// make cleaning robot grid move
+// +176 x can move 7 times
+//------------------------------------------------------------------------------
+{
+	//ready cleaning robot
+	ROBOT_CURRENT_NODE = $cleaningRobotStart;
+	$cleaningRobotOriginBackup.bind($cleaningRobotOrigin);
+	$cleaningRobotTriggerField.bind($cleaningRobotOrigin);
+	$cleaningRobot.bind($cleaningRobotOrigin);
+	wait(0.2);
+	$cleaningRobot.loopSound("sound/environment/machine/poisongas_loop.wav",1,64);
+	$cleaningRobotOrigin.followPath($cleaningRobotStart,"normalangles");
+	wait(0.1);
+	
+	float fMoveAmount;
+	fMoveAmount = 44;
+	
+	float fMoved;
+	fMoved = 7;
+	while(1){
+		if(ROBOT_LAST_TIME_BLOCKED < (getLevelTime() + 3)){
+			if(doesEntityExist($cleaningRobotOrigin)){			
+				if(vectorLength($cleaningRobotOrigin.getVelocity()) == 0){
+					//print("velocity 0\n");
+					if(ROBOT_END_OF_PATH != 1){
+						$cleaningRobotOrigin.followPath(ROBOT_CURRENT_NODE,"normalangles");
+						$cleaningRobot.loopSound("sound/environment/machine/poisongas_loop.wav",1,64);
+					}else{					
+						//we are done after X ammount of moving the path
+						if(ROBOT_PATH_MOVED > 28){
+							$cleaningRobot.stopLoopSound();
+							return;
+						}
+					
+						//move the path about X amounts
+						entity eNode;
+						eNode = $cleaningRobotStart;
+						vector vMove;						
+						while(doesEntityExist(eNode)){
+							vMove = eNode.getOrigin();
+							vMove_x += fMoveAmount;
+							eNode.origin(vMove);
+							eNode = eNode.getTargetEntity();
+						}
+						ROBOT_PATH_MOVED++;
+						ROBOT_END_OF_PATH=0;
+						ROBOT_CURRENT_NODE = $cleaningRobotStart;
+						$cleaningRobotOrigin.rotateYdown(45);
+						$cleaningRobotOrigin.time(0.25);
+					}
+				}
+			}else{
+				//print("respawn\n");
+				$cleaningRobotTriggerField.nottriggerable();
+				spawn("script_origin","targetname","cleaningRobotOrigin");
+				wait(0.1);
+				vector vPos;
+				vector vAngles;
+				vPos = $cleaningRobotOriginBackup.getOrigin();
+				vAngles = $cleaningRobotOriginBackup.getAngles();
+				$cleaningRobotOrigin.origin(vPos); //ROBOT_CURRENT_POS
+				$cleaningRobotOrigin.angles(vAngles); //ROBOT_CURRENT_ANGLES
+				wait(0.1);
+				$cleaningRobotOriginBackup.bind($cleaningRobotOrigin);
+				$cleaningRobotTriggerField.bind($cleaningRobotOrigin);
+				$cleaningRobot.bind($cleaningRobotOrigin);
+				$cleaningRobotTriggerField.triggerable();
+				$cleaningRobotOrigin.movetopos(ROBOT_CURRENT_NODE.getOrigin());
+				$cleaningRobotOrigin.time(2);
+				wait(2);
+			}
+		}
+		wait(1);
+	}
+}
+
+void shuttlebayKlingons()
+//------------------------------------------------------------------------------
+// beam in more enemies
+//------------------------------------------------------------------------------
+{
+	$bruderVonKlausKinski.displayEffect("TransportIn","Idryll");
+	$klausKinski.displayEffect("TransportIn","Idryll");
+	$bruderVonKlausKinski.show();
+	$klausKinski.show();
+	$bruderVonKlausKinski.solid();
+	$klausKinski.solid();
+	$bruderVonKlausKinski.flags("-notarget");
+	$klausKinski.flags("-notarget");
+	$bruderVonKlausKinski.aggressive(1);
+	$klausKinski.aggressive(1);
+	$klausKinski.ai_on();
+	$bruderVonKlausKinski.ai_on();
+}
+
+void deathBeamOut()
+//------------------------------------------------------------------------------
+// beams out killed
+//------------------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() <= 0){
+			eActor.displayEffect("TransportOut","FederationNoAnim");
+			wait(1.8);
+			if(doesEntityExist(eActor)){
+				eActor.remove();
+			}
+		}
+	}
+}
+
+void waitForZeroZVeloctity(entity e, float fInitDelay)
+//------------------------------------------------------------------------------
+// wait until this entity has zero z velocity
+//------------------------------------------------------------------------------
+{
+	wait(fInitDelay);
+	while(doesEntityExist(e)){
+		if(vectorGetZ(e.getVelocity()) == 0){
+			return;
+		}
+		wait(0.1);
+	}
+}
+
+void actorWalkAwayIfZeroZVelocity(entity eActor, string sPath, string sPath2)
+//------------------------------------------------------------------------------
+// make actor walk away - remove once it reached the location
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(sPath == ""){
+		return;
+	}
+	waitForZeroZVeloctity(eActor,1);
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(eActor.getHealth() <= 0){
+		return;
+	}
+	eActor.walkto(sPath);
+	waitFor(eActor);
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(eActor.getHealth() <= 0){
+		return;
+	}
+	if(sPath2 == ""){
+		return;
+	}
+	eActor.walkto(sPath2);
+	waitFor(eActor);
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	if(eActor.getHealth() <= 0){
+		return;
+	}
+	eActor.remove();
+}
+
+void sewerTunelCrawlyThings()
+//------------------------------------------------------------------------------
+// in secret sewer spawn little crawly things and have them move away
+//------------------------------------------------------------------------------
+{
+	$sewerTunelCrawly1.gravity(0.5);
+	$sewerTunelCrawly1.mass(400);
+	$sewerTunelCrawly1.show();
+	$sewerTunelCrawly1.solid();
+	thread actorWalkAwayIfZeroZVelocity($sewerTunelCrawly1,"$sewerTunelCrawlyPath0", "$sewerTunelCrawlyPath1");
+	wait(2);
+	$sewerTunelCrawly0.gravity(0.5);
+	$sewerTunelCrawly0.mass(400);
+	$sewerTunelCrawly0.show();
+	$sewerTunelCrawly0.solid();
+	thread actorWalkAwayIfZeroZVelocity($sewerTunelCrawly0,"$sewerTunelCrawlyPath0", "$sewerTunelCrawlyPath1");
+}
+
+void upperLevelLadder()
+//------------------------------------------------------------------------------
+// in secret sewer spawn little crawly things and have them move away
+//------------------------------------------------------------------------------
+{
+	$upperLevelLadder.moveDown(128);
+	$upperLevelLadder.time(1.5);
+	$upperLevelLadder.playsound("sound/doors/sfa_glassdoor1.wav");
+	wait(1.6);
+	$ladderUpperLevel.triggerable();
+}
+
+void unlockRomulanGunRoom()
+//------------------------------------------------------------------------------
+// unlock romulan secret gun room
+//------------------------------------------------------------------------------
+{
+	$romulanSecretGunRoom.unlock();
+	$romulan0.ai_on();
+	$romulan0.hurt(1);
+}
+
+void destructibleWall()
+//------------------------------------------------------------------------------
+// if a trigger_multiple or other gets destroyed and some effect should be spawned
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	string sEffect;
+	sEffect = eTrigger.getStringVar("uservar1");
+	if(sEffect == ""){
+		return;
+	}
+	entity eEffect;
+	eEffect = spawn("object","model",""+sEffect,"origin",""+eTrigger.getOrigin());
+	wait(5);
+	if(doesEntityExist(eEffect)){
+		eEffect.remove();
+	}
+}
+
+void soundPlay()
+//------------------------------------------------------------------------------
+// play specified sound
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		return;
+	}
+	string sSound;
+	sSound = eTrigger.getStringVar("uservar1");
+	if(sSound == ""){
+		print("soundPlay - Error - uservar1 is empty - playing no sound\n");
+		return;
+	}
+	eTrigger.playsound(sSound);
+}
+
+void officeLaptop()
+//------------------------------------------------------------------------------
+// allow to open close laptop
+//------------------------------------------------------------------------------
+{
+	float fState;
+	fState = $officeLaptop.getFloatVar("isOpen");
+	if(fState == 1){
+		$officeLaptop.anim("closing");
+		waitForAnimation($officeLaptop,"closing");
+		$officeLaptop.anim("closed");
+		fState=0;
+	}else{
+		$officeLaptop.anim("opening");
+		waitForAnimation($officeLaptop,"opening");
+		$officeLaptop.anim("open_idle");
+		fState=1;
+	}
+	$officeLaptop.setFloatVar("isOpen",fState);
+}
+
+void teammateLevelJump(entity eActor)
+//------------------------------------------------------------------------------
+// makes teammates jump to lower level
+//------------------------------------------------------------------------------
+{
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	
+	
+	float fWait;
+	fWait = 1;
+	while(doesEntityExist(eActor) == 1 && fWait == 1){
+		eActor.ai_off();
+		eActor.walkto("$nodeJumpDown","run");
+		waitFor(eActor);
+		
+		if(!doesEntityExist(eActor)){
+			return;
+		}
+		
+		if(vectorLength( '912 240 96' - eActor.getOrigin()) < 55){
+			fWait = 0;
+		}
+		
+		print(vectorLength( '912 240 96' - eActor.getOrigin())+" Length \n");
+		
+		if(playerHighestZ() >= 90){
+			print("player up - abbort\n");
+			return;
+		}
+	}
+	
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+	
+	eActor.animateonce("jump");
+	wait(0.15);
+	
+	
+	float fIsDown;
+	float fVelZero;
+	fWait = 0;
+	while(doesEntityExist(eActor) == 1 && fIsDown != 1 && fVelZero < 2){
+		eActor.setVelocity('-150 0 0');
+		wait(0.1);
+		if(doesEntityExist(eActor)){
+			if(vectorGetZ(eActor.getOrigin()) < 90){ //check if we are below upper level Z axis
+				fIsDown = 1;
+			}
+		}
+		if(fWait == 2){
+			wait(0.1);
+			fWait = 0;
+			
+			//actor gone
+			if(!doesEntityExist(eActor)){
+				return;
+			}
+			
+			//actor dead
+			if(eActor.getHealth() <= 0){
+				return;
+			}
+			
+			//blocked by something
+			if(eActor.getVelocity() == '0 0 0'){
+				fVelZero++;
+			}
+		}
+		fWait++;
+	}
+	
+	if(!doesEntityExist(eActor)){
+		return;
+	}
+
+	eActor.anim("idle");
+}
+
+void teammateLevelTeleport()
+//------------------------------------------------------------------------------
+// teleports teammates to upper and lower level, depending on z axis pos of player
+//------------------------------------------------------------------------------
+{
+	waitforPlayer();
+	
+	/*if(getCvar("username") == "Chrissstrahl"){
+		$a700_0.suicide();
+		$a700_1.suicide();
+		$a700_2.suicide();
+		$klingonFirstEncounter.suicide();
+	}*/
+	
+	//vector vPlayerPos;
+	vector vActorPos;
+	float fZPosNewLevel = 90;
+	entity eActor;
+	float fNeedToTeleport;
+	float fNumOfSpots = 3;
+	float fZTolerance = 120;
+	float fNumTeammateCurrent;
+	string sBaseNameSpotUp;
+	string sBaseNameSpotDown;
+	string sTeleportDest;
+	float fRounds;
+	float fGoUp;
+	sBaseNameSpotUp		= "teammateUpTeleport";
+	sBaseNameSpotDown	= "teammateDownTeleport";
+	while(1){
+		string sActorName;
+		
+		for(fNumTeammateCurrent=0;fNumTeammateCurrent<TEAMMATES_MAX;fNumTeammateCurrent++){
+			sActorName = $world.getStringVar("teammmateLevelTeleport"+fNumTeammateCurrent);
+			eActor = getEntity(sActorName);
+			
+			if(doesEntityExist(eActor)){
+				if(eActor.getHealth() > 0){
+					if(vectorLength(eActor.getVelocity()) == 0){
+						fNeedToTeleport = 0;
+						//vPlayerPos = $player.getOrigin();
+						vActorPos = eActor.getOrigin();
+						
+						//player on level above
+						if(playerHighestZ() - fZTolerance > vActorPos_z && vActorPos_z < 90){ //really below upper level
+							fGoUp = 1;
+							fNeedToTeleport=1;
+							sTeleportDest = sBaseNameSpotUp;
+							print((playerHighestZ() + fZTolerance)+" vs "+vectorGetZ(vActorPos)+" upper lvl\n");
+						}
+						//player on level below
+						else if((playerLowestZ() + fZTolerance) < vActorPos_z && vActorPos_z > 90){ //really up there on upper level
+							fGoUp = 0;
+							fNeedToTeleport=1;
+							sTeleportDest = sBaseNameSpotDown;
+							print((playerLowestZ() + fZTolerance)+" vs "+vectorGetZ(vActorPos)+" lower lvl\n");
+						}
+						
+						if(fNeedToTeleport){
+							//beam only if we are going up
+							if(fGoUp){
+								//make sure a telepos exists
+								float fTeleportNow;
+								fTeleportNow = 0;					
+								float fTelePos;
+								entity eTelePos;
+								for(fTelePos=0;fTelePos<fNumOfSpots;fTelePos++){
+									eTelePos = getEntity(sTeleportDest+""+fTelePos);
+									if(doesEntityExist(eTelePos)){
+										fTeleportNow=1;
+									}
+								}
+								if(fTeleportNow){
+									eActor.ai_off();
+									//eActor.displayEffect("TransportOut","Federation");
+									eActor.notsolid();
+									eActor.notarget();									
+									//eActor.anim("communicator");									
+									//wait(1);
+									eActor.anim("idle");	
+									eActor.displayEffect("TransportOut","FederationWeapons");
+									wait(0.4);
+									
+									float fValidPosFound;
+									fValidPosFound = 0;
+									while(fValidPosFound == 0 && doesEntityExist(eActor) == 1){
+										for(fTelePos=0;fTelePos<fNumOfSpots;fTelePos++){
+											//print("telepos tried: "+sTeleportDest+""+fTelePos+"\n");
+											
+											eTelePos = getEntity(sTeleportDest+""+fTelePos);
+											if(doesEntityExist(eTelePos)){
+												//make sure actor does not transport directly next or on top of player
+												if(getDistanceToPlayer(eTelePos) > 120){
+													fValidPosFound=1;
+													
+													//check against other teleporting teammmates
+													for(fNumTeammateCurrent=0;fNumTeammateCurrent<TEAMMATES_MAX;fNumTeammateCurrent++){
+														entity eActor2;
+														string sActorName2;
+														sActorName2 = $world.getStringVar("teammmateLevelTeleport"+fNumTeammateCurrent);
+														eActor2 = getEntity(sActorName2);
+														if(doesEntityExist(eActor2)){
+															print("checking "+sActorName2+"\n");
+															if(eActor2.getHealth() > 0){
+																float fLength;
+																vector vTelePos;
+																vector vAct2Pos;															vector vTelePos;
+																vTelePos = eTelePos.getOrigin();
+																vAct2Pos = eActor2.getOrigin();
+																fLength = vectorLength(vTelePos - vAct2Pos);
+																//print("length: "+fLength+" "+sActorName2+" to "+eTelePos.getTargetName()+"\n");
+																if(fLength < 120){
+																	fValidPosFound=0;
+																	print("Actors to close, can't beam\n");
+																	wait(0.05);
+																}
+															}
+														}
+													}
+													
+													//still valid pos - abbort for loop - we have no continue/break or something - using return would end function
+													if(fValidPosFound){
+														fTelePos=999;
+													}
+												}else{
+													print("can't beam player to close to spot\n");
+													wait(0.05);
+												}
+											}
+										}
+									}
+									eActor.warp(eTelePos.getOrigin());
+									eActor.angle(vectorGetY(eTelePos.getAngles()));
+									eActor.displayEffect("TransportIn","Federation");
+									//eActor.displayEffect("TransportIn","FederationWeapons");
+									eActor.solid();
+									wait(1.26);
+									eActor.flags("-notarget");
+									eActor.ai_on();
+								}
+							}
+							//if we have to get ai to the lower level just make it jump down
+							else{
+								teammateLevelJump(eActor);
+								if(doesEntityExist(eActor)){
+									eActor.ai_on();
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		wait(2);
+	}
+}
+
+void teammateAdd(entity eActor)
+//------------------------------------------------------------------------------
+// adds teammmate to the scripts
+//------------------------------------------------------------------------------
+{
+	if(doesEntityExist(eActor)){
+		string sTargetName;
+		sTargetName = eActor.getRawTargetName();
+		if(sTargetName == ""){
+			print("teammateAdd() - Actor needs a targetname for this to work\n");
+			return;
+		}
+		
+		eActor.onUse("teamTalk");
+		
+		$world.setStringVar("teammmateLevelTeleport"+TEAMMATES_MAX,""+sTargetName);
+		TEAMMATES_MAX++;
+	}
+}
+
+void killedTeamMate()
+//------------------------------------------------------------------------------
+// player killed - by spacing or other means a teammmate
+//------------------------------------------------------------------------------
+{
+	wait(2);
+	missionfailed();
+}
+
+void replicator()
+//------------------------------------------------------------------------------
+// replicate something when trigger is used
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(!doesEntityExist(eTrigger)){
+		print("Replicator - Error - not called by a trigger\n");
+		return;
+	}
+		
+	entity eOrigin;
+	eOrigin = getEntity(eTrigger.getRawTargetName()+"Origin");
+	if(!doesEntityExist(eOrigin)){
+		print("Replicator - Error - origin entity not found for: $"+eTrigger.getRawTargetName()+"\n");
+		eTrigger.triggerable();
+		return;
+	}
+	
+	eTrigger.notTriggerable();
+	//usage feedback
+	eTrigger.playsound("sound/ships/enterprise/eng_beep01.wav"); //ent_beep_02.wav
+	
+	string sItem;
+	string sItemTemp;
+	float fScale;
+	float fIndex;
+	float fRand;
+	string sOldTargetName;
+	string sRandTargetName;
+	string sLastReplicated;
+	vector vSawnOrigin;
+	vector vOrigin;
+	
+	vOrigin			= eOrigin.getOrigin();
+	sOldTargetName	= eTrigger.getStringVar("replicatorOldEntity");
+	sLastReplicated	= eTrigger.getStringVar("replicatorLast");
+	fScale			= eTrigger.getFloatVar("uservar4");
+	if(fScale == 0){
+		print("replicator - Warning - uservar4 bad scale value < 0\n");
+		fScale = 1;
+	}
+	
+	//grab random uservar
+	fRand = randomInt(3);
+	fRand += 1;
+	//if(fRand > 3){fRand = 3;}
+	for(fIndex=1;fIndex<=fRand;fIndex++){
+		sItemTemp = eTrigger.getStringVar("uservar"+fIndex);
+		if(sItemTemp != ""){
+			sItem = sItemTemp;
+			//the correct number has been crawled and the uservar was not empty - abbort loop
+			if(sLastReplicated != sItem || fRand == fIndex){
+				//print("replicator - random num match:"+fRand+" or diff item\n");
+				fIndex = 9999;				
+			}
+		}
+	}
+	//remember last
+	eTrigger.setStringVar("replicatorLast",sItem);
+	
+	//have some delay
+	wait(0.1);
+	
+	//check if previously spawned entity still exists
+	//remove if it does
+	if(sOldTargetName != ""){
+		entity eOld;
+		eOld = getEntity(sOldTargetName);
+		
+		if(doesEntityExist(eOld)){
+			eOrigin.playsound("sound/ships/enterprise/ent_replicator.wav");
+			eOld.displayEffect("TransportOut","FederationWeapons");
+			wait(1);
+			if(doesEntityExist(eOld)){
+				eOld.remove();
+				//print("replicator - replicated old remove\n");
+			}
+			wait(1.5);
+		}
+	}
+	
+	if(sItem == ""){
+		print("replicator - Error - no modelname to spawn found in uservar1-3\n");
+		eTrigger.triggerable();
+		return;
+	}
+	
+	if(!doesEntityExist(eOrigin)){
+		print("Replicator - Error - spawner entity not found\n");
+		eTrigger.triggerable();
+		return;
+	}
+	
+	//we need fakemodel (script_model) so we can play the effect
+	eOrigin.playsound("sound/ships/enterprise/ent_replicator.wav");
+	wait(0.25);
+	entity e,e2;
+	e = spawn("script_model","model",sItem,"notsolid","1","origin",""+vOrigin,"scale",""+fScale);
+	wait(0.05);
+	
+	e.displayEffect("TransportIn","FederationWeapons");
+	wait(2);
+	//remove fake and spawn real
+	e.remove();
+	
+	//print("Replicator - fake removed - spawning real\n");
+	
+	sRandTargetName = "replicated"+floor(vOrigin_x)+"R"+floor(vOrigin_y)+"R"+floor(vOrigin_z);
+	e2 = spawn(sItem,"origin",""+vOrigin,"scale",""+fScale,"targetname",sRandTargetName,"set_respawn","0");
+	if(doesEntityExist(eTrigger)){
+		eTrigger.setStringVar("replicatorOldEntity",sRandTargetName);
+		//print("replicated random: "+sRandTargetName+"\n");
+	}
+	wait(2);
+	eTrigger.triggerable();
+}
+
+void checkTaggedAllSaved()
+//------------------------------------------------------------------------------
+// checks if all tagged actors have been saved
+//------------------------------------------------------------------------------
+{
+	if(RESCUED_PERSONAL == TAGGED_PERSONAL){		
+		wait(2);
+		
+		if(getCvarInt("g_gameType") == 0){
+			cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+			freezeplayer();
+			cinematic();
+			$player.hide();
+			$player.nodamage();
+			$player.flags("+notarget");
+			letterbox( .01 );
+			if(!doesEntityExist($cam1)){
+				spawn("camera","targetname","cam1");
+			}
+			wait( .1 );
+			$cam1.follow($finalDoorCinematic);
+			wait( .1 );
+			cuecamera( $cam1 );
+			$cam1.cut();			
+			cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+			wait(2);
+		}
+		
+		$finalHallwayDoor.unlock();
+		$finalHallwayDoor.open($world);
+		wait(3);
+		
+		if(getCvarInt("g_gameType") == 0){
+			cam_fadeout( 0.1, 0, 0, 0, 1, 0 );
+			wait( .25 );
+			cueplayer();
+			noncinematic();
+			releaseplayer();
+			clearletterbox( .1 );
+			cam_fadein( 0.5, 0, 0, 0, 1, 0 );
+			
+			$player.show();
+			$player.takedamage();
+			$player.flags("-notarget");
+		}
+		
+		wait(2);
+		
+		//cannons activate
+		float fBarrel;
+		entity eBarrel;
+		for(fBarrel=0;fBarrel<7;fBarrel++){
+			eBarrel = getEntity("cannon"+fBarrel);
+			if(doesEntityExist(eBarrel)){
+				eBarrel.health(50);
+				eBarrel.flags("-notarget");
+				eBarrel.solid();
+				eBarrel.show();
+				eBarrel.rendereffects( "+minlight" );
+				eBarrel.displayEffect("TransportIn","FederationWeapons");
+				//eBarrel.setSize('-16 -16 -8','16 16 8');
+				eBarrel.ai_on();
+				eBarrel.aggressive(1);
+			}
+		}
+	}
+}
+
+void setMusic()
+//------------------------------------------------------------------------------
+//set music moods
+//------------------------------------------------------------------------------
+{
+	entity eTrigger;
+	eTrigger = getCurrentEntity();
+	if(doesEntityExist(eTrigger)){
+		string sMood1;
+		string sMood2;
+		sMood1 = eTrigger.getStringVar("uservar1");
+		if(sMood1 == ""){
+			print("setMusic - Error - uservar1 - primary mood was empty\n");
+			return;
+		}
+		
+		sMood2 = eTrigger.getStringVar("uservar2");
+		if(sMood1 == ""){
+			sMood2 = "normal";
+		}
+		
+		allowMusicDucking(1);
+		music(sMood1,sMood2);
+		print("setMusic -> "+sMood1+" "+sMood2+"\n");
+	}
+}
+
+void teamTalk()
+//------------------------------------------------------------------------------
+//when used make teammate talk
+//------------------------------------------------------------------------------
+{
+	entity eActor;
+	eActor = getCurrentEntity();
+	if(doesEntityExist(eActor)){
+		if(eActor.getHealth() > 0){
+			string sDlg;
+			sDlg = eActor.getStringVar("uservar1");
+			if(sDlg != ""){
+				eActor.playDialog("localization/sound/dialog/"+sDlg);
+			}else{
+				print("teamTalk - Warning - uservar1 empty - no dialog to play\n");
+			}
+		}
+	}
+}
+
+void levelEnd()
+//------------------------------------------------------------------------------
+//Level end
+//------------------------------------------------------------------------------
+{
+	//pushback to main menu in singleplayer
+	if(getCvarInt("g_gameType") == 0){
+		wait(5);
+		stuffCmd("disconnect");
+	}
+}

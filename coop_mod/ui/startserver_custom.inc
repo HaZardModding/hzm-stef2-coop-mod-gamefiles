@@ -275,5 +275,27 @@ Button
 	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_greatDekuTree.tga;globalwidgetcommand coop_startserverName title \"[RRE]Fvillha\""
 	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
 }
+//[b60025] chrissstrahl - added new map
+resource
+Button
+{
+	cvarvisibility coop_ui_vt 13 ==
+	title "Coop Episode 1 - Starbase"
+	name 	"communitymap_coop_ep1-platform1"
+	rect	275 366 328 20
+	font serpentinemedium-10
+	fgcolor 		1.000 1.000 1.000 0.800
+	bgcolor 		0.12 0.15 0.25 0.7
+	hoverbgcolor 	0.22 0.25 0.35 1.0
+	
+	horizontaljustify left
+	verticaljustify top
+	
+	clicksound sound/misc/menu/click.wav
+ 
+	stuffcommand "set ui_startmap coop_ep1-platform1\n"
+	hovercommand "globalwidgetcommand coop_startserverShot shader sysimg/mapshots/coop_ep1-platform1.tga;globalwidgetcommand coop_startserverName title \"Daedalus, Chrissstrahl\""
+	hoverexitcommand "globalwidgetcommand coop_startserverShot shader sysimg/2d/default-map-screen.tga;globalwidgetcommand coop_startserverName title \"\""
+}
 end.
 

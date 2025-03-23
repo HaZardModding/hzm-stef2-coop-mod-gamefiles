@@ -1,0 +1,163 @@
+//------------------------------------------------------------------------------
+// THESE FUNCTIONS HANDLE PLAYER CHECKS SPECIFIC STUFF FOR MULTIPLAYER
+// Chrissstrahl - 2025.03.12
+//------------------------------------------------------------------------------
+void getPlayerTargetnameHandling();
+float getDistanceToPlayer(entity e);
+void playerGive(string sToGive);
+float playerHighestZ();
+float playerLowestZ();
+
+
+float PLAYER_TARGETNAME_TYPE;
+
+
+float getDistanceToPlayer(entity e)
+//------------------------------------------------------------------------------
+// returns distance to closest player
+//------------------------------------------------------------------------------
+{
+	float fDist,fLowsetDist;
+	fDist = 99999;
+	fLowsetDist = 99990;
+	
+	if(!doesEntityExist(e)){
+		print("getDistanceToPlayer - parameter 1 entity does not exist\n");
+		return 99991;
+	}
+
+	//singleplayer
+	if(getCvarInt("g_gameType") == 0){
+		vector vPlayer,vE;
+		vPlayer = $player.getOrigin();
+		vE = e.getOrigin();
+		fLowsetDist = vectorLength(vPlayer - vE);
+		print("getDistanceToPlayer: "+fLowsetDist+"\n");
+	}
+	//multiplayer
+	else{
+		vector vEOrigin;
+		entity eCurPly;
+		float fCurPly;
+		float fMaxClients;
+		vEOrigin = e.getOrigin();
+		fMaxClients = getCvarInt("sv_maxClients");
+		for(fCurPly=0;fCurPly<fMaxClients;fCurPly++){
+			eCurPly = getEntity("*"+fCurPly);
+			if(doesEntityExist(eCurPly)){
+				if(eCurPly.getHealth() > 0){
+					fDist = vectorLength(eCurPly.getOrigin() - vEOrigin);
+					if(fDist < fLowsetDist){
+						fLowsetDist = fDist;
+						print("getDistanceToPlayer ply["+fCurPly+"] lowest dist: "+fLowsetDist+"\n");
+					}
+				}
+			}
+		}
+		print("getDistanceToPlayer: "+fLowsetDist+"\n");
+		return fLowsetDist;
+	}
+}
+
+void getPlayerTargetnameHandling()
+//------------------------------------------------------------------------------
+// check which gamecode is running by determining what targetname the player has
+//------------------------------------------------------------------------------
+{
+	waitForPlayer();
+	//multiplayer
+	//type of gamecode 0=all_are_named_player 1=players_are_targetnamed_by_client-id
+	if(doesEntityExist($player)){
+		PLAYER_TARGETNAME_TYPE=0;
+	}else{
+		entity ePlayer;
+		float fCurPly;
+		float fMaxClients;
+		fMaxClients = getCvarInt("sv_maxClients");
+		for(fCurPly=0;fCurPly<fMaxClients;fCurPly++){
+			ePlayer = getEntity("player"+fCurPly);
+			if(doesEntityExist(ePlayer)){
+				PLAYER_TARGETNAME_TYPE=1;
+				return;
+			}
+		}
+	}
+}
+
+void playerGive(string sToGive)
+//------------------------------------------------------------------------------
+// returns distance to closest player
+//------------------------------------------------------------------------------
+{
+	//singleplayer
+	if(getCvarInt("g_gameType") == 0){
+		$player.give(sToGive);
+	}else{
+		entity ePlayer;
+		float fCurPly;
+		float fMaxClients;
+		fMaxClients = getCvarInt("sv_maxClients");
+		for(fCurPly=0;fCurPly<fMaxClients;fCurPly++){
+			ePlayer = getEntity("*"+fCurPly);
+			if(doesEntityExist(ePlayer)){
+				if(ePlayer.getHealth() > 0){
+					ePlayer.give(sToGive);
+				}
+			}
+		}
+	}
+}
+
+float playerHighestZ()
+//------------------------------------------------------------------------------
+// returns highest Z axis of all players
+//------------------------------------------------------------------------------
+{
+	float fHighestZ;
+	float fCurZ;
+	entity ePlayer;
+	float fCurPly;
+	float fMaxClients;
+	
+	fHighestZ = -99990;
+	fMaxClients = getCvarInt("sv_maxClients");
+	for(fCurPly=0;fCurPly<fMaxClients;fCurPly++){
+		ePlayer = getEntity("*"+fCurPly);
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getHealth() > 0){
+				fCurZ = vectorGetZ(ePlayer.getOrigin());
+				if(fCurZ > fHighestZ){
+					fHighestZ = fCurZ;
+				}
+			}
+		}
+	}
+	return fHighestZ;
+}
+
+float playerLowestZ()
+//------------------------------------------------------------------------------
+// returns lowest Z axis of all players
+//------------------------------------------------------------------------------
+{
+	float fLowestZ;
+	float fCurZ;
+	entity ePlayer;
+	float fCurPly;
+	float fMaxClients;
+	
+	fLowestZ = 99990;
+	fMaxClients = getCvarInt("sv_maxClients");
+	for(fCurPly=0;fCurPly<fMaxClients;fCurPly++){
+		ePlayer = getEntity("*"+fCurPly);
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getHealth() > 0){
+				fCurZ = vectorGetZ(ePlayer.getOrigin());
+				if(fCurZ < fLowestZ){
+					fLowestZ = fCurZ;
+				}
+			}
+		}
+	}
+	return fLowestZ;
+}
