@@ -11,6 +11,7 @@
 //-----------------------------------------------------------------------------------
 // UPDATE[2] 2023.01.28 - Made sure is setupVariables_internal is always executed
 // UPDATE[3] 2023.01.28 - Added Func replaceWith
+// UPDATE[4] 2025.03.24 - Added Func playerReturnRandom, playerPossiblySpectator, existingLiving
 
 //LEVEL VARS
 /////////////////////////////////////////////
@@ -49,6 +50,10 @@ float calcFloatReturnPositive(float fNotNegative);
 float calcIsBoundingBoxInsideBoundingBox_internal(
 vector vOrigin1,vector vBBoxMins1,vector vBBoxMaxs1,
 vector vOrigin2,vector vBBoxMins2,vector vBBoxMaxs2,float fPadding);
+float playerPossiblySpectator(entity ePlayer);
+float existingLiving(entity e);
+entity playerReturnRandom();
+float randomIntActual(float fMax);
 entity playerReturnClosest(entity eOrigin);
 entity playerReturnClosest_internal(entity eOrigin,float fEqualizeZAxis);
 float playerIsCrouching(entity ePlayer);
@@ -412,6 +417,102 @@ void entityBeam(entity eActor,string sEffectType,string sEffectname)
 	wait(float_oneFrameTime);
 	eActor.show();
 	wait(2.25);
+}
+
+float playerPossiblySpectator(entity ePlayer)
+//----------------------------------------------------------------------
+// checks if the player could be a spectator - spectators have 100 hp and no weapon
+//----------------------------------------------------------------------
+{
+	if(integer_serverGametype != 0){
+		print("spec 1\n");
+		if(doesEntityExist(ePlayer)){
+			if(ePlayer.getHealth() == 100){
+				print("spec 2\n");
+				string sWeapon;
+				sWeapon = ePlayer.getActiveWeaponName();
+				if(sWeapon == "None"){
+					print("spec 3\n");
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+float existingLiving(entity e)
+//----------------------------------------------------------------------
+// checks if entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(e)){
+		if(e.getHealth() > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+entity playerReturnRandom()
+//----------------------------------------------------------------------
+// returns a randomly selected player entity - originally used for the blitz on Hatoria
+//----------------------------------------------------------------------
+{
+	entity ePlayer, eRandomPlayer;
+	float fExistingPlayers;
+	float fRandom;
+	float fPlayerIdInUse;
+	float fTries;
+	
+	//grab each player and put it in a kind of array	
+	for(fPlayerIdInUse=0;fPlayerIdInUse<integer_maxClients;fPlayerIdInUse++){
+		ePlayer = getEntity("*"+fPlayerIdInUse);
+		if(existingLiving(ePlayer)){
+			if(!playerPossiblySpectator(ePlayer)){ //there is no reliable spectator check
+				fExistingPlayers++;
+				$world.setFloatVar("playerReturnRandom_activeplayer"+fExistingPlayers,fPlayerIdInUse);
+			}
+		}	
+	}
+	
+	//grab a random player id from this kinda array, try 6 times
+	if(fExistingPlayers > 0){
+		string sVarName;
+		for(fTries=6;fTries>0;fTries--){
+			fPlayerIdInUse = 0;
+			//fRandom = randomint(fExistingPlayers + 1);
+			fRandom = randomIntActual(fExistingPlayers + 1);
+			sVarName = "playerReturnRandom_activeplayer"+fRandom;
+			if($world.doesVarExist((sVarName))){
+				fPlayerIdInUse = $world.getFloatVar((sVarName));
+			}
+			ePlayer = getEntity("*"+fPlayerIdInUse);
+			if(doesEntityExist(ePlayer)){
+				return ePlayer;
+			}
+		}
+	}
+	return eRandomPlayer;
+}
+
+float randomIntActual(float fMax)
+//----------------------------------------------------------------------
+// Enhanced random integer from 0 to fMax
+// This version hits less frequently 0 and max than the standard rondomInt()
+// This is 
+//----------------------------------------------------------------------
+{
+	float fRange,fRandA,fRandB,fAvg;
+	fRange	= fMax + 1; // +1 to make it inclusive
+	fRandA	= randomint(fRange); // 0 to fMax
+	fRandB	= randomint(fRange); // 0 to fMax
+	fAvg	= (fRandA + fRandB) * 0.5;
+
+	if (randomint(2) == 1) {
+		return ceil(fAvg);
+	}
+	return floor(fAvg);
 }
 
 entity playerReturnClosest(entity eOrigin)
