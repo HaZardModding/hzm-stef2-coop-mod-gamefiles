@@ -180,23 +180,42 @@ float globalCoop_return_floatMultiplicatedPlayerQuantity(float fMultiplicateMe)
 }
 
 
+float globalCoop_return_integerRandom(float fMax)
+//----------------------------------------------------------------------
+// Enhanced random integer from 0 to fMax
+// This version hits less frequently 0 and max than the standard rondomInt()
+// This is 
+//----------------------------------------------------------------------
+{
+	float fRange,fRandA,fRandB,fAvg;
+	fRange	= fMax + 1; // +1 to make it inclusive
+	fRandA	= randomint(fRange); // 0 to fMax
+	fRandB	= randomint(fRange); // 0 to fMax
+	fAvg	= (fRandA + fRandB) * 0.5;
+
+	if (randomint(2) == 1) {
+		return ceil(fAvg);
+	}
+	return floor(fAvg);
+}
+
+
 entity globalCoop_return_playerRandom()
 //----------------------------------------------------------------------
 // returns a randomly selected player entity - originally used for the blitz on Hatoria
 //----------------------------------------------------------------------
 {
 	entity ePlayer, eRandomPlayer;
-	float fExistingPlayers=-1;//want it to start at 0 later in script, see bellow
+	float fExistingPlayers;
 	float fRandom;
 	float fPlayerIdInUse;
 	float fTries;
 	
 	//grab each player and put it in a kind of array	
-	for(fPlayerIdInUse=0;fPlayerIdInUse<coop_integer_maxPlayers;fPlayerIdInUse++){
-		//[b60025] Chrissstrahl - using now entity num instead of targetname
+	for(fPlayerIdInUse=0;fPlayerIdInUse<integer_maxClients;fPlayerIdInUse++){
 		ePlayer = getEntity("*"+fPlayerIdInUse);
 		if(globalCoop_check_existingLivingEntity(ePlayer)){
-			if(!globalCoop_check_playerSpectator(ePlayer)){
+			if(!globalCoop_check_playerSpectator(ePlayer)){ //there is no reliable spectator check
 				fExistingPlayers++;
 				$world.setFloatVar("globalCoop_return_activeplayer"+fExistingPlayers,fPlayerIdInUse);
 			}
@@ -205,13 +224,16 @@ entity globalCoop_return_playerRandom()
 	
 	//grab a random player id from this kinda array, try 6 times
 	if(fExistingPlayers > 0){
+		string sVarName;
 		for(fTries=6;fTries>0;fTries--){
-			fRandom = randomint(fExistingPlayers);
-			fPlayerIdInUse = $world.getFloatVar("globalCoop_return_activeplayer"+fRandom);
+			fPlayerIdInUse = 0;
+			sVarName = "globalCoop_return_activeplayer"+(globalCoop_return_integerRandom(fExistingPlayers) + 1);
+			if($world.doesVarExist((sVarName))){
+				fPlayerIdInUse = $world.getFloatVar((sVarName));
+			}
 			ePlayer = getEntity("*"+fPlayerIdInUse);
 			if(doesEntityExist(ePlayer)){
-				fTries = 0;
-				eRandomPlayer = ePlayer;
+				return ePlayer;
 			}
 		}
 	}
