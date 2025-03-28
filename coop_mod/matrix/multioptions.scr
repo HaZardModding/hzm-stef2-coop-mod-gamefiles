@@ -1,5 +1,7 @@
 //MOM - Multi Options Menu
-//Christian Sebastian Strahl 2011.02.26
+//Christian Sebastian Strahl Updated version 2025.03.26
+//- latest reliable mom version
+//- external dependencies go trough internal functions so they can be easily swapped
 //
 //This Script and Menu Combination detects what button the player pressed in the menu,
 //and runs the appropirate script/function
@@ -8,9 +10,6 @@
 //Means Keep these Comment Lines and do not use it for comercial purpose,
 //other than that, edit/alter/upgrade/rerelease or do what you want with it.
 
-
-//declaration
-////////////////////////////////////////////////////////////////////////////////
 void	mom_playerUsePreviouseWeapon(entity ePlayer);
 void	mom_giveOrTakeWeapons(entity ePlayer,float fGive);
 entity	mom_returnPlayerForTrigger(entity eTrigger);
@@ -20,27 +19,36 @@ void	mom_showMessagePlayer(entity ePlayer,string sMessage);
 void	mom_doActivate(entity eTrigger,entity ePlayer);
 void	mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon);
 float	mom_validUser(entity ePlayer, float fInstance);  //[b607] make sure the player is still valid
+void	mom_print(string sText);
+void	mom_waitFrame();
+void	mom_playerHudAdd(entity ePlayer,string sHudName);
+void	mom_weaponRestore(entity e);
+void	mom_weaponPutAway(entity e);
+float	mom_isExistingLiving(entity e);
+float	mom_isPlayer(entity e);
 void	mom_basic();
 
 void mom_playerUsePreviouseWeapon(entity ePlayer)
+//----------------------------------------------------------------------
+//resture weapon when exiting
+//----------------------------------------------------------------------
 {
-	if(doesEntityExist(ePlayer))
-	{
+	if(doesEntityExist(ePlayer)){
 		string sWeapon;
 		sWeapon = ePlayer.getStringVar("mom_previouseWeapon");
-		if(sWeapon == "")
-		{
+		if(sWeapon == ""){
 			globalCoop_armory_restoreWeapon(ePlayer);
 		}
-		else
-		{
+		else{
 			ePlayer.use(sWeapon);
 		}
 	}
 }
 
 void mom_giveOrTakeWeapons(entity ePlayer,float fGive)
-//gives or takes all the menu weapons
+//----------------------------------------------------------------------
+//gives or takes all the menu weapons - these weapons are used to detect which button in menu was pressed
+//----------------------------------------------------------------------
 {
 	//[b609] this optional limit variable was introduced to reduce
 	//the ammount of new entities added to the map (used on Coop Enterprise E)
@@ -48,17 +56,13 @@ void mom_giveOrTakeWeapons(entity ePlayer,float fGive)
 	fNumber = $world.getFloatVar("mom_maxWeapons");
 	if(fNumber>16 || fNumber < 1){ fNumber = 16; }
 	
-	if(doesEntityExist(ePlayer))
-	{
+	if(doesEntityExist(ePlayer)){
 		float fNum;
-		for(fNum=0;fNum<16;fNum++)
-		{
-			if(fGive)
-			{
+		for(fNum=0;fNum<16;fNum++){
+			if(fGive){
 				ePlayer.give("models/weapons/"+fNum+".tik");
 			}
-			else
-			{
+			else{
 				ePlayer.take("models/weapons/"+fNum+".tik");
 			}
 		}
@@ -66,11 +70,13 @@ void mom_giveOrTakeWeapons(entity ePlayer,float fGive)
 }
 
 entity	mom_returnPlayerForTrigger(entity eTrigger)
+//----------------------------------------------------------------------
 //returns the player last used the trigger
+//----------------------------------------------------------------------
 {
 	entity ePlayer;
-	//since [b607] in c++ !login starts mom thread on player, this is why we have to do this check
-	if(eTrigger.getSubclassName() == "Player"){
+	//since [b60007] in c++ !login starts mom thread on player, this is why we have to do this check
+	if(mom_isPlayer(eTrigger)){
 		ePlayer = eTrigger;
 	}else{
 		ePlayer = eTrigger.getLastActivatingEntity();
@@ -79,10 +85,11 @@ entity	mom_returnPlayerForTrigger(entity eTrigger)
 }
 
 void mom_exitMenuPlayer(entity ePlayer)
+//----------------------------------------------------------------------
+//handle exit
+//----------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer)){
-		//ePlayer.give("models/weapons/worldmodel-Knife.tik");
-		//globalCoop_main_waitAFrame(); //[b607] not needed
 		ePlayer.setFloatVar("mom_validationStamp",0);//[b607] security tooken destruction		
 		ePlayer.setStringVar("mom_entityBasename","");//[b608] reset value
 		ePlayer.setstringvar("mom_exitWidgetcommand","");//[b608] reset value
@@ -92,91 +99,77 @@ void mom_exitMenuPlayer(entity ePlayer)
 }
 
 void mom_removeMenuPlayer(entity ePlayer)
+//----------------------------------------------------------------------
+//remove menu/hud
+//----------------------------------------------------------------------
 {
 	if(doesEntityExist(ePlayer))
 	{
 		string 		sMenuName;
 		sMenuName	= ePlayer.getStringVar("mom_menuName");
 		ePlayer.removeHud(sMenuName);
-		globalCoop_main_waitAFrame();
-		
-		//[b608] chrissstrahl - not sure where this is even used, so I disabled it
-		/*
-		float fMenu;
-		for(fMenu=0;fMenu<10;fMenu++){
-			sMenuName = ePlayer.getStringVar("mom_menuName"+fMenu);
-			
-			if(sMenuName != ""){
-				ePlayer.removeHud(sMenuName);
-				globalCoop_main_waitAFrame();
-			}
-		}*/
+		mom_waitFrame();
 
-	//game focus
+		//game focus
 		if(doesEntityExist(ePlayer)){
 			if(!ePlayer.getFloatVar("mom_noGameFocus") != 1 && sMenuName != "coop_menu"){
-				ePlayer.addhud("mom_gameFocus");
+				//ePlayer.addhud("mom_gameFocus");
+				sendClientCommand(ePlayer,"ui_hideMouse\n");
 			}
 		}
 	}
 }
 
 void mom_showMessagePlayer(entity ePlayer,string sMessage)
+//----------------------------------------------------------------------
+//show a message reliably
+//----------------------------------------------------------------------
 {
-//if in multiplayer
-	if(getCvarInt("g_gametype") != 0)
-	{
-	//print message to player hud
-		if(doesEntityExist(ePlayer))
-		{
+	//multiplayer
+	if(getCvarInt("g_gametype") != 0){
+		if(doesEntityExist(ePlayer)){
 			ePlayer.hudprint(sMessage+"\n");
 		}
+		return;
 	}
-//otherwise this is a singleplayer game
-	else
-	{
-		centerprint(sMessage+"\n");
-	}
+	//singleplayer game
+	centerprint(sMessage+"\n");
 }
 
 void mom_doActivate(entity eTrigger,entity ePlayer)
+//----------------------------------------------------------------------
 //activates trigger only if both are valid
+//----------------------------------------------------------------------
 {
-	if(doesEntityExist(eTrigger)==1 && doesEntityExist(ePlayer)==1)
-	{
+	if(doesEntityExist(eTrigger)==1 && doesEntityExist(ePlayer)==1){
 		eTrigger.doActivate(ePlayer);
 	}
 }
 
 void mom_waitForWeaponDrawDelay(entity ePlayer,string sWeapon)
-//waits for delay the weapon needs to be drawn after USE command->player,weaponname
+//----------------------------------------------------------------------
+//waits for delay the weapon needs to be drawn after USE command->player,weaponname	
+//----------------------------------------------------------------------
 {
-//create internal variable, can only be accessed inside this function
 	float fLimit;
-//repeat this as long as the player does exist and is alive
-	while(globalCoop_check_existingLivingEntity(ePlayer))
-	{
-	//count each time this variable plus one up
+	//repeat this as long as the player does exist and is alive
+	while(mom_isExistingLiving(ePlayer)){
 		fLimit++;
-	//for test/debug purposes
-		// stuffcmd("echo fLimit: "+fLimit+"\n");
 	//when the limit is hit or the player has used the requested weapon
-		if(fLimit > 43 || ePlayer.getActiveWeaponName() == sWeapon)
-		{
-		//exit this function now
+		if(fLimit > 43 || ePlayer.getActiveWeaponName() == sWeapon){
 			return;
 		}
 	//wait a server frame time
-		globalCoop_main_waitAFrame();
+		mom_waitFrame();
 	}
 }
 
-
 float mom_validUser(entity ePlayer, float fInstance)
+//----------------------------------------------------------------------
 //[b607] make sure the player is still valid, floatvar is set in mom basic
+//----------------------------------------------------------------------
 {
-	if(globalCoop_check_existingLivingEntity(ePlayer)){
-		//have 1 sec tollerance
+	if(mom_isExistingLiving(ePlayer)){
 		if(ePlayer.getFloatVar("mom_validationStamp") == fInstance){
 			return 1;
 		}
@@ -184,55 +177,126 @@ float mom_validUser(entity ePlayer, float fInstance)
 	return 0;
 }
 
+void mom_print(string sText)
+//----------------------------------------------------------------------
+//Checks if given entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	globalCoop_main_print(sText);
+}
+
+void mom_waitFrame()
+//----------------------------------------------------------------------
+//Checks if given entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	globalCoop_main_waitAFrame();
+}
+
+void mom_playerHudAdd(entity ePlayer,string sHudName)
+//----------------------------------------------------------------------
+//Checks if given entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	globalCoop_huds_Add(ePlayer, sHudName);
+}
+
+void mom_weaponRestore(entity e)
+//----------------------------------------------------------------------
+//tries to restore previouse weapon when mom_weaponPutAway was used
+//----------------------------------------------------------------------
+{
+	globalCoop_armory_restoreWeapon(e);
+}
+
+void mom_weaponPutAway(entity e)
+//----------------------------------------------------------------------
+//Checks if given entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	globalCoop_armory_putAwayWeapon(e);
+}
+
+float mom_isExistingLiving(entity e)
+//----------------------------------------------------------------------
+//Checks if given entity does exist and is alive
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(e)){
+		if(e.getHealth() > 0){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+float mom_isPlayer(entity e)
+//----------------------------------------------------------------------
+//Checks if given entity is a player
+//----------------------------------------------------------------------
+{
+	if(doesEntityExist(e)){
+		if(globalCoop_check_isPlayer(e)){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+//CHECK IF -> mom_gameFocus and mom_processed is even needed or useful anymore
 
 void mom_basic()
-//this tingy does all the stuff
+//----------------------------------------------------------------------
+//MAIN FUNCTION - 
+//----------------------------------------------------------------------
 {
-	//$player1.hudprint("started::mom_basic\n");
-//create internal variables, used only inside this function
-	float	fEntity;
-	entity	eTrigger,ePlayer,eSymbol,eRelay;
-	string	sWeapon,sThreadName,sMenuName,sWeaponName,sTargetname;
+	entity eTrigger;
+	entity ePlayer;
 	
-//grab the trigger that started this function and get player
+	//grab the trigger that started this function and get player
 	eTrigger	= getCurrentEntity();
-	if(doesEntityExist(eTrigger))
-	{
-		//since [b607] in c++ !login starts mom thread on player, this is why we have to do this check
-		if(eTrigger.getSubclassName() == "Player"){
+	if(doesEntityExist(eTrigger)){
+		//[b60007] Coop Mod in c++ !login starts mom thread on player, this is why we have to do this check
+		if(mom_isPlayer(ePlayer)){
 			ePlayer = eTrigger;
 		}else{
 			ePlayer = eTrigger.getLastActivatingEntity();
 		}
-	}
-	
-//EXIT IF PLAYER INVALID, THREAD MAY ALSO HAVE BEEN CALLED BY CONSOLE
-	if(!globalCoop_check_existingLivingEntity(ePlayer))
-	{
+		//exit if player invalid, thread may also have been called by console
+		if(!mom_isExistingLiving(ePlayer)){
+			return;
+		}
+		
+	}else{
 		return;
 	}
-//GET TRIGGER NAME
-	sTargetname = eTrigger.getRawTargetName();
 	
-//GET PLAYER WEAPON,
+
+	float	fEntity;
+	entity	eSymbol,eRelay;
+	string	sWeapon,sThreadName,sMenuName,sWeaponName,sTargetname;
+	
+//GET TRIGGER NAME
+//GET PLAYER WEAPON
+	sTargetname = eTrigger.getRawTargetName();
 	sWeaponName = ePlayer.getActiveWeaponName();
 	
 //REMEMBER AND TAKE CURRENT WEAPON (makes the transition into menu faster)
-	globalCoop_armory_putAwayWeapon(ePlayer);
-	if(sWeaponName != "Menu")
-	{
+	mom_weaponPutAway(ePlayer);
+	if(sWeaponName != "Menu"){
 		ePlayer.setStringVar("mom_previouseWeapon",sWeaponName);
 	}
 	
 //DISABLE TRIGGER
-	//since [b607] in c++ !login starts mom thread on player, this is why we have to do this check
-	if(eTrigger.getSubclassName() != "Player"){
+	//[b60007] Coop Mod in c++ !login starts mom thread on player, this is why we have to do this check
+	if(!mom_isPlayer(eTrigger)){
 		eTrigger.nottriggerable();
 	}
 	
 //RELAY TRIGGER MANAGMENT
 	eRelay = spawn("trigger_relay");
-	globalCoop_main_waitAFrame();
+	mom_waitFrame();
 	eRelay.setStringVar("mom_originalTriggerName",sTargetname);
 	if(doesEntityExist(eTrigger))
 	{
@@ -249,8 +313,7 @@ void mom_basic()
 
 //GRAB THE MENU NAME, IF NONE GIVEN USE DEFAULT
 	sMenuName = eTrigger.getStringVar("uservar1");
-	if(sMenuName == "")
-	{
+	if(sMenuName == ""){
 		sMenuName = "mom_default";
 	}
 //GRAB THE MASTER THREAD FOR THIS TRIGGER
@@ -262,21 +325,21 @@ void mom_basic()
 	ePlayer.removehud("mom_gameFocus");
 		
 //WAIT A MOMENT FOR THE WEAPONS TO GO INTO THE PLAYER INVENTORY
-	globalCoop_main_waitAFrame();
+	mom_waitFrame();
 		
 //ADD THE CURRENT MENU (Modified hud to act as menu!) AND REMEMBER MENU NAME
 	if(doesEntityExist(ePlayer)){
 		ePlayer.give("models/weapons/worldmodel-Knife.tik");
-		globalCoop_huds_Add(ePlayer,sMenuName);
+		mom_playerHudAdd(ePlayer,sMenuName);
 		ePlayer.setStringVar("mom_menuName",sMenuName);	
 	}
 //CHECK FOR WEAPON CHANGE (menu makes player use knife)
 	mom_waitForWeaponDrawDelay(ePlayer,"Knife");
 //PLAYER IS MISSING - TERMINATE THIS THREAD AND ENABLE TRIGGER AGAIN
-	if(!globalCoop_check_existingLivingEntity(ePlayer)){
+	if(!mom_isExistingLiving(ePlayer)){
 		//since [b607] in c++ !login starts mom thread on player, this is why we have to do this check
 		if(doesEntityExist(eTrigger)){
-			if(eTrigger.getSubclassName() != "Player"){
+			if(!mom_isPlayer(eTrigger)){
 				eTrigger.triggerable();
 			}
 		}
@@ -293,13 +356,13 @@ void mom_basic()
 		//start alternative thread activated by the player
 			eRelay.thread(sThreadName);
 			mom_doActivate(eRelay,ePlayer);
-			globalCoop_main_waitAFrame();
+			mom_waitFrame();
 			eRelay.remove();
 		}
 //DISPLAY A MESSAGE IF NO ALTERNATIVE THREAD IS DECLARED
 		else{
 		//print a status message
-			globalCoop_main_print("mom_basic::player_missing_menu__"+sMenuName);
+			mom_print("mom_basic::player_missing_menu__"+sMenuName);
 		//inform player
 			ePlayer.hudprint("^5Coop INFO:^3 Missing menu:^8 "+sMenuName+"\n");
 		}
@@ -307,7 +370,7 @@ void mom_basic()
 		thread mom_removeMenuPlayer(ePlayer);	
 //RESTORE BASIC THREAD AND PLAYER WEAPON, EXIT THIS FUNCTION
 		//since [b607] in c++ !login starts mom thread on player, this is why we have to do this check
-		if(eTrigger.getSubclassName() != "Player"){
+		if(!mom_isPlayer(eTrigger)){
 			eTrigger.triggerable();
 		}
 		mom_playerUsePreviouseWeapon(ePlayer);
@@ -350,7 +413,7 @@ void mom_basic()
 //IF HE DOES, HE PRESSED A BUTTON IN THE MENU CALLING THE WEAPON
 //FROM THE PLAYER HIS INVENTORY
 	vector vPlayerOrigin, vTriggerOrigin;
-	while(globalCoop_check_existingLivingEntity(ePlayer)){
+	while(mom_isExistingLiving(ePlayer)){
 	//get the current weapon and origins
 		sWeapon			= ePlayer.getActiveWeaponName();//grab active weapon data
 		vPlayerOrigin	= ePlayer.getOrigin();
@@ -367,14 +430,15 @@ void mom_basic()
 	//- died
 		if(vectorLength(vTriggerOrigin - vPlayerOrigin) > 110){
 		//print a status message
-			globalCoop_main_print("mom_basic::player_out_of_range");
+			mom_print("mom_basic::player_out_of_range");
 			
 		//Take Weapons
 			mom_giveOrTakeWeapons(ePlayer,0);
 			
 		//remove the Menu
 			thread mom_removeMenuPlayer(ePlayer);
-			ePlayer.addhud("mom_gameFocus");
+			//ePlayer.addhud("mom_gameFocus");
+			sendClientCommand(ePlayer,"ui_hideMouse\n");
 			
 		//make player use his previouse weapon again
 			mom_playerUsePreviouseWeapon(ePlayer);
@@ -455,30 +519,31 @@ void mom_basic()
 					centerprint("relay trigger does not exist");
 				}
 //REMOVE SIGNAL HUD (so it can be added again)
-				ePlayer.removehud("mom_processed");
+				//ePlayer.removehud("mom_processed");
 //WAIT FOR THE CURRENT WEAPON TO VANISH
 				ePlayer.putawayweapon("dual");
 				mom_waitForWeaponDrawDelay(ePlayer,"None");
 //SIGNAL THE MENU OF THIS PLAYER THAT MOM IS READY FOR MORE INPUT
 				//[b60025] chrissstrahl - Fixed: missing doesEntityExist check
 				if(doesEntityExist(ePlayer)){
-					ePlayer.addhud("mom_processed");
+					//ePlayer.addhud("mom_processed");
+					sendClientCommand(ePlayer,"set cl_motd 1\n");
 				}
 			}
 			else{
 			//pause one frame
-				globalCoop_main_waitAFrame();
+				mom_waitFrame();
 			}
 		}
 	}
 	eRelay.remove();
 //REMOVE MENU AND WEAPON
 	if(doesEntityExist(ePlayer)){
-		ePlayer.addhud("mom_gameFocus"); //[b607] moved here so that it will not refer to NULL-ENTITY if player left
+		//ePlayer.addhud("mom_gameFocus");
+		sendClientCommand(ePlayer,"ui_hideMouse\n");
 		thread mom_removeMenuPlayer(ePlayer);
-		//[b60025] chrissstrahl - changed health from < 1 to <= 0, because I thin < 1 was a bug
+		//[b60025] chrissstrahl - changed health from < 1 to <= 0, because I think < 1 was a bug
 		if(ePlayer.getHealth() <= 0){
-			ePlayer.addhud("mom_gameFocus");
 			ePlayer.take("models/weapons/worldmodel-Knife.tik");
 			mom_giveOrTakeWeapons(ePlayer,0);
 		}
@@ -490,5 +555,3 @@ void mom_basic()
 		eSymbol.show();
 	}
 }
-
-
