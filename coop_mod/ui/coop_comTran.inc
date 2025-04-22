@@ -28,8 +28,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 0;togglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -46,8 +46,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 1;togglemenu coop_com"
-	shader textures/xxx/coopLcars024.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars024.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -64,8 +64,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 2;togglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -82,8 +82,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 3;togglemenu coop_com"
-	shader textures/xxx/coopLcars024.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars024.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 resource
 Button
@@ -99,8 +99,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 4;togglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 resource
 Button
@@ -116,8 +116,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 5;togglemenu coop_com"
-	shader textures/xxx/coopLcars024.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars024.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 resource
 Button
@@ -133,8 +133,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 6;togglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 resource
 Button
@@ -150,8 +150,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "20"
 	stuffcommand "!transport 7;togglemenu coop_com"
-	shader textures/xxx/coopLcars024.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars024.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -170,8 +170,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "21"
 	stuffcommand "!transport;togglemenu coop_com"
-	shader textures/xxx/coopLcars020.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars020.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 ////////////////////////////////////////////////////////////////////////////////

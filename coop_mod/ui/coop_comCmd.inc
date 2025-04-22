@@ -26,8 +26,8 @@ Button
 	clicksound sound/environment/computer/lcars_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars013.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars013.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"$$Back$$\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -47,8 +47,8 @@ Button
 	clicksound sound/environment/computer/lcars_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"$$GetList$$\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -71,8 +71,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows you your Info\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -92,8 +92,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Displays your and targeted origin\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -113,8 +113,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Prints current Game Difficulty Level\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -134,8 +134,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Use to aim on a Player that is blocking the way\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -155,8 +155,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars013.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars013.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows you as green dot on Radar\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -175,8 +175,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Moves you to Spawn location\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -196,8 +196,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Drops your current weapon if possible\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -217,8 +217,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars029.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars029.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Kicks all BOT players\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -238,8 +238,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Commit Suicide\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -259,8 +259,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars023.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars023.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Reconnects you to Server\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -280,8 +280,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars023.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars023.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Requests Server Reboot\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -301,8 +301,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Toggles 3rd Person viewmode\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -322,8 +322,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Activates a Transport Inhibitor\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -343,8 +343,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Transfers one of your lives to a dead player\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -364,8 +364,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Activate Coop Class Special ability\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -387,8 +387,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "10"
 	stuffcommand "set coop_comL 11"
-	shader textures/xxx/coopLcars020.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars020.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 ////////////////////////////////////////////////////////////////////////////////
 //COMMAND BUTTONS -  A D M I N
@@ -404,8 +404,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Turns no clipping on/off\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -425,8 +425,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows playerspawnspots\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -446,8 +446,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Moves you to playerspawnspots for testing\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -467,8 +467,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars015.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars015.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Shows targeted entity Targetnames\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -488,8 +488,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars023.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars023.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Runs the level end script function\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -510,8 +510,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars023.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars023.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Reboots the Server right now\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -531,8 +531,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars019.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars019.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Clears server Models cache right now\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -565,8 +565,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Login in to the Server\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -586,8 +586,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Logs you out\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -609,8 +609,8 @@ Button
 	bgcolor 0 0 0 0
 	cvarvisibility "coop_comL" "11"
 	stuffcommand "set coop_comL 10"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -627,8 +627,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -648,8 +648,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -669,8 +669,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -690,8 +690,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -711,8 +711,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -732,8 +732,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -753,8 +753,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -774,8 +774,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -795,8 +795,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -816,8 +816,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Enter Number\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -837,8 +837,8 @@ Button
 	clicksound sound/environment/computer/holo_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars021.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars021.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"Reset\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
@@ -858,8 +858,8 @@ Button
 	clicksound sound/environment/computer/lcars_yes.wav
 	fgcolor 0 0 0 1
 	bgcolor 0 0 0 0
-	shader textures/xxx/coopLcars013.tga
-	hovershader textures/xxx/coopLcars017.tga
+	shader textures/coop_mod/lcars/coopLcars013.tga
+	hovershader textures/coop_mod/lcars/coopLcars017.tga
 	
 	hovercommand "globalwidgetcommand coop_comTooltip title \"$$Back$$\""
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""

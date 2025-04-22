@@ -18,8 +18,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "!follow;say =\/\\= : Follow me! : =\/\\= : Folgen Sie mir!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -39,8 +39,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Cover me! : =\/\\= : Geben Sie mir Deckung!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -60,8 +60,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Take cover! : =\/\\= : In Deckung!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -81,8 +81,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Fallback! : =\/\\= : Rueckzug!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -102,8 +102,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Lead the way! : =\/\\= : Gehen Sie voran!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -123,8 +123,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Take next Objective! : =\/\\= : Naechstes Ziel uebernehmen!\ntogglemenu coop_communicato"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -144,8 +144,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Meet with me! : =\/\\= : Stossen Sie zu mir!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -165,8 +165,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Hold this position! : =\/\\= : Halten Sie diese Position!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -186,8 +186,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I need backup!: =\/\\= : Ich brauche Unterstuetzung!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -210,8 +210,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Positive... : =\/\\= : Positiv...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -231,8 +231,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Negative... : =\/\\= : Negativ...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -252,8 +252,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Following you... : =\/\\= : Ich folge Ihnen...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -273,8 +273,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Covering you... : =\/\\= : Ich gebe Deckung...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -294,8 +294,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I am retreating... : =\/\\= : Ich ziehe mich zurueck...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -315,8 +315,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : Leading the way... : =\/\\= : Ich gehe voran...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -336,8 +336,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I take the next Objective... : =\/\\= : Ich erledige naechstes Missionsziel...\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -357,8 +357,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I am waiting here: =\/\\= : Ich warte hier\n togglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -378,8 +378,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I need a Medic! : =\/\\= : Ich brauche ein Doctor!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars012.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars012.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 resource
@@ -399,8 +399,8 @@ Button
 	hoverexitcommand "globalwidgetcommand coop_comTooltip title \"\""
 
 	stuffcommand "say =\/\\= : I need a Technican! : =\/\\= : Ich brauche ein Techniker!\ntogglemenu coop_com"
-	shader textures/xxx/coopLcars014.tga
-	hovershader textures/xxx/coopLcars016.tga
+	shader textures/coop_mod/lcars/coopLcars014.tga
+	hovershader textures/coop_mod/lcars/coopLcars016.tga
 }
 
 ////////////////////////////////////////////////////////////////////////////////
